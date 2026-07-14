@@ -28,6 +28,8 @@ const localSchema = z
   .min(1, "Enter your Branta ID.")
   .regex(/^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$/, "Only letters, numbers, dot, dash, underscore.");
 
+type CaptchaStatus = "loading" | "ready" | "expired" | "error";
+
 function LoginPage() {
   const navigate = useNavigate();
   const { reason } = useSearch({ from: "/login" });
@@ -38,7 +40,9 @@ function LoginPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaStatus, setCaptchaStatus] = useState<CaptchaStatus>("loading");
   const turnstileRef = useRef<TurnstileInstance | null>(null);
+  const submitLockRef = useRef(false);
 
   const validateLocal = (v: string) => {
     if (!v) return setLocalError(null);
@@ -46,9 +50,20 @@ function LoginPage() {
     setLocalError(r.success ? null : r.error.issues[0]?.message ?? null);
   };
 
+  const canSubmit =
+    !submitting &&
+    captchaStatus === "ready" &&
+    !!captchaToken &&
+    local.length > 0 &&
+    password.length > 0 &&
+    !localError;
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Double-submit guard — synchronous lock beats React state race conditions.
+    if (submitLockRef.current) return;
     setFormError(null);
+
     const r = localSchema.safeParse(local);
     if (!r.success) {
       setLocalError(r.error.issues[0]?.message ?? "Invalid Branta ID.");
@@ -58,33 +73,44 @@ function LoginPage() {
       setFormError("Enter your password.");
       return;
     }
-    if (!captchaToken) {
-      setFormError("Please complete the verification challenge.");
+    if (!captchaToken || captchaStatus !== "ready") {
+      setFormError(
+        captchaStatus === "expired"
+          ? "Verification expired. Please complete the challenge again."
+          : "Please complete the verification challenge.",
+      );
       return;
     }
+
+    submitLockRef.current = true;
     setSubmitting(true);
     const email = `${r.data}${DOMAIN}`;
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-      options: { captchaToken },
-    });
-    // Turnstile tokens are single-use — always reset after an auth attempt.
-    turnstileRef.current?.reset();
-    setCaptchaToken(null);
-    if (error) {
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+        options: { captchaToken },
+      });
+      // Turnstile tokens are single-use — always reset after an auth attempt.
+      turnstileRef.current?.reset();
+      setCaptchaToken(null);
+      setCaptchaStatus("loading");
+      if (error) {
+        setFormError(error.message);
+        return;
+      }
+      const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (aal?.nextLevel === "aal2" && aal.currentLevel !== "aal2") {
+        navigate({ to: "/two-factor" });
+      } else {
+        navigate({ to: "/app" });
+      }
+    } finally {
       setSubmitting(false);
-      setFormError(error.message);
-      return;
-    }
-    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-    setSubmitting(false);
-    if (aal?.nextLevel === "aal2" && aal.currentLevel !== "aal2") {
-      navigate({ to: "/two-factor" });
-    } else {
-      navigate({ to: "/app" });
+      submitLockRef.current = false;
     }
   };
+
 
   return (
     <div className="flex min-h-screen bg-card">
