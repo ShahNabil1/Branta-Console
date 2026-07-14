@@ -249,7 +249,7 @@ function LoginPage() {
                 className="w-full"
               />
               <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-                Protected by Cloudflare Turnstile
+                PROTECTED BY CLOUDFLARE
               </p>
             </div>
           </form>
