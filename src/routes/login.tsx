@@ -76,12 +76,7 @@ function LoginPage() {
       {/* Left rail */}
       <aside className="relative hidden w-[45%] flex-col justify-between overflow-hidden bg-zinc-950 p-12 text-white lg:flex">
         <div className="z-10 flex items-center gap-3">
-          <img
-            src={brandLogo.url}
-            alt="Branta"
-            className="h-9 w-auto brightness-0 invert-[.85]"
-            style={{ filter: "none" }}
-          />
+          <img src={brandLogo.url} alt="Branta" className="h-9 w-auto" />
         </div>
         <div className="z-10 max-w-sm">
           <h1 className="text-balance text-4xl font-semibold leading-[1.1] tracking-tight">
