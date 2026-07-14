@@ -133,10 +133,8 @@ function LoginPage() {
               </label>
               <div
                 className={cn(
-                  "flex h-9 w-full overflow-hidden rounded-sm border bg-card transition-shadow focus-within:ring-1",
-                  localError
-                    ? "border-rose-500 focus-within:border-rose-500 focus-within:ring-rose-500"
-                    : "border-border focus-within:border-brand focus-within:ring-brand",
+                  "flex h-9 w-full overflow-hidden rounded-sm border bg-card",
+                  localError ? "border-rose-500" : "border-border",
                 )}
               >
                 <input
@@ -150,22 +148,20 @@ function LoginPage() {
                     validateLocal(e.target.value);
                   }}
                   onBlur={(e) => validateLocal(e.target.value)}
-                  placeholder="your.name"
-                  className="flex-1 bg-transparent px-3 font-mono text-[13px] outline-none placeholder:text-muted-foreground/50"
+                  className={cn(
+                    "flex-1 bg-transparent px-3 font-mono text-[13px] outline-none transition-shadow focus:ring-1 focus:ring-inset",
+                    localError ? "focus:ring-rose-500" : "focus:ring-brand",
+                  )}
                 />
                 <div className="grid select-none place-items-center border-l border-border bg-muted px-3 font-mono text-[13px] font-semibold text-brand">
                   {DOMAIN}
                 </div>
               </div>
-              <div className="mt-1.5 text-[11px] font-medium uppercase tracking-[0.1em]">
-                {localError ? (
-                  <span className="text-rose-600">{localError}</span>
-                ) : (
-                  <span className="text-muted-foreground">
-                    Only @brantatech.com accounts can sign in
-                  </span>
-                )}
-              </div>
+              {localError && (
+                <div className="mt-1.5 text-[11px] font-medium uppercase tracking-[0.1em] text-rose-600">
+                  {localError}
+                </div>
+              )}
             </div>
 
             {/* Password with show/hide */}
