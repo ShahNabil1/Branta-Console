@@ -13,7 +13,9 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { supabase } from "@/integrations/supabase/client";
 import { useStrictSecurity } from "@/hooks/use-strict-security";
+import { useStrictSecurity } from "@/hooks/use-strict-security";
 import { Toaster } from "@/components/ui/sonner";
+import { DevToolsShield } from "@/components/branta/devtools-shield";
 
 function NotFoundComponent() {
   return (
@@ -162,8 +164,11 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Outlet />
+      <DevToolsShield>
+        <Outlet />
+      </DevToolsShield>
       <Toaster position="bottom-right" />
     </QueryClientProvider>
   );
 }
+
