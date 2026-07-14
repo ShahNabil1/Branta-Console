@@ -13,7 +13,6 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { supabase } from "@/integrations/supabase/client";
 import { useStrictSecurity } from "@/hooks/use-strict-security";
-import { useStrictSecurity } from "@/hooks/use-strict-security";
 import { Toaster } from "@/components/ui/sonner";
 import { DevToolsShield } from "@/components/branta/devtools-shield";
 
