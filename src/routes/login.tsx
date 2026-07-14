@@ -221,12 +221,36 @@ function LoginPage() {
             <div className="pt-1">
               <button
                 type="submit"
-                disabled={submitting}
-                className="flex h-9 w-full items-center justify-center gap-2 rounded-sm bg-brand text-[13px] font-semibold text-white transition-colors hover:bg-brand-700 disabled:opacity-60"
+                disabled={submitting || !captchaToken}
+                className="flex h-9 w-full items-center justify-center gap-2 rounded-sm bg-brand text-[13px] font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {submitting && <Loader2 className="size-3.5 animate-spin" />}
                 Sign in
               </button>
+            </div>
+
+            {/* Turnstile verification */}
+            <div className="flex flex-col items-center gap-2 pt-2">
+              <Turnstile
+                ref={turnstileRef}
+                siteKey={TURNSTILE_SITE_KEY}
+                options={{
+                  theme: "light",
+                  size: "flexible",
+                  appearance: "always",
+                  action: "login",
+                }}
+                onSuccess={(token) => setCaptchaToken(token)}
+                onExpire={() => setCaptchaToken(null)}
+                onError={() => {
+                  setCaptchaToken(null);
+                  setFormError("Verification failed. Please try again.");
+                }}
+                className="w-full"
+              />
+              <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                Protected by Cloudflare Turnstile
+              </p>
             </div>
           </form>
 
