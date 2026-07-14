@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
-import { Fingerprint, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { z } from "zod";
-import { auth } from "@/lib/auth";
-import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import brandLogo from "@/assets/brand-logo.png.asset.json";
 
 const searchSchema = z.object({
   reason: z.enum(["idle", "signed_out"]).optional(),
@@ -13,43 +13,40 @@ const searchSchema = z.object({
 export const Route = createFileRoute("/login")({
   ssr: false,
   validateSearch: searchSchema,
-  head: () => ({
-    meta: [{ title: "Sign in · Branta Tech" }],
-  }),
+  head: () => ({ meta: [{ title: "Sign in · Branta Tech" }] }),
   component: LoginPage,
 });
 
-const emailSchema = z
+const DOMAIN = "@brantatech.com";
+const localSchema = z
   .string()
   .trim()
   .toLowerCase()
-  .email("Enter a valid email address.")
-  .refine(
-    (v) => v.endsWith("@brantatech.com"),
-    "Only @brantatech.com addresses are permitted.",
-  );
+  .min(1, "Enter your Branta ID.")
+  .regex(/^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$/, "Only letters, numbers, dot, dash, underscore.");
 
 function LoginPage() {
   const navigate = useNavigate();
   const { reason } = useSearch({ from: "/login" });
-  const [email, setEmail] = useState("");
+  const [local, setLocal] = useState("");
   const [password, setPassword] = useState("");
-  const [emailError, setEmailError] = useState<string | null>(null);
+  const [showPw, setShowPw] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const validateEmail = (v: string) => {
-    if (!v) return setEmailError(null);
-    const r = emailSchema.safeParse(v);
-    setEmailError(r.success ? null : r.error.issues[0]?.message ?? null);
+  const validateLocal = (v: string) => {
+    if (!v) return setLocalError(null);
+    const r = localSchema.safeParse(v);
+    setLocalError(r.success ? null : r.error.issues[0]?.message ?? null);
   };
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
-    const r = emailSchema.safeParse(email);
+    const r = localSchema.safeParse(local);
     if (!r.success) {
-      setEmailError(r.error.issues[0]?.message ?? "Invalid email.");
+      setLocalError(r.error.issues[0]?.message ?? "Invalid Branta ID.");
       return;
     }
     if (!password) {
@@ -57,24 +54,34 @@ function LoginPage() {
       return;
     }
     setSubmitting(true);
-    const { error } = await auth.signInWithPassword({ email: r.data, password });
-    setSubmitting(false);
+    const email = `${r.data}${DOMAIN}`;
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
+      setSubmitting(false);
       setFormError(error.message);
       return;
     }
-    navigate({ to: "/two-factor" });
+    // Root layout will re-check AAL and redirect to /two-factor when needed.
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    setSubmitting(false);
+    if (aal?.nextLevel === "aal2" && aal.currentLevel !== "aal2") {
+      navigate({ to: "/two-factor" });
+    } else {
+      navigate({ to: "/app" });
+    }
   };
 
   return (
     <div className="flex min-h-screen bg-card">
       {/* Left rail */}
       <aside className="relative hidden w-[45%] flex-col justify-between overflow-hidden bg-zinc-950 p-12 text-white lg:flex">
-        <div className="z-10 flex items-center gap-2">
-          <div className="size-6 rounded-sm bg-brand" />
-          <span className="text-xl font-bold tracking-tight">
-            BRANTA<span className="font-light opacity-50">TECH</span>
-          </span>
+        <div className="z-10 flex items-center gap-3">
+          <img
+            src={brandLogo.url}
+            alt="Branta"
+            className="h-9 w-auto brightness-0 invert-[.85]"
+            style={{ filter: "none" }}
+          />
         </div>
         <div className="z-10 max-w-sm">
           <h1 className="text-balance text-4xl font-semibold leading-[1.1] tracking-tight">
@@ -101,7 +108,10 @@ function LoginPage() {
 
       {/* Form */}
       <main className="flex flex-1 flex-col justify-center bg-muted px-6 py-12 sm:px-16 lg:px-24">
-        <div className="mx-auto w-full max-w-[380px]">
+        <div className="mx-auto w-full max-w-[400px]">
+          <div className="mb-8 flex lg:hidden">
+            <img src={brandLogo.url} alt="Branta" className="h-8 w-auto" />
+          </div>
           <header className="mb-8">
             <h2 className="text-xl font-semibold tracking-tight text-foreground">
               Operator sign in
@@ -118,42 +128,52 @@ function LoginPage() {
           )}
 
           <form onSubmit={onSubmit} className="space-y-4" noValidate>
+            {/* Branta ID with fixed domain suffix */}
             <div>
               <label
-                htmlFor="email"
+                htmlFor="local"
                 className="mb-1.5 block text-[12px] font-medium text-muted-foreground"
               >
-                Email address
+                Branta ID
               </label>
-              <input
-                id="email"
-                type="email"
-                autoComplete="username"
-                value={email}
-                onChange={(e) => {
-                  setEmail(e.target.value);
-                  validateEmail(e.target.value);
-                }}
-                onBlur={(e) => validateEmail(e.target.value)}
-                placeholder="name@brantatech.com"
+              <div
                 className={cn(
-                  "h-9 w-full rounded-sm border bg-card px-3 font-mono text-[13px] outline-none transition-shadow placeholder:text-muted-foreground/50",
-                  emailError
-                    ? "border-rose-500 focus:ring-1 focus:ring-rose-500"
-                    : "border-border focus:border-brand focus:ring-1 focus:ring-brand",
+                  "flex h-9 w-full overflow-hidden rounded-sm border bg-card transition-shadow focus-within:ring-1",
+                  localError
+                    ? "border-rose-500 focus-within:border-rose-500 focus-within:ring-rose-500"
+                    : "border-border focus-within:border-brand focus-within:ring-brand",
                 )}
-              />
+              >
+                <input
+                  id="local"
+                  type="text"
+                  autoComplete="username"
+                  spellCheck={false}
+                  value={local}
+                  onChange={(e) => {
+                    setLocal(e.target.value.toLowerCase());
+                    validateLocal(e.target.value);
+                  }}
+                  onBlur={(e) => validateLocal(e.target.value)}
+                  placeholder="your.name"
+                  className="flex-1 bg-transparent px-3 font-mono text-[13px] outline-none placeholder:text-muted-foreground/50"
+                />
+                <div className="grid select-none place-items-center border-l border-border bg-muted px-3 font-mono text-[13px] font-semibold text-brand">
+                  {DOMAIN}
+                </div>
+              </div>
               <div className="mt-1.5 text-[11px] font-medium uppercase tracking-[0.1em]">
-                {emailError ? (
-                  <span className="text-rose-600">{emailError}</span>
+                {localError ? (
+                  <span className="text-rose-600">{localError}</span>
                 ) : (
                   <span className="text-muted-foreground">
-                    Only @brantatech.com addresses are permitted
+                    Only @brantatech.com accounts can sign in
                   </span>
                 )}
               </div>
             </div>
 
+            {/* Password with show/hide */}
             <div>
               <label
                 htmlFor="password"
@@ -161,14 +181,29 @@ function LoginPage() {
               >
                 Password
               </label>
-              <input
-                id="password"
-                type="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="h-9 w-full rounded-sm border border-border bg-card px-3 text-[13px] outline-none transition-shadow focus:border-brand focus:ring-1 focus:ring-brand"
-              />
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPw ? "text" : "password"}
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="h-9 w-full rounded-sm border border-border bg-card px-3 pr-10 text-[13px] outline-none transition-shadow focus:border-brand focus:ring-1 focus:ring-brand"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPw((v) => !v)}
+                  aria-label={showPw ? "Hide password" : "Show password"}
+                  aria-pressed={showPw}
+                  className="absolute right-1 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  {showPw ? (
+                    <EyeOff className="size-3.5" strokeWidth={1.75} />
+                  ) : (
+                    <Eye className="size-3.5" strokeWidth={1.75} />
+                  )}
+                </button>
+              </div>
             </div>
 
             {formError && (
@@ -177,7 +212,7 @@ function LoginPage() {
               </div>
             )}
 
-            <div className="space-y-3 pt-1">
+            <div className="pt-1">
               <button
                 type="submit"
                 disabled={submitting}
@@ -185,19 +220,6 @@ function LoginPage() {
               >
                 {submitting && <Loader2 className="size-3.5 animate-spin" />}
                 Sign in
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  toast("Passkey sign-in", {
-                    description:
-                      "WebAuthn will be enabled after Supabase is connected. Contact IT to enroll a device.",
-                  })
-                }
-                className="flex h-9 w-full items-center justify-center gap-2 rounded-sm border border-border bg-card text-[13px] font-medium text-foreground transition-colors hover:bg-muted"
-              >
-                <Fingerprint className="size-4" strokeWidth={1.75} />
-                Sign in with passkey
               </button>
             </div>
           </form>
