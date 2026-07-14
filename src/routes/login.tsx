@@ -37,6 +37,8 @@ function LoginPage() {
   const [localError, setLocalError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileInstance | null>(null);
 
   const validateLocal = (v: string) => {
     if (!v) return setLocalError(null);
@@ -56,15 +58,25 @@ function LoginPage() {
       setFormError("Enter your password.");
       return;
     }
+    if (!captchaToken) {
+      setFormError("Please complete the verification challenge.");
+      return;
+    }
     setSubmitting(true);
     const email = `${r.data}${DOMAIN}`;
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+      options: { captchaToken },
+    });
+    // Turnstile tokens are single-use — always reset after an auth attempt.
+    turnstileRef.current?.reset();
+    setCaptchaToken(null);
     if (error) {
       setSubmitting(false);
       setFormError(error.message);
       return;
     }
-    // Root layout will re-check AAL and redirect to /two-factor when needed.
     const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
     setSubmitting(false);
     if (aal?.nextLevel === "aal2" && aal.currentLevel !== "aal2") {
