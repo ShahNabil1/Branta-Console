@@ -28,6 +28,8 @@ const localSchema = z
   .min(1, "Enter your Branta ID.")
   .regex(/^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$/, "Only letters, numbers, dot, dash, underscore.");
 
+type CaptchaStatus = "loading" | "ready" | "expired" | "error";
+
 function LoginPage() {
   const navigate = useNavigate();
   const { reason } = useSearch({ from: "/login" });
@@ -38,7 +40,9 @@ function LoginPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaStatus, setCaptchaStatus] = useState<CaptchaStatus>("loading");
   const turnstileRef = useRef<TurnstileInstance | null>(null);
+  const submitLockRef = useRef(false);
 
   const validateLocal = (v: string) => {
     if (!v) return setLocalError(null);
@@ -46,9 +50,20 @@ function LoginPage() {
     setLocalError(r.success ? null : r.error.issues[0]?.message ?? null);
   };
 
+  const canSubmit =
+    !submitting &&
+    captchaStatus === "ready" &&
+    !!captchaToken &&
+    local.length > 0 &&
+    password.length > 0 &&
+    !localError;
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Double-submit guard — synchronous lock beats React state race conditions.
+    if (submitLockRef.current) return;
     setFormError(null);
+
     const r = localSchema.safeParse(local);
     if (!r.success) {
       setLocalError(r.error.issues[0]?.message ?? "Invalid Branta ID.");
@@ -58,33 +73,44 @@ function LoginPage() {
       setFormError("Enter your password.");
       return;
     }
-    if (!captchaToken) {
-      setFormError("Please complete the verification challenge.");
+    if (!captchaToken || captchaStatus !== "ready") {
+      setFormError(
+        captchaStatus === "expired"
+          ? "Verification expired. Please complete the challenge again."
+          : "Please complete the verification challenge.",
+      );
       return;
     }
+
+    submitLockRef.current = true;
     setSubmitting(true);
     const email = `${r.data}${DOMAIN}`;
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-      options: { captchaToken },
-    });
-    // Turnstile tokens are single-use — always reset after an auth attempt.
-    turnstileRef.current?.reset();
-    setCaptchaToken(null);
-    if (error) {
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+        options: { captchaToken },
+      });
+      // Turnstile tokens are single-use — always reset after an auth attempt.
+      turnstileRef.current?.reset();
+      setCaptchaToken(null);
+      setCaptchaStatus("loading");
+      if (error) {
+        setFormError(error.message);
+        return;
+      }
+      const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (aal?.nextLevel === "aal2" && aal.currentLevel !== "aal2") {
+        navigate({ to: "/two-factor" });
+      } else {
+        navigate({ to: "/app" });
+      }
+    } finally {
       setSubmitting(false);
-      setFormError(error.message);
-      return;
-    }
-    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-    setSubmitting(false);
-    if (aal?.nextLevel === "aal2" && aal.currentLevel !== "aal2") {
-      navigate({ to: "/two-factor" });
-    } else {
-      navigate({ to: "/app" });
+      submitLockRef.current = false;
     }
   };
+
 
   return (
     <div className="flex min-h-screen bg-card">
@@ -137,7 +163,7 @@ function LoginPage() {
             </div>
           )}
 
-          <form onSubmit={onSubmit} className="space-y-4" noValidate>
+          <form onSubmit={onSubmit} className="space-y-4" noValidate aria-busy={submitting}>
             {/* Branta ID with fixed domain suffix */}
             <div>
               <label
@@ -163,20 +189,29 @@ function LoginPage() {
                     validateLocal(e.target.value);
                   }}
                   onBlur={(e) => validateLocal(e.target.value)}
+                  aria-invalid={!!localError}
+                  aria-describedby={localError ? "local-error" : undefined}
                   className={cn(
                     "flex-1 bg-transparent px-3 font-mono text-[13px] outline-none transition-shadow focus:ring-1 focus:ring-inset",
                     localError ? "focus:ring-rose-500" : "focus:ring-brand",
                   )}
                 />
-                <div className="grid select-none place-items-center border-l border-border bg-muted px-3 font-mono text-[13px] font-semibold text-brand">
+                <div
+                  aria-hidden="true"
+                  className="grid select-none place-items-center border-l border-border bg-muted px-3 font-mono text-[13px] font-semibold text-brand"
+                >
                   {DOMAIN}
                 </div>
               </div>
-              {localError && (
-                <div className="mt-1.5 text-[11px] font-medium uppercase tracking-[0.1em] text-rose-600">
-                  {localError}
-                </div>
-              )}
+              {/* Reserved space to avoid layout shift */}
+              <div
+                id="local-error"
+                role="alert"
+                aria-live="polite"
+                className="mt-1.5 min-h-[14px] text-[11px] font-medium uppercase tracking-[0.1em] text-rose-600"
+              >
+                {localError}
+              </div>
             </div>
 
             {/* Password with show/hide */}
@@ -201,7 +236,7 @@ function LoginPage() {
                   onClick={() => setShowPw((v) => !v)}
                   aria-label={showPw ? "Hide password" : "Show password"}
                   aria-pressed={showPw}
-                  className="absolute right-1 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  className="absolute right-1 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand"
                 >
                   {showPw ? (
                     <EyeOff className="size-3.5" strokeWidth={1.75} />
@@ -212,47 +247,81 @@ function LoginPage() {
               </div>
             </div>
 
-            {formError && (
-              <div className="rounded-sm border border-rose-200 bg-rose-50 px-3 py-2 text-[12px] text-rose-700">
-                {formError}
-              </div>
-            )}
+            {/* Reserved form error slot to prevent layout shift */}
+            <div
+              id="form-error"
+              role="alert"
+              aria-live="assertive"
+              className={cn(
+                "min-h-[36px] rounded-sm border px-3 py-2 text-[12px] transition-opacity",
+                formError
+                  ? "border-rose-200 bg-rose-50 text-rose-700 opacity-100"
+                  : "border-transparent bg-transparent opacity-0",
+              )}
+            >
+              {formError ?? "\u00A0"}
+            </div>
 
             <div className="pt-1">
               <button
                 type="submit"
-                disabled={submitting || !captchaToken}
-                className="flex h-9 w-full items-center justify-center gap-2 rounded-sm bg-brand text-[13px] font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={!canSubmit}
+                aria-disabled={!canSubmit}
+                aria-describedby="captcha-status form-error"
+                className="flex h-9 w-full items-center justify-center gap-2 rounded-sm bg-brand text-[13px] font-semibold text-white transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {submitting && <Loader2 className="size-3.5 animate-spin" />}
-                Sign in
+                {submitting && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
+                <span>{submitting ? "Signing in…" : "Sign in"}</span>
               </button>
             </div>
 
             {/* Turnstile verification */}
             <div className="flex flex-col items-center gap-2 pt-2">
-              <Turnstile
-                ref={turnstileRef}
-                siteKey={TURNSTILE_SITE_KEY}
-                options={{
-                  theme: "light",
-                  size: "flexible",
-                  appearance: "always",
-                  action: "login",
-                }}
-                onSuccess={(token) => setCaptchaToken(token)}
-                onExpire={() => setCaptchaToken(null)}
-                onError={() => {
-                  setCaptchaToken(null);
-                  setFormError("Verification failed. Please try again.");
-                }}
-                className="w-full"
-              />
-              <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-                PROTECTED BY CLOUDFLARE
+              <div className="min-h-[65px] w-full" aria-label="Verification challenge">
+                <Turnstile
+                  ref={turnstileRef}
+                  siteKey={TURNSTILE_SITE_KEY}
+                  options={{
+                    theme: "light",
+                    size: "flexible",
+                    appearance: "always",
+                    action: "login",
+                  }}
+                  onWidgetLoad={() => setCaptchaStatus((s) => (s === "ready" ? s : "loading"))}
+                  onSuccess={(token) => {
+                    setCaptchaToken(token);
+                    setCaptchaStatus("ready");
+                    if (formError === "Verification failed. Please try again." ||
+                        formError?.startsWith("Verification expired")) {
+                      setFormError(null);
+                    }
+                  }}
+                  onExpire={() => {
+                    setCaptchaToken(null);
+                    setCaptchaStatus("expired");
+                  }}
+                  onError={() => {
+                    setCaptchaToken(null);
+                    setCaptchaStatus("error");
+                    setFormError("Verification failed. Please try again.");
+                  }}
+                  className="w-full"
+                />
+              </div>
+              <p
+                id="captcha-status"
+                role="status"
+                aria-live="polite"
+                className="min-h-[14px] text-[10px] uppercase tracking-[0.12em] text-muted-foreground"
+              >
+                {captchaStatus === "loading" && "Loading verification…"}
+                {captchaStatus === "ready" && "Protected by Cloudflare"}
+                {captchaStatus === "expired" && "Verification expired — retrying"}
+                {captchaStatus === "error" && "Verification error — try again"}
               </p>
             </div>
           </form>
+
 
           <footer className="mt-12 border-t border-border pt-6">
             <p className="text-[11px] uppercase leading-relaxed tracking-[0.1em] text-muted-foreground">
