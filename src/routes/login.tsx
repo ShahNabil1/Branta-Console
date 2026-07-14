@@ -1,10 +1,13 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { z } from "zod";
+import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import brandLogo from "@/assets/brand-logo.png.asset.json";
+
+const TURNSTILE_SITE_KEY = "0x4AAAAAACNbiRh7P7qtgkXG";
 
 const searchSchema = z.object({
   reason: z.enum(["idle", "signed_out"]).optional(),
@@ -34,6 +37,8 @@ function LoginPage() {
   const [localError, setLocalError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileInstance | null>(null);
 
   const validateLocal = (v: string) => {
     if (!v) return setLocalError(null);
@@ -53,15 +58,25 @@ function LoginPage() {
       setFormError("Enter your password.");
       return;
     }
+    if (!captchaToken) {
+      setFormError("Please complete the verification challenge.");
+      return;
+    }
     setSubmitting(true);
     const email = `${r.data}${DOMAIN}`;
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+      options: { captchaToken },
+    });
+    // Turnstile tokens are single-use — always reset after an auth attempt.
+    turnstileRef.current?.reset();
+    setCaptchaToken(null);
     if (error) {
       setSubmitting(false);
       setFormError(error.message);
       return;
     }
-    // Root layout will re-check AAL and redirect to /two-factor when needed.
     const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
     setSubmitting(false);
     if (aal?.nextLevel === "aal2" && aal.currentLevel !== "aal2") {
@@ -206,12 +221,36 @@ function LoginPage() {
             <div className="pt-1">
               <button
                 type="submit"
-                disabled={submitting}
-                className="flex h-9 w-full items-center justify-center gap-2 rounded-sm bg-brand text-[13px] font-semibold text-white transition-colors hover:bg-brand-700 disabled:opacity-60"
+                disabled={submitting || !captchaToken}
+                className="flex h-9 w-full items-center justify-center gap-2 rounded-sm bg-brand text-[13px] font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {submitting && <Loader2 className="size-3.5 animate-spin" />}
                 Sign in
               </button>
+            </div>
+
+            {/* Turnstile verification */}
+            <div className="flex flex-col items-center gap-2 pt-2">
+              <Turnstile
+                ref={turnstileRef}
+                siteKey={TURNSTILE_SITE_KEY}
+                options={{
+                  theme: "light",
+                  size: "flexible",
+                  appearance: "always",
+                  action: "login",
+                }}
+                onSuccess={(token) => setCaptchaToken(token)}
+                onExpire={() => setCaptchaToken(null)}
+                onError={() => {
+                  setCaptchaToken(null);
+                  setFormError("Verification failed. Please try again.");
+                }}
+                className="w-full"
+              />
+              <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                Protected by Cloudflare Turnstile
+              </p>
             </div>
           </form>
 
