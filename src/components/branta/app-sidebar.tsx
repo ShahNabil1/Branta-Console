@@ -13,7 +13,8 @@ import {
   LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { auth } from "@/lib/auth";
+import { supabase } from "@/integrations/supabase/client";
+import brandLogo from "@/assets/brand-logo.png.asset.json";
 import type { LucideIcon } from "lucide-react";
 
 type NavItem = { label: string; to: string; icon: LucideIcon };
@@ -60,7 +61,7 @@ export function AppSidebar() {
 
   useEffect(() => {
     setCollapsed(localStorage.getItem(COLLAPSE_KEY) === "1");
-    auth.getUser().then(({ data }) => setEmail(data.user?.email ?? ""));
+    supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? ""));
   }, []);
 
   const toggle = () => {
@@ -84,15 +85,14 @@ export function AppSidebar() {
         collapsed ? "w-14" : "w-60",
       )}
     >
-      {/* Wordmark + collapse */}
+      {/* Logo + collapse */}
       <div className="hairline-b flex h-14 items-center justify-between px-3">
         <Link to="/app" className="flex items-center gap-2 overflow-hidden">
-          <div className="size-5 shrink-0 rounded-sm bg-brand" />
-          {!collapsed && (
-            <span className="truncate text-[13px] font-bold tracking-tight">
-              BRANTA TECH
-            </span>
-          )}
+          <img
+            src={brandLogo.url}
+            alt="Branta"
+            className={cn("h-6 w-auto shrink-0", collapsed && "h-7")}
+          />
         </Link>
         <button
           onClick={toggle}
@@ -155,7 +155,7 @@ export function AppSidebar() {
           {!collapsed && (
             <button
               onClick={async () => {
-                await auth.signOut();
+                await supabase.auth.signOut();
                 navigate({ to: "/login" });
               }}
               className="grid size-7 place-items-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground"

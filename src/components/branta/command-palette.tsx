@@ -10,7 +10,7 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import { LayoutDashboard, Users, Settings, Mail, Calendar, LogOut } from "lucide-react";
-import { auth } from "@/lib/auth";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 export function CommandPalette() {
@@ -87,7 +87,7 @@ export function CommandPalette() {
           <CommandItem
             onSelect={async () => {
               setOpen(false);
-              await auth.signOut();
+              await supabase.auth.signOut();
               navigate({ to: "/login" });
             }}
           >
