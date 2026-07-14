@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { supabase } from "@/integrations/supabase/client";
+import { useStrictSecurity } from "@/hooks/use-strict-security";
 import { Toaster } from "@/components/ui/sonner";
 
 function NotFoundComponent() {
@@ -92,7 +93,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         content:
           "Branta Tech internal ERP & CRM console. Authorized personnel only.",
       },
-      { name: "robots", content: "noindex, nofollow" },
+      { name: "robots", content: "noindex, nofollow, noarchive, nosnippet" },
+      { name: "googlebot", content: "noindex, nofollow, noarchive, nosnippet" },
       { property: "og:title", content: "Branta Tech · Console" },
       {
         property: "og:description",
@@ -135,6 +137,7 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
+  useStrictSecurity();
 
   useEffect(() => {
     const { data } = supabase.auth.onAuthStateChange((event) => {
