@@ -98,10 +98,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:title", content: "Branta Tech · Console" },
       {
         property: "og:description",
-        content: "Internal operations console for Branta Tech.",
+        content: "Branta Tech internal ERP & CRM console. Authorized personnel only.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
+      { name: "twitter:title", content: "Branta Tech · Console" },
+      { name: "twitter:description", content: "Branta Tech internal ERP & CRM console. Authorized personnel only." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/20735de1-61d9-4235-909c-6401c74bf49f/id-preview-6867991c--0b934a6f-9f9d-47f8-b76c-960a68b43f5a.lovable.app-1784071904431.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/20735de1-61d9-4235-909c-6401c74bf49f/id-preview-6867991c--0b934a6f-9f9d-47f8-b76c-960a68b43f5a.lovable.app-1784071904431.png" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
