@@ -1,14 +1,18 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { supabase } from "@/integrations/supabase/client";
 import {
   AlertCircle,
   Check,
+  ChevronDown,
   Copy,
   Eye,
   EyeOff,
+  Info,
   Loader2,
+  Mail,
   Plus,
   RefreshCw,
   ShieldCheck,
@@ -61,6 +65,110 @@ const roleBadge = (role: string) => {
   }
 };
 
+// Brevo event names (canonicalised on the server) → UI label + color.
+const EVENT_STYLES: Record<
+  string,
+  { label: string; className: string; tone: "ok" | "warn" | "bad" | "info" }
+> = {
+  sent: { label: "Sent", className: "border-border bg-muted text-muted-foreground", tone: "info" },
+  delivered: { label: "Delivered", className: "border-emerald-300 bg-emerald-50 text-emerald-700", tone: "ok" },
+  opened: { label: "Opened", className: "border-sky-300 bg-sky-50 text-sky-700", tone: "ok" },
+  clicked: { label: "Clicked", className: "border-indigo-300 bg-indigo-50 text-indigo-700", tone: "ok" },
+  deferred: { label: "Deferred", className: "border-amber-300 bg-amber-50 text-amber-700", tone: "warn" },
+  soft_bounce: { label: "Soft bounce", className: "border-amber-300 bg-amber-50 text-amber-700", tone: "warn" },
+  hard_bounce: { label: "Hard bounce", className: "border-rose-300 bg-rose-50 text-rose-700", tone: "bad" },
+  blocked: { label: "Blocked", className: "border-rose-300 bg-rose-50 text-rose-700", tone: "bad" },
+  spam: { label: "Marked spam", className: "border-rose-300 bg-rose-50 text-rose-700", tone: "bad" },
+  invalid_email: { label: "Invalid", className: "border-rose-300 bg-rose-50 text-rose-700", tone: "bad" },
+  error: { label: "Error", className: "border-rose-300 bg-rose-50 text-rose-700", tone: "bad" },
+  unsubscribed: { label: "Unsubscribed", className: "border-violet-300 bg-violet-50 text-violet-700", tone: "warn" },
+  list_addition: { label: "List added", className: "border-sky-300 bg-sky-50 text-sky-700", tone: "info" },
+  contact_updated: { label: "Contact updated", className: "border-border bg-muted text-muted-foreground", tone: "info" },
+  contact_deleted: { label: "Contact deleted", className: "border-border bg-muted text-muted-foreground", tone: "info" },
+};
+
+interface EmailEventRow {
+  id: string;
+  event: string;
+  email: string;
+  subject: string | null;
+  reason: string | null;
+  occurred_at: string;
+}
+
+// Realtime hook: pulls the 500 most recent email_events, subscribes to inserts,
+// and returns the latest event per lower-cased email + full timeline per email.
+function useEmailEvents(enabled: boolean) {
+  const qc = useQueryClient();
+
+  const query = useQuery({
+    queryKey: ["email_events.recent"],
+    enabled,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("email_events")
+        .select("id, event, email, subject, reason, occurred_at")
+        .order("occurred_at", { ascending: false })
+        .limit(500);
+      if (error) throw error;
+      return (data ?? []) as EmailEventRow[];
+    },
+  });
+
+  useEffect(() => {
+    if (!enabled) return;
+    const channel = supabase
+      .channel("email_events:stream")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "email_events" },
+        (payload) => {
+          const row = payload.new as EmailEventRow;
+          qc.setQueryData<EmailEventRow[]>(
+            ["email_events.recent"],
+            (prev) => {
+              const next = [row, ...(prev ?? [])];
+              // Keep list bounded so browser memory doesn't grow forever.
+              return next.slice(0, 500);
+            },
+          );
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [enabled, qc]);
+
+  const byEmail = useMemo(() => {
+    const map = new Map<string, EmailEventRow[]>();
+    (query.data ?? []).forEach((row) => {
+      const key = row.email.toLowerCase();
+      const list = map.get(key);
+      if (list) list.push(row);
+      else map.set(key, [row]);
+    });
+    return map;
+  }, [query.data]);
+
+  return { byEmail, isLoading: query.isLoading };
+}
+
+const timeAgo = (iso: string): string => {
+  const d = new Date(iso).getTime();
+  if (!Number.isFinite(d)) return "";
+  const diff = Math.max(0, Date.now() - d);
+  const s = Math.floor(diff / 1000);
+  if (s < 60) return `${s}s ago`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const days = Math.floor(h / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString();
+};
+
 function EmployeesPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -87,6 +195,10 @@ function EmployeesPage() {
 
   const [open, setOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [webhookOpen, setWebhookOpen] = useState(false);
+  const [expandedEmail, setExpandedEmail] = useState<string | null>(null);
+
+  const { byEmail: emailEvents } = useEmailEvents(!!admin.data?.isAdmin);
 
   if (admin.isLoading) {
     return (
@@ -131,13 +243,22 @@ function EmployeesPage() {
             Provision Console access for Branta Tech staff. Accounts require @brantatech.com identities.
           </p>
         </div>
-        <button
-          onClick={() => setOpen(true)}
-          className="inline-flex h-9 items-center gap-2 rounded-sm bg-brand px-3 text-[13px] font-semibold text-white transition-colors hover:bg-brand-700"
-        >
-          <Plus className="size-3.5" strokeWidth={2} />
-          Create Employee
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setWebhookOpen(true)}
+            className="inline-flex h-9 items-center gap-2 rounded-sm border border-border bg-card px-3 text-[12.5px] font-medium text-foreground transition-colors hover:bg-muted"
+          >
+            <Info className="size-3.5 text-muted-foreground" strokeWidth={2} />
+            Webhook setup
+          </button>
+          <button
+            onClick={() => setOpen(true)}
+            className="inline-flex h-9 items-center gap-2 rounded-sm bg-brand px-3 text-[13px] font-semibold text-white transition-colors hover:bg-brand-700"
+          >
+            <Plus className="size-3.5" strokeWidth={2} />
+            Create Employee
+          </button>
+        </div>
       </header>
 
       <div className="hairline flex-1 overflow-hidden rounded-sm border border-border bg-card">
@@ -160,68 +281,146 @@ function EmployeesPage() {
                   <th className="px-4 py-2.5">Branta ID</th>
                   <th className="px-4 py-2.5">Name</th>
                   <th className="px-4 py-2.5">Role</th>
-                  <th className="px-4 py-2.5">Created</th>
+                  <th className="px-4 py-2.5">Mail status</th>
                   <th className="px-4 py-2.5">Last sign-in</th>
                   <th className="px-4 py-2.5" />
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row) => (
-                  <tr key={row.userId} className="border-b border-border last:border-b-0">
-                    <td className="px-4 py-2.5 font-mono text-[12.5px]">
-                      <span className="text-foreground">{row.brantaId}</span>
-                      <span className="text-brand">{DOMAIN}</span>
-                    </td>
-                    <td className="px-4 py-2.5 text-foreground">{row.fullName ?? "—"}</td>
-                    <td className="px-4 py-2.5">
-                      <span
-                        className={cn(
-                          "inline-flex items-center rounded-sm border px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.06em]",
-                          roleBadge(row.role),
-                        )}
-                      >
-                        {row.role.replace("_", " ")}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2.5 font-mono text-[11.5px] text-muted-foreground">
-                      {row.createdAt ? new Date(row.createdAt).toLocaleDateString() : "—"}
-                    </td>
-                    <td className="px-4 py-2.5 font-mono text-[11.5px] text-muted-foreground">
-                      {row.lastSignInAt
-                        ? new Date(row.lastSignInAt).toLocaleString()
-                        : "Never"}
-                    </td>
-                    <td className="px-4 py-2.5 text-right">
-                      {confirmDelete === row.userId ? (
-                        <div className="inline-flex items-center gap-1">
-                          <button
-                            onClick={() => {
-                              del.mutate(row.userId);
-                              setConfirmDelete(null);
-                            }}
-                            className="rounded-sm bg-rose-600 px-2 py-1 text-[11px] font-semibold text-white hover:bg-rose-700"
+                {rows.map((row) => {
+                  const events = emailEvents.get(row.email) ?? [];
+                  const latest = events[0];
+                  const expanded = expandedEmail === row.email;
+                  const style = latest ? EVENT_STYLES[latest.event] : null;
+                  return (
+                    <React.Fragment key={row.userId}>
+                      <tr className="border-b border-border last:border-b-0">
+                        <td className="px-4 py-2.5 font-mono text-[12.5px]">
+                          <span className="text-foreground">{row.brantaId}</span>
+                          <span className="text-brand">{DOMAIN}</span>
+                        </td>
+                        <td className="px-4 py-2.5 text-foreground">{row.fullName ?? "—"}</td>
+                        <td className="px-4 py-2.5">
+                          <span
+                            className={cn(
+                              "inline-flex items-center rounded-sm border px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.06em]",
+                              roleBadge(row.role),
+                            )}
                           >
-                            Confirm
-                          </button>
-                          <button
-                            onClick={() => setConfirmDelete(null)}
-                            className="rounded-sm border border-border px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => setConfirmDelete(row.userId)}
-                          className="inline-flex items-center gap-1 rounded-sm border border-transparent px-2 py-1 text-[11px] text-muted-foreground hover:border-border hover:text-rose-600"
-                        >
-                          <Trash2 className="size-3" strokeWidth={2} />
-                          Remove
-                        </button>
+                            {row.role.replace("_", " ")}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          {latest ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setExpandedEmail(expanded ? null : row.email)
+                              }
+                              className="inline-flex items-center gap-1.5 rounded-sm hover:opacity-90"
+                              title="Toggle event timeline"
+                            >
+                              <span
+                                className={cn(
+                                  "inline-flex items-center gap-1 rounded-sm border px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.06em]",
+                                  style?.className ??
+                                    "border-border bg-muted text-muted-foreground",
+                                )}
+                              >
+                                {style?.label ?? latest.event}
+                              </span>
+                              <span className="font-mono text-[10.5px] text-muted-foreground">
+                                {timeAgo(latest.occurred_at)}
+                              </span>
+                              <ChevronDown
+                                className={cn(
+                                  "size-3 text-muted-foreground transition-transform",
+                                  expanded && "rotate-180",
+                                )}
+                                strokeWidth={2}
+                              />
+                            </button>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                              <Mail className="size-3" strokeWidth={1.75} />
+                              No activity
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2.5 font-mono text-[11.5px] text-muted-foreground">
+                          {row.lastSignInAt
+                            ? new Date(row.lastSignInAt).toLocaleString()
+                            : "Never"}
+                        </td>
+                        <td className="px-4 py-2.5 text-right">
+                          {confirmDelete === row.userId ? (
+                            <div className="inline-flex items-center gap-1">
+                              <button
+                                onClick={() => {
+                                  del.mutate(row.userId);
+                                  setConfirmDelete(null);
+                                }}
+                                className="rounded-sm bg-rose-600 px-2 py-1 text-[11px] font-semibold text-white hover:bg-rose-700"
+                              >
+                                Confirm
+                              </button>
+                              <button
+                                onClick={() => setConfirmDelete(null)}
+                                className="rounded-sm border border-border px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setConfirmDelete(row.userId)}
+                              className="inline-flex items-center gap-1 rounded-sm border border-transparent px-2 py-1 text-[11px] text-muted-foreground hover:border-border hover:text-rose-600"
+                            >
+                              <Trash2 className="size-3" strokeWidth={2} />
+                              Remove
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                      {expanded && events.length > 0 && (
+                        <tr className="bg-muted/30">
+                          <td colSpan={6} className="px-4 py-3">
+                            <div className="mb-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                              Recent events · {row.email}
+                            </div>
+                            <ol className="space-y-1">
+                              {events.slice(0, 12).map((ev) => {
+                                const s = EVENT_STYLES[ev.event];
+                                return (
+                                  <li
+                                    key={ev.id}
+                                    className="flex items-center gap-2 rounded-sm border border-border bg-card px-2 py-1.5"
+                                  >
+                                    <span
+                                      className={cn(
+                                        "inline-flex items-center rounded-sm border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em]",
+                                        s?.className ??
+                                          "border-border bg-muted text-muted-foreground",
+                                      )}
+                                    >
+                                      {s?.label ?? ev.event}
+                                    </span>
+                                    <span className="flex-1 truncate text-[12px] text-foreground">
+                                      {ev.subject ?? ev.reason ?? "—"}
+                                    </span>
+                                    <span className="font-mono text-[10.5px] text-muted-foreground">
+                                      {new Date(ev.occurred_at).toLocaleString()}
+                                    </span>
+                                  </li>
+                                );
+                              })}
+                            </ol>
+                          </td>
+                        </tr>
                       )}
-                    </td>
-                  </tr>
-                ))}
+                    </React.Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -240,6 +439,8 @@ function EmployeesPage() {
           canCreateSuperAdmin={!!admin.data?.isSuperAdmin}
         />
       )}
+
+      {webhookOpen && <WebhookSetupModal onClose={() => setWebhookOpen(false)} />}
     </div>
   );
 }
@@ -641,6 +842,203 @@ function CreateEmployeeModal({
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+const WEBHOOK_BASE = "https://console.brantatech.com/api/public/brevo/webhook";
+const WEBHOOK_EVENTS = [
+  "delivered",
+  "opened",
+  "clicked",
+  "hard_bounce",
+  "soft_bounce",
+  "spam",
+  "blocked",
+  "invalid_email",
+  "deferred",
+  "unsubscribed",
+  "list_addition",
+  "contact_updated",
+  "contact_deleted",
+] as const;
+
+function WebhookSetupModal({ onClose }: { onClose: () => void }) {
+  const [token, setToken] = useState("");
+  const [copiedUrl, setCopiedUrl] = useState(false);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  const fullUrl = token
+    ? `${WEBHOOK_BASE}?token=${encodeURIComponent(token)}`
+    : `${WEBHOOK_BASE}?token=YOUR_SECRET`;
+
+  const copy = async (v: string) => {
+    try {
+      await navigator.clipboard.writeText(v);
+    } catch {
+      /* ignore */
+    }
+    setCopiedUrl(true);
+    window.setTimeout(() => setCopiedUrl(false), 1500);
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      role="dialog"
+      aria-modal="true"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="w-full max-w-xl overflow-hidden rounded-sm border border-border bg-card shadow-xl">
+        <div className="flex items-center justify-between border-b border-border px-5 py-3">
+          <div>
+            <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+              Integration
+            </div>
+            <div className="mt-0.5 text-[15px] font-semibold">Brevo webhook setup</div>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="grid size-7 place-items-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+
+        <div className="max-h-[70vh] space-y-4 overflow-y-auto px-5 py-4 text-[13px] leading-relaxed">
+          <p className="text-muted-foreground">
+            Brevo will POST every email event (delivered, opened, bounced, spam,
+            unsubscribed, clicked, and more) to the URL below. Events land in
+            real time and update the table without a refresh.
+          </p>
+
+          <div>
+            <div className="mb-1.5 flex items-center justify-between">
+              <label className="text-[12px] font-medium text-muted-foreground">
+                Webhook secret{" "}
+                <span className="text-muted-foreground/70">
+                  (stored as <span className="font-mono">BREVO_WEBHOOK_SECRET</span>)
+                </span>
+              </label>
+            </div>
+            <input
+              type="text"
+              value={token}
+              onChange={(e) => setToken(e.target.value)}
+              placeholder="Paste BREVO_WEBHOOK_SECRET here to build the exact URL"
+              className="h-9 w-full rounded-sm border border-border bg-card px-3 font-mono text-[12px] outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+            />
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Value only lives on the server. This field is a local helper to
+              paste the secret in once and copy the ready URL below.
+            </p>
+          </div>
+
+          <div>
+            <div className="mb-1.5 text-[12px] font-medium text-muted-foreground">
+              Webhook URL
+            </div>
+            <div className="flex overflow-hidden rounded-sm border border-border bg-muted/40">
+              <code className="flex-1 truncate px-3 py-2 font-mono text-[12px] text-foreground">
+                {fullUrl}
+              </code>
+              <button
+                onClick={() => copy(fullUrl)}
+                className="inline-flex items-center gap-1 border-l border-border bg-card px-3 text-[11.5px] font-semibold text-foreground hover:bg-muted"
+              >
+                {copiedUrl ? (
+                  <Check className="size-3.5 text-emerald-600" strokeWidth={2.25} />
+                ) : (
+                  <Copy className="size-3.5" strokeWidth={1.75} />
+                )}
+                {copiedUrl ? "Copied" : "Copy"}
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <div className="mb-1.5 text-[12px] font-semibold text-foreground">
+              Steps in Brevo
+            </div>
+            <ol className="list-decimal space-y-1.5 pl-5 text-[12.5px] text-foreground">
+              <li>
+                Open Brevo →{" "}
+                <a
+                  href="https://app.brevo.com/settings/webhook/list/transactional"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-medium text-brand hover:underline"
+                >
+                  Transactional → Settings → Webhooks
+                </a>
+                . Click{" "}
+                <span className="font-semibold">Add a new webhook</span>.
+              </li>
+              <li>
+                Paste the Webhook URL above into the{" "}
+                <span className="font-mono">URL</span> field.
+              </li>
+              <li>
+                Under <span className="font-semibold">Events</span>, tick all of:
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {WEBHOOK_EVENTS.map((e) => (
+                    <span
+                      key={e}
+                      className="rounded-sm border border-border bg-muted px-1.5 py-0.5 font-mono text-[10.5px] text-foreground"
+                    >
+                      {e}
+                    </span>
+                  ))}
+                </div>
+              </li>
+              <li>Save. Send yourself a test — the row updates instantly.</li>
+              <li>
+                For marketing / contact events (
+                <span className="font-mono">list_addition</span>,{" "}
+                <span className="font-mono">contact_updated</span>,{" "}
+                <span className="font-mono">contact_deleted</span>), also add
+                the same URL under{" "}
+                <a
+                  href="https://app.brevo.com/settings/webhook/list/marketing"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-medium text-brand hover:underline"
+                >
+                  Contacts → Settings → Webhooks
+                </a>
+                .
+              </li>
+            </ol>
+          </div>
+
+          <div className="rounded-sm border border-border bg-muted/40 px-3 py-2 text-[11.5px] text-muted-foreground">
+            <span className="font-semibold text-foreground">Security:</span>{" "}
+            Requests missing the correct <span className="font-mono">?token</span>
+            are rejected with 401. Never share the URL publicly. Rotate the
+            secret from the project settings if it leaks.
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end border-t border-border px-5 py-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-9 rounded-sm bg-brand px-4 text-[13px] font-semibold text-white hover:bg-brand-700"
+          >
+            Done
+          </button>
+        </div>
       </div>
     </div>
   );
