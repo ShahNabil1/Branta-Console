@@ -250,7 +250,7 @@ function LoginPage() {
     }
     const res = await enrollFreshTotp();
     if ("error" in res) {
-      setFormError(res.error.message ?? "Failed to start enrollment.");
+      setFormError(res.error?.message ?? "Failed to start enrollment.");
       return;
     }
     setFactorId(res.enr.id);
