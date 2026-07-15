@@ -36,6 +36,7 @@ import {
   createEmployee,
   deleteEmployee,
   listEmployees,
+  syncRecentEmailEvents,
 } from "@/lib/employees.functions";
 import { cn } from "@/lib/utils";
 
@@ -95,13 +96,19 @@ interface EmailEventRow {
 
 // Realtime hook: pulls the 500 most recent email_events, subscribes to inserts,
 // and returns the latest event per lower-cased email + full timeline per email.
-function useEmailEvents(enabled: boolean) {
+function useEmailEvents(enabled: boolean, syncRecent: () => Promise<unknown>) {
   const qc = useQueryClient();
 
   const query = useQuery({
     queryKey: ["email_events.recent"],
     enabled,
+    refetchInterval: enabled ? 30_000 : false,
     queryFn: async () => {
+      try {
+        await syncRecent();
+      } catch (error) {
+        console.error("[email-events] Brevo sync failed", error);
+      }
       const { data, error } = await supabase
         .from("email_events")
         .select("id, event, email, subject, reason, occurred_at")
@@ -173,6 +180,7 @@ function EmployeesPage() {
   const isAdminFn = useServerFn(checkIsAdmin);
   const listFn = useServerFn(listEmployees);
   const deleteFn = useServerFn(deleteEmployee);
+  const syncEmailEventsFn = useServerFn(syncRecentEmailEvents);
 
   const admin = useQuery({
     queryKey: ["employees.admin"],
@@ -195,7 +203,10 @@ function EmployeesPage() {
   const [webhookOpen, setWebhookOpen] = useState(false);
   const [expandedEmail, setExpandedEmail] = useState<string | null>(null);
 
-  const { byEmail: emailEvents } = useEmailEvents(!!admin.data?.isAdmin);
+  const { byEmail: emailEvents } = useEmailEvents(
+    !!admin.data?.isAdmin,
+    () => syncEmailEventsFn(),
+  );
 
   if (admin.isLoading) {
     return (

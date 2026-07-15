@@ -192,6 +192,16 @@ export const deleteEmployee = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
+export const syncRecentEmailEvents = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const { syncRecentBrevoEmailEvents } = await import(
+      "@/lib/branta-email-events.server"
+    );
+    return syncRecentBrevoEmailEvents({ limit: 100 });
+  });
+
 export const checkIsAdmin = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {

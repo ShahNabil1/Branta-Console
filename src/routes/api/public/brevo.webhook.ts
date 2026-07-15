@@ -32,6 +32,7 @@ const safeEqual = (a: string, b: string) => {
 // Normalise them to a single canonical vocabulary the UI reads.
 const CANON: Record<string, string> = {
   request: "sent",
+  requests: "sent",
   sent: "sent",
   delivered: "delivered",
   opened: "opened",
@@ -39,6 +40,7 @@ const CANON: Record<string, string> = {
   proxy_open: "opened",
   unique_opened: "opened",
   click: "clicked",
+  clicks: "clicked",
   clicked: "clicked",
   hard_bounce: "hard_bounce",
   hardbounce: "hard_bounce",
