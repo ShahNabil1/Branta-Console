@@ -161,7 +161,9 @@ export async function syncRecentBrevoEmailEvents({ limit = 100 } = {}) {
   const fresh = incoming.filter((row) => !existingKeys.has(dedupeKey(row)));
   if (fresh.length === 0) return { fetched: incoming.length, inserted: 0 };
 
-  const { error } = await supabaseAdmin.from("email_events").insert(fresh);
+  const { error } = await supabaseAdmin
+    .from("email_events")
+    .insert(fresh as unknown as never);
   if (error) throw new Error(error.message);
   return { fetched: incoming.length, inserted: fresh.length };
 }
