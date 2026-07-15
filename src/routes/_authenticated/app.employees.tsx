@@ -6,10 +6,13 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   AlertCircle,
   Check,
+  ChevronDown,
   Copy,
   Eye,
   EyeOff,
+  Info,
   Loader2,
+  Mail,
   Plus,
   RefreshCw,
   ShieldCheck,
