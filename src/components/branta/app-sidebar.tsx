@@ -11,6 +11,7 @@ import {
   Inbox,
   ChevronsLeft,
   LogOut,
+  UserPlus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,6 +46,7 @@ const NAV: NavGroup[] = [
   {
     label: "Admin",
     items: [
+      { label: "Employees", to: "/app/employees", icon: UserPlus },
       { label: "Settings", to: "/app/settings", icon: Settings },
       { label: "Security", to: "/app/settings", icon: Shield },
     ],
