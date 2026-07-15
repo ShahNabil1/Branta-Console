@@ -125,9 +125,13 @@ function LoginPage() {
     return "That character isn't allowed.";
   };
 
-  const onKeyEvent = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    setCapsLockOn(e.getModifierState?.("CapsLock") ?? false);
+  const onKeyEvent = (
+    e: React.KeyboardEvent<HTMLInputElement> | React.FocusEvent<HTMLInputElement>,
+  ) => {
+    const ev = e.nativeEvent as unknown as { getModifierState?: (k: string) => boolean };
+    setCapsLockOn(ev.getModifierState?.("CapsLock") ?? false);
   };
+
 
 
   // TOTP
