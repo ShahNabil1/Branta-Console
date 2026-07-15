@@ -851,44 +851,44 @@ function LoginPage() {
                     </div>
                   )}
                   {secret && (
-                    <div className="flex min-w-0 flex-1 flex-col justify-between rounded-sm border border-border bg-card p-2.5">
-                      <div>
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                            Or enter secret
-                          </div>
-                          <button
-                            type="button"
-                            onClick={copySecret}
-                            aria-label={secretCopied ? "Secret copied" : "Copy secret"}
-                            className={cn(
-                              "inline-flex items-center gap-1 rounded-sm border border-border bg-card px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.1em] transition-all duration-200 hover:bg-muted",
-                              secretCopied
-                                ? "border-emerald-300 bg-emerald-50 text-emerald-700"
-                                : "text-muted-foreground hover:text-foreground",
-                            )}
-                          >
-                            <span className="relative grid size-3 place-items-center">
-                              <Copy
-                                className={cn(
-                                  "absolute size-3 transition-all duration-200",
-                                  secretCopied ? "scale-50 opacity-0" : "scale-100 opacity-100",
-                                )}
-                                strokeWidth={1.75}
-                              />
-                              <Check
-                                className={cn(
-                                  "absolute size-3 transition-all duration-200",
-                                  secretCopied ? "scale-100 opacity-100" : "scale-50 opacity-0",
-                                )}
-                                strokeWidth={2.5}
-                              />
-                            </span>
-                            {secretCopied ? "Copied" : "Copy"}
-                          </button>
+                    <div className="flex min-w-0 flex-1 flex-col rounded-sm border border-border bg-card p-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                          Or enter secret
                         </div>
-                        <div className="mt-1.5 break-all font-mono text-[12px] leading-snug text-foreground">
-                          {secret}
+                        <button
+                          type="button"
+                          onClick={copySecret}
+                          aria-label={secretCopied ? "Secret copied" : "Copy secret"}
+                          className={cn(
+                            "inline-flex items-center gap-1 rounded-sm border border-border bg-card px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.1em] transition-all duration-200 hover:bg-muted",
+                            secretCopied
+                              ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                              : "text-muted-foreground hover:text-foreground",
+                          )}
+                        >
+                          <span className="relative grid size-3 place-items-center">
+                            <Copy
+                              className={cn(
+                                "absolute size-3 transition-all duration-200",
+                                secretCopied ? "scale-50 opacity-0" : "scale-100 opacity-100",
+                              )}
+                              strokeWidth={1.75}
+                            />
+                            <Check
+                              className={cn(
+                                "absolute size-3 transition-all duration-200",
+                                secretCopied ? "scale-100 opacity-100" : "scale-50 opacity-0",
+                              )}
+                              strokeWidth={2.5}
+                            />
+                          </span>
+                          {secretCopied ? "Copied" : "Copy"}
+                        </button>
+                      </div>
+                      <div className="mt-1.5 flex flex-1 items-center">
+                        <div className="w-full break-all rounded-sm bg-muted/40 px-2 py-1.5 text-center font-mono text-[11.5px] leading-[1.35] tracking-[0.04em] text-foreground">
+                          {secret.match(/.{1,4}/g)?.join(" ") ?? secret}
                         </div>
                       </div>
                       <button
@@ -896,7 +896,7 @@ function LoginPage() {
                         onClick={onRegenerateEnrollment}
                         disabled={enrollRemaining > 0 || regenerating}
                         className={cn(
-                          "mt-2 inline-flex h-7 w-fit items-center gap-1.5 rounded-sm border border-border bg-card px-2 text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+                          "mt-2 inline-flex h-7 w-full items-center justify-center gap-1.5 rounded-sm border border-border bg-card px-2 text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
                           (enrollRemaining > 0 || regenerating) && "cursor-not-allowed opacity-60",
                         )}
                       >
@@ -911,6 +911,7 @@ function LoginPage() {
                       </button>
                     </div>
                   )}
+
                 </div>
               )}
 
