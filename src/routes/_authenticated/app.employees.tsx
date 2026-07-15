@@ -180,6 +180,10 @@ function EmployeesPage() {
 
   const [open, setOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [webhookOpen, setWebhookOpen] = useState(false);
+  const [expandedEmail, setExpandedEmail] = useState<string | null>(null);
+
+  const { byEmail: emailEvents } = useEmailEvents(!!admin.data?.isAdmin);
 
   if (admin.isLoading) {
     return (
