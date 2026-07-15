@@ -498,10 +498,10 @@ function LoginPage() {
             <>
               <header className="mb-8">
                 <h2 className="text-xl font-semibold tracking-tight text-foreground">
-                  Operator sign in
+                  Sign in to Console
                 </h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Enter your Branta Tech credentials to access the console.
+                  Access your Branta Tech workspace and operational tools.
                 </p>
               </header>
 
@@ -1048,8 +1048,8 @@ function LoginPage() {
 
           <footer className="mt-12 border-t border-border pt-6">
             <p className="text-[11px] uppercase leading-relaxed tracking-[0.1em] text-muted-foreground">
-              Branta internal infrastructure. Unauthorized access is strictly
-              prohibited and monitored by system audit protocols.
+              BRANTA TECH SECURE NETWORK. THIS SYSTEM IS FOR AUTHORIZED BRANTA
+              TECH PERSONNEL ONLY. ALL ACTIVITIES ARE LOGGED AND MONITORED.
             </p>
           </footer>
         </div>
