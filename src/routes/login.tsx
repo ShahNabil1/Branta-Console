@@ -39,27 +39,32 @@ export const Route = createFileRoute("/login")({
 
 const DOMAIN = "@brantatech.com";
 
-// Strict allow-lists. Anything outside is rejected before it reaches the
-// input state (and re-validated by zod at submit time as a second gate).
+// Strict allow-lists and length rules. Anything outside is stripped before
+// it reaches state; zod re-validates at submit as a second gate; Supabase
+// (see the handle_new_user_profile trigger) validates on the server on user
+// creation for defense in depth.
 const LOCAL_ALLOWED = /^[a-z]+$/;               // plain lowercase english only
 const PASSWORD_ALLOWED = /^[\x20-\x7E]+$/;      // printable ASCII only
 
+const LOCAL_MIN = 3;
+const LOCAL_MAX = 10;
+const PASSWORD_LEN = 8;
+
 const stripToLocal = (v: string) =>
-  v.normalize("NFKC").toLowerCase().replace(/[^a-z]/g, "");
+  v.normalize("NFKC").toLowerCase().replace(/[^a-z]/g, "").slice(0, LOCAL_MAX);
 const stripToPassword = (v: string) =>
-  v.normalize("NFKC").replace(/[^\x20-\x7E]/g, "");
+  v.normalize("NFKC").replace(/[^\x20-\x7E]/g, "").slice(0, PASSWORD_LEN);
 
 const localSchema = z
   .string()
   .trim()
-  .min(1, "Enter your Branta ID.")
-  .max(64, "Branta ID is too long.")
+  .min(LOCAL_MIN, `Branta ID must be at least ${LOCAL_MIN} letters.`)
+  .max(LOCAL_MAX, `Branta ID can be at most ${LOCAL_MAX} letters.`)
   .regex(LOCAL_ALLOWED, "Only lowercase english letters (a–z). No numbers or symbols.");
 
 const passwordSchema = z
   .string()
-  .min(1, "Enter your password.")
-  .max(128, "Password is too long.")
+  .length(PASSWORD_LEN, `Password must be exactly ${PASSWORD_LEN} characters.`)
   .regex(PASSWORD_ALLOWED, "Password must use english letters, numbers, or symbols only.");
 
 type CaptchaStatus = "loading" | "ready" | "expired" | "error";
