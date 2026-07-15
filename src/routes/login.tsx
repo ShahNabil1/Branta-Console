@@ -84,6 +84,26 @@ function LoginPage() {
   const [regenerating, setRegenerating] = useState(false);
   const [refreshingChallenge, setRefreshingChallenge] = useState(false);
   const [, setTick] = useState(0);
+  const [secretCopied, setSecretCopied] = useState(false);
+
+  const copySecret = async () => {
+    if (!secret) return;
+    try {
+      await navigator.clipboard.writeText(secret);
+    } catch {
+      // Fallback for older browsers / insecure contexts.
+      const ta = document.createElement("textarea");
+      ta.value = secret;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand("copy"); } catch { /* ignore */ }
+      document.body.removeChild(ta);
+    }
+    setSecretCopied(true);
+    window.setTimeout(() => setSecretCopied(false), 1600);
+  };
 
   const otpInputRef = useRef<HTMLInputElement>(null);
 
