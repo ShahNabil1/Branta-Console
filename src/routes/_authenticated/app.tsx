@@ -4,6 +4,7 @@ import { TopBar } from "@/components/branta/top-bar";
 import { CommandPalette } from "@/components/branta/command-palette";
 
 export const Route = createFileRoute("/_authenticated/app")({
+  ssr: false,
   component: AppShell,
 });
 
