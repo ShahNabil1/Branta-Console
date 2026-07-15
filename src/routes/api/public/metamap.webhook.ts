@@ -210,7 +210,8 @@ async function handlePost(request: Request): Promise<Response> {
   if (mirrored.length > 0) {
     const { error: insertErr } = await supabaseAdmin
       .from("kyc_documents")
-      .insert(mirrored);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .insert(mirrored as any);
     if (insertErr) {
       console.error("[metamap-webhook] kyc_documents insert failed", insertErr);
     }
