@@ -19,14 +19,8 @@ const CreateInput = z.object({
   fullName: z.string().trim().max(120).optional(),
 });
 
-type RpcClient = {
-  rpc: (
-    fn: "has_role",
-    args: { _user_id: string; _role: "super_admin" | "admin" | "manager" | "user" },
-  ) => Promise<{ data: boolean | null; error: { message: string } | null }>;
-};
-
-const assertAdmin = async (supabase: RpcClient, userId: string) => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const assertAdmin = async (supabase: any, userId: string) => {
   const [su, ad] = await Promise.all([
     supabase.rpc("has_role", { _user_id: userId, _role: "super_admin" }),
     supabase.rpc("has_role", { _user_id: userId, _role: "admin" }),
