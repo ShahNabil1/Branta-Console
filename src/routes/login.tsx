@@ -584,7 +584,43 @@ function LoginPage() {
             </>
           ) : (
             <>
-              <header className="mb-6 flex items-center gap-2">
+              {/* Step indicator */}
+              <ol className="mb-6 flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.12em]">
+                <li className="flex items-center gap-1.5 text-muted-foreground">
+                  <span className="grid size-4 place-items-center rounded-full bg-emerald-100 text-emerald-700">
+                    <Check className="size-2.5" strokeWidth={3} />
+                  </span>
+                  Credentials
+                </li>
+                <li aria-hidden className="h-px w-6 bg-border" />
+                {phase === "enroll" && (
+                  <>
+                    <li className="flex items-center gap-1.5 text-brand">
+                      <span className="grid size-4 place-items-center rounded-full bg-brand text-[10px] font-bold text-white">
+                        2
+                      </span>
+                      Set up
+                    </li>
+                    <li aria-hidden className="h-px w-6 bg-border" />
+                    <li className="flex items-center gap-1.5 text-muted-foreground/60">
+                      <span className="grid size-4 place-items-center rounded-full border border-border text-[10px] font-bold">
+                        3
+                      </span>
+                      Verify
+                    </li>
+                  </>
+                )}
+                {phase === "challenge" && (
+                  <li className="flex items-center gap-1.5 text-brand">
+                    <span className="grid size-4 place-items-center rounded-full bg-brand text-[10px] font-bold text-white">
+                      2
+                    </span>
+                    Verify
+                  </li>
+                )}
+              </ol>
+
+              <header className="mb-1 flex items-center gap-2">
                 <ShieldCheck className="size-4 text-brand" strokeWidth={1.75} />
                 <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
                   Two-factor authentication
@@ -593,7 +629,7 @@ function LoginPage() {
               <h2 className="text-xl font-semibold tracking-tight text-foreground">
                 {phase === "enroll" ? "Enroll authenticator" : "Verify identity"}
               </h2>
-              <p className="mt-1 text-[13px] whitespace-pre-line text-muted-foreground">
+              <p className="mt-1 whitespace-pre-line text-[13px] text-muted-foreground">
                 {phase === "enroll"
                   ? "Scan the QR code with Google Authenticator,\nthen enter the 6-digit code below."
                   : "Enter the 6-digit code from your authenticator app."}
@@ -645,26 +681,55 @@ function LoginPage() {
                   Verification code
                 </label>
                 <InputOTP
+                  ref={otpInputRef}
                   maxLength={6}
                   value={code}
                   onChange={setCode}
                   disabled={locked || verifying}
+                  autoFocus
+                  containerClassName={cn(
+                    "gap-2",
+                    totpError && !locked && "animate-shake",
+                  )}
                 >
-                  <InputOTPGroup>
+                  <InputOTPGroup className="gap-1.5">
                     {Array.from({ length: 6 }).map((_, i) => (
-                      <InputOTPSlot key={i} index={i} />
+                      <InputOTPSlot
+                        key={i}
+                        index={i}
+                        className={cn(
+                          "h-11 w-10 rounded-sm border border-border text-[15px] font-mono",
+                          totpError && !locked && "border-rose-400",
+                        )}
+                      />
                     ))}
                   </InputOTPGroup>
                 </InputOTP>
-                {locked ? (
-                  <div className="mt-2 text-[12px] text-rose-600">
-                    Too many invalid codes. Try again in {Math.ceil(lockRemaining / 1000)}s.
-                  </div>
-                ) : (
-                  totpError && (
-                    <div className="mt-2 text-[12px] text-rose-600">{totpError}</div>
-                  )
-                )}
+
+                {/* Status / help / error row (fixed height to avoid layout shift) */}
+                <div className="mt-2 min-h-[18px] text-[12px]" aria-live="polite">
+                  {locked ? (
+                    <div className="flex items-center gap-1.5 text-rose-600">
+                      <AlertCircle className="size-3.5" strokeWidth={2} />
+                      Too many invalid codes. Try again in {Math.ceil(lockRemaining / 1000)}s.
+                    </div>
+                  ) : totpError ? (
+                    <div className="flex items-center gap-1.5 text-rose-600">
+                      <AlertCircle className="size-3.5" strokeWidth={2} />
+                      {totpError}
+                    </div>
+                  ) : verifying ? (
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                      <Loader2 className="size-3.5 animate-spin" />
+                      Verifying code…
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                      <Info className="size-3.5" strokeWidth={1.75} />
+                      Codes refresh every 30s. We&rsquo;ll verify automatically.
+                    </div>
+                  )}
+                </div>
 
                 {phase === "challenge" && (
                   <button
@@ -713,6 +778,7 @@ function LoginPage() {
                 Canceling will sign you out immediately.
               </div>
             </>
+
           )}
 
           <footer className="mt-12 border-t border-border pt-6">
