@@ -228,13 +228,22 @@ function EmployeesPage() {
             Provision Console access for Branta Tech staff. Accounts require @brantatech.com identities.
           </p>
         </div>
-        <button
-          onClick={() => setOpen(true)}
-          className="inline-flex h-9 items-center gap-2 rounded-sm bg-brand px-3 text-[13px] font-semibold text-white transition-colors hover:bg-brand-700"
-        >
-          <Plus className="size-3.5" strokeWidth={2} />
-          Create Employee
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setWebhookOpen(true)}
+            className="inline-flex h-9 items-center gap-2 rounded-sm border border-border bg-card px-3 text-[12.5px] font-medium text-foreground transition-colors hover:bg-muted"
+          >
+            <Info className="size-3.5 text-muted-foreground" strokeWidth={2} />
+            Webhook setup
+          </button>
+          <button
+            onClick={() => setOpen(true)}
+            className="inline-flex h-9 items-center gap-2 rounded-sm bg-brand px-3 text-[13px] font-semibold text-white transition-colors hover:bg-brand-700"
+          >
+            <Plus className="size-3.5" strokeWidth={2} />
+            Create Employee
+          </button>
+        </div>
       </header>
 
       <div className="hairline flex-1 overflow-hidden rounded-sm border border-border bg-card">
