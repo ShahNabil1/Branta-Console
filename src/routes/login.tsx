@@ -1,6 +1,6 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
-import { Eye, EyeOff, Loader2, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
 import { z } from "zod";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import QRCode from "qrcode";
@@ -13,7 +13,22 @@ const TURNSTILE_SITE_KEY = "0x4AAAAAACNbiRh7P7qtgkXG";
 
 const searchSchema = z.object({
   reason: z.enum(["idle", "signed_out"]).optional(),
+  redirect: z.string().optional(),
 });
+
+// TOTP anti-abuse tuning
+const MAX_TOTP_ATTEMPTS = 5;
+const TOTP_LOCK_MS = 60_000;
+const ENROLL_REGEN_COOLDOWN_MS = 60_000;
+const CHALLENGE_REFRESH_COOLDOWN_MS = 30_000;
+
+const sanitizeRedirect = (r: string | undefined): string => {
+  if (!r) return "/app";
+  if (!r.startsWith("/") || r.startsWith("//")) return "/app";
+  if (r.startsWith("/login")) return "/app";
+  return r;
+};
+
 
 export const Route = createFileRoute("/login")({
   ssr: false,
@@ -35,7 +50,7 @@ type Phase = "credentials" | "enroll" | "challenge";
 
 function LoginPage() {
   const navigate = useNavigate();
-  const { reason } = useSearch({ from: "/login" });
+  const { reason, redirect: redirectParam } = useSearch({ from: "/login" });
 
   // Phase state
   const [phase, setPhase] = useState<Phase>("credentials");
@@ -60,6 +75,29 @@ function LoginPage() {
   const [code, setCode] = useState("");
   const [totpError, setTotpError] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
+
+  // Anti-abuse timers
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [lockUntil, setLockUntil] = useState<number>(0);
+  const [enrollCooldownUntil, setEnrollCooldownUntil] = useState<number>(0);
+  const [challengeCooldownUntil, setChallengeCooldownUntil] = useState<number>(0);
+  const [regenerating, setRegenerating] = useState(false);
+  const [refreshingChallenge, setRefreshingChallenge] = useState(false);
+  const [, setTick] = useState(0);
+
+  const lockRemaining = Math.max(0, lockUntil - Date.now());
+  const enrollRemaining = Math.max(0, enrollCooldownUntil - Date.now());
+  const challengeRemaining = Math.max(0, challengeCooldownUntil - Date.now());
+  const locked = lockRemaining > 0;
+
+  // 1s tick only while any countdown is active.
+  useEffect(() => {
+    if (lockRemaining === 0 && enrollRemaining === 0 && challengeRemaining === 0) return;
+    const id = window.setInterval(() => setTick((t) => t + 1), 1000);
+    return () => window.clearInterval(id);
+  }, [lockRemaining, enrollRemaining, challengeRemaining]);
+
+
 
   const validateLocal = (v: string) => {
     if (!v) return setLocalError(null);
@@ -165,15 +203,35 @@ function LoginPage() {
     }
   };
 
+  const registerFailedAttempt = () => {
+    const next = failedAttempts + 1;
+    if (next >= MAX_TOTP_ATTEMPTS) {
+      setLockUntil(Date.now() + TOTP_LOCK_MS);
+      setFailedAttempts(0);
+      setTotpError(
+        `Too many invalid codes. Try again in ${Math.ceil(TOTP_LOCK_MS / 1000)}s.`,
+      );
+    } else {
+      setFailedAttempts(next);
+      setTotpError(
+        `Invalid code. ${MAX_TOTP_ATTEMPTS - next} attempt${
+          MAX_TOTP_ATTEMPTS - next === 1 ? "" : "s"
+        } remaining.`,
+      );
+    }
+    setCode("");
+  };
+
   const onVerify = async () => {
-    if (!factorId || code.length !== 6) return;
+    if (!factorId || code.length !== 6 || locked) return;
     setVerifying(true);
     setTotpError(null);
     try {
       if (phase === "enroll") {
         const { data: ch, error: chErr } = await supabase.auth.mfa.challenge({ factorId });
         if (chErr || !ch) {
-          setTotpError(chErr?.message ?? "Challenge failed.");
+          setTotpError(chErr?.message ?? "Challenge failed. Try again.");
+          setCode("");
           return;
         }
         const { error: vErr } = await supabase.auth.mfa.verify({
@@ -182,7 +240,7 @@ function LoginPage() {
           code,
         });
         if (vErr) {
-          setTotpError(vErr.message);
+          registerFailedAttempt();
           return;
         }
       } else {
@@ -193,15 +251,72 @@ function LoginPage() {
           code,
         });
         if (vErr) {
-          setTotpError(vErr.message);
+          registerFailedAttempt();
+          // Challenges are single-use / short-lived — mint a fresh one for the next try.
+          const { data: ch } = await supabase.auth.mfa.challenge({ factorId });
+          if (ch) setChallengeId(ch.id);
           return;
         }
       }
-      navigate({ to: "/app" });
+      setFailedAttempts(0);
+      setLockUntil(0);
+      navigate({ to: sanitizeRedirect(redirectParam) });
     } finally {
       setVerifying(false);
     }
   };
+
+  const onRegenerateEnrollment = async () => {
+    if (!factorId || enrollRemaining > 0 || regenerating) return;
+    setRegenerating(true);
+    setTotpError(null);
+    try {
+      await supabase.auth.mfa.unenroll({ factorId });
+      const { data: enr, error: enErr } = await supabase.auth.mfa.enroll({
+        factorType: "totp",
+        issuer: "Branta Tech",
+        friendlyName: `Authenticator ${new Date().toISOString().slice(0, 10)}`,
+      });
+      if (enErr || !enr) {
+        setTotpError(enErr?.message ?? "Could not regenerate. Try again shortly.");
+        return;
+      }
+      setFactorId(enr.id);
+      setSecret(enr.totp.secret);
+      setQrDataUrl(null);
+      try {
+        const url = await QRCode.toDataURL(enr.totp.uri, { margin: 1, width: 200 });
+        setQrDataUrl(url);
+      } catch {
+        /* fall back to secret only */
+      }
+      setCode("");
+      setFailedAttempts(0);
+      setEnrollCooldownUntil(Date.now() + ENROLL_REGEN_COOLDOWN_MS);
+    } finally {
+      setRegenerating(false);
+    }
+  };
+
+  const onRefreshChallenge = async () => {
+    if (!factorId || challengeRemaining > 0 || refreshingChallenge) return;
+    setRefreshingChallenge(true);
+    setTotpError(null);
+    try {
+      const { data: ch, error: chErr } = await supabase.auth.mfa.challenge({ factorId });
+      if (chErr || !ch) {
+        setTotpError(chErr?.message ?? "Could not refresh challenge.");
+        return;
+      }
+      setChallengeId(ch.id);
+      setCode("");
+      setChallengeCooldownUntil(Date.now() + CHALLENGE_REFRESH_COOLDOWN_MS);
+    } finally {
+      setRefreshingChallenge(false);
+    }
+  };
+
+
 
   const onCancelTotp = async () => {
     if (phase === "enroll" && factorId) {
@@ -216,6 +331,10 @@ function LoginPage() {
     setCode("");
     setTotpError(null);
     setPassword("");
+    setFailedAttempts(0);
+    setLockUntil(0);
+    setEnrollCooldownUntil(0);
+    setChallengeCooldownUntil(0);
   };
 
   return (
@@ -468,6 +587,24 @@ function LoginPage() {
                       </div>
                     </div>
                   )}
+                  <button
+                    type="button"
+                    onClick={onRegenerateEnrollment}
+                    disabled={enrollRemaining > 0 || regenerating}
+                    className={cn(
+                      "flex h-8 items-center gap-1.5 rounded-sm border border-border bg-card px-3 text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+                      (enrollRemaining > 0 || regenerating) && "cursor-not-allowed opacity-60",
+                    )}
+                  >
+                    {regenerating ? (
+                      <Loader2 className="size-3 animate-spin" />
+                    ) : (
+                      <RefreshCw className="size-3" strokeWidth={1.75} />
+                    )}
+                    {enrollRemaining > 0
+                      ? `Regenerate in ${Math.ceil(enrollRemaining / 1000)}s`
+                      : "Regenerate secret"}
+                  </button>
                 </div>
               )}
 
@@ -475,15 +612,48 @@ function LoginPage() {
                 <label className="mb-2 block text-[12px] font-medium text-muted-foreground">
                   Verification code
                 </label>
-                <InputOTP maxLength={6} value={code} onChange={setCode}>
+                <InputOTP
+                  maxLength={6}
+                  value={code}
+                  onChange={setCode}
+                  disabled={locked || verifying}
+                >
                   <InputOTPGroup>
                     {Array.from({ length: 6 }).map((_, i) => (
                       <InputOTPSlot key={i} index={i} />
                     ))}
                   </InputOTPGroup>
                 </InputOTP>
-                {totpError && (
-                  <div className="mt-2 text-[12px] text-rose-600">{totpError}</div>
+                {locked ? (
+                  <div className="mt-2 text-[12px] text-rose-600">
+                    Too many invalid codes. Try again in {Math.ceil(lockRemaining / 1000)}s.
+                  </div>
+                ) : (
+                  totpError && (
+                    <div className="mt-2 text-[12px] text-rose-600">{totpError}</div>
+                  )
+                )}
+
+                {phase === "challenge" && (
+                  <button
+                    type="button"
+                    onClick={onRefreshChallenge}
+                    disabled={challengeRemaining > 0 || refreshingChallenge}
+                    className={cn(
+                      "mt-3 inline-flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground transition-colors hover:text-foreground",
+                      (challengeRemaining > 0 || refreshingChallenge) &&
+                        "cursor-not-allowed opacity-60",
+                    )}
+                  >
+                    {refreshingChallenge ? (
+                      <Loader2 className="size-3 animate-spin" />
+                    ) : (
+                      <RefreshCw className="size-3" strokeWidth={1.75} />
+                    )}
+                    {challengeRemaining > 0
+                      ? `New challenge in ${Math.ceil(challengeRemaining / 1000)}s`
+                      : "Request new challenge"}
+                  </button>
                 )}
               </div>
 
@@ -496,10 +666,10 @@ function LoginPage() {
                 </button>
                 <button
                   onClick={onVerify}
-                  disabled={code.length !== 6 || verifying}
+                  disabled={code.length !== 6 || verifying || locked}
                   className={cn(
                     "flex h-9 items-center gap-2 rounded-sm bg-brand px-4 text-[13px] font-semibold text-white transition-colors hover:bg-brand-700",
-                    (code.length !== 6 || verifying) && "opacity-60",
+                    (code.length !== 6 || verifying || locked) && "opacity-60",
                   )}
                 >
                   {verifying && <Loader2 className="size-3.5 animate-spin" />}

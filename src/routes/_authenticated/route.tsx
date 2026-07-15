@@ -4,27 +4,29 @@ import { useIdleTimeout } from "@/hooks/use-idle-timeout";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
-  beforeLoad: async () => {
+  beforeLoad: async ({ location }) => {
+    const redirectTo = { to: "/login" as const, search: { redirect: location.href } };
     const { data: userData, error } = await supabase.auth.getUser();
-    if (error || !userData.user) throw redirect({ to: "/login" });
+    if (error || !userData.user) throw redirect(redirectTo);
 
     const { data: aal } =
       await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
     if (aal?.nextLevel === "aal2" && aal.currentLevel !== "aal2") {
       await supabase.auth.signOut();
-      throw redirect({ to: "/login" });
+      throw redirect(redirectTo);
     }
     // First-login enforcement: no verified TOTP factor yet → back to login for enrollment.
     const { data: factors } = await supabase.auth.mfa.listFactors();
     const hasVerified = !!factors?.totp?.some((f) => f.status === "verified");
     if (!hasVerified) {
       await supabase.auth.signOut();
-      throw redirect({ to: "/login" });
+      throw redirect(redirectTo);
     }
     return { user: userData.user };
   },
   component: AuthGate,
 });
+
 
 const IDLE_MS = 30 * 60 * 1000;
 
