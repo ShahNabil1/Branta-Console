@@ -331,6 +331,10 @@ function LoginPage() {
     setCode("");
     setTotpError(null);
     setPassword("");
+    setFailedAttempts(0);
+    setLockUntil(0);
+    setEnrollCooldownUntil(0);
+    setChallengeCooldownUntil(0);
   };
 
   return (
