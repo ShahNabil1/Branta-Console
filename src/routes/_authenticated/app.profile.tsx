@@ -30,25 +30,10 @@ export const Route = createFileRoute("/_authenticated/app/profile")({
   component: ProfilePage,
 });
 
-// ---- MetaMap custom element typing ----
-declare global {
-  // eslint-disable-next-line @typescript-eslint/no-namespace
-  namespace JSX {
-    interface IntrinsicElements {
-      "metamap-button": React.DetailedHTMLProps<
-        React.HTMLAttributes<HTMLElement> & {
-          clientid?: string;
-          flowid?: string;
-          metadata?: string;
-          redirecturl?: string;
-          color?: string;
-          textcolor?: string;
-        },
-        HTMLElement
-      >;
-    }
-  }
-}
+// MetaMap ships a custom element; wrap it so React/TS don't complain about
+// unknown intrinsic elements.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const MetamapButton = "metamap-button" as any;
 
 // ---------- KYC status badge ----------
 type KycStatus = "not_verified" | "under_review" | "verified" | "rejected";
