@@ -11,13 +11,15 @@ export const Route = createFileRoute("/_authenticated")({
     const { data: aal } =
       await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
     if (aal?.nextLevel === "aal2" && aal.currentLevel !== "aal2") {
-      throw redirect({ to: "/two-factor" });
+      await supabase.auth.signOut();
+      throw redirect({ to: "/login" });
     }
-    // First-login enforcement: no verified TOTP factor yet → force enrollment.
+    // First-login enforcement: no verified TOTP factor yet → back to login for enrollment.
     const { data: factors } = await supabase.auth.mfa.listFactors();
     const hasVerified = !!factors?.totp?.some((f) => f.status === "verified");
     if (!hasVerified) {
-      throw redirect({ to: "/two-factor" });
+      await supabase.auth.signOut();
+      throw redirect({ to: "/login" });
     }
     return { user: userData.user };
   },
