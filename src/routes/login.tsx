@@ -478,12 +478,29 @@ function LoginPage() {
                     <input
                       id="local"
                       type="text"
+                      inputMode="text"
                       autoComplete="username"
+                      autoCapitalize="none"
                       spellCheck={false}
+                      lang="en"
+                      maxLength={64}
                       value={local}
                       onChange={(e) => {
-                        setLocal(e.target.value.toLowerCase());
-                        validateLocal(e.target.value);
+                        const cleaned = stripToLocal(e.target.value);
+                        setLocal(cleaned);
+                        validateLocal(cleaned);
+                      }}
+                      onPaste={(e) => {
+                        e.preventDefault();
+                        const text = e.clipboardData.getData("text");
+                        const cleaned = stripToLocal(local + text).slice(0, 64);
+                        setLocal(cleaned);
+                        validateLocal(cleaned);
+                      }}
+                      onCompositionEnd={(e) => {
+                        const cleaned = stripToLocal((e.target as HTMLInputElement).value);
+                        setLocal(cleaned);
+                        validateLocal(cleaned);
                       }}
                       onBlur={(e) => validateLocal(e.target.value)}
                       aria-invalid={!!localError}
