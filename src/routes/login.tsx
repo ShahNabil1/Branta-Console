@@ -203,15 +203,35 @@ function LoginPage() {
     }
   };
 
+  const registerFailedAttempt = () => {
+    const next = failedAttempts + 1;
+    if (next >= MAX_TOTP_ATTEMPTS) {
+      setLockUntil(Date.now() + TOTP_LOCK_MS);
+      setFailedAttempts(0);
+      setTotpError(
+        `Too many invalid codes. Try again in ${Math.ceil(TOTP_LOCK_MS / 1000)}s.`,
+      );
+    } else {
+      setFailedAttempts(next);
+      setTotpError(
+        `Invalid code. ${MAX_TOTP_ATTEMPTS - next} attempt${
+          MAX_TOTP_ATTEMPTS - next === 1 ? "" : "s"
+        } remaining.`,
+      );
+    }
+    setCode("");
+  };
+
   const onVerify = async () => {
-    if (!factorId || code.length !== 6) return;
+    if (!factorId || code.length !== 6 || locked) return;
     setVerifying(true);
     setTotpError(null);
     try {
       if (phase === "enroll") {
         const { data: ch, error: chErr } = await supabase.auth.mfa.challenge({ factorId });
         if (chErr || !ch) {
-          setTotpError(chErr?.message ?? "Challenge failed.");
+          setTotpError(chErr?.message ?? "Challenge failed. Try again.");
+          setCode("");
           return;
         }
         const { error: vErr } = await supabase.auth.mfa.verify({
@@ -220,7 +240,7 @@ function LoginPage() {
           code,
         });
         if (vErr) {
-          setTotpError(vErr.message);
+          registerFailedAttempt();
           return;
         }
       } else {
@@ -231,15 +251,72 @@ function LoginPage() {
           code,
         });
         if (vErr) {
-          setTotpError(vErr.message);
+          registerFailedAttempt();
+          // Challenges are single-use / short-lived — mint a fresh one for the next try.
+          const { data: ch } = await supabase.auth.mfa.challenge({ factorId });
+          if (ch) setChallengeId(ch.id);
           return;
         }
       }
-      navigate({ to: "/app" });
+      setFailedAttempts(0);
+      setLockUntil(0);
+      navigate({ to: sanitizeRedirect(redirectParam) });
     } finally {
       setVerifying(false);
     }
   };
+
+  const onRegenerateEnrollment = async () => {
+    if (!factorId || enrollRemaining > 0 || regenerating) return;
+    setRegenerating(true);
+    setTotpError(null);
+    try {
+      await supabase.auth.mfa.unenroll({ factorId });
+      const { data: enr, error: enErr } = await supabase.auth.mfa.enroll({
+        factorType: "totp",
+        issuer: "Branta Tech",
+        friendlyName: `Authenticator ${new Date().toISOString().slice(0, 10)}`,
+      });
+      if (enErr || !enr) {
+        setTotpError(enErr?.message ?? "Could not regenerate. Try again shortly.");
+        return;
+      }
+      setFactorId(enr.id);
+      setSecret(enr.totp.secret);
+      setQrDataUrl(null);
+      try {
+        const url = await QRCode.toDataURL(enr.totp.uri, { margin: 1, width: 200 });
+        setQrDataUrl(url);
+      } catch {
+        /* fall back to secret only */
+      }
+      setCode("");
+      setFailedAttempts(0);
+      setEnrollCooldownUntil(Date.now() + ENROLL_REGEN_COOLDOWN_MS);
+    } finally {
+      setRegenerating(false);
+    }
+  };
+
+  const onRefreshChallenge = async () => {
+    if (!factorId || challengeRemaining > 0 || refreshingChallenge) return;
+    setRefreshingChallenge(true);
+    setTotpError(null);
+    try {
+      const { data: ch, error: chErr } = await supabase.auth.mfa.challenge({ factorId });
+      if (chErr || !ch) {
+        setTotpError(chErr?.message ?? "Could not refresh challenge.");
+        return;
+      }
+      setChallengeId(ch.id);
+      setCode("");
+      setChallengeCooldownUntil(Date.now() + CHALLENGE_REFRESH_COOLDOWN_MS);
+    } finally {
+      setRefreshingChallenge(false);
+    }
+  };
+
+
 
   const onCancelTotp = async () => {
     if (phase === "enroll" && factorId) {
