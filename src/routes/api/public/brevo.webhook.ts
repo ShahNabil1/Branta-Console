@@ -51,9 +51,6 @@ const CANON: Record<string, string> = {
   error: "error",
   unsubscribed: "unsubscribed",
   unsubscribe: "unsubscribed",
-  list_addition: "list_addition",
-  contact_updated: "contact_updated",
-  contact_deleted: "contact_deleted",
 };
 
 const canonical = (ev: unknown): string => {
