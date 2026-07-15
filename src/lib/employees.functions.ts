@@ -19,10 +19,14 @@ const CreateInput = z.object({
   fullName: z.string().trim().max(120).optional(),
 });
 
-const assertAdmin = async (
-  supabase: { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }> },
-  userId: string,
-) => {
+type RpcClient = {
+  rpc: (
+    fn: "has_role",
+    args: { _user_id: string; _role: "super_admin" | "admin" | "manager" | "user" },
+  ) => Promise<{ data: boolean | null; error: { message: string } | null }>;
+};
+
+const assertAdmin = async (supabase: RpcClient, userId: string) => {
   const [su, ad] = await Promise.all([
     supabase.rpc("has_role", { _user_id: userId, _role: "super_admin" }),
     supabase.rpc("has_role", { _user_id: userId, _role: "admin" }),
