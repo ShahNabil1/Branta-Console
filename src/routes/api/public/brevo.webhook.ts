@@ -1,7 +1,7 @@
-// Brevo transactional / marketing webhook receiver.
-// Brevo POSTs one event per request (transactional) or a batch (marketing).
-// This is a public route under /api/public/*, so we require ?token=<secret>
-// (Brevo lets you add arbitrary query params to the webhook URL).
+// Brevo outbound webhook receiver for transactional email events.
+// Brevo can POST one event at a time or batches of up to 500 events.
+// This is a public route under /api/public/*, so we verify the shared secret
+// before writing anything to the database.
 import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/api/public/brevo/webhook")({
@@ -60,6 +60,34 @@ const canonical = (ev: unknown): string => {
   const raw = String(ev ?? "unknown").toLowerCase().replace(/\s+/g, "_");
   return CANON[raw] ?? raw;
 };
+
+const jsonHeaders = { "content-type": "application/json" };
+
+const getAuthToken = (request: Request, url: URL): string => {
+  const queryToken = url.searchParams.get("token");
+  if (queryToken) return queryToken;
+
+  const headerToken = request.headers.get("x-webhook-token");
+  if (headerToken) return headerToken;
+
+  const auth = request.headers.get("authorization") ?? "";
+  const match = auth.match(/^(?:bearer|token)\s+(.+)$/i);
+  return match?.[1]?.trim() ?? "";
+};
+
+const normalizeItems = (body: unknown): Record<string, unknown>[] => {
+  if (Array.isArray(body)) return body.filter(isObjectRecord);
+  if (!isObjectRecord(body)) return [];
+
+  const nested = body.events ?? body.items ?? body.data;
+  if (Array.isArray(nested)) return nested.filter(isObjectRecord);
+
+  return [body];
+};
+
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
 
 const pickDate = (payload: Record<string, unknown>): string => {
   const candidates = [
@@ -140,10 +168,7 @@ async function handlePost(request: Request): Promise<Response> {
     console.error("[brevo-webhook] BREVO_WEBHOOK_SECRET is not configured");
     return new Response("Server misconfigured", { status: 500 });
   }
-  const provided =
-    url.searchParams.get("token") ??
-    request.headers.get("x-webhook-token") ??
-    "";
+  const provided = getAuthToken(request, url);
   if (!provided || !safeEqual(provided, expected)) {
     return new Response("Unauthorized", { status: 401 });
   }
@@ -155,9 +180,7 @@ async function handlePost(request: Request): Promise<Response> {
     return new Response("Invalid JSON", { status: 400 });
   }
 
-  const items = Array.isArray(body)
-    ? (body as Record<string, unknown>[])
-    : [body as Record<string, unknown>];
+  const items = normalizeItems(body);
 
   const rows: EventRow[] = [];
   for (const item of items) {
@@ -167,21 +190,92 @@ async function handlePost(request: Request): Promise<Response> {
 
   if (rows.length === 0) {
     return new Response(JSON.stringify({ ok: true, inserted: 0 }), {
-      headers: { "content-type": "application/json" },
+      headers: jsonHeaders,
     });
   }
 
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { error } = await supabaseAdmin
-    .from("email_events")
-    .insert(rows as unknown as never);
-  if (error) {
+  try {
+    const inserted = await insertEmailEvents(rows);
+    return new Response(JSON.stringify({ ok: true, inserted }), {
+      headers: jsonHeaders,
+    });
+  } catch (error) {
     console.error("[brevo-webhook] insert failed", error);
     // 500 makes Brevo retry — desirable for transient DB failures.
-    return new Response(`DB error: ${error.message}`, { status: 500 });
+    const message = error instanceof Error ? error.message : "Unknown DB error";
+    return new Response(`DB error: ${message}`, { status: 500 });
+  }
+}
+
+async function insertEmailEvents(rows: EventRow[]): Promise<number> {
+  const databaseUrl = process.env.SUPABASE_DB_URL;
+  if (!databaseUrl) {
+    throw new Error("SUPABASE_DB_URL is not configured");
   }
 
-  return new Response(JSON.stringify({ ok: true, inserted: rows.length }), {
-    headers: { "content-type": "application/json" },
+  const { default: postgres } = await import("postgres");
+  const sql = postgres(databaseUrl, {
+    max: 1,
+    idle_timeout: 5,
+    connect_timeout: 10,
+    prepare: false,
   });
+
+  try {
+    const payload = rows.map((row) => ({
+      event: row.event,
+      email: row.email,
+      message_id: row.message_id,
+      subject: row.subject,
+      reason: row.reason,
+      tag: row.tag,
+      link: row.link,
+      list_id: row.list_id,
+      occurred_at: row.occurred_at,
+      raw: row.raw,
+    }));
+
+    const inserted = await sql<{ id: string }[]>`
+      INSERT INTO public.email_events (
+        event,
+        email,
+        message_id,
+        subject,
+        reason,
+        tag,
+        link,
+        list_id,
+        occurred_at,
+        raw
+      )
+      SELECT
+        item.event,
+        item.email,
+        item.message_id,
+        item.subject,
+        item.reason,
+        item.tag,
+        item.link,
+        item.list_id,
+        item.occurred_at,
+        item.raw
+      FROM jsonb_to_recordset(${sql.json(payload)}::jsonb) AS item(
+        event text,
+        email text,
+        message_id text,
+        subject text,
+        reason text,
+        tag text,
+        link text,
+        list_id integer,
+        occurred_at timestamptz,
+        raw jsonb
+      )
+      RETURNING id
+    `;
+
+    return inserted.length;
+  } finally {
+    await sql.end({ timeout: 1 });
+  }
 }
