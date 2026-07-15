@@ -16,6 +16,7 @@ import {
   updateMyProfile,
   markKycSubmitted,
   getMetamapConfig,
+  requestKycReupload,
   type ProfileRow,
 } from "@/lib/profile.functions";
 import { requestR2Upload } from "@/lib/r2.functions";
