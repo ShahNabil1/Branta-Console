@@ -123,6 +123,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      insert_brevo_email_events: { Args: { _rows: Json }; Returns: number }
       is_super_admin: { Args: { _user_id?: string }; Returns: boolean }
       validate_branta_email: { Args: { _email: string }; Returns: boolean }
     }
