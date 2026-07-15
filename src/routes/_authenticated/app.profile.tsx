@@ -140,6 +140,7 @@ function ProfilePage() {
   const fetchMetamap = useServerFn(getMetamapConfig);
   const update = useServerFn(updateMyProfile);
   const markSubmitted = useServerFn(markKycSubmitted);
+  const reupload = useServerFn(requestKycReupload);
   const presign = useServerFn(requestR2Upload);
 
   const profileQuery = useQuery({
