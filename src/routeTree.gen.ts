@@ -13,9 +13,9 @@ import { Route as TwoFactorRouteImport } from './routes/two-factor'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as ApiR2HealthRouteImport } from './routes/api/r2-health'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app.index'
+import { Route as ApiPublicR2HealthRouteImport } from './routes/api/public/r2-health'
 import { Route as AuthenticatedAppSettingsRouteImport } from './routes/_authenticated/app.settings'
 import { Route as AuthenticatedAppLeadsRouteImport } from './routes/_authenticated/app.leads'
 
@@ -38,11 +38,6 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiR2HealthRoute = ApiR2HealthRouteImport.update({
-  id: '/api/r2-health',
-  path: '/api/r2-health',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AuthenticatedAppRoute = AuthenticatedAppRouteImport.update({
   id: '/app',
   path: '/app',
@@ -52,6 +47,11 @@ const AuthenticatedAppIndexRoute = AuthenticatedAppIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const ApiPublicR2HealthRoute = ApiPublicR2HealthRouteImport.update({
+  id: '/api/public/r2-health',
+  path: '/api/public/r2-health',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAppSettingsRoute =
   AuthenticatedAppSettingsRouteImport.update({
@@ -70,18 +70,18 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/two-factor': typeof TwoFactorRoute
   '/app': typeof AuthenticatedAppRouteWithChildren
-  '/api/r2-health': typeof ApiR2HealthRoute
   '/app/leads': typeof AuthenticatedAppLeadsRoute
   '/app/settings': typeof AuthenticatedAppSettingsRoute
+  '/api/public/r2-health': typeof ApiPublicR2HealthRoute
   '/app/': typeof AuthenticatedAppIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/two-factor': typeof TwoFactorRoute
-  '/api/r2-health': typeof ApiR2HealthRoute
   '/app/leads': typeof AuthenticatedAppLeadsRoute
   '/app/settings': typeof AuthenticatedAppSettingsRoute
+  '/api/public/r2-health': typeof ApiPublicR2HealthRoute
   '/app': typeof AuthenticatedAppIndexRoute
 }
 export interface FileRoutesById {
@@ -91,9 +91,9 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/two-factor': typeof TwoFactorRoute
   '/_authenticated/app': typeof AuthenticatedAppRouteWithChildren
-  '/api/r2-health': typeof ApiR2HealthRoute
   '/_authenticated/app/leads': typeof AuthenticatedAppLeadsRoute
   '/_authenticated/app/settings': typeof AuthenticatedAppSettingsRoute
+  '/api/public/r2-health': typeof ApiPublicR2HealthRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
 }
 export interface FileRouteTypes {
@@ -103,18 +103,18 @@ export interface FileRouteTypes {
     | '/login'
     | '/two-factor'
     | '/app'
-    | '/api/r2-health'
     | '/app/leads'
     | '/app/settings'
+    | '/api/public/r2-health'
     | '/app/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
     | '/two-factor'
-    | '/api/r2-health'
     | '/app/leads'
     | '/app/settings'
+    | '/api/public/r2-health'
     | '/app'
   id:
     | '__root__'
@@ -123,9 +123,9 @@ export interface FileRouteTypes {
     | '/login'
     | '/two-factor'
     | '/_authenticated/app'
-    | '/api/r2-health'
     | '/_authenticated/app/leads'
     | '/_authenticated/app/settings'
+    | '/api/public/r2-health'
     | '/_authenticated/app/'
   fileRoutesById: FileRoutesById
 }
@@ -134,7 +134,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   LoginRoute: typeof LoginRoute
   TwoFactorRoute: typeof TwoFactorRoute
-  ApiR2HealthRoute: typeof ApiR2HealthRoute
+  ApiPublicR2HealthRoute: typeof ApiPublicR2HealthRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -167,13 +167,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/r2-health': {
-      id: '/api/r2-health'
-      path: '/api/r2-health'
-      fullPath: '/api/r2-health'
-      preLoaderRoute: typeof ApiR2HealthRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/_authenticated/app': {
       id: '/_authenticated/app'
       path: '/app'
@@ -187,6 +180,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/'
       preLoaderRoute: typeof AuthenticatedAppIndexRouteImport
       parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/api/public/r2-health': {
+      id: '/api/public/r2-health'
+      path: '/api/public/r2-health'
+      fullPath: '/api/public/r2-health'
+      preLoaderRoute: typeof ApiPublicR2HealthRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/app/settings': {
       id: '/_authenticated/app/settings'
@@ -236,7 +236,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   LoginRoute: LoginRoute,
   TwoFactorRoute: TwoFactorRoute,
-  ApiR2HealthRoute: ApiR2HealthRoute,
+  ApiPublicR2HealthRoute: ApiPublicR2HealthRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
