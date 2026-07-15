@@ -7,7 +7,7 @@
 // Route: POST https://console.brantatech.com/api/public/metamap-webhook
 import { createFileRoute } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/api/public/metamap-webhook")({
+export const Route = createFileRoute("/api/public/metamap/webhook")({
   server: {
     handlers: {
       GET: async () =>
@@ -153,7 +153,8 @@ async function handlePost(request: Request): Promise<Response> {
 
   const { error: updateErr } = await supabaseAdmin
     .from("profiles")
-    .update(profileUpdate)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .update(profileUpdate as any)
     .eq("user_id", extracted.userId);
 
   if (updateErr) {
