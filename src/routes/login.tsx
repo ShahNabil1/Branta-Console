@@ -238,7 +238,7 @@ function LoginPage() {
     setFactorId(enr.id);
     setSecret(enr.totp.secret);
     try {
-      const url = await QRCode.toDataURL(enr.totp.uri, { margin: 1, width: 200 });
+      const url = await QRCode.toDataURL(enr.totp.uri, { margin: 1, width: 160 });
       setQrDataUrl(url);
     } catch {
       // Fall back to secret only.
@@ -379,7 +379,7 @@ function LoginPage() {
       setSecret(enr.totp.secret);
       setQrDataUrl(null);
       try {
-        const url = await QRCode.toDataURL(enr.totp.uri, { margin: 1, width: 200 });
+        const url = await QRCode.toDataURL(enr.totp.uri, { margin: 1, width: 160 });
         setQrDataUrl(url);
       } catch {
         /* fall back to secret only */
@@ -778,7 +778,7 @@ function LoginPage() {
           ) : (
             <>
               {/* Step indicator */}
-              <ol className="mb-6 flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.12em]">
+              <ol className="mb-4 flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.12em]">
                 <li className="flex items-center gap-1.5 text-muted-foreground">
                   <span className="grid size-4 place-items-center rounded-full bg-emerald-100 text-emerald-700">
                     <Check className="size-2.5" strokeWidth={3} />
@@ -824,84 +824,83 @@ function LoginPage() {
               </h2>
               <p className="mt-1 whitespace-pre-line text-[13px] text-muted-foreground">
                 {phase === "enroll"
-                  ? "Scan the QR code with Google Authenticator,\nthen enter the 6-digit code below."
+                  ? "Scan the QR with Google Authenticator, then enter the 6-digit code."
                   : "Enter the 6-digit code from your authenticator app."}
               </p>
 
               {phase === "enroll" && (
-                <div className="mt-5 space-y-3">
+                <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-stretch">
                   {qrDataUrl && (
-                    <div className="flex justify-center rounded-sm border border-border bg-white p-4">
-                      <img src={qrDataUrl} alt="TOTP QR code" className="size-[200px]" />
+                    <div className="flex shrink-0 items-center justify-center rounded-sm border border-border bg-white p-1.5">
+                      <img src={qrDataUrl} alt="TOTP QR code" className="size-[132px] sm:size-[140px]" />
                     </div>
                   )}
                   {secret && (
-                    <div className="rounded-sm border border-border bg-card p-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                          Or enter secret manually
+                    <div className="flex min-w-0 flex-1 flex-col justify-between rounded-sm border border-border bg-card p-2.5">
+                      <div>
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                            Or enter secret
+                          </div>
+                          <button
+                            type="button"
+                            onClick={copySecret}
+                            aria-label={secretCopied ? "Secret copied" : "Copy secret"}
+                            className={cn(
+                              "inline-flex items-center gap-1 rounded-sm border border-border bg-card px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.1em] transition-all duration-200 hover:bg-muted",
+                              secretCopied
+                                ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                                : "text-muted-foreground hover:text-foreground",
+                            )}
+                          >
+                            <span className="relative grid size-3 place-items-center">
+                              <Copy
+                                className={cn(
+                                  "absolute size-3 transition-all duration-200",
+                                  secretCopied ? "scale-50 opacity-0" : "scale-100 opacity-100",
+                                )}
+                                strokeWidth={1.75}
+                              />
+                              <Check
+                                className={cn(
+                                  "absolute size-3 transition-all duration-200",
+                                  secretCopied ? "scale-100 opacity-100" : "scale-50 opacity-0",
+                                )}
+                                strokeWidth={2.5}
+                              />
+                            </span>
+                            {secretCopied ? "Copied" : "Copy"}
+                          </button>
                         </div>
-                        <button
-                          type="button"
-                          onClick={copySecret}
-                          aria-label={secretCopied ? "Secret copied" : "Copy secret"}
-                          className={cn(
-                            "inline-flex items-center gap-1 rounded-sm border border-border bg-card px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.1em] transition-all duration-200 hover:bg-muted",
-                            secretCopied
-                              ? "border-emerald-300 bg-emerald-50 text-emerald-700"
-                              : "text-muted-foreground hover:text-foreground",
-                          )}
-                        >
-                          <span className="relative grid size-3 place-items-center">
-                            <Copy
-                              className={cn(
-                                "absolute size-3 transition-all duration-200",
-                                secretCopied ? "scale-50 opacity-0" : "scale-100 opacity-100",
-                              )}
-                              strokeWidth={1.75}
-                            />
-                            <Check
-                              className={cn(
-                                "absolute size-3 transition-all duration-200",
-                                secretCopied ? "scale-100 opacity-100" : "scale-50 opacity-0",
-                              )}
-                              strokeWidth={2.5}
-                            />
-                          </span>
-                          {secretCopied ? "Copied" : "Copy"}
-                        </button>
+                        <div className="mt-1.5 break-all font-mono text-[12px] leading-snug text-foreground">
+                          {secret}
+                        </div>
                       </div>
-                      <div className="mt-1 break-all font-mono text-[13px] text-foreground">
-                        {secret}
-                      </div>
-                      <div className="mt-1 text-[11px] text-muted-foreground">
-                        Issuer: Branta Tech
-                      </div>
+                      <button
+                        type="button"
+                        onClick={onRegenerateEnrollment}
+                        disabled={enrollRemaining > 0 || regenerating}
+                        className={cn(
+                          "mt-2 inline-flex h-7 w-fit items-center gap-1.5 rounded-sm border border-border bg-card px-2 text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+                          (enrollRemaining > 0 || regenerating) && "cursor-not-allowed opacity-60",
+                        )}
+                      >
+                        {regenerating ? (
+                          <Loader2 className="size-3 animate-spin" />
+                        ) : (
+                          <RefreshCw className="size-3" strokeWidth={1.75} />
+                        )}
+                        {enrollRemaining > 0
+                          ? `Regenerate ${Math.ceil(enrollRemaining / 1000)}s`
+                          : "Regenerate"}
+                      </button>
                     </div>
                   )}
-                  <button
-                    type="button"
-                    onClick={onRegenerateEnrollment}
-                    disabled={enrollRemaining > 0 || regenerating}
-                    className={cn(
-                      "flex h-8 items-center gap-1.5 rounded-sm border border-border bg-card px-3 text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
-                      (enrollRemaining > 0 || regenerating) && "cursor-not-allowed opacity-60",
-                    )}
-                  >
-                    {regenerating ? (
-                      <Loader2 className="size-3 animate-spin" />
-                    ) : (
-                      <RefreshCw className="size-3" strokeWidth={1.75} />
-                    )}
-                    {enrollRemaining > 0
-                      ? `Regenerate in ${Math.ceil(enrollRemaining / 1000)}s`
-                      : "Regenerate secret"}
-                  </button>
                 </div>
               )}
 
-              <div className="mt-6">
-                <label className="mb-2 block text-[12px] font-medium text-muted-foreground">
+              <div className="mt-4">
+                <label className="mb-1.5 block text-[12px] font-medium text-muted-foreground">
                   Verification code
                 </label>
                 <InputOTP
@@ -922,7 +921,7 @@ function LoginPage() {
                         key={i}
                         index={i}
                         className={cn(
-                          "h-11 w-10 rounded-sm border border-border text-[15px] font-mono",
+                          "h-10 w-9 rounded-sm border border-border text-[15px] font-mono",
                           totpError && !locked && "border-rose-400",
                         )}
                       />
@@ -931,7 +930,7 @@ function LoginPage() {
                 </InputOTP>
 
                 {/* Status / help / error row (fixed height to avoid layout shift) */}
-                <div className="mt-2 min-h-[18px] text-[12px]" aria-live="polite">
+                <div className="mt-1.5 min-h-[18px] text-[12px]" aria-live="polite">
                   {locked ? (
                     <div className="flex items-center gap-1.5 text-rose-600">
                       <AlertCircle className="size-3.5" strokeWidth={2} />
@@ -961,7 +960,7 @@ function LoginPage() {
                     onClick={onRefreshChallenge}
                     disabled={challengeRemaining > 0 || refreshingChallenge}
                     className={cn(
-                      "mt-3 inline-flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground transition-colors hover:text-foreground",
+                      "mt-2 inline-flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground transition-colors hover:text-foreground",
                       (challengeRemaining > 0 || refreshingChallenge) &&
                         "cursor-not-allowed opacity-60",
                     )}
@@ -978,7 +977,7 @@ function LoginPage() {
                 )}
               </div>
 
-              <div className="mt-6 flex items-center justify-between gap-3">
+              <div className="mt-4 flex items-center justify-between gap-3">
                 <button
                   onClick={onCancelTotp}
                   className="h-9 rounded-sm border border-border bg-card px-4 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
@@ -998,19 +997,20 @@ function LoginPage() {
                 </button>
               </div>
 
-              <div className="mt-6 border-t border-border pt-4 text-[11px] uppercase tracking-[0.1em] text-muted-foreground">
+              <div className="mt-3 text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
                 Canceling will sign you out immediately.
               </div>
             </>
 
           )}
 
-          <footer className="mt-12 border-t border-border pt-6">
+          <footer className="mt-6 border-t border-border pt-4">
             <p className="text-[11px] uppercase leading-relaxed tracking-[0.1em] text-muted-foreground">
               BRANTA TECH SECURE NETWORK. THIS SYSTEM IS FOR AUTHORIZED BRANTA
               TECH PERSONNEL ONLY. ALL ACTIVITIES ARE LOGGED AND MONITORED.
             </p>
           </footer>
+
         </div>
       </main>
     </div>
