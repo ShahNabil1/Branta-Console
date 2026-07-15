@@ -216,6 +216,7 @@ function ProfilePage() {
       }}
       update={update}
       markSubmitted={markSubmitted}
+      reupload={reupload}
       presign={presign}
     />
   );
