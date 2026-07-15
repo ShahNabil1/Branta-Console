@@ -50,7 +50,7 @@ type Phase = "credentials" | "enroll" | "challenge";
 
 function LoginPage() {
   const navigate = useNavigate();
-  const { reason } = useSearch({ from: "/login" });
+  const { reason, redirect: redirectParam } = useSearch({ from: "/login" });
 
   // Phase state
   const [phase, setPhase] = useState<Phase>("credentials");
@@ -75,6 +75,29 @@ function LoginPage() {
   const [code, setCode] = useState("");
   const [totpError, setTotpError] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
+
+  // Anti-abuse timers
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [lockUntil, setLockUntil] = useState<number>(0);
+  const [enrollCooldownUntil, setEnrollCooldownUntil] = useState<number>(0);
+  const [challengeCooldownUntil, setChallengeCooldownUntil] = useState<number>(0);
+  const [regenerating, setRegenerating] = useState(false);
+  const [refreshingChallenge, setRefreshingChallenge] = useState(false);
+  const [, setTick] = useState(0);
+
+  const lockRemaining = Math.max(0, lockUntil - Date.now());
+  const enrollRemaining = Math.max(0, enrollCooldownUntil - Date.now());
+  const challengeRemaining = Math.max(0, challengeCooldownUntil - Date.now());
+  const locked = lockRemaining > 0;
+
+  // 1s tick only while any countdown is active.
+  useEffect(() => {
+    if (lockRemaining === 0 && enrollRemaining === 0 && challengeRemaining === 0) return;
+    const id = window.setInterval(() => setTick((t) => t + 1), 1000);
+    return () => window.clearInterval(id);
+  }, [lockRemaining, enrollRemaining, challengeRemaining]);
+
+
 
   const validateLocal = (v: string) => {
     if (!v) return setLocalError(null);
