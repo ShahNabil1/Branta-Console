@@ -1,6 +1,6 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
-import { Eye, EyeOff, Loader2, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
 import { z } from "zod";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import QRCode from "qrcode";
@@ -13,7 +13,22 @@ const TURNSTILE_SITE_KEY = "0x4AAAAAACNbiRh7P7qtgkXG";
 
 const searchSchema = z.object({
   reason: z.enum(["idle", "signed_out"]).optional(),
+  redirect: z.string().optional(),
 });
+
+// TOTP anti-abuse tuning
+const MAX_TOTP_ATTEMPTS = 5;
+const TOTP_LOCK_MS = 60_000;
+const ENROLL_REGEN_COOLDOWN_MS = 60_000;
+const CHALLENGE_REFRESH_COOLDOWN_MS = 30_000;
+
+const sanitizeRedirect = (r: string | undefined): string => {
+  if (!r) return "/app";
+  if (!r.startsWith("/") || r.startsWith("//")) return "/app";
+  if (r.startsWith("/login")) return "/app";
+  return r;
+};
+
 
 export const Route = createFileRoute("/login")({
   ssr: false,
