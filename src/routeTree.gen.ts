@@ -9,7 +9,6 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as TwoFactorRouteImport } from './routes/two-factor'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
@@ -20,11 +19,6 @@ import { Route as AuthenticatedAppSettingsRouteImport } from './routes/_authenti
 import { Route as AuthenticatedAppProfileRouteImport } from './routes/_authenticated/app.profile'
 import { Route as AuthenticatedAppLeadsRouteImport } from './routes/_authenticated/app.leads'
 
-const TwoFactorRoute = TwoFactorRouteImport.update({
-  id: '/two-factor',
-  path: '/two-factor',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -74,7 +68,6 @@ const AuthenticatedAppLeadsRoute = AuthenticatedAppLeadsRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/two-factor': typeof TwoFactorRoute
   '/app': typeof AuthenticatedAppRouteWithChildren
   '/app/leads': typeof AuthenticatedAppLeadsRoute
   '/app/profile': typeof AuthenticatedAppProfileRoute
@@ -85,7 +78,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/two-factor': typeof TwoFactorRoute
   '/app/leads': typeof AuthenticatedAppLeadsRoute
   '/app/profile': typeof AuthenticatedAppProfileRoute
   '/app/settings': typeof AuthenticatedAppSettingsRoute
@@ -97,7 +89,6 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/login': typeof LoginRoute
-  '/two-factor': typeof TwoFactorRoute
   '/_authenticated/app': typeof AuthenticatedAppRouteWithChildren
   '/_authenticated/app/leads': typeof AuthenticatedAppLeadsRoute
   '/_authenticated/app/profile': typeof AuthenticatedAppProfileRoute
@@ -110,7 +101,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
-    | '/two-factor'
     | '/app'
     | '/app/leads'
     | '/app/profile'
@@ -121,7 +111,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
-    | '/two-factor'
     | '/app/leads'
     | '/app/profile'
     | '/app/settings'
@@ -132,7 +121,6 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/login'
-    | '/two-factor'
     | '/_authenticated/app'
     | '/_authenticated/app/leads'
     | '/_authenticated/app/profile'
@@ -145,19 +133,11 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   LoginRoute: typeof LoginRoute
-  TwoFactorRoute: typeof TwoFactorRoute
   ApiPublicR2HealthRoute: typeof ApiPublicR2HealthRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/two-factor': {
-      id: '/two-factor'
-      path: '/two-factor'
-      fullPath: '/two-factor'
-      preLoaderRoute: typeof TwoFactorRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -256,7 +236,6 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   LoginRoute: LoginRoute,
-  TwoFactorRoute: TwoFactorRoute,
   ApiPublicR2HealthRoute: ApiPublicR2HealthRoute,
 }
 export const routeTree = rootRouteImport
