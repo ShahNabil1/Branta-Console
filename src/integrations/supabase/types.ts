@@ -98,6 +98,39 @@ export type Database = {
         }
         Relationships: []
       }
+      kyc_webhook_events: {
+        Row: {
+          event_id: string
+          id: string
+          payload_hash: string
+          processed_at: string
+          response: Json
+          status: string | null
+          user_id: string | null
+          verification_id: string | null
+        }
+        Insert: {
+          event_id: string
+          id?: string
+          payload_hash: string
+          processed_at?: string
+          response?: Json
+          status?: string | null
+          user_id?: string | null
+          verification_id?: string | null
+        }
+        Update: {
+          event_id?: string
+          id?: string
+          payload_hash?: string
+          processed_at?: string
+          response?: Json
+          status?: string | null
+          user_id?: string | null
+          verification_id?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           address_line1: string | null
