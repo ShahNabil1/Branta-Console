@@ -239,6 +239,7 @@ interface FormProps {
   onSaved: () => void;
   update: ReturnType<typeof useServerFn<typeof updateMyProfile>>;
   markSubmitted: ReturnType<typeof useServerFn<typeof markKycSubmitted>>;
+  reupload: ReturnType<typeof useServerFn<typeof requestKycReupload>>;
   presign: ReturnType<typeof useServerFn<typeof requestR2Upload>>;
 }
 
@@ -249,6 +250,7 @@ function ProfileForm({
   onSaved,
   update,
   markSubmitted,
+  reupload,
   presign,
 }: FormProps) {
   const [form, setForm] = useState<ProfileRow>(profile);
