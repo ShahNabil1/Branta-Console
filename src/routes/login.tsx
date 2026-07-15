@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
-import { Eye, EyeOff, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
+import { AlertCircle, Check, Eye, EyeOff, Info, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
 import { z } from "zod";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import QRCode from "qrcode";
