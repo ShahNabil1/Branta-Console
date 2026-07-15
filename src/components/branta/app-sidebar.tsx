@@ -45,6 +45,7 @@ const NAV: NavGroup[] = [
   {
     label: "Admin",
     items: [
+      { label: "Employees", to: "/app/employees", icon: UserPlus },
       { label: "Settings", to: "/app/settings", icon: Settings },
       { label: "Security", to: "/app/settings", icon: Shield },
     ],
