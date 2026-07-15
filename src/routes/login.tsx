@@ -89,8 +89,7 @@ function LoginPage() {
   const turnstileRef = useRef<TurnstileInstance | null>(null);
   const submitLockRef = useRef(false);
 
-  // Keyboard / input hints
-  const [capsLockOn, setCapsLockOn] = useState(false);
+  // Transient hints — only surface when the user forces non-English input.
   const [localHint, setLocalHint] = useState<string | null>(null);
   const [passwordHint, setPasswordHint] = useState<string | null>(null);
   const localHintTimer = useRef<number | null>(null);
@@ -105,31 +104,6 @@ function LoginPage() {
     setPasswordHint(msg);
     if (passwordHintTimer.current) window.clearTimeout(passwordHintTimer.current);
     passwordHintTimer.current = window.setTimeout(() => setPasswordHint(null), 2400);
-  };
-
-  // Describe what was blocked between raw input and the cleaned result.
-  const describeLocalBlock = (raw: string, cleaned: string): string | null => {
-    if (raw === cleaned) return null;
-    const dropped = raw.slice(cleaned.length) || raw;
-    if (/[A-Z]/.test(raw)) return "Uppercase blocked — Branta ID is lowercase only.";
-    if (/[0-9]/.test(raw)) return "Numbers are not allowed in Branta ID.";
-    if (/[^\x00-\x7F]/.test(dropped)) return "Only english letters (a–z) are allowed.";
-    if (/[.\-_ ]/.test(dropped)) return "Dots, dashes, and spaces are not allowed.";
-    if (raw.length > LOCAL_MAX) return `Maximum ${LOCAL_MAX} characters.`;
-    return "Only lowercase english letters (a–z) are allowed.";
-  };
-  const describePasswordBlock = (raw: string, cleaned: string): string | null => {
-    if (raw === cleaned) return null;
-    if (/[^\x00-\x7F]/.test(raw)) return "Only english characters are allowed in the password.";
-    if (raw.length > PASSWORD_LEN) return `Password is exactly ${PASSWORD_LEN} characters.`;
-    return "That character isn't allowed.";
-  };
-
-  const onKeyEvent = (
-    e: React.KeyboardEvent<HTMLInputElement> | React.FocusEvent<HTMLInputElement>,
-  ) => {
-    const ev = e.nativeEvent as unknown as { getModifierState?: (k: string) => boolean };
-    setCapsLockOn(ev.getModifierState?.("CapsLock") ?? false);
   };
 
 
@@ -520,17 +494,16 @@ function LoginPage() {
                     >
                       Branta ID
                     </label>
-                    <div className="flex items-center gap-2 text-[10px] font-mono tabular-nums text-muted-foreground">
-                      {capsLockOn && (
-                        <span className="inline-flex items-center gap-1 rounded-sm border border-amber-300 bg-amber-50 px-1.5 py-0.5 font-medium uppercase tracking-[0.1em] text-amber-700">
-                          <AlertCircle className="size-2.5" strokeWidth={2.5} />
-                          Caps
-                        </span>
-                      )}
-                      <span className={cn(local.length > LOCAL_MAX - 2 && "text-amber-600")}>
+                    {(local.length > 0 && local.length < LOCAL_MIN) || local.length >= LOCAL_MAX ? (
+                      <span
+                        className={cn(
+                          "text-[10px] font-mono tabular-nums",
+                          local.length >= LOCAL_MAX ? "text-amber-600" : "text-muted-foreground",
+                        )}
+                      >
                         {local.length}/{LOCAL_MAX}
                       </span>
-                    </div>
+                    ) : null}
                   </div>
                   <div
                     className={cn(
@@ -552,22 +525,21 @@ function LoginPage() {
                       lang="en"
                       maxLength={LOCAL_MAX}
                       value={local}
-                      onKeyDown={onKeyEvent}
-                      onKeyUp={onKeyEvent}
-                      onFocus={onKeyEvent}
                       onBeforeInput={(e) => {
                         const ev = e as unknown as InputEvent;
                         const incoming = ev.data ?? "";
-                        if (incoming && !/^[a-z]+$/.test(incoming)) {
-                          const msg = describeLocalBlock(incoming, "") ?? "Character blocked.";
-                          flashLocalHint(msg);
+                        if (incoming && /[^\x00-\x7F]/.test(incoming)) {
+                          flashLocalHint("Only english letters (a–z) are allowed.");
+                        } else if (local.length >= LOCAL_MAX && incoming) {
+                          flashLocalHint(`Maximum ${LOCAL_MAX} characters.`);
                         }
                       }}
                       onChange={(e) => {
                         const raw = e.target.value;
                         const cleaned = stripToLocal(raw);
-                        const msg = describeLocalBlock(raw, cleaned);
-                        if (msg) flashLocalHint(msg);
+                        if (raw !== cleaned && /[^\x00-\x7F]/.test(raw)) {
+                          flashLocalHint("Only english letters (a–z) are allowed.");
+                        }
                         setLocal(cleaned);
                         validateLocal(cleaned);
                       }}
@@ -576,8 +548,9 @@ function LoginPage() {
                         const text = e.clipboardData.getData("text");
                         const raw = local + text;
                         const cleaned = stripToLocal(raw);
-                        const msg = describeLocalBlock(raw, cleaned);
-                        if (msg) flashLocalHint(msg);
+                        if (/[^\x00-\x7F]/.test(text)) {
+                          flashLocalHint("Only english letters (a–z) are allowed.");
+                        }
                         setLocal(cleaned);
                         validateLocal(cleaned);
                       }}
@@ -590,7 +563,7 @@ function LoginPage() {
                       }}
                       onBlur={(e) => validateLocal(e.target.value)}
                       aria-invalid={!!localError}
-                      aria-describedby="local-error local-help"
+                      aria-describedby="local-help"
                       className={cn(
                         "flex-1 bg-transparent px-3 font-mono text-[13px] outline-none transition-shadow focus:ring-1 focus:ring-inset",
                         localError ? "focus:ring-rose-500" : "focus:ring-brand",
@@ -603,29 +576,24 @@ function LoginPage() {
                       {DOMAIN}
                     </div>
                   </div>
-                  {/* Error takes priority, then transient block hint, then persistent help. */}
-                  <div
-                    id="local-error"
-                    role="alert"
-                    aria-live="polite"
-                    className="mt-1.5 min-h-[14px] text-[11px] font-medium uppercase tracking-[0.1em] text-rose-600"
-                  >
-                    {localError}
-                  </div>
+                  {/* Reserved space avoids layout shift; content only appears on error/hint. */}
                   <div
                     id="local-help"
+                    role="status"
                     aria-live="polite"
-                    className={cn(
-                      "mt-0.5 flex items-center gap-1 text-[11px] transition-colors",
-                      localHint ? "text-amber-700" : "text-muted-foreground",
-                    )}
+                    className="mt-1.5 flex min-h-[14px] items-center gap-1 text-[11px]"
                   >
-                    {localHint ? (
-                      <AlertCircle className="size-3" strokeWidth={2} />
-                    ) : (
-                      <Info className="size-3" strokeWidth={1.75} />
-                    )}
-                    <span>{localHint ?? `${LOCAL_MIN}–${LOCAL_MAX} lowercase english letters (a–z) only.`}</span>
+                    {localError ? (
+                      <>
+                        <AlertCircle className="size-3 text-rose-600" strokeWidth={2} />
+                        <span className="text-rose-600">{localError}</span>
+                      </>
+                    ) : localHint ? (
+                      <>
+                        <AlertCircle className="size-3 text-amber-700" strokeWidth={2} />
+                        <span className="text-amber-700">{localHint}</span>
+                      </>
+                    ) : null}
                   </div>
                 </div>
 
@@ -637,22 +605,11 @@ function LoginPage() {
                     >
                       Password
                     </label>
-                    <div className="flex items-center gap-2 text-[10px] font-mono tabular-nums text-muted-foreground">
-                      {capsLockOn && (
-                        <span className="inline-flex items-center gap-1 rounded-sm border border-amber-300 bg-amber-50 px-1.5 py-0.5 font-medium uppercase tracking-[0.1em] text-amber-700">
-                          <AlertCircle className="size-2.5" strokeWidth={2.5} />
-                          Caps
-                        </span>
-                      )}
-                      <span
-                        className={cn(
-                          password.length === PASSWORD_LEN && "text-emerald-600",
-                          password.length > 0 && password.length < PASSWORD_LEN && "text-amber-600",
-                        )}
-                      >
+                    {password.length > 0 && password.length < PASSWORD_LEN ? (
+                      <span className="text-[10px] font-mono tabular-nums text-amber-600">
                         {password.length}/{PASSWORD_LEN}
                       </span>
-                    </div>
+                    ) : null}
                   </div>
                   <div className="relative">
                     <input
@@ -663,21 +620,19 @@ function LoginPage() {
                       lang="en"
                       maxLength={PASSWORD_LEN}
                       value={password}
-                      onKeyDown={onKeyEvent}
-                      onKeyUp={onKeyEvent}
-                      onFocus={onKeyEvent}
                       onBeforeInput={(e) => {
                         const ev = e as unknown as InputEvent;
                         const incoming = ev.data ?? "";
                         if (incoming && /[^\x20-\x7E]/.test(incoming)) {
-                          flashPasswordHint("Only english characters are allowed in the password.");
+                          flashPasswordHint("Only english characters are allowed.");
                         }
                       }}
                       onChange={(e) => {
                         const raw = e.target.value;
                         const cleaned = stripToPassword(raw);
-                        const msg = describePasswordBlock(raw, cleaned);
-                        if (msg) flashPasswordHint(msg);
+                        if (raw !== cleaned && /[^\x20-\x7E]/.test(raw)) {
+                          flashPasswordHint("Only english characters are allowed.");
+                        }
                         setPassword(cleaned);
                       }}
                       onPaste={(e) => {
@@ -685,15 +640,16 @@ function LoginPage() {
                         const text = e.clipboardData.getData("text");
                         const raw = password + text;
                         const cleaned = stripToPassword(raw);
-                        const msg = describePasswordBlock(raw, cleaned);
-                        if (msg) flashPasswordHint(msg);
+                        if (/[^\x20-\x7E]/.test(text)) {
+                          flashPasswordHint("Only english characters are allowed.");
+                        }
                         setPassword(cleaned);
                       }}
                       onCompositionEnd={(e) => {
                         const raw = (e.target as HTMLInputElement).value;
                         const cleaned = stripToPassword(raw);
                         if (raw !== cleaned)
-                          flashPasswordHint("Only english characters are allowed in the password.");
+                          flashPasswordHint("Only english characters are allowed.");
                         setPassword(cleaned);
                       }}
                       aria-describedby="password-help"
@@ -720,20 +676,23 @@ function LoginPage() {
                   </div>
                   <div
                     id="password-help"
+                    role="status"
                     aria-live="polite"
-                    className={cn(
-                      "mt-1.5 flex items-center gap-1 text-[11px] transition-colors",
-                      passwordHint ? "text-amber-700" : "text-muted-foreground",
-                    )}
+                    className="mt-1.5 flex min-h-[14px] items-center gap-1 text-[11px]"
                   >
                     {passwordHint ? (
-                      <AlertCircle className="size-3" strokeWidth={2} />
-                    ) : (
-                      <Info className="size-3" strokeWidth={1.75} />
-                    )}
-                    <span>
-                      {passwordHint ?? `Exactly ${PASSWORD_LEN} characters. English letters, numbers, or symbols.`}
-                    </span>
+                      <>
+                        <AlertCircle className="size-3 text-amber-700" strokeWidth={2} />
+                        <span className="text-amber-700">{passwordHint}</span>
+                      </>
+                    ) : password.length > 0 && password.length < PASSWORD_LEN ? (
+                      <>
+                        <Info className="size-3 text-muted-foreground" strokeWidth={1.75} />
+                        <span className="text-muted-foreground">
+                          Password must be exactly {PASSWORD_LEN} characters.
+                        </span>
+                      </>
+                    ) : null}
                   </div>
                 </div>
 
