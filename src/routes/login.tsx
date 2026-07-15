@@ -294,6 +294,9 @@ function LoginPage() {
       setVerifying(false);
     }
   };
+  onVerifyRef.current = onVerify;
+
+
 
   const onRegenerateEnrollment = async () => {
     if (!factorId || enrollRemaining > 0 || regenerating) return;
