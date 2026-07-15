@@ -238,7 +238,7 @@ function LoginPage() {
     setFactorId(enr.id);
     setSecret(enr.totp.secret);
     try {
-      const url = await QRCode.toDataURL(enr.totp.uri, { margin: 1, width: 200 });
+      const url = await QRCode.toDataURL(enr.totp.uri, { margin: 1, width: 160 });
       setQrDataUrl(url);
     } catch {
       // Fall back to secret only.
@@ -379,7 +379,7 @@ function LoginPage() {
       setSecret(enr.totp.secret);
       setQrDataUrl(null);
       try {
-        const url = await QRCode.toDataURL(enr.totp.uri, { margin: 1, width: 200 });
+        const url = await QRCode.toDataURL(enr.totp.uri, { margin: 1, width: 160 });
         setQrDataUrl(url);
       } catch {
         /* fall back to secret only */
@@ -778,7 +778,7 @@ function LoginPage() {
           ) : (
             <>
               {/* Step indicator */}
-              <ol className="mb-6 flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.12em]">
+              <ol className="mb-4 flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.12em]">
                 <li className="flex items-center gap-1.5 text-muted-foreground">
                   <span className="grid size-4 place-items-center rounded-full bg-emerald-100 text-emerald-700">
                     <Check className="size-2.5" strokeWidth={3} />
