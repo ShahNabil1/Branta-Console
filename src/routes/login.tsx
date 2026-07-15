@@ -358,14 +358,15 @@ function LoginPage() {
                   role="alert"
                   aria-live="assertive"
                   className={cn(
-                    "min-h-[36px] rounded-sm border px-3 py-2 text-[12px] transition-opacity",
+                    "overflow-hidden rounded-sm border px-3 text-[12px] transition-all",
                     formError
-                      ? "border-rose-200 bg-rose-50 text-rose-700 opacity-100"
-                      : "border-transparent bg-transparent opacity-0",
+                      ? "max-h-24 border-rose-200 bg-rose-50 py-2 text-rose-700 opacity-100"
+                      : "max-h-0 border-transparent bg-transparent py-0 opacity-0",
                   )}
                 >
                   {formError ?? "\u00A0"}
                 </div>
+
 
                 <div className="pt-1">
                   <button
