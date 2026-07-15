@@ -99,8 +99,16 @@ function LoginPage() {
         setFormError(error.message);
         return;
       }
+      // Force TOTP: either verify existing factor, or enroll one on first login.
       const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-      if (aal?.nextLevel === "aal2" && aal.currentLevel !== "aal2") {
+      const needsVerify =
+        aal?.nextLevel === "aal2" && aal.currentLevel !== "aal2";
+      let hasVerifiedFactor = false;
+      if (!needsVerify) {
+        const { data: factors } = await supabase.auth.mfa.listFactors();
+        hasVerifiedFactor = !!factors?.totp?.some((f) => f.status === "verified");
+      }
+      if (needsVerify || !hasVerifiedFactor) {
         navigate({ to: "/two-factor" });
       } else {
         navigate({ to: "/app" });
