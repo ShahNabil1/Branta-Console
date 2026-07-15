@@ -59,28 +59,148 @@ export type Database = {
         }
         Relationships: []
       }
+      kyc_documents: {
+        Row: {
+          created_at: string
+          document_type: string
+          id: string
+          mime_type: string | null
+          payload: Json
+          r2_key: string | null
+          r2_url: string | null
+          source_url: string | null
+          user_id: string
+          verification_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          document_type: string
+          id?: string
+          mime_type?: string | null
+          payload?: Json
+          r2_key?: string | null
+          r2_url?: string | null
+          source_url?: string | null
+          user_id: string
+          verification_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          document_type?: string
+          id?: string
+          mime_type?: string | null
+          payload?: Json
+          r2_key?: string | null
+          r2_url?: string | null
+          source_url?: string | null
+          user_id?: string
+          verification_id?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
+          address_line1: string | null
+          address_line2: string | null
           avatar_url: string | null
+          bank_account_name: string | null
+          bank_account_number: string | null
+          bank_name: string | null
+          bank_routing: string | null
+          city: string | null
+          country: string | null
           created_at: string
+          cv_url: string | null
+          district: string | null
           full_name: string | null
           id: string
+          kyc_document_expiry: string | null
+          kyc_document_number: string | null
+          kyc_document_type: string | null
+          kyc_extracted_address: string | null
+          kyc_extracted_full_name: string | null
+          kyc_rejection_reason: string | null
+          kyc_status: string
+          kyc_submitted_at: string | null
+          kyc_verified_at: string | null
+          legal_full_name: string | null
+          metamap_identity_id: string | null
+          mfs_number: string | null
+          mfs_provider: string | null
+          nid_url: string | null
+          phone_alt: string | null
+          phone_primary: string | null
+          postcode: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          address_line1?: string | null
+          address_line2?: string | null
           avatar_url?: string | null
+          bank_account_name?: string | null
+          bank_account_number?: string | null
+          bank_name?: string | null
+          bank_routing?: string | null
+          city?: string | null
+          country?: string | null
           created_at?: string
+          cv_url?: string | null
+          district?: string | null
           full_name?: string | null
           id?: string
+          kyc_document_expiry?: string | null
+          kyc_document_number?: string | null
+          kyc_document_type?: string | null
+          kyc_extracted_address?: string | null
+          kyc_extracted_full_name?: string | null
+          kyc_rejection_reason?: string | null
+          kyc_status?: string
+          kyc_submitted_at?: string | null
+          kyc_verified_at?: string | null
+          legal_full_name?: string | null
+          metamap_identity_id?: string | null
+          mfs_number?: string | null
+          mfs_provider?: string | null
+          nid_url?: string | null
+          phone_alt?: string | null
+          phone_primary?: string | null
+          postcode?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          address_line1?: string | null
+          address_line2?: string | null
           avatar_url?: string | null
+          bank_account_name?: string | null
+          bank_account_number?: string | null
+          bank_name?: string | null
+          bank_routing?: string | null
+          city?: string | null
+          country?: string | null
           created_at?: string
+          cv_url?: string | null
+          district?: string | null
           full_name?: string | null
           id?: string
+          kyc_document_expiry?: string | null
+          kyc_document_number?: string | null
+          kyc_document_type?: string | null
+          kyc_extracted_address?: string | null
+          kyc_extracted_full_name?: string | null
+          kyc_rejection_reason?: string | null
+          kyc_status?: string
+          kyc_submitted_at?: string | null
+          kyc_verified_at?: string | null
+          legal_full_name?: string | null
+          metamap_identity_id?: string | null
+          mfs_number?: string | null
+          mfs_provider?: string | null
+          nid_url?: string | null
+          phone_alt?: string | null
+          phone_primary?: string | null
+          postcode?: string | null
           updated_at?: string
           user_id?: string
         }
