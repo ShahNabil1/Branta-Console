@@ -147,9 +147,9 @@ export const createEmployee = createServerFn({ method: "POST" })
       // matches whichever host the operator is using (preview vs. custom).
       const origin = (() => {
         try {
-          const { getRequestHeader } = require("@tanstack/react-start/server");
           const proto = getRequestHeader("x-forwarded-proto") ?? "https";
-          const host = getRequestHeader("x-forwarded-host") ?? getRequestHeader("host");
+          const host =
+            getRequestHeader("x-forwarded-host") ?? getRequestHeader("host");
           if (host) return `${proto}://${host}`;
         } catch {
           /* not in request context */
