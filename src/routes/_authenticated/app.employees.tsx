@@ -82,9 +82,6 @@ const EVENT_STYLES: Record<
   invalid_email: { label: "Invalid", className: "border-rose-300 bg-rose-50 text-rose-700", tone: "bad" },
   error: { label: "Error", className: "border-rose-300 bg-rose-50 text-rose-700", tone: "bad" },
   unsubscribed: { label: "Unsubscribed", className: "border-violet-300 bg-violet-50 text-violet-700", tone: "warn" },
-  list_addition: { label: "List added", className: "border-sky-300 bg-sky-50 text-sky-700", tone: "info" },
-  contact_updated: { label: "Contact updated", className: "border-border bg-muted text-muted-foreground", tone: "info" },
-  contact_deleted: { label: "Contact deleted", className: "border-border bg-muted text-muted-foreground", tone: "info" },
 };
 
 interface EmailEventRow {
@@ -859,9 +856,6 @@ const WEBHOOK_EVENTS = [
   "invalid_email",
   "deferred",
   "unsubscribed",
-  "list_addition",
-  "contact_updated",
-  "contact_deleted",
 ] as const;
 
 function WebhookSetupModal({ onClose }: { onClose: () => void }) {
@@ -918,8 +912,9 @@ function WebhookSetupModal({ onClose }: { onClose: () => void }) {
 
         <div className="max-h-[70vh] space-y-4 overflow-y-auto px-5 py-4 text-[13px] leading-relaxed">
           <p className="text-muted-foreground">
-            Brevo will POST every email event (delivered, opened, bounced, spam,
-            unsubscribed, clicked, and more) to the URL below. Events land in
+            Brevo will POST transactional email events (delivered, opened,
+            clicked, bounced, spam, blocked, invalid, deferred, unsubscribed)
+            to the endpoint below. Events land in
             real time and update the table without a refresh.
           </p>
 
@@ -987,7 +982,9 @@ function WebhookSetupModal({ onClose }: { onClose: () => void }) {
               </li>
               <li>
                 Paste the Webhook URL above into the{" "}
-                <span className="font-mono">URL</span> field.
+                <span className="font-mono">URL</span> field. If you use Brevo
+                Token authentication instead of the URL token, set token value
+                to the same <span className="font-mono">BREVO_WEBHOOK_SECRET</span>.
               </li>
               <li>
                 Under <span className="font-semibold">Events</span>, tick all of:
@@ -1003,22 +1000,6 @@ function WebhookSetupModal({ onClose }: { onClose: () => void }) {
                 </div>
               </li>
               <li>Save. Send yourself a test — the row updates instantly.</li>
-              <li>
-                For marketing / contact events (
-                <span className="font-mono">list_addition</span>,{" "}
-                <span className="font-mono">contact_updated</span>,{" "}
-                <span className="font-mono">contact_deleted</span>), also add
-                the same URL under{" "}
-                <a
-                  href="https://app.brevo.com/settings/webhook/list/marketing"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="font-medium text-brand hover:underline"
-                >
-                  Contacts → Settings → Webhooks
-                </a>
-                .
-              </li>
             </ol>
           </div>
 

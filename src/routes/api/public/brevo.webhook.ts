@@ -218,6 +218,7 @@ async function insertEmailEvents(rows: EventRow[]): Promise<number> {
     max: 1,
     idle_timeout: 5,
     connect_timeout: 10,
+    ssl: "require",
     prepare: false,
   });
 
