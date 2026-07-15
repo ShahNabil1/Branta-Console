@@ -256,7 +256,32 @@ function ProfileForm({
   const [form, setForm] = useState<ProfileRow>(profile);
   useEffect(() => setForm(profile), [profile]);
   const [saving, setSaving] = useState(false);
+  const [reuploading, setReuploading] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+
+  const submitReupload = async () => {
+    if (form.kyc_status !== "rejected") return;
+    if (!form.nid_url && !form.cv_url) {
+      toast.error("Add updated NID or CV first", {
+        description: "Upload replacement files in the Documents section.",
+      });
+      return;
+    }
+    setReuploading(true);
+    try {
+      const res = await reupload({ data: { note: null } });
+      toast.success("Re-submitted for review", {
+        description: `${res.submitted} document(s) queued for the KYC team.`,
+      });
+      onSaved();
+    } catch (err) {
+      toast.error("Re-upload failed", {
+        description: (err as Error).message,
+      });
+    } finally {
+      setReuploading(false);
+    }
+  };
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
