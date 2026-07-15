@@ -38,12 +38,29 @@ export const Route = createFileRoute("/login")({
 });
 
 const DOMAIN = "@brantatech.com";
+
+// Strict allow-lists. Anything outside is rejected before it reaches the
+// input state (and re-validated by zod at submit time as a second gate).
+const LOCAL_ALLOWED = /^[a-z]+$/;               // plain lowercase english only
+const PASSWORD_ALLOWED = /^[\x20-\x7E]+$/;      // printable ASCII only
+
+const stripToLocal = (v: string) =>
+  v.normalize("NFKC").toLowerCase().replace(/[^a-z]/g, "");
+const stripToPassword = (v: string) =>
+  v.normalize("NFKC").replace(/[^\x20-\x7E]/g, "");
+
 const localSchema = z
   .string()
   .trim()
-  .toLowerCase()
   .min(1, "Enter your Branta ID.")
-  .regex(/^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$/, "Only letters, numbers, dot, dash, underscore.");
+  .max(64, "Branta ID is too long.")
+  .regex(LOCAL_ALLOWED, "Only lowercase english letters (a–z). No numbers or symbols.");
+
+const passwordSchema = z
+  .string()
+  .min(1, "Enter your password.")
+  .max(128, "Password is too long.")
+  .regex(PASSWORD_ALLOWED, "Password must use english letters, numbers, or symbols only.");
 
 type CaptchaStatus = "loading" | "ready" | "expired" | "error";
 type Phase = "credentials" | "enroll" | "challenge";
