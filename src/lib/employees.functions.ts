@@ -2,6 +2,7 @@
 // All create/list operations require an authenticated caller AND an
 // admin/super_admin role check via the has_role RPC.
 import { createServerFn } from "@tanstack/react-start";
+import { getRequestHeader } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
   DOMAIN,
