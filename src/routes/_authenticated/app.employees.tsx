@@ -65,6 +65,95 @@ const roleBadge = (role: string) => {
   }
 };
 
+// Brevo event names (canonicalised on the server) → UI label + color.
+const EVENT_STYLES: Record<
+  string,
+  { label: string; className: string; tone: "ok" | "warn" | "bad" | "info" }
+> = {
+  sent: { label: "Sent", className: "border-border bg-muted text-muted-foreground", tone: "info" },
+  delivered: { label: "Delivered", className: "border-emerald-300 bg-emerald-50 text-emerald-700", tone: "ok" },
+  opened: { label: "Opened", className: "border-sky-300 bg-sky-50 text-sky-700", tone: "ok" },
+  clicked: { label: "Clicked", className: "border-indigo-300 bg-indigo-50 text-indigo-700", tone: "ok" },
+  deferred: { label: "Deferred", className: "border-amber-300 bg-amber-50 text-amber-700", tone: "warn" },
+  soft_bounce: { label: "Soft bounce", className: "border-amber-300 bg-amber-50 text-amber-700", tone: "warn" },
+  hard_bounce: { label: "Hard bounce", className: "border-rose-300 bg-rose-50 text-rose-700", tone: "bad" },
+  blocked: { label: "Blocked", className: "border-rose-300 bg-rose-50 text-rose-700", tone: "bad" },
+  spam: { label: "Marked spam", className: "border-rose-300 bg-rose-50 text-rose-700", tone: "bad" },
+  invalid_email: { label: "Invalid", className: "border-rose-300 bg-rose-50 text-rose-700", tone: "bad" },
+  error: { label: "Error", className: "border-rose-300 bg-rose-50 text-rose-700", tone: "bad" },
+  unsubscribed: { label: "Unsubscribed", className: "border-violet-300 bg-violet-50 text-violet-700", tone: "warn" },
+  list_addition: { label: "List added", className: "border-sky-300 bg-sky-50 text-sky-700", tone: "info" },
+  contact_updated: { label: "Contact updated", className: "border-border bg-muted text-muted-foreground", tone: "info" },
+  contact_deleted: { label: "Contact deleted", className: "border-border bg-muted text-muted-foreground", tone: "info" },
+};
+
+interface EmailEventRow {
+  id: string;
+  event: string;
+  email: string;
+  subject: string | null;
+  reason: string | null;
+  occurred_at: string;
+}
+
+// Realtime hook: pulls the 500 most recent email_events, subscribes to inserts,
+// and returns the latest event per lower-cased email + full timeline per email.
+function useEmailEvents(enabled: boolean) {
+  const qc = useQueryClient();
+
+  const query = useQuery({
+    queryKey: ["email_events.recent"],
+    enabled,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("email_events")
+        .select("id, event, email, subject, reason, occurred_at")
+        .order("occurred_at", { ascending: false })
+        .limit(500);
+      if (error) throw error;
+      return (data ?? []) as EmailEventRow[];
+    },
+  });
+
+  useEffect(() => {
+    if (!enabled) return;
+    const channel = supabase
+      .channel("email_events:stream")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "email_events" },
+        (payload) => {
+          const row = payload.new as EmailEventRow;
+          qc.setQueryData<EmailEventRow[]>(
+            ["email_events.recent"],
+            (prev) => {
+              const next = [row, ...(prev ?? [])];
+              // Keep list bounded so browser memory doesn't grow forever.
+              return next.slice(0, 500);
+            },
+          );
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [enabled, qc]);
+
+  const byEmail = useMemo(() => {
+    const map = new Map<string, EmailEventRow[]>();
+    (query.data ?? []).forEach((row) => {
+      const key = row.email.toLowerCase();
+      const list = map.get(key);
+      if (list) list.push(row);
+      else map.set(key, [row]);
+    });
+    return map;
+  }, [query.data]);
+
+  return { byEmail, isLoading: query.isLoading };
+}
+
 function EmployeesPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
