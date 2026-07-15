@@ -152,12 +152,30 @@ function ProfilePage() {
     staleTime: Infinity,
   });
 
-  // Poll while KYC is under review so the badge flips without a refresh.
+  // Realtime: subscribe to this user's profile row so the KYC badge flips
+  // the instant the MetaMap webhook writes to Supabase.
+  const userId = profileQuery.data?.profile.user_id;
   useEffect(() => {
-    if (profileQuery.data?.profile.kyc_status !== "under_review") return;
-    const t = setInterval(() => profileQuery.refetch(), 8000);
-    return () => clearInterval(t);
-  }, [profileQuery]);
+    if (!userId) return;
+    const channel = supabase
+      .channel(`profile:${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "profiles",
+          filter: `user_id=eq.${userId}`,
+        },
+        () => {
+          void profileQuery.refetch();
+        },
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [userId, profileQuery]);
 
   // Handle ?kyc=success redirect back from MetaMap.
   useEffect(() => {
