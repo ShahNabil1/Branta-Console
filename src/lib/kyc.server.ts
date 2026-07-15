@@ -155,10 +155,10 @@ export function extractKycFromPayload(payload: unknown): ExtractedKyc {
   const documentExpiry = readField(fields, "expirationDate");
   const extractedFullName =
     readField(fields, "fullName") ??
-    [readField(fields, "firstName"), readField(fields, "lastName")]
+    ([readField(fields, "firstName"), readField(fields, "lastName")]
       .filter(Boolean)
       .join(" ") ||
-    null;
+      null);
   const extractedAddress = readField(fields, "address");
 
   const assets: ExtractedKyc["assets"] = [];
