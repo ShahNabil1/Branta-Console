@@ -85,6 +85,8 @@ function LoginPage() {
   const [refreshingChallenge, setRefreshingChallenge] = useState(false);
   const [, setTick] = useState(0);
 
+  const otpInputRef = useRef<HTMLInputElement>(null);
+
   const lockRemaining = Math.max(0, lockUntil - Date.now());
   const enrollRemaining = Math.max(0, enrollCooldownUntil - Date.now());
   const challengeRemaining = Math.max(0, challengeCooldownUntil - Date.now());
@@ -96,6 +98,18 @@ function LoginPage() {
     const id = window.setInterval(() => setTick((t) => t + 1), 1000);
     return () => window.clearInterval(id);
   }, [lockRemaining, enrollRemaining, challengeRemaining]);
+
+  // Auto-focus the OTP input whenever we enter/return to a TOTP phase
+  // or the code was just cleared after a failed attempt.
+  useEffect(() => {
+    if (phase === "credentials") return;
+    if (locked) return;
+    if (code.length === 0) {
+      // Small delay lets the input render before focus.
+      const id = window.setTimeout(() => otpInputRef.current?.focus(), 50);
+      return () => window.clearTimeout(id);
+    }
+  }, [phase, code, locked]);
 
 
 
