@@ -1,5 +1,6 @@
 import { useRouterState } from "@tanstack/react-router";
 import { Bell } from "lucide-react";
+import { ProfileMenu } from "@/components/branta/profile-menu";
 
 const CRUMB_LABELS: Record<string, string> = {
   app: "Workspace",
@@ -67,6 +68,7 @@ export function TopBar() {
           <Bell className="size-3.5" strokeWidth={1.75} />
           <span className="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-brand ring-2 ring-card" />
         </button>
+        <ProfileMenu />
       </div>
     </header>
   );
