@@ -3,7 +3,6 @@
 // This is a public route under /api/public/*, so we require ?token=<secret>
 // (Brevo lets you add arbitrary query params to the webhook URL).
 import { createFileRoute } from "@tanstack/react-router";
-import { timingSafeEqual } from "crypto";
 
 export const Route = createFileRoute("/api/public/brevo/webhook")({
   server: {
@@ -18,11 +17,15 @@ export const Route = createFileRoute("/api/public/brevo/webhook")({
   },
 });
 
+// Constant-time string compare using Web-standard APIs (Workers-safe).
 const safeEqual = (a: string, b: string) => {
-  const ba = Buffer.from(a);
-  const bb = Buffer.from(b);
+  const enc = new TextEncoder();
+  const ba = enc.encode(a);
+  const bb = enc.encode(b);
   if (ba.length !== bb.length) return false;
-  return timingSafeEqual(ba, bb);
+  let diff = 0;
+  for (let i = 0; i < ba.length; i++) diff |= ba[i] ^ bb[i];
+  return diff === 0;
 };
 
 // Brevo sends event names in different shapes across products.
