@@ -266,68 +266,146 @@ function EmployeesPage() {
                   <th className="px-4 py-2.5">Branta ID</th>
                   <th className="px-4 py-2.5">Name</th>
                   <th className="px-4 py-2.5">Role</th>
-                  <th className="px-4 py-2.5">Created</th>
+                  <th className="px-4 py-2.5">Mail status</th>
                   <th className="px-4 py-2.5">Last sign-in</th>
                   <th className="px-4 py-2.5" />
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row) => (
-                  <tr key={row.userId} className="border-b border-border last:border-b-0">
-                    <td className="px-4 py-2.5 font-mono text-[12.5px]">
-                      <span className="text-foreground">{row.brantaId}</span>
-                      <span className="text-brand">{DOMAIN}</span>
-                    </td>
-                    <td className="px-4 py-2.5 text-foreground">{row.fullName ?? "—"}</td>
-                    <td className="px-4 py-2.5">
-                      <span
-                        className={cn(
-                          "inline-flex items-center rounded-sm border px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.06em]",
-                          roleBadge(row.role),
-                        )}
-                      >
-                        {row.role.replace("_", " ")}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2.5 font-mono text-[11.5px] text-muted-foreground">
-                      {row.createdAt ? new Date(row.createdAt).toLocaleDateString() : "—"}
-                    </td>
-                    <td className="px-4 py-2.5 font-mono text-[11.5px] text-muted-foreground">
-                      {row.lastSignInAt
-                        ? new Date(row.lastSignInAt).toLocaleString()
-                        : "Never"}
-                    </td>
-                    <td className="px-4 py-2.5 text-right">
-                      {confirmDelete === row.userId ? (
-                        <div className="inline-flex items-center gap-1">
-                          <button
-                            onClick={() => {
-                              del.mutate(row.userId);
-                              setConfirmDelete(null);
-                            }}
-                            className="rounded-sm bg-rose-600 px-2 py-1 text-[11px] font-semibold text-white hover:bg-rose-700"
+                {rows.map((row) => {
+                  const events = emailEvents.get(row.email) ?? [];
+                  const latest = events[0];
+                  const expanded = expandedEmail === row.email;
+                  const style = latest ? EVENT_STYLES[latest.event] : null;
+                  return (
+                    <React.Fragment key={row.userId}>
+                      <tr className="border-b border-border last:border-b-0">
+                        <td className="px-4 py-2.5 font-mono text-[12.5px]">
+                          <span className="text-foreground">{row.brantaId}</span>
+                          <span className="text-brand">{DOMAIN}</span>
+                        </td>
+                        <td className="px-4 py-2.5 text-foreground">{row.fullName ?? "—"}</td>
+                        <td className="px-4 py-2.5">
+                          <span
+                            className={cn(
+                              "inline-flex items-center rounded-sm border px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.06em]",
+                              roleBadge(row.role),
+                            )}
                           >
-                            Confirm
-                          </button>
-                          <button
-                            onClick={() => setConfirmDelete(null)}
-                            className="rounded-sm border border-border px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => setConfirmDelete(row.userId)}
-                          className="inline-flex items-center gap-1 rounded-sm border border-transparent px-2 py-1 text-[11px] text-muted-foreground hover:border-border hover:text-rose-600"
-                        >
-                          <Trash2 className="size-3" strokeWidth={2} />
-                          Remove
-                        </button>
+                            {row.role.replace("_", " ")}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          {latest ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setExpandedEmail(expanded ? null : row.email)
+                              }
+                              className="inline-flex items-center gap-1.5 rounded-sm hover:opacity-90"
+                              title="Toggle event timeline"
+                            >
+                              <span
+                                className={cn(
+                                  "inline-flex items-center gap-1 rounded-sm border px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.06em]",
+                                  style?.className ??
+                                    "border-border bg-muted text-muted-foreground",
+                                )}
+                              >
+                                {style?.label ?? latest.event}
+                              </span>
+                              <span className="font-mono text-[10.5px] text-muted-foreground">
+                                {timeAgo(latest.occurred_at)}
+                              </span>
+                              <ChevronDown
+                                className={cn(
+                                  "size-3 text-muted-foreground transition-transform",
+                                  expanded && "rotate-180",
+                                )}
+                                strokeWidth={2}
+                              />
+                            </button>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                              <Mail className="size-3" strokeWidth={1.75} />
+                              No activity
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2.5 font-mono text-[11.5px] text-muted-foreground">
+                          {row.lastSignInAt
+                            ? new Date(row.lastSignInAt).toLocaleString()
+                            : "Never"}
+                        </td>
+                        <td className="px-4 py-2.5 text-right">
+                          {confirmDelete === row.userId ? (
+                            <div className="inline-flex items-center gap-1">
+                              <button
+                                onClick={() => {
+                                  del.mutate(row.userId);
+                                  setConfirmDelete(null);
+                                }}
+                                className="rounded-sm bg-rose-600 px-2 py-1 text-[11px] font-semibold text-white hover:bg-rose-700"
+                              >
+                                Confirm
+                              </button>
+                              <button
+                                onClick={() => setConfirmDelete(null)}
+                                className="rounded-sm border border-border px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setConfirmDelete(row.userId)}
+                              className="inline-flex items-center gap-1 rounded-sm border border-transparent px-2 py-1 text-[11px] text-muted-foreground hover:border-border hover:text-rose-600"
+                            >
+                              <Trash2 className="size-3" strokeWidth={2} />
+                              Remove
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                      {expanded && events.length > 0 && (
+                        <tr className="bg-muted/30">
+                          <td colSpan={6} className="px-4 py-3">
+                            <div className="mb-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                              Recent events · {row.email}
+                            </div>
+                            <ol className="space-y-1">
+                              {events.slice(0, 12).map((ev) => {
+                                const s = EVENT_STYLES[ev.event];
+                                return (
+                                  <li
+                                    key={ev.id}
+                                    className="flex items-center gap-2 rounded-sm border border-border bg-card px-2 py-1.5"
+                                  >
+                                    <span
+                                      className={cn(
+                                        "inline-flex items-center rounded-sm border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em]",
+                                        s?.className ??
+                                          "border-border bg-muted text-muted-foreground",
+                                      )}
+                                    >
+                                      {s?.label ?? ev.event}
+                                    </span>
+                                    <span className="flex-1 truncate text-[12px] text-foreground">
+                                      {ev.subject ?? ev.reason ?? "—"}
+                                    </span>
+                                    <span className="font-mono text-[10.5px] text-muted-foreground">
+                                      {new Date(ev.occurred_at).toLocaleString()}
+                                    </span>
+                                  </li>
+                                );
+                              })}
+                            </ol>
+                          </td>
+                        </tr>
                       )}
-                    </td>
-                  </tr>
-                ))}
+                    </React.Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>
