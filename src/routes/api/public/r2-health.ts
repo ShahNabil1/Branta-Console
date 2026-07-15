@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { checkR2Health, createPresignedPutUrl, createPresignedGetUrl, deleteObject, getR2Client, getR2Config } from "@/lib/r2.server";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 
-export const Route = createFileRoute("/api/r2-health")({
+export const Route = createFileRoute("/api/public/r2-health")({
   server: {
     handlers: {
       GET: async () => {
