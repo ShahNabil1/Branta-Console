@@ -259,7 +259,7 @@ async function insertEmailEvents(rows: EventRow[]): Promise<number> {
         item.list_id,
         item.occurred_at,
         item.raw
-      FROM jsonb_to_recordset(${sql.json(payload)}::jsonb) AS item(
+      FROM jsonb_to_recordset(${JSON.stringify(payload)}::jsonb) AS item(
         event text,
         email text,
         message_id text,
