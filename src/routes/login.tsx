@@ -539,8 +539,19 @@ function LoginPage() {
                       id="password"
                       type={showPw ? "text" : "password"}
                       autoComplete="current-password"
+                      spellCheck={false}
+                      lang="en"
+                      maxLength={128}
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      onChange={(e) => setPassword(stripToPassword(e.target.value))}
+                      onPaste={(e) => {
+                        e.preventDefault();
+                        const text = e.clipboardData.getData("text");
+                        setPassword(stripToPassword(password + text).slice(0, 128));
+                      }}
+                      onCompositionEnd={(e) =>
+                        setPassword(stripToPassword((e.target as HTMLInputElement).value))
+                      }
                       className="h-9 w-full rounded-sm border border-border bg-card px-3 pr-10 text-[13px] outline-none transition-shadow focus:border-brand focus:ring-1 focus:ring-brand"
                     />
                     <button
