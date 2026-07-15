@@ -203,12 +203,37 @@ function LoginPage() {
     password.length > 0 &&
     !localError;
 
+  const enrollFreshTotp = async () => {
+    // Always clean up EVERY unverified/stale factor first — otherwise the next
+    // enroll() collides on friendlyName / factor count and Supabase throws
+    // "A factor with the friendly name ... already exists".
+    const { data: pre, error: preErr } = await supabase.auth.mfa.listFactors();
+    if (preErr) return { error: preErr } as const;
+    for (const f of pre.totp) {
+      if (f.status !== "verified") {
+        await supabase.auth.mfa.unenroll({ factorId: f.id });
+      }
+    }
+    // Unique friendlyName so collisions with any lingering server-side row
+    // (race/lag on unenroll) cannot happen.
+    const uniqueSuffix = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+    const friendlyName = `Authenticator ${uniqueSuffix}`;
+    const { data: enr, error: enErr } = await supabase.auth.mfa.enroll({
+      factorType: "totp",
+      issuer: "Branta Tech",
+      friendlyName,
+    });
+    if (enErr || !enr) return { error: enErr ?? new Error("Enrollment failed.") } as const;
+    return { enr } as const;
+  };
+
   const startTotpPhase = async () => {
     const { data, error: listErr } = await supabase.auth.mfa.listFactors();
     if (listErr) {
       setFormError(listErr.message);
       return;
     }
+    // Prefer any verified factor — go straight to the 6-digit challenge.
     const verified = data.totp.find((f) => f.status === "verified");
     if (verified) {
       setFactorId(verified.id);
@@ -223,28 +248,22 @@ function LoginPage() {
       setPhase("challenge");
       return;
     }
-    // Clean up any half-enrolled unverified factor from a prior attempt.
-    const stale = data.totp.find((f) => f.status !== "verified");
-    if (stale) await supabase.auth.mfa.unenroll({ factorId: stale.id });
-    const { data: enr, error: enErr } = await supabase.auth.mfa.enroll({
-      factorType: "totp",
-      issuer: "Branta Tech",
-      friendlyName: `Authenticator ${new Date().toISOString().slice(0, 10)}`,
-    });
-    if (enErr || !enr) {
-      setFormError(enErr?.message ?? "Failed to start enrollment.");
+    const res = await enrollFreshTotp();
+    if ("error" in res) {
+      setFormError(res.error?.message ?? "Failed to start enrollment.");
       return;
     }
-    setFactorId(enr.id);
-    setSecret(enr.totp.secret);
+    setFactorId(res.enr.id);
+    setSecret(res.enr.totp.secret);
     try {
-      const url = await QRCode.toDataURL(enr.totp.uri, { margin: 1, width: 160 });
+      const url = await QRCode.toDataURL(res.enr.totp.uri, { margin: 1, width: 160 });
       setQrDataUrl(url);
     } catch {
       // Fall back to secret only.
     }
     setPhase("enroll");
   };
+
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -365,25 +384,21 @@ function LoginPage() {
     setRegenerating(true);
     setTotpError(null);
     try {
-      await supabase.auth.mfa.unenroll({ factorId });
-      const { data: enr, error: enErr } = await supabase.auth.mfa.enroll({
-        factorType: "totp",
-        issuer: "Branta Tech",
-        friendlyName: `Authenticator ${new Date().toISOString().slice(0, 10)}`,
-      });
-      if (enErr || !enr) {
-        setTotpError(enErr?.message ?? "Could not regenerate. Try again shortly.");
+      const res = await enrollFreshTotp();
+      if ("error" in res) {
+        setTotpError(res.error?.message ?? "Could not regenerate. Try again shortly.");
         return;
       }
-      setFactorId(enr.id);
-      setSecret(enr.totp.secret);
+      setFactorId(res.enr.id);
+      setSecret(res.enr.totp.secret);
       setQrDataUrl(null);
       try {
-        const url = await QRCode.toDataURL(enr.totp.uri, { margin: 1, width: 160 });
+        const url = await QRCode.toDataURL(res.enr.totp.uri, { margin: 1, width: 160 });
         setQrDataUrl(url);
       } catch {
         /* fall back to secret only */
       }
+
       setCode("");
       setFailedAttempts(0);
       setEnrollCooldownUntil(Date.now() + ENROLL_REGEN_COOLDOWN_MS);
