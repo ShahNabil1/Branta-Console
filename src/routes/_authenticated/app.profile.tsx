@@ -585,7 +585,7 @@ function ProfileForm({
               {metamapReady ? (
                 <>
                   {/* MetaMap web button. Attributes are lowercase per the web-component spec. */}
-                  <metamap-button
+                  <MetamapButton
                     ref={(node: HTMLElement | null) => {
                       btnRef.current = node;
                     }}
