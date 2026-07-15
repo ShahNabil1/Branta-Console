@@ -156,3 +156,106 @@ export const getMetamapConfig = createServerFn({ method: "GET" })
       flowId: process.env.METAMAP_FLOW_ID ?? null,
     };
   });
+
+/**
+ * Re-submit updated NID/CV documents after a rejection. The current NID/CV
+ * URLs on the profile are logged into `kyc_documents` (so admins can see the
+ * new files alongside the MetaMap capture), KYC status is flipped back to
+ * `under_review`, and the rejection reason is cleared.
+ *
+ * Only allowed from the `rejected` state to avoid overriding a live MetaMap
+ * decision or a still-in-flight review.
+ */
+export const requestKycReupload = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        note: z.string().trim().max(500).nullish(),
+      })
+      .parse(input ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import(
+      "@/integrations/supabase/client.server"
+    );
+
+    const { data: profile, error: readErr } = await supabaseAdmin
+      .from("profiles")
+      .select("kyc_status, nid_url, cv_url, metamap_identity_id")
+      .eq("user_id", context.userId)
+      .maybeSingle();
+    if (readErr) throw new Error(readErr.message);
+    if (!profile) throw new Error("Profile not found");
+
+    if (profile.kyc_status !== "rejected") {
+      throw new Error(
+        "Re-upload is only available after a rejected verification.",
+      );
+    }
+    if (!profile.nid_url && !profile.cv_url) {
+      throw new Error(
+        "Upload an updated NID or CV in the Documents section first.",
+      );
+    }
+
+    const now = new Date().toISOString();
+    const rows: Array<Record<string, unknown>> = [];
+    if (profile.nid_url) {
+      rows.push({
+        user_id: context.userId,
+        verification_id: null,
+        document_type: "nid_reupload",
+        r2_key: null,
+        r2_url: profile.nid_url,
+        source_url: profile.nid_url,
+        mime_type: null,
+        payload: {
+          reason: "user_reupload",
+          note: data.note ?? null,
+          submitted_at: now,
+          previous_identity_id: profile.metamap_identity_id,
+        },
+      });
+    }
+    if (profile.cv_url) {
+      rows.push({
+        user_id: context.userId,
+        verification_id: null,
+        document_type: "cv_reupload",
+        r2_key: null,
+        r2_url: profile.cv_url,
+        source_url: profile.cv_url,
+        mime_type: null,
+        payload: {
+          reason: "user_reupload",
+          note: data.note ?? null,
+          submitted_at: now,
+          previous_identity_id: profile.metamap_identity_id,
+        },
+      });
+    }
+
+    if (rows.length > 0) {
+      const { error: insertErr } = await supabaseAdmin
+        .from("kyc_documents")
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .insert(rows as any);
+      if (insertErr) throw new Error(insertErr.message);
+    }
+
+    const { error: updateErr } = await supabaseAdmin
+      .from("profiles")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .update({
+        kyc_status: "under_review",
+        kyc_submitted_at: now,
+        kyc_rejection_reason: null,
+        updated_at: now,
+      } as any)
+      .eq("user_id", context.userId)
+      .eq("kyc_status", "rejected");
+    if (updateErr) throw new Error(updateErr.message);
+
+    return { ok: true as const, submitted: rows.length };
+  });

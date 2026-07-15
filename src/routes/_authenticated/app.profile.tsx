@@ -10,12 +10,14 @@ import {
   Loader2,
   Upload,
   ExternalLink,
+  RefreshCw,
 } from "lucide-react";
 import {
   getMyProfile,
   updateMyProfile,
   markKycSubmitted,
   getMetamapConfig,
+  requestKycReupload,
   type ProfileRow,
 } from "@/lib/profile.functions";
 import { requestR2Upload } from "@/lib/r2.functions";
@@ -138,6 +140,7 @@ function ProfilePage() {
   const fetchMetamap = useServerFn(getMetamapConfig);
   const update = useServerFn(updateMyProfile);
   const markSubmitted = useServerFn(markKycSubmitted);
+  const reupload = useServerFn(requestKycReupload);
   const presign = useServerFn(requestR2Upload);
 
   const profileQuery = useQuery({
@@ -213,6 +216,7 @@ function ProfilePage() {
       }}
       update={update}
       markSubmitted={markSubmitted}
+      reupload={reupload}
       presign={presign}
     />
   );
@@ -235,6 +239,7 @@ interface FormProps {
   onSaved: () => void;
   update: ReturnType<typeof useServerFn<typeof updateMyProfile>>;
   markSubmitted: ReturnType<typeof useServerFn<typeof markKycSubmitted>>;
+  reupload: ReturnType<typeof useServerFn<typeof requestKycReupload>>;
   presign: ReturnType<typeof useServerFn<typeof requestR2Upload>>;
 }
 
@@ -245,12 +250,38 @@ function ProfileForm({
   onSaved,
   update,
   markSubmitted,
+  reupload,
   presign,
 }: FormProps) {
   const [form, setForm] = useState<ProfileRow>(profile);
   useEffect(() => setForm(profile), [profile]);
   const [saving, setSaving] = useState(false);
+  const [reuploading, setReuploading] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+
+  const submitReupload = async () => {
+    if (form.kyc_status !== "rejected") return;
+    if (!form.nid_url && !form.cv_url) {
+      toast.error("Add updated NID or CV first", {
+        description: "Upload replacement files in the Documents section.",
+      });
+      return;
+    }
+    setReuploading(true);
+    try {
+      const res = await reupload({ data: { note: null } });
+      toast.success("Re-submitted for review", {
+        description: `${res.submitted} document(s) queued for the KYC team.`,
+      });
+      onSaved();
+    } catch (err) {
+      toast.error("Re-upload failed", {
+        description: (err as Error).message,
+      });
+    } finally {
+      setReuploading(false);
+    }
+  };
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
@@ -617,6 +648,11 @@ function ProfileForm({
                   <p className="text-[11px] text-muted-foreground">
                     Have your NID and a well-lit space ready. Takes ~2 minutes.
                   </p>
+                  {form.kyc_status === "rejected" && (
+                    <p className="text-[11px] text-muted-foreground">
+                      Or re-submit the updated NID/CV you uploaded above.
+                    </p>
+                  )}
                 </>
               ) : (
                 <div className="rounded-sm border border-dashed border-border bg-muted/40 px-3 py-4 text-[12px] text-muted-foreground">
@@ -624,6 +660,21 @@ function ProfileForm({
                   <code className="font-mono">METAMAP_CLIENT_ID</code> and{" "}
                   <code className="font-mono">METAMAP_FLOW_ID</code>.
                 </div>
+              )}
+              {form.kyc_status === "rejected" && (
+                <Button
+                  onClick={submitReupload}
+                  disabled={reuploading || (!form.nid_url && !form.cv_url)}
+                  variant="outline"
+                  className="h-9 rounded-sm border-primary/40 text-[12px] font-semibold text-primary hover:bg-primary/5"
+                >
+                  {reuploading ? (
+                    <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                  ) : (
+                    <RefreshCw className="mr-1.5 size-3.5" />
+                  )}
+                  Request Re-upload
+                </Button>
               )}
             </div>
           </div>
