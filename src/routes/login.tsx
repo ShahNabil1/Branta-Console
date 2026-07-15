@@ -384,25 +384,21 @@ function LoginPage() {
     setRegenerating(true);
     setTotpError(null);
     try {
-      await supabase.auth.mfa.unenroll({ factorId });
-      const { data: enr, error: enErr } = await supabase.auth.mfa.enroll({
-        factorType: "totp",
-        issuer: "Branta Tech",
-        friendlyName: `Authenticator ${new Date().toISOString().slice(0, 10)}`,
-      });
-      if (enErr || !enr) {
-        setTotpError(enErr?.message ?? "Could not regenerate. Try again shortly.");
+      const res = await enrollFreshTotp();
+      if ("error" in res) {
+        setTotpError(res.error?.message ?? "Could not regenerate. Try again shortly.");
         return;
       }
-      setFactorId(enr.id);
-      setSecret(enr.totp.secret);
+      setFactorId(res.enr.id);
+      setSecret(res.enr.totp.secret);
       setQrDataUrl(null);
       try {
-        const url = await QRCode.toDataURL(enr.totp.uri, { margin: 1, width: 160 });
+        const url = await QRCode.toDataURL(res.enr.totp.uri, { margin: 1, width: 160 });
         setQrDataUrl(url);
       } catch {
         /* fall back to secret only */
       }
+
       setCode("");
       setFailedAttempts(0);
       setEnrollCooldownUntil(Date.now() + ENROLL_REGEN_COOLDOWN_MS);
