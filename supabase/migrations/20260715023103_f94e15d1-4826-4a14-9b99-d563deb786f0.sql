@@ -1,0 +1,1 @@
+DROP FUNCTION IF EXISTS public.insert_brevo_email_events(jsonb);
