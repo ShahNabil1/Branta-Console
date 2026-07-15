@@ -172,7 +172,9 @@ async function handlePost(request: Request): Promise<Response> {
   }
 
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { error } = await supabaseAdmin.from("email_events").insert(rows);
+  const { error } = await supabaseAdmin
+    .from("email_events")
+    .insert(rows as unknown as never);
   if (error) {
     console.error("[brevo-webhook] insert failed", error);
     // 500 makes Brevo retry — desirable for transient DB failures.
