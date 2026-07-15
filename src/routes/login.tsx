@@ -232,8 +232,9 @@ function LoginPage() {
       setLocalError(r.error.issues[0]?.message ?? "Invalid Branta ID.");
       return;
     }
-    if (!password) {
-      setFormError("Enter your password.");
+    const pwr = passwordSchema.safeParse(password);
+    if (!pwr.success) {
+      setFormError(pwr.error.issues[0]?.message ?? "Invalid password.");
       return;
     }
     if (!captchaToken || captchaStatus !== "ready") {
