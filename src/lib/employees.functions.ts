@@ -1,0 +1,213 @@
+// Server functions for the Employees admin page.
+// All create/list operations require an authenticated caller AND an
+// admin/super_admin role check via the has_role RPC.
+import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import {
+  DOMAIN,
+  localSchema,
+  strongPasswordSchema,
+} from "@/lib/branta-credentials";
+import { z } from "zod";
+
+const RoleEnum = z.enum(["super_admin", "admin", "manager", "user"]);
+
+const CreateInput = z.object({
+  local: z.string(),
+  password: z.string(),
+  role: RoleEnum,
+  fullName: z.string().trim().max(120).optional(),
+});
+
+const assertAdmin = async (
+  supabase: { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }> },
+  userId: string,
+) => {
+  const [su, ad] = await Promise.all([
+    supabase.rpc("has_role", { _user_id: userId, _role: "super_admin" }),
+    supabase.rpc("has_role", { _user_id: userId, _role: "admin" }),
+  ]);
+  if (su.error || ad.error)
+    throw new Error(su.error?.message ?? ad.error?.message ?? "Role check failed");
+  if (!su.data && !ad.data) throw new Error("Forbidden: admin role required");
+  return { isSuperAdmin: !!su.data };
+};
+
+export interface EmployeeRow {
+  userId: string;
+  email: string;
+  brantaId: string;
+  fullName: string | null;
+  role: string;
+  createdAt: string;
+  lastSignInAt: string | null;
+}
+
+export const listEmployees = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<EmployeeRow[]> => {
+    await assertAdmin(context.supabase, context.userId);
+
+    const { supabaseAdmin } = await import(
+      "@/integrations/supabase/client.server"
+    );
+
+    // page 1, up to 200 users — internal ops app, fine for now.
+    const { data, error } = await supabaseAdmin.auth.admin.listUsers({
+      page: 1,
+      perPage: 200,
+    });
+    if (error) throw new Error(error.message);
+
+    const users = data.users ?? [];
+    const ids = users.map((u) => u.id);
+
+    const [roles, profiles] = await Promise.all([
+      supabaseAdmin.from("user_roles").select("user_id, role").in("user_id", ids),
+      supabaseAdmin.from("profiles").select("user_id, full_name").in("user_id", ids),
+    ]);
+
+    const roleByUser = new Map<string, string>();
+    (roles.data ?? []).forEach((r) => {
+      // If user has multiple roles, prefer highest privilege for display.
+      const order = ["super_admin", "admin", "manager", "user"];
+      const existing = roleByUser.get(r.user_id);
+      if (!existing || order.indexOf(r.role) < order.indexOf(existing)) {
+        roleByUser.set(r.user_id, r.role);
+      }
+    });
+
+    const nameByUser = new Map<string, string | null>();
+    (profiles.data ?? []).forEach((p) =>
+      nameByUser.set(p.user_id, p.full_name ?? null),
+    );
+
+    return users
+      .filter((u) => (u.email ?? "").toLowerCase().endsWith(DOMAIN))
+      .map((u) => {
+        const email = (u.email ?? "").toLowerCase();
+        return {
+          userId: u.id,
+          email,
+          brantaId: email.split("@")[0] ?? "",
+          fullName: nameByUser.get(u.id) ?? null,
+          role: roleByUser.get(u.id) ?? "user",
+          createdAt: u.created_at ?? "",
+          lastSignInAt: u.last_sign_in_at ?? null,
+        };
+      })
+      .sort((a, b) => (a.createdAt > b.createdAt ? -1 : 1));
+  });
+
+export const createEmployee = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => CreateInput.parse(input))
+  .handler(async ({ data, context }) => {
+    const { isSuperAdmin } = await assertAdmin(context.supabase, context.userId);
+
+    // Only super_admin can mint another super_admin.
+    if (data.role === "super_admin" && !isSuperAdmin) {
+      throw new Error("Only a super_admin can create another super_admin.");
+    }
+
+    const local = localSchema.parse(data.local);
+    const password = strongPasswordSchema.parse(data.password);
+    const email = `${local}${DOMAIN}`;
+
+    const { supabaseAdmin } = await import(
+      "@/integrations/supabase/client.server"
+    );
+
+    // Create the auth user. email_confirm=true so they can sign in right away.
+    const meta: Record<string, unknown> = {};
+    if (data.fullName) meta.full_name = data.fullName;
+
+    const { data: created, error: createErr } =
+      await supabaseAdmin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: meta,
+      });
+
+    if (createErr || !created.user) {
+      throw new Error(createErr?.message ?? "Failed to create employee.");
+    }
+
+    const newUserId = created.user.id;
+
+    try {
+      const { error: roleErr } = await supabaseAdmin
+        .from("user_roles")
+        .insert({ user_id: newUserId, role: data.role });
+      if (roleErr && !/duplicate|unique/i.test(roleErr.message)) {
+        throw new Error(roleErr.message);
+      }
+
+      // Best-effort: origin comes from the caller's request so the login URL
+      // matches whichever host the operator is using (preview vs. custom).
+      const origin = (() => {
+        try {
+          const { getRequestHeader } = require("@tanstack/react-start/server");
+          const proto = getRequestHeader("x-forwarded-proto") ?? "https";
+          const host = getRequestHeader("x-forwarded-host") ?? getRequestHeader("host");
+          if (host) return `${proto}://${host}`;
+        } catch {
+          /* not in request context */
+        }
+        return "https://console.brantatech.com";
+      })();
+      const loginUrl = `${origin}/login`;
+
+      const { sendWelcomeEmail } = await import("@/lib/branta-email.server");
+      await sendWelcomeEmail({
+        recipientEmail: email,
+        brantaId: local,
+        tempPassword: password,
+        loginUrl,
+        role: data.role,
+      });
+    } catch (err) {
+      // Roll back the auth user if role assignment or email send failed —
+      // otherwise the admin has to hunt down orphaned accounts by hand.
+      await supabaseAdmin.auth.admin.deleteUser(newUserId).catch(() => {});
+      throw err instanceof Error ? err : new Error(String(err));
+    }
+
+    return { ok: true as const, email, userId: newUserId };
+  });
+
+export const deleteEmployee = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ userId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    if (data.userId === context.userId) {
+      throw new Error("You can't remove your own account.");
+    }
+    const { supabaseAdmin } = await import(
+      "@/integrations/supabase/client.server"
+    );
+    const { error } = await supabaseAdmin.auth.admin.deleteUser(data.userId);
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
+export const checkIsAdmin = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const [su, ad] = await Promise.all([
+      context.supabase.rpc("has_role", {
+        _user_id: context.userId,
+        _role: "super_admin",
+      }),
+      context.supabase.rpc("has_role", {
+        _user_id: context.userId,
+        _role: "admin",
+      }),
+    ]);
+    return {
+      isSuperAdmin: !!su.data,
+      isAdmin: !!su.data || !!ad.data,
+    };
+  });
