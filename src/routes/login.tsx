@@ -89,6 +89,47 @@ function LoginPage() {
   const turnstileRef = useRef<TurnstileInstance | null>(null);
   const submitLockRef = useRef(false);
 
+  // Keyboard / input hints
+  const [capsLockOn, setCapsLockOn] = useState(false);
+  const [localHint, setLocalHint] = useState<string | null>(null);
+  const [passwordHint, setPasswordHint] = useState<string | null>(null);
+  const localHintTimer = useRef<number | null>(null);
+  const passwordHintTimer = useRef<number | null>(null);
+
+  const flashLocalHint = (msg: string) => {
+    setLocalHint(msg);
+    if (localHintTimer.current) window.clearTimeout(localHintTimer.current);
+    localHintTimer.current = window.setTimeout(() => setLocalHint(null), 2400);
+  };
+  const flashPasswordHint = (msg: string) => {
+    setPasswordHint(msg);
+    if (passwordHintTimer.current) window.clearTimeout(passwordHintTimer.current);
+    passwordHintTimer.current = window.setTimeout(() => setPasswordHint(null), 2400);
+  };
+
+  // Describe what was blocked between raw input and the cleaned result.
+  const describeLocalBlock = (raw: string, cleaned: string): string | null => {
+    if (raw === cleaned) return null;
+    const dropped = raw.slice(cleaned.length) || raw;
+    if (/[A-Z]/.test(raw)) return "Uppercase blocked — Branta ID is lowercase only.";
+    if (/[0-9]/.test(raw)) return "Numbers are not allowed in Branta ID.";
+    if (/[^\x00-\x7F]/.test(dropped)) return "Only english letters (a–z) are allowed.";
+    if (/[.\-_ ]/.test(dropped)) return "Dots, dashes, and spaces are not allowed.";
+    if (raw.length > LOCAL_MAX) return `Maximum ${LOCAL_MAX} characters.`;
+    return "Only lowercase english letters (a–z) are allowed.";
+  };
+  const describePasswordBlock = (raw: string, cleaned: string): string | null => {
+    if (raw === cleaned) return null;
+    if (/[^\x00-\x7F]/.test(raw)) return "Only english characters are allowed in the password.";
+    if (raw.length > PASSWORD_LEN) return `Password is exactly ${PASSWORD_LEN} characters.`;
+    return "That character isn't allowed.";
+  };
+
+  const onKeyEvent = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    setCapsLockOn(e.getModifierState?.("CapsLock") ?? false);
+  };
+
+
   // TOTP
   const [factorId, setFactorId] = useState<string | null>(null);
   const [challengeId, setChallengeId] = useState<string | null>(null);
