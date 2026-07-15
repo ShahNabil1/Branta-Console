@@ -439,6 +439,8 @@ function EmployeesPage() {
           canCreateSuperAdmin={!!admin.data?.isSuperAdmin}
         />
       )}
+
+      {webhookOpen && <WebhookSetupModal onClose={() => setWebhookOpen(false)} />}
     </div>
   );
 }
