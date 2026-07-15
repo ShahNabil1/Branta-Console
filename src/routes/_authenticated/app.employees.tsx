@@ -846,3 +846,200 @@ function CreateEmployeeModal({
     </div>
   );
 }
+
+const WEBHOOK_BASE = "https://console.brantatech.com/api/public/brevo/webhook";
+const WEBHOOK_EVENTS = [
+  "delivered",
+  "opened",
+  "clicked",
+  "hard_bounce",
+  "soft_bounce",
+  "spam",
+  "blocked",
+  "invalid_email",
+  "deferred",
+  "unsubscribed",
+  "list_addition",
+  "contact_updated",
+  "contact_deleted",
+] as const;
+
+function WebhookSetupModal({ onClose }: { onClose: () => void }) {
+  const [token, setToken] = useState("");
+  const [copiedUrl, setCopiedUrl] = useState(false);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  const fullUrl = token
+    ? `${WEBHOOK_BASE}?token=${encodeURIComponent(token)}`
+    : `${WEBHOOK_BASE}?token=YOUR_SECRET`;
+
+  const copy = async (v: string) => {
+    try {
+      await navigator.clipboard.writeText(v);
+    } catch {
+      /* ignore */
+    }
+    setCopiedUrl(true);
+    window.setTimeout(() => setCopiedUrl(false), 1500);
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      role="dialog"
+      aria-modal="true"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="w-full max-w-xl overflow-hidden rounded-sm border border-border bg-card shadow-xl">
+        <div className="flex items-center justify-between border-b border-border px-5 py-3">
+          <div>
+            <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+              Integration
+            </div>
+            <div className="mt-0.5 text-[15px] font-semibold">Brevo webhook setup</div>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="grid size-7 place-items-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+
+        <div className="max-h-[70vh] space-y-4 overflow-y-auto px-5 py-4 text-[13px] leading-relaxed">
+          <p className="text-muted-foreground">
+            Brevo will POST every email event (delivered, opened, bounced, spam,
+            unsubscribed, clicked, and more) to the URL below. Events land in
+            real time and update the table without a refresh.
+          </p>
+
+          <div>
+            <div className="mb-1.5 flex items-center justify-between">
+              <label className="text-[12px] font-medium text-muted-foreground">
+                Webhook secret{" "}
+                <span className="text-muted-foreground/70">
+                  (stored as <span className="font-mono">BREVO_WEBHOOK_SECRET</span>)
+                </span>
+              </label>
+            </div>
+            <input
+              type="text"
+              value={token}
+              onChange={(e) => setToken(e.target.value)}
+              placeholder="Paste BREVO_WEBHOOK_SECRET here to build the exact URL"
+              className="h-9 w-full rounded-sm border border-border bg-card px-3 font-mono text-[12px] outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+            />
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Value only lives on the server. This field is a local helper to
+              paste the secret in once and copy the ready URL below.
+            </p>
+          </div>
+
+          <div>
+            <div className="mb-1.5 text-[12px] font-medium text-muted-foreground">
+              Webhook URL
+            </div>
+            <div className="flex overflow-hidden rounded-sm border border-border bg-muted/40">
+              <code className="flex-1 truncate px-3 py-2 font-mono text-[12px] text-foreground">
+                {fullUrl}
+              </code>
+              <button
+                onClick={() => copy(fullUrl)}
+                className="inline-flex items-center gap-1 border-l border-border bg-card px-3 text-[11.5px] font-semibold text-foreground hover:bg-muted"
+              >
+                {copiedUrl ? (
+                  <Check className="size-3.5 text-emerald-600" strokeWidth={2.25} />
+                ) : (
+                  <Copy className="size-3.5" strokeWidth={1.75} />
+                )}
+                {copiedUrl ? "Copied" : "Copy"}
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <div className="mb-1.5 text-[12px] font-semibold text-foreground">
+              Steps in Brevo
+            </div>
+            <ol className="list-decimal space-y-1.5 pl-5 text-[12.5px] text-foreground">
+              <li>
+                Open Brevo →{" "}
+                <a
+                  href="https://app.brevo.com/settings/webhook/list/transactional"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-medium text-brand hover:underline"
+                >
+                  Transactional → Settings → Webhooks
+                </a>
+                . Click{" "}
+                <span className="font-semibold">Add a new webhook</span>.
+              </li>
+              <li>
+                Paste the Webhook URL above into the{" "}
+                <span className="font-mono">URL</span> field.
+              </li>
+              <li>
+                Under <span className="font-semibold">Events</span>, tick all of:
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {WEBHOOK_EVENTS.map((e) => (
+                    <span
+                      key={e}
+                      className="rounded-sm border border-border bg-muted px-1.5 py-0.5 font-mono text-[10.5px] text-foreground"
+                    >
+                      {e}
+                    </span>
+                  ))}
+                </div>
+              </li>
+              <li>Save. Send yourself a test — the row updates instantly.</li>
+              <li>
+                For marketing / contact events (
+                <span className="font-mono">list_addition</span>,{" "}
+                <span className="font-mono">contact_updated</span>,{" "}
+                <span className="font-mono">contact_deleted</span>), also add
+                the same URL under{" "}
+                <a
+                  href="https://app.brevo.com/settings/webhook/list/marketing"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-medium text-brand hover:underline"
+                >
+                  Contacts → Settings → Webhooks
+                </a>
+                .
+              </li>
+            </ol>
+          </div>
+
+          <div className="rounded-sm border border-border bg-muted/40 px-3 py-2 text-[11.5px] text-muted-foreground">
+            <span className="font-semibold text-foreground">Security:</span>{" "}
+            Requests missing the correct <span className="font-mono">?token</span>
+            are rejected with 401. Never share the URL publicly. Rotate the
+            secret from the project settings if it leaks.
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end border-t border-border px-5 py-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-9 rounded-sm bg-brand px-4 text-[13px] font-semibold text-white hover:bg-brand-700"
+          >
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
