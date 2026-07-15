@@ -38,12 +38,29 @@ export const Route = createFileRoute("/login")({
 });
 
 const DOMAIN = "@brantatech.com";
+
+// Strict allow-lists. Anything outside is rejected before it reaches the
+// input state (and re-validated by zod at submit time as a second gate).
+const LOCAL_ALLOWED = /^[a-z]+$/;               // plain lowercase english only
+const PASSWORD_ALLOWED = /^[\x20-\x7E]+$/;      // printable ASCII only
+
+const stripToLocal = (v: string) =>
+  v.normalize("NFKC").toLowerCase().replace(/[^a-z]/g, "");
+const stripToPassword = (v: string) =>
+  v.normalize("NFKC").replace(/[^\x20-\x7E]/g, "");
+
 const localSchema = z
   .string()
   .trim()
-  .toLowerCase()
   .min(1, "Enter your Branta ID.")
-  .regex(/^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$/, "Only letters, numbers, dot, dash, underscore.");
+  .max(64, "Branta ID is too long.")
+  .regex(LOCAL_ALLOWED, "Only lowercase english letters (a–z). No numbers or symbols.");
+
+const passwordSchema = z
+  .string()
+  .min(1, "Enter your password.")
+  .max(128, "Password is too long.")
+  .regex(PASSWORD_ALLOWED, "Password must use english letters, numbers, or symbols only.");
 
 type CaptchaStatus = "loading" | "ready" | "expired" | "error";
 type Phase = "credentials" | "enroll" | "challenge";
@@ -215,8 +232,9 @@ function LoginPage() {
       setLocalError(r.error.issues[0]?.message ?? "Invalid Branta ID.");
       return;
     }
-    if (!password) {
-      setFormError("Enter your password.");
+    const pwr = passwordSchema.safeParse(password);
+    if (!pwr.success) {
+      setFormError(pwr.error.issues[0]?.message ?? "Invalid password.");
       return;
     }
     if (!captchaToken || captchaStatus !== "ready") {
@@ -460,12 +478,29 @@ function LoginPage() {
                     <input
                       id="local"
                       type="text"
+                      inputMode="text"
                       autoComplete="username"
+                      autoCapitalize="none"
                       spellCheck={false}
+                      lang="en"
+                      maxLength={64}
                       value={local}
                       onChange={(e) => {
-                        setLocal(e.target.value.toLowerCase());
-                        validateLocal(e.target.value);
+                        const cleaned = stripToLocal(e.target.value);
+                        setLocal(cleaned);
+                        validateLocal(cleaned);
+                      }}
+                      onPaste={(e) => {
+                        e.preventDefault();
+                        const text = e.clipboardData.getData("text");
+                        const cleaned = stripToLocal(local + text).slice(0, 64);
+                        setLocal(cleaned);
+                        validateLocal(cleaned);
+                      }}
+                      onCompositionEnd={(e) => {
+                        const cleaned = stripToLocal((e.target as HTMLInputElement).value);
+                        setLocal(cleaned);
+                        validateLocal(cleaned);
                       }}
                       onBlur={(e) => validateLocal(e.target.value)}
                       aria-invalid={!!localError}
@@ -504,8 +539,19 @@ function LoginPage() {
                       id="password"
                       type={showPw ? "text" : "password"}
                       autoComplete="current-password"
+                      spellCheck={false}
+                      lang="en"
+                      maxLength={128}
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      onChange={(e) => setPassword(stripToPassword(e.target.value))}
+                      onPaste={(e) => {
+                        e.preventDefault();
+                        const text = e.clipboardData.getData("text");
+                        setPassword(stripToPassword(password + text).slice(0, 128));
+                      }}
+                      onCompositionEnd={(e) =>
+                        setPassword(stripToPassword((e.target as HTMLInputElement).value))
+                      }
                       className="h-9 w-full rounded-sm border border-border bg-card px-3 pr-10 text-[13px] outline-none transition-shadow focus:border-brand focus:ring-1 focus:ring-brand"
                     />
                     <button
