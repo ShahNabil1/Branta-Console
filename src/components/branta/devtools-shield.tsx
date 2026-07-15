@@ -101,6 +101,21 @@ export function DevToolsShield({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    // Skip detection in the Lovable preview / editor iframe and on non-
+    // production hosts. The preview runs inside an iframe and the editor
+    // injects instrumentation that trips every heuristic (window size
+    // deltas, console getters, debugger timing), causing false positives.
+    // Shortcut / context-menu blocking above stays active regardless.
+    const host = window.location.hostname;
+    const inIframe = window.self !== window.top;
+    const isNonProdHost =
+      host.endsWith(".lovableproject.com") ||
+      host.endsWith(".lovable.app") ||
+      host.endsWith(".lovable.dev") ||
+      host === "localhost" ||
+      host === "127.0.0.1";
+    if (inIframe || isNonProdHost) return;
+
     let cancelled = false;
     let intervalId: number | undefined;
 
