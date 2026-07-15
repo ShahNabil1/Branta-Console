@@ -648,6 +648,11 @@ function ProfileForm({
                   <p className="text-[11px] text-muted-foreground">
                     Have your NID and a well-lit space ready. Takes ~2 minutes.
                   </p>
+                  {form.kyc_status === "rejected" && (
+                    <p className="text-[11px] text-muted-foreground">
+                      Or re-submit the updated NID/CV you uploaded above.
+                    </p>
+                  )}
                 </>
               ) : (
                 <div className="rounded-sm border border-dashed border-border bg-muted/40 px-3 py-4 text-[12px] text-muted-foreground">
@@ -655,6 +660,21 @@ function ProfileForm({
                   <code className="font-mono">METAMAP_CLIENT_ID</code> and{" "}
                   <code className="font-mono">METAMAP_FLOW_ID</code>.
                 </div>
+              )}
+              {form.kyc_status === "rejected" && (
+                <Button
+                  onClick={submitReupload}
+                  disabled={reuploading || (!form.nid_url && !form.cv_url)}
+                  variant="outline"
+                  className="h-9 rounded-sm border-primary/40 text-[12px] font-semibold text-primary hover:bg-primary/5"
+                >
+                  {reuploading ? (
+                    <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                  ) : (
+                    <RefreshCw className="mr-1.5 size-3.5" />
+                  )}
+                  Request Re-upload
+                </Button>
               )}
             </div>
           </div>
