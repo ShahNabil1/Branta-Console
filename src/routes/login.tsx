@@ -111,6 +111,21 @@ function LoginPage() {
     }
   }, [phase, code, locked]);
 
+  // Auto-submit once the user finishes typing the 6-digit code.
+  const onVerifyRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    if (
+      code.length === 6 &&
+      !verifying &&
+      !locked &&
+      (phase === "enroll" || phase === "challenge")
+    ) {
+      onVerifyRef.current();
+    }
+  }, [code, verifying, locked, phase]);
+
+
+
 
 
   const validateLocal = (v: string) => {
