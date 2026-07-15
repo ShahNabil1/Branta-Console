@@ -561,9 +561,9 @@ function LoginPage() {
               <h2 className="text-xl font-semibold tracking-tight text-foreground">
                 {phase === "enroll" ? "Enroll authenticator" : "Verify identity"}
               </h2>
-              <p className="mt-1 text-[13px] text-muted-foreground">
+              <p className="mt-1 text-[13px] whitespace-pre-line text-muted-foreground">
                 {phase === "enroll"
-                  ? "Scan the QR code with your authenticator app (Google Authenticator, 1Password, Authy…), then enter the 6-digit code below."
+                  ? "Scan the QR code with Google Authenticator,\nthen enter the 6-digit code below."
                   : "Enter the 6-digit code from your authenticator app."}
               </p>
 
