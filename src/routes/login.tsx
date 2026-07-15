@@ -587,6 +587,24 @@ function LoginPage() {
                       </div>
                     </div>
                   )}
+                  <button
+                    type="button"
+                    onClick={onRegenerateEnrollment}
+                    disabled={enrollRemaining > 0 || regenerating}
+                    className={cn(
+                      "flex h-8 items-center gap-1.5 rounded-sm border border-border bg-card px-3 text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+                      (enrollRemaining > 0 || regenerating) && "cursor-not-allowed opacity-60",
+                    )}
+                  >
+                    {regenerating ? (
+                      <Loader2 className="size-3 animate-spin" />
+                    ) : (
+                      <RefreshCw className="size-3" strokeWidth={1.75} />
+                    )}
+                    {enrollRemaining > 0
+                      ? `Regenerate in ${Math.ceil(enrollRemaining / 1000)}s`
+                      : "Regenerate secret"}
+                  </button>
                 </div>
               )}
 
@@ -594,15 +612,48 @@ function LoginPage() {
                 <label className="mb-2 block text-[12px] font-medium text-muted-foreground">
                   Verification code
                 </label>
-                <InputOTP maxLength={6} value={code} onChange={setCode}>
+                <InputOTP
+                  maxLength={6}
+                  value={code}
+                  onChange={setCode}
+                  disabled={locked || verifying}
+                >
                   <InputOTPGroup>
                     {Array.from({ length: 6 }).map((_, i) => (
                       <InputOTPSlot key={i} index={i} />
                     ))}
                   </InputOTPGroup>
                 </InputOTP>
-                {totpError && (
-                  <div className="mt-2 text-[12px] text-rose-600">{totpError}</div>
+                {locked ? (
+                  <div className="mt-2 text-[12px] text-rose-600">
+                    Too many invalid codes. Try again in {Math.ceil(lockRemaining / 1000)}s.
+                  </div>
+                ) : (
+                  totpError && (
+                    <div className="mt-2 text-[12px] text-rose-600">{totpError}</div>
+                  )
+                )}
+
+                {phase === "challenge" && (
+                  <button
+                    type="button"
+                    onClick={onRefreshChallenge}
+                    disabled={challengeRemaining > 0 || refreshingChallenge}
+                    className={cn(
+                      "mt-3 inline-flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground transition-colors hover:text-foreground",
+                      (challengeRemaining > 0 || refreshingChallenge) &&
+                        "cursor-not-allowed opacity-60",
+                    )}
+                  >
+                    {refreshingChallenge ? (
+                      <Loader2 className="size-3 animate-spin" />
+                    ) : (
+                      <RefreshCw className="size-3" strokeWidth={1.75} />
+                    )}
+                    {challengeRemaining > 0
+                      ? `New challenge in ${Math.ceil(challengeRemaining / 1000)}s`
+                      : "Request new challenge"}
+                  </button>
                 )}
               </div>
 
@@ -615,10 +666,10 @@ function LoginPage() {
                 </button>
                 <button
                   onClick={onVerify}
-                  disabled={code.length !== 6 || verifying}
+                  disabled={code.length !== 6 || verifying || locked}
                   className={cn(
                     "flex h-9 items-center gap-2 rounded-sm bg-brand px-4 text-[13px] font-semibold text-white transition-colors hover:bg-brand-700",
-                    (code.length !== 6 || verifying) && "opacity-60",
+                    (code.length !== 6 || verifying || locked) && "opacity-60",
                   )}
                 >
                   {verifying && <Loader2 className="size-3.5 animate-spin" />}
