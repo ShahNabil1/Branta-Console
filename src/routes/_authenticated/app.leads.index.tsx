@@ -349,7 +349,7 @@ function LeadsPage() {
                 </div>
                 <div className="truncate text-foreground">{row.company ?? "—"}</div>
                 <div>
-                  <StatusBadge status={row.status} />
+                  <StatusBadge status={row.status} options={statusOptions} />
                 </div>
                 <div className="flex min-w-0 items-center gap-2">
                   <span className="grid size-6 shrink-0 place-items-center rounded-full bg-muted text-[10px] font-bold text-foreground">
