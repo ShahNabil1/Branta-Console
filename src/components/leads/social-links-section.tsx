@@ -95,12 +95,47 @@ const PLATFORM_META: Record<
   },
 };
 
-function normalizeUrl(url: string): string {
+const PLATFORM_DOMAINS: Record<SocialPlatform, string[]> = {
+  website: [],
+  linkedin: ["linkedin.com", "lnkd.in"],
+  facebook: ["facebook.com", "fb.com", "fb.me"],
+  instagram: ["instagram.com", "instagr.am"],
+  youtube: ["youtube.com", "youtu.be"],
+  x: ["x.com", "twitter.com"],
+  tiktok: ["tiktok.com"],
+};
+
+function normalizeUrl(platform: SocialPlatform, url: string): string {
   const trimmed = url.trim();
   if (!trimmed) return trimmed;
   if (/^https?:\/\//i.test(trimmed)) return trimmed;
   return `https://${trimmed}`;
 }
+
+/** Returns null when valid, else a user-facing error string. */
+function validateUrl(platform: SocialPlatform, url: string): string | null {
+  const trimmed = url.trim();
+  if (!trimmed) return "URL is required";
+  const normalized = normalizeUrl(platform, trimmed);
+  let parsed: URL;
+  try {
+    parsed = new URL(normalized);
+  } catch {
+    return "Enter a valid URL";
+  }
+  if (!/^https?:$/.test(parsed.protocol)) {
+    return "URL must start with http:// or https://";
+  }
+  if (platform === "website") return null;
+  const host = parsed.hostname.toLowerCase().replace(/^www\./, "");
+  const allowed = PLATFORM_DOMAINS[platform];
+  const ok = allowed.some((d) => host === d || host.endsWith(`.${d}`));
+  if (!ok) {
+    return `${PLATFORM_META[platform].name} link must be on ${allowed.join(" or ")}`;
+  }
+  return null;
+}
+
 
 function PlatformIcon({ platform }: { platform: string }) {
   const meta = PLATFORM_META[platform as SocialPlatform];
