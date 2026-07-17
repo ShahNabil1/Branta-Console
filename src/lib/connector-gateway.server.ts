@@ -56,16 +56,25 @@ export async function callGateway<T = unknown>(
       typeof opts.body === "string" ? opts.body : JSON.stringify(opts.body);
   }
 
-  const res = await fetch(url.toString(), {
-    method: opts.method ?? (body ? "POST" : "GET"),
-    headers,
-    body,
-  });
-
-  const text = await res.text();
+  const method = opts.method ?? (body ? "POST" : "GET");
+  let res!: Response;
+  let text = "";
+  const maxAttempts = 5;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    res = await fetch(url.toString(), { method, headers, body });
+    text = await res.text();
+    if (res.ok) break;
+    const retriable = res.status === 429 || res.status >= 500;
+    if (!retriable || attempt === maxAttempts - 1) break;
+    const retryAfter = Number(res.headers.get("retry-after"));
+    const waitMs = Number.isFinite(retryAfter) && retryAfter > 0
+      ? retryAfter * 1000
+      : Math.min(16000, 500 * 2 ** attempt) + Math.floor(Math.random() * 250);
+    await new Promise((r) => setTimeout(r, waitMs));
+  }
   if (!res.ok) {
     console.error(
-      `[gateway] ${opts.connector} ${opts.method ?? "GET"} ${opts.path} → ${res.status}: ${text.slice(0, 500)}`,
+      `[gateway] ${opts.connector} ${method} ${opts.path} → ${res.status}: ${text.slice(0, 500)}`,
     );
     throw new Error(
       `${opts.connector} ${res.status}: ${text.slice(0, 300) || res.statusText}`,
