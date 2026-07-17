@@ -14,10 +14,18 @@ export interface LeadRow {
   slug: string;
   lead_code: string;
   name: string;
+  role: string | null;
   company: string | null;
   /** Derived from the primary lead_contacts row (email column removed). */
   email: string | null;
+  email_label: string | null;
+  alt_email: string | null;
+  alt_email_label: string | null;
   phone: string | null;
+  phone_label: string | null;
+  alt_phone: string | null;
+  alt_phone_label: string | null;
+  contact_preference: string | null;
   status: LeadStatusDB;
   source: string | null;
   source_other: string | null;
@@ -36,13 +44,24 @@ export interface LeadRow {
 export interface LeadContactRow {
   id: string;
   lead_id: string;
+  name: string | null;
+  role: string | null;
   email: string;
   label: string | null;
+  email_label: string | null;
+  alt_email: string | null;
+  alt_email_label: string | null;
+  phone: string | null;
+  phone_label: string | null;
+  alt_phone: string | null;
+  alt_phone_label: string | null;
+  contact_preference: string | null;
   is_primary: boolean;
   created_by: string | null;
   created_at: string;
   updated_at: string;
 }
+
 
 export type LeadActivityMeta = {
   from?: string;
@@ -66,9 +85,17 @@ const StatusInput = z.string().trim().min(1).max(60);
 
 const CreateInput = z.object({
   name: z.string().trim().min(1).max(160),
+  role: z.string().trim().max(120).optional().nullable(),
   company: z.string().trim().max(160).optional().nullable(),
   email: z.string().trim().email().max(200).optional().nullable().or(z.literal("")),
+  email_label: z.string().trim().max(40).optional().nullable(),
+  alt_email: z.string().trim().email().max(200).optional().nullable().or(z.literal("")),
+  alt_email_label: z.string().trim().max(40).optional().nullable(),
   phone: z.string().trim().max(40).optional().nullable(),
+  phone_label: z.string().trim().max(40).optional().nullable(),
+  alt_phone: z.string().trim().max(40).optional().nullable(),
+  alt_phone_label: z.string().trim().max(40).optional().nullable(),
+  contact_preference: z.string().trim().max(2000).optional().nullable(),
   status: StatusInput.default("new"),
   source: z.string().trim().max(80).optional().nullable(),
   source_other: z.string().trim().max(200).optional().nullable(),
@@ -78,6 +105,7 @@ const CreateInput = z.object({
   next_action: z.string().trim().max(200).optional().nullable(),
   notes: z.string().trim().max(4000).optional().nullable(),
 });
+
 
 const UpdateInput = z.object({
   id: z.string().uuid(),
@@ -204,12 +232,21 @@ export const createLead = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => CreateInput.parse(data))
   .handler(async ({ data, context }): Promise<LeadRow> => {
     const email = data.email === "" ? null : data.email ?? null;
+    const altEmail = data.alt_email === "" ? null : data.alt_email ?? null;
     const { data: row, error } = await context.supabase
       .from("leads")
       .insert({
         name: data.name,
+        role: data.role ?? null,
         company: data.company ?? null,
         phone: data.phone ?? null,
+        phone_label: data.phone_label ?? null,
+        alt_phone: data.alt_phone ?? null,
+        alt_phone_label: data.alt_phone_label ?? null,
+        email_label: data.email_label ?? null,
+        alt_email: altEmail,
+        alt_email_label: data.alt_email_label ?? null,
+        contact_preference: data.contact_preference ?? null,
         status: data.status,
         source: data.source ?? null,
         source_other: data.source_other ?? null,
@@ -235,6 +272,7 @@ export const createLead = createServerFn({ method: "POST" })
     });
     return { ...(row as unknown as LeadRow), email };
   });
+
 
 export const updateLead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -398,12 +436,34 @@ export const listLeadContacts = createServerFn({ method: "GET" })
     return (rows ?? []) as LeadContactRow[];
   });
 
-const ContactInput = z.object({
-  leadId: z.string().uuid(),
+const ContactFields = z.object({
+  name: z.string().trim().max(160).optional().nullable(),
+  role: z.string().trim().max(120).optional().nullable(),
   email: z.string().trim().email().max(200),
   label: z.string().trim().max(80).optional().nullable(),
+  email_label: z.string().trim().max(40).optional().nullable(),
+  alt_email: z
+    .string()
+    .trim()
+    .email()
+    .max(200)
+    .optional()
+    .nullable()
+    .or(z.literal("")),
+  alt_email_label: z.string().trim().max(40).optional().nullable(),
+  phone: z.string().trim().max(40).optional().nullable(),
+  phone_label: z.string().trim().max(40).optional().nullable(),
+  alt_phone: z.string().trim().max(40).optional().nullable(),
+  alt_phone_label: z.string().trim().max(40).optional().nullable(),
+  contact_preference: z.string().trim().max(2000).optional().nullable(),
+});
+
+const ContactInput = ContactFields.extend({
+  leadId: z.string().uuid(),
   isPrimary: z.boolean().optional(),
 });
+
+export const MAX_CONTACTS_PER_LEAD = 10;
 
 export const addLeadContact = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -415,7 +475,6 @@ export const addLeadContact = createServerFn({ method: "POST" })
         .update({ is_primary: false })
         .eq("lead_id", data.leadId);
     } else {
-      // If no primary exists, make this one primary.
       const { data: existing } = await context.supabase
         .from("lead_contacts")
         .select("id")
@@ -424,36 +483,62 @@ export const addLeadContact = createServerFn({ method: "POST" })
         .maybeSingle();
       if (!existing) data.isPrimary = true;
     }
+    const insertRow = {
+      lead_id: data.leadId,
+      name: data.name ?? null,
+      role: data.role ?? null,
+      email: data.email,
+      label: data.label ?? null,
+      email_label: data.email_label ?? null,
+      alt_email: data.alt_email && data.alt_email !== "" ? data.alt_email : null,
+      alt_email_label: data.alt_email_label ?? null,
+      phone: data.phone ?? null,
+      phone_label: data.phone_label ?? null,
+      alt_phone: data.alt_phone ?? null,
+      alt_phone_label: data.alt_phone_label ?? null,
+      contact_preference: data.contact_preference ?? null,
+      is_primary: data.isPrimary ?? false,
+      created_by: context.userId,
+    };
     const { data: row, error } = await context.supabase
       .from("lead_contacts")
-      .insert({
-        lead_id: data.leadId,
-        email: data.email,
-        label: data.label ?? null,
-        is_primary: data.isPrimary ?? false,
-        created_by: context.userId,
-      })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .insert(insertRow as any)
       .select("*")
       .single();
     if (error) throw new Error(error.message);
     return row as LeadContactRow;
   });
 
+const UpdateContactInput = ContactFields.partial().extend({
+  id: z.string().uuid(),
+});
+
 export const updateLeadContact = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) =>
-    z
-      .object({
-        id: z.string().uuid(),
-        email: z.string().trim().email().max(200).optional(),
-        label: z.string().trim().max(80).optional().nullable(),
-      })
-      .parse(d),
-  )
+  .inputValidator((d: unknown) => UpdateContactInput.parse(d))
   .handler(async ({ data, context }): Promise<LeadContactRow> => {
     const patch: Record<string, unknown> = {};
-    if (data.email) patch.email = data.email;
-    if (data.label !== undefined) patch.label = data.label;
+    const keys: (keyof typeof data)[] = [
+      "name",
+      "role",
+      "email",
+      "label",
+      "email_label",
+      "alt_email",
+      "alt_email_label",
+      "phone",
+      "phone_label",
+      "alt_phone",
+      "alt_phone_label",
+      "contact_preference",
+    ];
+    for (const k of keys) {
+      const v = data[k];
+      if (v !== undefined) {
+        patch[k as string] = v === "" ? null : v;
+      }
+    }
     const { data: row, error } = await context.supabase
       .from("lead_contacts")
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -464,6 +549,7 @@ export const updateLeadContact = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return row as LeadContactRow;
   });
+
 
 export const setPrimaryLeadContact = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

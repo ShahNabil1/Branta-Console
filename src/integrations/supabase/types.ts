@@ -204,33 +204,63 @@ export type Database = {
       }
       lead_contacts: {
         Row: {
+          alt_email: string | null
+          alt_email_label: string | null
+          alt_phone: string | null
+          alt_phone_label: string | null
+          contact_preference: string | null
           created_at: string
           created_by: string | null
           email: string
+          email_label: string | null
           id: string
           is_primary: boolean
           label: string | null
           lead_id: string
+          name: string | null
+          phone: string | null
+          phone_label: string | null
+          role: string | null
           updated_at: string
         }
         Insert: {
+          alt_email?: string | null
+          alt_email_label?: string | null
+          alt_phone?: string | null
+          alt_phone_label?: string | null
+          contact_preference?: string | null
           created_at?: string
           created_by?: string | null
           email: string
+          email_label?: string | null
           id?: string
           is_primary?: boolean
           label?: string | null
           lead_id: string
+          name?: string | null
+          phone?: string | null
+          phone_label?: string | null
+          role?: string | null
           updated_at?: string
         }
         Update: {
+          alt_email?: string | null
+          alt_email_label?: string | null
+          alt_phone?: string | null
+          alt_phone_label?: string | null
+          contact_preference?: string | null
           created_at?: string
           created_by?: string | null
           email?: string
+          email_label?: string | null
           id?: string
           is_primary?: boolean
           label?: string | null
           lead_id?: string
+          name?: string | null
+          phone?: string | null
+          phone_label?: string | null
+          role?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -470,10 +500,16 @@ export type Database = {
       }
       leads: {
         Row: {
+          alt_email: string | null
+          alt_email_label: string | null
+          alt_phone: string | null
+          alt_phone_label: string | null
           company: string | null
+          contact_preference: string | null
           created_at: string
           created_by: string | null
           currency: string
+          email_label: string | null
           id: string
           last_activity_at: string
           lead_code: string
@@ -482,6 +518,8 @@ export type Database = {
           notes: string | null
           owner_id: string | null
           phone: string | null
+          phone_label: string | null
+          role: string | null
           sheet_row_id: string | null
           slug: string
           source: string | null
@@ -492,10 +530,16 @@ export type Database = {
           value_usd: number | null
         }
         Insert: {
+          alt_email?: string | null
+          alt_email_label?: string | null
+          alt_phone?: string | null
+          alt_phone_label?: string | null
           company?: string | null
+          contact_preference?: string | null
           created_at?: string
           created_by?: string | null
           currency?: string
+          email_label?: string | null
           id?: string
           last_activity_at?: string
           lead_code?: string
@@ -504,6 +548,8 @@ export type Database = {
           notes?: string | null
           owner_id?: string | null
           phone?: string | null
+          phone_label?: string | null
+          role?: string | null
           sheet_row_id?: string | null
           slug: string
           source?: string | null
@@ -514,10 +560,16 @@ export type Database = {
           value_usd?: number | null
         }
         Update: {
+          alt_email?: string | null
+          alt_email_label?: string | null
+          alt_phone?: string | null
+          alt_phone_label?: string | null
           company?: string | null
+          contact_preference?: string | null
           created_at?: string
           created_by?: string | null
           currency?: string
+          email_label?: string | null
           id?: string
           last_activity_at?: string
           lead_code?: string
@@ -526,6 +578,8 @@ export type Database = {
           notes?: string | null
           owner_id?: string | null
           phone?: string | null
+          phone_label?: string | null
+          role?: string | null
           sheet_row_id?: string | null
           slug?: string
           source?: string | null

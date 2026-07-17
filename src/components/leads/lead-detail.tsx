@@ -43,14 +43,19 @@ import {
 } from "@/components/ui/tooltip";
 import {
   addLeadActivity,
+  addLeadContact,
   deleteLead,
+  deleteLeadContact,
   listLeadActivities,
   listLeadContacts,
+  setPrimaryLeadContact,
   updateLead,
+  updateLeadContact,
   type LeadContactRow,
   type LeadRow,
   type LeadStatusDB,
 } from "@/lib/leads.functions";
+
 import {
   drainEmailQueue,
   getEmailUsageToday,
@@ -180,6 +185,164 @@ function Field({
   );
 }
 
+const CONTACT_LABEL_OPTIONS = [
+  "work",
+  "personal",
+  "home",
+  "mobile",
+  "whatsapp",
+  "other",
+] as const;
+
+function LabelSelect({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <Select
+      value={value || "__none"}
+      onValueChange={(v) => onChange(v === "__none" ? "" : v)}
+    >
+      <SelectTrigger className="h-9 w-[110px] shrink-0 rounded-sm text-[11.5px] capitalize">
+        <SelectValue placeholder="Label" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="__none">— label —</SelectItem>
+        {CONTACT_LABEL_OPTIONS.map((l) => (
+          <SelectItem key={l} value={l} className="capitalize">
+            {l}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+function EmailRow({
+  label,
+  value,
+  onChange,
+  tag,
+  onTagChange,
+  onCompose,
+  className,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  tag: string;
+  onTagChange: (v: string) => void;
+  onCompose: () => void;
+  className?: string;
+}) {
+  return (
+    <Field label={label} className={className}>
+      <div className="flex items-center gap-1.5">
+        <Input
+          type="email"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-9 flex-1 rounded-sm text-[12.5px]"
+          placeholder="name@company.com"
+        />
+        <LabelSelect value={tag} onChange={onTagChange} />
+        <TooltipProvider delayDuration={200}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-9 w-9 shrink-0 rounded-sm"
+                disabled={!value.trim()}
+                onClick={onCompose}
+                aria-label="Compose email"
+              >
+                <Mail className="size-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top">Compose in Emails tab</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
+    </Field>
+  );
+}
+
+function PhoneRow({
+  label,
+  value,
+  onChange,
+  tag,
+  onTagChange,
+  className,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  tag: string;
+  onTagChange: (v: string) => void;
+  className?: string;
+}) {
+  const digits = value.replace(/[^\d]/g, "");
+  return (
+    <Field label={label} className={className}>
+      <div className="flex items-center gap-1.5">
+        <Input
+          type="tel"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-9 flex-1 rounded-sm text-[12.5px]"
+          placeholder="+8801XXXXXXXXX"
+        />
+        <LabelSelect value={tag} onChange={onTagChange} />
+        <TooltipProvider delayDuration={200}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <a
+                href={value ? `tel:${value.replace(/\s+/g, "")}` : undefined}
+                aria-disabled={!value.trim()}
+                className={cn(
+                  "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-sm border border-input bg-background text-foreground transition-colors hover:bg-muted",
+                  !value.trim() && "pointer-events-none opacity-50",
+                )}
+                aria-label="Call this number"
+              >
+                <PhoneIcon className="size-3.5" />
+              </a>
+            </TooltipTrigger>
+            <TooltipContent side="top">Call</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <a
+                href={digits ? `https://wa.me/${digits}` : undefined}
+                target="_blank"
+                rel="noreferrer"
+                aria-disabled={!digits}
+                className={cn(
+                  "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-sm border border-input bg-background transition-colors hover:bg-muted",
+                  !digits && "pointer-events-none opacity-50",
+                )}
+                aria-label="Open in WhatsApp"
+              >
+                <WhatsAppIcon className="size-4" />
+              </a>
+            </TooltipTrigger>
+            <TooltipContent side="top">WhatsApp</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
+    </Field>
+  );
+}
+
+
+
+
 export function LeadDetail({
   lead,
   users,
@@ -218,9 +381,17 @@ export function LeadDetail({
 
   const [form, setForm] = useState({
     name: lead.name,
+    role: lead.role ?? "",
     company: lead.company ?? "",
     email: lead.email ?? "",
+    email_label: lead.email_label ?? "",
+    alt_email: lead.alt_email ?? "",
+    alt_email_label: lead.alt_email_label ?? "",
     phone: lead.phone ?? "",
+    phone_label: lead.phone_label ?? "",
+    alt_phone: lead.alt_phone ?? "",
+    alt_phone_label: lead.alt_phone_label ?? "",
+    contact_preference: lead.contact_preference ?? "",
     status: lead.status,
     source: lead.source ?? "",
     source_other: lead.source_other ?? "",
@@ -236,9 +407,17 @@ export function LeadDetail({
   useEffect(() => {
     setForm({
       name: lead.name,
+      role: lead.role ?? "",
       company: lead.company ?? "",
       email: lead.email ?? "",
+      email_label: lead.email_label ?? "",
+      alt_email: lead.alt_email ?? "",
+      alt_email_label: lead.alt_email_label ?? "",
       phone: lead.phone ?? "",
+      phone_label: lead.phone_label ?? "",
+      alt_phone: lead.alt_phone ?? "",
+      alt_phone_label: lead.alt_phone_label ?? "",
+      contact_preference: lead.contact_preference ?? "",
       status: lead.status,
       source: lead.source ?? "",
       source_other: lead.source_other ?? "",
@@ -250,6 +429,7 @@ export function LeadDetail({
     });
     setStatusChangeNote("");
   }, [lead.id, lead.status, lead.owner_id, lead.updated_at]);
+
 
   const activities = useQuery({
     queryKey: ["leads", "activities", lead.id],
@@ -268,9 +448,17 @@ export function LeadDetail({
           id: lead.id,
           patch: {
             name: form.name.trim(),
+            role: form.role.trim() || null,
             company: form.company.trim() || null,
             email: form.email.trim() || null,
+            email_label: form.email_label.trim() || null,
+            alt_email: form.alt_email.trim() || null,
+            alt_email_label: form.alt_email_label.trim() || null,
             phone: form.phone.trim() || null,
+            phone_label: form.phone_label.trim() || null,
+            alt_phone: form.alt_phone.trim() || null,
+            alt_phone_label: form.alt_phone_label.trim() || null,
+            contact_preference: form.contact_preference.trim() || null,
             status: form.status,
             source: form.source.trim() || null,
             source_other: sourceNeedsDetail
@@ -288,6 +476,7 @@ export function LeadDetail({
               : undefined,
         },
       }),
+
     onSuccess: () => {
       toast.success("Lead updated");
       setStatusChangeNote("");
@@ -375,10 +564,18 @@ export function LeadDetail({
               Details
             </div>
             <div className="grid grid-cols-2 gap-3 p-3 md:grid-cols-3">
-              <Field label="Name" className="col-span-2 md:col-span-3">
+              <Field label="Name">
                 <Input
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  className="h-9 rounded-sm text-[12.5px]"
+                />
+              </Field>
+              <Field label="Role">
+                <Input
+                  value={form.role}
+                  onChange={(e) => setForm({ ...form, role: e.target.value })}
+                  placeholder="e.g. CTO, Marketing Manager"
                   className="h-9 rounded-sm text-[12.5px]"
                 />
               </Field>
@@ -429,82 +626,67 @@ export function LeadDetail({
                   />
                 </Field>
               )}
-              <Field label="Email">
-                <div className="flex items-center gap-1.5">
-                  <Input
-                    value={form.email}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    className="h-9 flex-1 rounded-sm text-[12.5px]"
-                  />
-                  <TooltipProvider delayDuration={200}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          className="h-9 w-9 shrink-0 rounded-sm"
-                          disabled={!form.email.trim()}
-                          onClick={() => setTab("emails")}
-                          aria-label="Compose email"
-                        >
-                          <Mail className="size-3.5" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="top">Compose in Emails tab</TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
+
+              <EmailRow
+                label="Email"
+                value={form.email}
+                onChange={(v) => setForm({ ...form, email: v })}
+                tag={form.email_label}
+                onTagChange={(v) => setForm({ ...form, email_label: v })}
+                onCompose={() => setTab("emails")}
+                className="col-span-2 md:col-span-3"
+              />
+              <EmailRow
+                label="Alternative email"
+                value={form.alt_email}
+                onChange={(v) => setForm({ ...form, alt_email: v })}
+                tag={form.alt_email_label}
+                onTagChange={(v) => setForm({ ...form, alt_email_label: v })}
+                onCompose={() => setTab("emails")}
+                className="col-span-2 md:col-span-3"
+              />
+              <PhoneRow
+                label="Phone"
+                value={form.phone}
+                onChange={(v) => setForm({ ...form, phone: v })}
+                tag={form.phone_label}
+                onTagChange={(v) => setForm({ ...form, phone_label: v })}
+                className="col-span-2 md:col-span-3"
+              />
+              <PhoneRow
+                label="Alternative phone"
+                value={form.alt_phone}
+                onChange={(v) => setForm({ ...form, alt_phone: v })}
+                tag={form.alt_phone_label}
+                onTagChange={(v) => setForm({ ...form, alt_phone_label: v })}
+                className="col-span-2 md:col-span-3"
+              />
+
+              <Field
+                label="Contact preference & availability"
+                className="col-span-2 md:col-span-3"
+                hint={
+                  <>
+                    <b>Optional</b> — কীভাবে ও কখন contact করলে best।
+                    <br />
+                    <span className="text-muted-foreground">
+                      Example: "WhatsApp preferred", "Call after 6pm weekdays",
+                      "Message on Nov 20 at 12am, then he will reply", "Email
+                      only — no calls"
+                    </span>
+                  </>
+                }
+              >
+                <Textarea
+                  value={form.contact_preference}
+                  onChange={(e) =>
+                    setForm({ ...form, contact_preference: e.target.value })
+                  }
+                  placeholder="How & when does this person prefer to be contacted? Preferred channel, days, times, timezone…"
+                  className="min-h-[60px] rounded-sm text-[12.5px]"
+                />
               </Field>
-              <Field label="Phone">
-                <div className="flex items-center gap-1.5">
-                  <Input
-                    value={form.phone}
-                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                    className="h-9 flex-1 rounded-sm text-[12.5px]"
-                  />
-                  <TooltipProvider delayDuration={200}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <a
-                          href={form.phone ? `tel:${form.phone.replace(/\s+/g, "")}` : undefined}
-                          aria-disabled={!form.phone.trim()}
-                          className={cn(
-                            "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-sm border border-input bg-background text-foreground transition-colors hover:bg-muted",
-                            !form.phone.trim() && "pointer-events-none opacity-50",
-                          )}
-                          aria-label="Call this number"
-                        >
-                          <PhoneIcon className="size-3.5" />
-                        </a>
-                      </TooltipTrigger>
-                      <TooltipContent side="top">Call</TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <a
-                          href={
-                            form.phone
-                              ? `https://wa.me/${form.phone.replace(/[^\d]/g, "")}`
-                              : undefined
-                          }
-                          target="_blank"
-                          rel="noreferrer"
-                          aria-disabled={!form.phone.trim()}
-                          className={cn(
-                            "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-sm border border-input bg-background transition-colors hover:bg-muted",
-                            !form.phone.trim() && "pointer-events-none opacity-50",
-                          )}
-                          aria-label="Open in WhatsApp"
-                        >
-                          <WhatsAppIcon className="size-4" />
-                        </a>
-                      </TooltipTrigger>
-                      <TooltipContent side="top">WhatsApp</TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-              </Field>
+
               <Field label="Status">
                 <Select
                   value={form.status}
@@ -512,6 +694,7 @@ export function LeadDetail({
                 >
                   <SelectTrigger className="h-9 rounded-sm text-[12.5px]">
                     <SelectValue />
+
                   </SelectTrigger>
                   <SelectContent>
                     {statusOptions.map((s) => (
@@ -672,6 +855,10 @@ export function LeadDetail({
             </div>
           </section>
 
+          <TeammatesSection lead={lead} />
+
+
+
           <section className="rounded-sm border border-border bg-card">
             <div className="flex items-center justify-between border-b border-border px-3 py-2">
               <div className="flex items-center gap-2">
@@ -822,7 +1009,420 @@ export function LeadDetail({
   );
 }
 
+// ---------- Team members / additional contacts ----------
+const MAX_TEAMMATES = 10;
+const EMPTY_CONTACT_DRAFT = {
+  name: "",
+  role: "",
+  email: "",
+  email_label: "",
+  alt_email: "",
+  alt_email_label: "",
+  phone: "",
+  phone_label: "",
+  alt_phone: "",
+  alt_phone_label: "",
+  contact_preference: "",
+};
+
+function TeammatesSection({ lead }: { lead: LeadRow }) {
+  const qc = useQueryClient();
+  const listFn = useServerFn(listLeadContacts);
+  const addFn = useServerFn(addLeadContact);
+  const delFn = useServerFn(deleteLeadContact);
+  const primaryFn = useServerFn(setPrimaryLeadContact);
+  const contacts = useQuery({
+    queryKey: ["lead-contacts", lead.id],
+    queryFn: () => listFn({ data: { leadId: lead.id } }),
+    staleTime: 15_000,
+  });
+  // Teammates = every stored contact except the auto-created "primary" that
+  // just mirrors the lead's own email (label "Primary", no name/role).
+  const teammates = (contacts.data ?? []).filter(
+    (c) =>
+      !(
+        c.is_primary &&
+        !c.name &&
+        !c.role &&
+        (c.label === "Primary" || c.label === null)
+      ),
+  );
+
+  const [drafting, setDrafting] = useState(false);
+  const [draft, setDraft] = useState({ ...EMPTY_CONTACT_DRAFT });
+
+  const addM = useMutation({
+    mutationFn: () =>
+      addFn({
+        data: {
+          leadId: lead.id,
+          name: draft.name.trim() || null,
+          role: draft.role.trim() || null,
+          email: draft.email.trim(),
+          label: draft.name.trim() || "Teammate",
+          email_label: draft.email_label || null,
+          alt_email: draft.alt_email.trim() || null,
+          alt_email_label: draft.alt_email_label || null,
+          phone: draft.phone.trim() || null,
+          phone_label: draft.phone_label || null,
+          alt_phone: draft.alt_phone.trim() || null,
+          alt_phone_label: draft.alt_phone_label || null,
+          contact_preference: draft.contact_preference.trim() || null,
+          isPrimary: false,
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Contact added");
+      setDraft({ ...EMPTY_CONTACT_DRAFT });
+      setDrafting(false);
+      qc.invalidateQueries({ queryKey: ["lead-contacts", lead.id] });
+    },
+    onError: (e) =>
+      toast.error(e instanceof Error ? e.message : "Could not add contact"),
+  });
+
+  const delM = useMutation({
+    mutationFn: (id: string) => delFn({ data: { id } }),
+    onSuccess: () => {
+      toast.success("Contact removed");
+      qc.invalidateQueries({ queryKey: ["lead-contacts", lead.id] });
+    },
+    onError: (e) =>
+      toast.error(e instanceof Error ? e.message : "Delete failed"),
+  });
+
+  const primaryM = useMutation({
+    mutationFn: (id: string) => primaryFn({ data: { id } }),
+    onSuccess: () => {
+      toast.success("Primary contact updated");
+      qc.invalidateQueries({ queryKey: ["lead-contacts", lead.id] });
+    },
+    onError: (e) =>
+      toast.error(e instanceof Error ? e.message : "Update failed"),
+  });
+
+  const total = teammates.length;
+  const canAddMore = total < MAX_TEAMMATES;
+
+  return (
+    <section className="rounded-sm border border-border bg-card">
+      <div className="flex items-center justify-between border-b border-border px-3 py-2">
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-foreground">
+            Team members / additional contacts
+          </span>
+          <span className="rounded-sm bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+            {total} / {MAX_TEAMMATES}
+          </span>
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-8 rounded-sm text-[12px]"
+          disabled={!canAddMore || drafting}
+          onClick={() => setDrafting(true)}
+        >
+          + Add contact
+        </Button>
+      </div>
+
+      <div className="grid gap-3 p-3">
+        {teammates.length === 0 && !drafting && (
+          <div className="rounded-sm border border-dashed border-border px-3 py-4 text-center text-[12px] text-muted-foreground">
+            No additional contacts. Add teammates from the same company here —
+            all their emails appear in the compose recipient list.
+          </div>
+        )}
+
+        {teammates.map((c) => (
+          <TeammateCard
+            key={c.id}
+            contact={c}
+            onDelete={() => {
+              if (confirm(`Remove ${c.name || c.email} from this lead?`))
+                delM.mutate(c.id);
+            }}
+            onMakePrimary={() => primaryM.mutate(c.id)}
+          />
+        ))}
+
+        {drafting && (
+          <div className="grid gap-2 rounded-sm border border-primary/40 bg-primary/5 p-3">
+            <div className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+              New contact
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Input
+                placeholder="Name"
+                value={draft.name}
+                onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+                className="h-9 rounded-sm text-[12.5px]"
+              />
+              <Input
+                placeholder="Role (e.g. Marketing Manager)"
+                value={draft.role}
+                onChange={(e) => setDraft({ ...draft, role: e.target.value })}
+                className="h-9 rounded-sm text-[12.5px]"
+              />
+            </div>
+            <EmailRow
+              label="Email"
+              value={draft.email}
+              onChange={(v) => setDraft({ ...draft, email: v })}
+              tag={draft.email_label}
+              onTagChange={(v) => setDraft({ ...draft, email_label: v })}
+              onCompose={() => toast.info("Save the contact first, then compose.")}
+              className="col-span-2"
+            />
+            <EmailRow
+              label="Alternative email"
+              value={draft.alt_email}
+              onChange={(v) => setDraft({ ...draft, alt_email: v })}
+              tag={draft.alt_email_label}
+              onTagChange={(v) => setDraft({ ...draft, alt_email_label: v })}
+              onCompose={() => toast.info("Save the contact first, then compose.")}
+              className="col-span-2"
+            />
+            <PhoneRow
+              label="Phone"
+              value={draft.phone}
+              onChange={(v) => setDraft({ ...draft, phone: v })}
+              tag={draft.phone_label}
+              onTagChange={(v) => setDraft({ ...draft, phone_label: v })}
+              className="col-span-2"
+            />
+            <PhoneRow
+              label="Alternative phone"
+              value={draft.alt_phone}
+              onChange={(v) => setDraft({ ...draft, alt_phone: v })}
+              tag={draft.alt_phone_label}
+              onTagChange={(v) => setDraft({ ...draft, alt_phone_label: v })}
+              className="col-span-2"
+            />
+            <Field label="Contact preference & availability" className="col-span-2">
+              <Textarea
+                value={draft.contact_preference}
+                onChange={(e) =>
+                  setDraft({ ...draft, contact_preference: e.target.value })
+                }
+                placeholder="Preferred channel, days, times, timezone…"
+                className="min-h-[54px] rounded-sm text-[12.5px]"
+              />
+            </Field>
+            <div className="flex items-center justify-end gap-2">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 rounded-sm text-[12px]"
+                onClick={() => {
+                  setDrafting(false);
+                  setDraft({ ...EMPTY_CONTACT_DRAFT });
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                className="h-8 rounded-sm bg-primary text-[12px] text-primary-foreground hover:bg-brand-700"
+                disabled={addM.isPending || !draft.email.trim()}
+                onClick={() => addM.mutate()}
+              >
+                {addM.isPending ? (
+                  <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                ) : null}
+                Save contact
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {!canAddMore && (
+          <div className="text-[11px] text-muted-foreground">
+            Maximum {MAX_TEAMMATES} additional contacts per lead. Remove one to
+            add another.
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function TeammateCard({
+  contact,
+  onDelete,
+  onMakePrimary,
+}: {
+  contact: LeadContactRow;
+  onDelete: () => void;
+  onMakePrimary: () => void;
+}) {
+  const updateFn = useServerFn(updateLeadContact);
+  const qc = useQueryClient();
+  const [form, setForm] = useState({
+    name: contact.name ?? "",
+    role: contact.role ?? "",
+    email: contact.email,
+    email_label: contact.email_label ?? "",
+    alt_email: contact.alt_email ?? "",
+    alt_email_label: contact.alt_email_label ?? "",
+    phone: contact.phone ?? "",
+    phone_label: contact.phone_label ?? "",
+    alt_phone: contact.alt_phone ?? "",
+    alt_phone_label: contact.alt_phone_label ?? "",
+    contact_preference: contact.contact_preference ?? "",
+  });
+  const [open, setOpen] = useState(false);
+
+  const saveM = useMutation({
+    mutationFn: () =>
+      updateFn({
+        data: {
+          id: contact.id,
+          name: form.name.trim() || null,
+          role: form.role.trim() || null,
+          email: form.email.trim(),
+          email_label: form.email_label || null,
+          alt_email: form.alt_email.trim() || null,
+          alt_email_label: form.alt_email_label || null,
+          phone: form.phone.trim() || null,
+          phone_label: form.phone_label || null,
+          alt_phone: form.alt_phone.trim() || null,
+          alt_phone_label: form.alt_phone_label || null,
+          contact_preference: form.contact_preference.trim() || null,
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Contact updated");
+      qc.invalidateQueries({ queryKey: ["lead-contacts", contact.lead_id] });
+    },
+    onError: (e) =>
+      toast.error(e instanceof Error ? e.message : "Update failed"),
+  });
+
+  return (
+    <div className="rounded-sm border border-border bg-white">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left hover:bg-muted/40"
+      >
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 text-[12.5px] font-medium text-foreground">
+            {form.name || "(no name)"}
+            {contact.is_primary && (
+              <span className="rounded-sm bg-primary/10 px-1.5 py-[1px] text-[9.5px] uppercase tracking-wider text-primary">
+                primary
+              </span>
+            )}
+          </div>
+          <div className="truncate text-[11.5px] text-muted-foreground">
+            {form.role ? `${form.role} · ` : ""}
+            {form.email}
+          </div>
+        </div>
+        <span className="font-mono text-[11px] text-muted-foreground">
+          {open ? "− collapse" : "+ edit"}
+        </span>
+      </button>
+      {open && (
+        <div className="grid gap-2 border-t border-border p-3">
+          <div className="grid grid-cols-2 gap-2">
+            <Input
+              placeholder="Name"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              className="h-9 rounded-sm text-[12.5px]"
+            />
+            <Input
+              placeholder="Role"
+              value={form.role}
+              onChange={(e) => setForm({ ...form, role: e.target.value })}
+              className="h-9 rounded-sm text-[12.5px]"
+            />
+          </div>
+          <EmailRow
+            label="Email"
+            value={form.email}
+            onChange={(v) => setForm({ ...form, email: v })}
+            tag={form.email_label}
+            onTagChange={(v) => setForm({ ...form, email_label: v })}
+            onCompose={() => toast.info("Select this contact in the Emails tab.")}
+          />
+          <EmailRow
+            label="Alternative email"
+            value={form.alt_email}
+            onChange={(v) => setForm({ ...form, alt_email: v })}
+            tag={form.alt_email_label}
+            onTagChange={(v) => setForm({ ...form, alt_email_label: v })}
+            onCompose={() => toast.info("Select this contact in the Emails tab.")}
+          />
+          <PhoneRow
+            label="Phone"
+            value={form.phone}
+            onChange={(v) => setForm({ ...form, phone: v })}
+            tag={form.phone_label}
+            onTagChange={(v) => setForm({ ...form, phone_label: v })}
+          />
+          <PhoneRow
+            label="Alternative phone"
+            value={form.alt_phone}
+            onChange={(v) => setForm({ ...form, alt_phone: v })}
+            tag={form.alt_phone_label}
+            onTagChange={(v) => setForm({ ...form, alt_phone_label: v })}
+          />
+          <Field label="Contact preference & availability">
+            <Textarea
+              value={form.contact_preference}
+              onChange={(e) =>
+                setForm({ ...form, contact_preference: e.target.value })
+              }
+              className="min-h-[54px] rounded-sm text-[12.5px]"
+            />
+          </Field>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              {!contact.is_primary && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 rounded-sm text-[12px]"
+                  onClick={onMakePrimary}
+                >
+                  Make primary
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 rounded-sm text-[12px] text-red-600 hover:bg-red-50 hover:text-red-700"
+                onClick={onDelete}
+              >
+                <Trash2 className="mr-1.5 size-3.5" />
+                Remove
+              </Button>
+            </div>
+            <Button
+              size="sm"
+              className="h-8 rounded-sm bg-primary text-[12px] text-primary-foreground hover:bg-brand-700"
+              disabled={saveM.isPending || !form.email.trim()}
+              onClick={() => saveM.mutate()}
+            >
+              {saveM.isPending ? (
+                <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+              ) : (
+                <Save className="mr-1.5 size-3.5" />
+              )}
+              Save
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ---------- Emails tab (Resend-only compose) ----------
+
 const EMAIL_VARIABLES: { token: string; label: string }[] = [
   { token: "{{lead.first_name}}", label: "First name" },
   { token: "{{lead.name}}", label: "Full name" },
@@ -1177,22 +1777,97 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
   const bodyRef = React.useRef<HTMLTextAreaElement>(null);
   const [activeField, setActiveField] = useState<"subject" | "body">("body");
 
-  // When lead contacts load / change, preselect the primary one.
+  // Build a unified recipient list from:
+  //   1) the lead itself (primary email + alt email)
+  //   2) each additional contact (their primary email + alt email)
+  // Each option has a stable id so preselection and toggle stay consistent.
+  type RecipientOption = {
+    id: string;
+    email: string;
+    name: string | null;
+    role: string | null;
+    labelBadge: string | null;
+    isLeadPrimary: boolean;
+    isAlt: boolean;
+  };
+  const recipientOptions: RecipientOption[] = [];
+  if (lead.email) {
+    recipientOptions.push({
+      id: "lead:primary",
+      email: lead.email,
+      name: lead.name,
+      role: lead.role,
+      labelBadge: lead.email_label || "primary",
+      isLeadPrimary: true,
+      isAlt: false,
+    });
+  }
+  if (lead.alt_email) {
+    recipientOptions.push({
+      id: "lead:alt",
+      email: lead.alt_email,
+      name: lead.name,
+      role: lead.role,
+      labelBadge: lead.alt_email_label || "alt",
+      isLeadPrimary: false,
+      isAlt: true,
+    });
+  }
+  for (const c of contacts.data ?? []) {
+    // Skip the auto-primary shadow row (mirrors lead's own email).
+    if (
+      c.is_primary &&
+      !c.name &&
+      !c.role &&
+      (c.label === "Primary" || c.label === null) &&
+      c.email === lead.email
+    ) {
+      continue;
+    }
+    recipientOptions.push({
+      id: `c:${c.id}:primary`,
+      email: c.email,
+      name: c.name,
+      role: c.role,
+      labelBadge: c.email_label || c.label || "teammate",
+      isLeadPrimary: false,
+      isAlt: false,
+    });
+    if (c.alt_email) {
+      recipientOptions.push({
+        id: `c:${c.id}:alt`,
+        email: c.alt_email,
+        name: c.name,
+        role: c.role,
+        labelBadge: c.alt_email_label || "alt",
+        isLeadPrimary: false,
+        isAlt: true,
+      });
+    }
+  }
+
+  // Preselect the lead's primary email (or the first available) once options
+  // are known.
   useEffect(() => {
-    if (!contacts.data) return;
     if (selectedIds.length > 0) return;
-    const primary = contacts.data.find((c) => c.is_primary) ?? contacts.data[0];
-    if (primary) setSelectedIds([primary.id]);
+    if (recipientOptions.length === 0) return;
+    const first = recipientOptions[0].id;
+    setSelectedIds([first]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [contacts.data?.length]);
+  }, [recipientOptions.length]);
+
+  const selectedRecipients = recipientOptions.filter((r) =>
+    selectedIds.includes(r.id),
+  );
+  const selectedEmails = selectedRecipients.map((r) => r.email);
+
 
   useEffect(() => {
     setBody(contentType === "html" ? DEFAULT_HTML_BODY : DEFAULT_TEXT_BODY);
   }, [contentType]);
 
-  const selectedEmails = (contacts.data ?? [])
-    .filter((c) => selectedIds.includes(c.id))
-    .map((c) => c.email);
+
+
 
   function insertToken(token: string) {
     if (activeField === "subject") {
@@ -1245,7 +1920,7 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
       sendFn({
         data: {
           leadId: lead.id,
-          to: selectedEmails,
+          to: selectedRecipients.map((r) => ({ email: r.email, name: r.name })),
           cc: [],
           subject: subject.trim(),
           body: body.trim(),
@@ -1339,17 +2014,17 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
             </div>
             {contacts.isLoading ? (
               <div className="text-[12px] text-muted-foreground">Loading contacts…</div>
-            ) : (contacts.data ?? []).length === 0 ? (
+            ) : recipientOptions.length === 0 ? (
               <div className="rounded-sm border border-dashed border-border px-3 py-2 text-[12px] text-muted-foreground">
-                No contacts on this lead. Add one in Overview → Email.
+                No emails on this lead yet. Add an email in Overview.
               </div>
             ) : (
               <div className="flex flex-wrap gap-1.5">
-                {(contacts.data ?? []).map((c: LeadContactRow) => {
-                  const active = selectedIds.includes(c.id);
+                {recipientOptions.map((r) => {
+                  const active = selectedIds.includes(r.id);
                   return (
                     <label
-                      key={c.id}
+                      key={r.id}
                       className={cn(
                         "inline-flex cursor-pointer items-center gap-2 rounded-sm border px-2 py-1 text-[12px] transition-colors",
                         active
@@ -1362,21 +2037,21 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
                         onCheckedChange={(v) => {
                           setSelectedIds((prev) =>
                             v
-                              ? Array.from(new Set([...prev, c.id]))
-                              : prev.filter((id) => id !== c.id),
+                              ? Array.from(new Set([...prev, r.id]))
+                              : prev.filter((id) => id !== r.id),
                           );
                         }}
                         className="size-3.5"
                       />
-                      <span className="font-mono text-[11.5px]">{c.email}</span>
-                      {c.is_primary && (
-                        <span className="rounded-sm bg-muted px-1 py-[1px] text-[9.5px] uppercase tracking-wider text-muted-foreground">
-                          primary
+                      {r.name && (
+                        <span className="text-[11.5px] font-medium text-foreground">
+                          {r.name}
                         </span>
                       )}
-                      {c.label && (
-                        <span className="text-[10.5px] text-muted-foreground">
-                          · {c.label}
+                      <span className="font-mono text-[11.5px]">{r.email}</span>
+                      {r.labelBadge && (
+                        <span className="rounded-sm bg-muted px-1 py-[1px] text-[9.5px] uppercase tracking-wider text-muted-foreground">
+                          {r.labelBadge}
                         </span>
                       )}
                     </label>
@@ -1384,6 +2059,7 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
                 })}
               </div>
             )}
+
           </div>
 
           {/* Variables */}
