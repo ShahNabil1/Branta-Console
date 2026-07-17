@@ -32,10 +32,7 @@ export const Route = createFileRoute("/_authenticated/app/profile")({
   component: ProfilePage,
 });
 
-// MetaMap ships a custom element; wrap it so React/TS don't complain about
-// unknown intrinsic elements.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const MetamapButton = "metamap-button" as any;
+// (Didit uses a hosted URL — no custom element needed.)
 
 // ---------- KYC status badge ----------
 type KycStatus = "not_verified" | "under_review" | "verified" | "rejected";
