@@ -1777,14 +1777,90 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
   const bodyRef = React.useRef<HTMLTextAreaElement>(null);
   const [activeField, setActiveField] = useState<"subject" | "body">("body");
 
-  // When lead contacts load / change, preselect the primary one.
+  // Build a unified recipient list from:
+  //   1) the lead itself (primary email + alt email)
+  //   2) each additional contact (their primary email + alt email)
+  // Each option has a stable id so preselection and toggle stay consistent.
+  type RecipientOption = {
+    id: string;
+    email: string;
+    name: string | null;
+    role: string | null;
+    labelBadge: string | null;
+    isLeadPrimary: boolean;
+    isAlt: boolean;
+  };
+  const recipientOptions: RecipientOption[] = [];
+  if (lead.email) {
+    recipientOptions.push({
+      id: "lead:primary",
+      email: lead.email,
+      name: lead.name,
+      role: lead.role,
+      labelBadge: lead.email_label || "primary",
+      isLeadPrimary: true,
+      isAlt: false,
+    });
+  }
+  if (lead.alt_email) {
+    recipientOptions.push({
+      id: "lead:alt",
+      email: lead.alt_email,
+      name: lead.name,
+      role: lead.role,
+      labelBadge: lead.alt_email_label || "alt",
+      isLeadPrimary: false,
+      isAlt: true,
+    });
+  }
+  for (const c of contacts.data ?? []) {
+    // Skip the auto-primary shadow row (mirrors lead's own email).
+    if (
+      c.is_primary &&
+      !c.name &&
+      !c.role &&
+      (c.label === "Primary" || c.label === null) &&
+      c.email === lead.email
+    ) {
+      continue;
+    }
+    recipientOptions.push({
+      id: `c:${c.id}:primary`,
+      email: c.email,
+      name: c.name,
+      role: c.role,
+      labelBadge: c.email_label || c.label || "teammate",
+      isLeadPrimary: false,
+      isAlt: false,
+    });
+    if (c.alt_email) {
+      recipientOptions.push({
+        id: `c:${c.id}:alt`,
+        email: c.alt_email,
+        name: c.name,
+        role: c.role,
+        labelBadge: c.alt_email_label || "alt",
+        isLeadPrimary: false,
+        isAlt: true,
+      });
+    }
+  }
+
+  // Preselect the lead's primary email (or the first available) once options
+  // are known.
   useEffect(() => {
-    if (!contacts.data) return;
     if (selectedIds.length > 0) return;
-    const primary = contacts.data.find((c) => c.is_primary) ?? contacts.data[0];
-    if (primary) setSelectedIds([primary.id]);
+    if (recipientOptions.length === 0) return;
+    const first = recipientOptions[0].id;
+    setSelectedIds([first]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [contacts.data?.length]);
+  }, [recipientOptions.length]);
+
+  const selectedRecipients = recipientOptions.filter((r) =>
+    selectedIds.includes(r.id),
+  );
+  const selectedEmails = selectedRecipients.map((r) => r.email);
+
 
   useEffect(() => {
     setBody(contentType === "html" ? DEFAULT_HTML_BODY : DEFAULT_TEXT_BODY);
