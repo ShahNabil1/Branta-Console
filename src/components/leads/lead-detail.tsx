@@ -365,6 +365,7 @@ export function LeadDetail({
 
   const listStatusOpts = useServerFn(listLeadStatusOptions);
   const listSourceOpts = useServerFn(listLeadSourceOptions);
+  const listServiceOpts = useServerFn(listLeadServiceOptions);
   const statusOptsQ = useQuery({
     queryKey: ["lead-status-options"],
     queryFn: () => listStatusOpts(),
@@ -377,8 +378,16 @@ export function LeadDetail({
     staleTime: 5 * 60_000,
     initialData: SOURCE_FALLBACK,
   });
+  const serviceOptsQ = useQuery({
+    queryKey: ["lead-service-options"],
+    queryFn: () => listServiceOpts(),
+    staleTime: 5 * 60_000,
+    initialData: SERVICE_FALLBACK,
+  });
   const statusOptions: LeadStatusOption[] = statusOptsQ.data ?? STATUS_FALLBACK;
   const sourceOptions: LeadSourceOption[] = sourceOptsQ.data ?? SOURCE_FALLBACK;
+  const serviceOptions: LeadServiceOption[] = serviceOptsQ.data ?? SERVICE_FALLBACK;
+
 
   const [tab, setTab] = useState<"overview" | "emails" | "meetings" | "docs">(
     "overview",
