@@ -1920,7 +1920,7 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
       sendFn({
         data: {
           leadId: lead.id,
-          to: selectedEmails,
+          to: selectedRecipients.map((r) => ({ email: r.email, name: r.name })),
           cc: [],
           subject: subject.trim(),
           body: body.trim(),
