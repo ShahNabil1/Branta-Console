@@ -93,27 +93,33 @@ import {
   type LeadStatusOption,
 } from "@/lib/lead-options.functions";
 
-// Same status metadata as the list page.
-const STATUSES: { value: LeadStatusDB; label: string; dotVar: string }[] = [
-  { value: "new", label: "New", dotVar: "--color-status-new" },
-  { value: "contacted", label: "Contacted", dotVar: "--color-status-contacted" },
-  { value: "viewed", label: "Viewed", dotVar: "--color-status-viewed" },
-  { value: "meeting", label: "Meeting Scheduled", dotVar: "--color-status-meeting" },
-  { value: "converted", label: "Converted", dotVar: "--color-status-converted" },
-  { value: "lost", label: "Lost", dotVar: "--color-status-contacted" },
-];
-const STATUS_META = new Map(STATUSES.map((s) => [s.value, s] as const));
-
-function StatusBadge({ status }: { status: LeadStatusDB }) {
-  const meta = STATUS_META.get(status);
+function StatusBadge({
+  status,
+  options,
+}: {
+  status: LeadStatusDB;
+  options: LeadStatusOption[];
+}) {
   return (
     <span className="inline-flex items-center gap-2 text-[12.5px] font-medium text-foreground">
       <span
         className="size-1.5 rounded-full"
-        style={{ background: `var(${meta?.dotVar})` }}
+        style={{ background: `var(${statusColorVar(status, options)})` }}
       />
-      {meta?.label ?? status}
+      {statusLabel(status, options)}
     </span>
+  );
+}
+
+// Inline WhatsApp logo (green) for phone action button.
+function WhatsAppIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 32 32" className={className} aria-hidden>
+      <path
+        fill="#25D366"
+        d="M16 3C8.82 3 3 8.82 3 16c0 2.29.6 4.52 1.74 6.49L3 29l6.7-1.72A12.94 12.94 0 0 0 16 29c7.18 0 13-5.82 13-13S23.18 3 16 3zm7.5 18.36c-.32.9-1.85 1.72-2.58 1.83-.68.1-1.54.14-2.5-.16a12.85 12.85 0 0 1-2.28-.85c-4-1.74-6.6-5.77-6.8-6.04-.2-.27-1.62-2.15-1.62-4.1s1.02-2.9 1.38-3.3c.36-.4.78-.5 1.04-.5.26 0 .52 0 .74.01.24.01.56-.09.87.66.32.78 1.1 2.7 1.2 2.9.1.2.16.44.03.7-.13.27-.2.44-.4.68-.2.24-.42.53-.6.72-.2.2-.4.42-.17.82.23.4 1.02 1.68 2.2 2.72 1.51 1.33 2.78 1.75 3.18 1.95.4.2.63.17.86-.1.24-.27.99-1.15 1.25-1.55.26-.4.52-.33.87-.2.36.13 2.28 1.08 2.68 1.28.4.2.66.3.76.47.1.17.1 1-.22 1.9z"
+      />
+    </svg>
   );
 }
 
