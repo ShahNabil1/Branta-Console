@@ -54,6 +54,7 @@ import {
   listLeadEmails,
   pullGmailForLead,
   renderVariables,
+  retryFailedEmail,
   sendLeadEmail,
   type LeadEmailRow,
 } from "@/lib/lead-email.functions";
@@ -639,8 +640,18 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
   const sendFn = useServerFn(sendLeadEmail);
   const pullFn = useServerFn(pullGmailForLead);
   const drainFn = useServerFn(drainEmailQueue);
+  const retryFn = useServerFn(retryFailedEmail);
   const listContactsFn = useServerFn(listLeadContacts);
   const qc = useQueryClient();
+
+  const retryM = useMutation({
+    mutationFn: (id: string) => retryFn({ data: { id } }),
+    onSuccess: () => {
+      toast.success("Requeued");
+      qc.invalidateQueries({ queryKey: ["lead-emails", lead.id] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Retry failed"),
+  });
 
   const emails = useQuery({
     queryKey: ["lead-emails", lead.id],
@@ -1064,6 +1075,24 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
               )}
               {e.error_message && (
                 <div className="text-[11px] text-red-600">{e.error_message}</div>
+              )}
+              {e.status === "failed" && (
+                <div className="mt-1">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 rounded-sm text-[11.5px]"
+                    disabled={retryM.isPending && retryM.variables === e.id}
+                    onClick={() => retryM.mutate(e.id)}
+                  >
+                    {retryM.isPending && retryM.variables === e.id ? (
+                      <Loader2 className="mr-1.5 size-3 animate-spin" />
+                    ) : (
+                      <RefreshCw className="mr-1.5 size-3" />
+                    )}
+                    Retry send
+                  </Button>
+                </div>
               )}
             </li>
           ))}

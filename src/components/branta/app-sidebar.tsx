@@ -12,6 +12,7 @@ import {
   ChevronsLeft,
   LogOut,
   UserPlus,
+  Send,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,6 +41,7 @@ const NAV: NavGroup[] = [
     label: "Comms",
     items: [
       { label: "Email", to: "/app", icon: Mail },
+      { label: "Mail queue", to: "/app/mail-queue", icon: Send },
       { label: "Calendar", to: "/app", icon: Calendar },
     ],
   },
