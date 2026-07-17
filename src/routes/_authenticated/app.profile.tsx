@@ -4,20 +4,16 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
-  BadgeCheck,
-  ShieldAlert,
-  ShieldQuestion,
   Loader2,
   Upload,
   ExternalLink,
-  RefreshCw,
 } from "lucide-react";
 import {
   getMyProfile,
   updateMyProfile,
-  requestKycReupload,
   type ProfileRow,
 } from "@/lib/profile.functions";
+
 
 import { requestR2Upload } from "@/lib/r2.functions";
 import { supabase } from "@/integrations/supabase/client";
@@ -33,49 +29,6 @@ export const Route = createFileRoute("/_authenticated/app/profile")({
 
 
 
-// ---------- KYC status badge ----------
-type KycStatus = "not_verified" | "under_review" | "verified" | "rejected";
-const STATUS_META: Record<
-  KycStatus,
-  { label: string; tone: string; Icon: typeof BadgeCheck }
-> = {
-  not_verified: {
-    label: "Not Verified",
-    tone: "bg-muted text-muted-foreground border-border",
-    Icon: ShieldQuestion,
-  },
-  under_review: {
-    label: "Under Review",
-    tone: "bg-amber-50 text-amber-800 border-amber-200",
-    Icon: Loader2,
-  },
-  verified: {
-    label: "Verified",
-    tone: "bg-emerald-50 text-emerald-800 border-emerald-200",
-    Icon: BadgeCheck,
-  },
-  rejected: {
-    label: "Rejected",
-    tone: "bg-red-50 text-red-800 border-red-200",
-    Icon: ShieldAlert,
-  },
-};
-
-function KycBadge({ status }: { status: string }) {
-  const s = (STATUS_META[status as KycStatus] ?? STATUS_META.not_verified);
-  const spin = status === "under_review";
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-sm border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.06em]",
-        s.tone,
-      )}
-    >
-      <s.Icon className={cn("size-3", spin && "animate-spin")} strokeWidth={2} />
-      {s.label}
-    </span>
-  );
-}
 
 // ---------- Field primitives ----------
 function Field({
