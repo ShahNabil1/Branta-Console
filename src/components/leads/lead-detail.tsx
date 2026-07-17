@@ -57,10 +57,8 @@ import {
   sendLeadEmail,
   type LeadEmailRow,
 } from "@/lib/lead-email.functions";
-import {
-  listResendEventsForLead,
-  type ResendEvent,
-} from "@/lib/resend-events.functions";
+import { listResendEventsForLead } from "@/lib/resend-events.functions";
+import { listBrevoEventsForLead } from "@/lib/brevo-events.functions";
 import {
   cancelLeadMeeting,
   listLeadMeetings,
@@ -590,17 +588,45 @@ Best,
 {{owner.name}}
 Branta Tech`;
 
+function ResendLogo({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 32 32" className={className} aria-hidden>
+      <rect width="32" height="32" rx="6" fill="#000" />
+      <path
+        d="M10 22V10h6.4c2.6 0 4.4 1.5 4.4 3.9 0 1.7-.9 3-2.4 3.5L22 22h-3l-2.9-4.3H12.7V22H10zm2.7-6.5h3.4c1.2 0 2-.7 2-1.8s-.8-1.8-2-1.8h-3.4v3.6z"
+        fill="#fff"
+      />
+    </svg>
+  );
+}
+
+function BrevoLogo({ className }: { className?: string }) {
+  // Brevo brand mark (formerly Sendinblue) — stylised "b" on the brand indigo.
+  return (
+    <svg viewBox="0 0 32 32" className={className} aria-hidden>
+      <rect width="32" height="32" rx="6" fill="#0B996E" />
+      <path
+        d="M9 22V10h5.7c2.5 0 4.1 1.2 4.1 3 0 1.1-.7 2-1.8 2.4 1.6.3 2.6 1.4 2.6 2.9 0 2.2-1.8 3.7-4.5 3.7H9zm2.6-7.2h2.7c1.1 0 1.9-.6 1.9-1.5s-.8-1.4-1.9-1.4h-2.7v2.9zm0 5.1h3c1.3 0 2.1-.6 2.1-1.7s-.8-1.6-2.1-1.6h-3v3.3z"
+        fill="#fff"
+      />
+    </svg>
+  );
+}
+
 function ResendChip() {
   return (
     <span className="inline-flex items-center gap-1 rounded-sm border border-border bg-white px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-foreground">
-      <svg viewBox="0 0 32 32" className="size-3" aria-hidden>
-        <rect width="32" height="32" rx="6" fill="#000" />
-        <path
-          d="M10 22V10h6.4c2.6 0 4.4 1.5 4.4 3.9 0 1.7-.9 3-2.4 3.5L22 22h-3l-2.9-4.3H12.7V22H10zm2.7-6.5h3.4c1.2 0 2-.7 2-1.8s-.8-1.8-2-1.8h-3.4v3.6z"
-          fill="#fff"
-        />
-      </svg>
+      <ResendLogo className="size-3" />
       resend
+    </span>
+  );
+}
+
+function BrevoChip() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-sm border border-border bg-white px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-foreground">
+      <BrevoLogo className="size-3" />
+      brevo
     </span>
   );
 }
@@ -647,7 +673,13 @@ function fmtWhen(ts: string): string {
   });
 }
 
-function ResendStatusChip({ events }: { events: ResendEvent[] }) {
+function ProviderStatusChip({
+  provider,
+  events,
+}: {
+  provider: "resend" | "brevo";
+  events: { timestamp: string; event_type: string }[];
+}) {
   const latest = events.length
     ? [...events].sort(
         (a, b) =>
@@ -657,6 +689,7 @@ function ResendStatusChip({ events }: { events: ResendEvent[] }) {
     : null;
   const label = latest?.event_type ?? "sent";
   const style = EVENT_STYLE[label] ?? "bg-emerald-50 text-emerald-700";
+  const Logo = provider === "brevo" ? BrevoLogo : ResendLogo;
   return (
     <TooltipProvider delayDuration={100}>
       <Tooltip>
@@ -667,20 +700,14 @@ function ResendStatusChip({ events }: { events: ResendEvent[] }) {
               style,
             )}
           >
-            <svg viewBox="0 0 32 32" className="size-2.5" aria-hidden>
-              <rect width="32" height="32" rx="6" fill="#000" />
-              <path
-                d="M10 22V10h6.4c2.6 0 4.4 1.5 4.4 3.9 0 1.7-.9 3-2.4 3.5L22 22h-3l-2.9-4.3H12.7V22H10zm2.7-6.5h3.4c1.2 0 2-.7 2-1.8s-.8-1.8-2-1.8h-3.4v3.6z"
-                fill="#fff"
-              />
-            </svg>
+            <Logo className="size-2.5" />
             {label.replace(/_/g, " ")}
           </span>
         </TooltipTrigger>
         <TooltipContent className="max-w-xs bg-foreground text-background">
           {events.length === 0 ? (
             <div className="text-[11px]">
-              Sent — awaiting webhook events.
+              Sent via {provider} — awaiting webhook events.
             </div>
           ) : (
             <ul className="grid gap-0.5 text-[11px]">
@@ -713,9 +740,12 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
   const qc = useQueryClient();
 
   const retryM = useMutation({
-    mutationFn: (id: string) => retryFn({ data: { id } }),
-    onSuccess: () => {
-      toast.success("Requeued");
+    mutationFn: (v: { id: string; provider?: "resend" | "brevo" }) =>
+      retryFn({ data: v }),
+    onSuccess: (_r, v) => {
+      toast.success(
+        v.provider ? `Requeued via ${v.provider}` : "Requeued",
+      );
       qc.invalidateQueries({ queryKey: ["lead-emails", lead.id] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Retry failed"),
@@ -736,6 +766,13 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
   const events = useQuery({
     queryKey: ["lead-resend-events", lead.id],
     queryFn: () => resendEventsFn({ data: { leadId: lead.id } }),
+    refetchInterval: 5_000,
+    staleTime: 3_000,
+  });
+  const brevoEventsFn = useServerFn(listBrevoEventsForLead);
+  const brevoEvents = useQuery({
+    queryKey: ["lead-brevo-events", lead.id],
+    queryFn: () => brevoEventsFn({ data: { leadId: lead.id } }),
     refetchInterval: 5_000,
     staleTime: 3_000,
   });
@@ -780,6 +817,7 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
 
 
   const [contentType, setContentType] = useState<"html" | "text">("html");
+  const [provider, setProvider] = useState<"resend" | "brevo">("resend");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState(DEFAULT_HTML_BODY);
@@ -863,6 +901,7 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
           subject: subject.trim(),
           body: body.trim(),
           contentType,
+          provider,
         },
       }),
     onSuccess: (r) => {
@@ -894,26 +933,50 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
   return (
     <div className="grid gap-4">
       <section className="rounded-sm border border-border bg-card">
-        <div className="flex items-center justify-between border-b border-border px-3 py-2">
+        <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
           <span className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-            Compose <ResendChip />
+            Compose via {provider === "resend" ? <ResendChip /> : <BrevoChip />}
           </span>
-          <div className="inline-flex rounded-sm border border-border bg-muted p-0.5">
-            {(["html", "text"] as const).map((t) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => setContentType(t)}
-                className={cn(
-                  "rounded-sm px-2 py-0.5 text-[11px] font-medium uppercase tracking-wider",
-                  contentType === t
-                    ? "bg-white text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {t === "html" ? "HTML" : "Plain"}
-              </button>
-            ))}
+          <div className="flex items-center gap-2">
+            <div className="inline-flex rounded-sm border border-border bg-muted p-0.5">
+              {(["resend", "brevo"] as const).map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setProvider(p)}
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-sm px-2 py-0.5 text-[11px] font-medium uppercase tracking-wider",
+                    provider === p
+                      ? "bg-white text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {p === "resend" ? (
+                    <ResendLogo className="size-3" />
+                  ) : (
+                    <BrevoLogo className="size-3" />
+                  )}
+                  {p}
+                </button>
+              ))}
+            </div>
+            <div className="inline-flex rounded-sm border border-border bg-muted p-0.5">
+              {(["html", "text"] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setContentType(t)}
+                  className={cn(
+                    "rounded-sm px-2 py-0.5 text-[11px] font-medium uppercase tracking-wider",
+                    contentType === t
+                      ? "bg-white text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {t === "html" ? "HTML" : "Plain"}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -1079,6 +1142,8 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
                 </span>
                 {e.provider === "resend" ? (
                   <ResendChip />
+                ) : e.provider === "brevo" ? (
+                  <BrevoChip />
                 ) : (
                   <span className="rounded-sm bg-muted px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider">
                     {e.provider}
@@ -1100,9 +1165,18 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
                   </span>
                 )}
                 {e.provider === "resend" && e.status === "sent" && (
-                  <ResendStatusChip events={events.data?.[e.id] ?? []} />
+                  <ProviderStatusChip
+                    provider="resend"
+                    events={events.data?.[e.id] ?? []}
+                  />
                 )}
-                {e.provider !== "resend" && e.status === "sent" && (
+                {e.provider === "brevo" && e.status === "sent" && (
+                  <ProviderStatusChip
+                    provider="brevo"
+                    events={brevoEvents.data?.[e.id] ?? []}
+                  />
+                )}
+                {e.provider !== "resend" && e.provider !== "brevo" && e.status === "sent" && (
                   <span className="rounded-sm bg-emerald-50 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-emerald-700">
                     sent
                   </span>
@@ -1123,21 +1197,75 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
                 <div className="text-[11px] text-red-600">{e.error_message}</div>
               )}
               {e.status === "failed" && (
-                <div className="mt-1">
+                <div className="mt-1 flex flex-wrap items-center gap-2">
                   <Button
                     size="sm"
                     variant="outline"
                     className="h-7 rounded-sm text-[11.5px]"
-                    disabled={retryM.isPending && retryM.variables === e.id}
-                    onClick={() => retryM.mutate(e.id)}
+                    disabled={
+                      retryM.isPending &&
+                      retryM.variables?.id === e.id &&
+                      !retryM.variables?.provider
+                    }
+                    onClick={() => retryM.mutate({ id: e.id })}
                   >
-                    {retryM.isPending && retryM.variables === e.id ? (
+                    {retryM.isPending &&
+                    retryM.variables?.id === e.id &&
+                    !retryM.variables?.provider ? (
                       <Loader2 className="mr-1.5 size-3 animate-spin" />
                     ) : (
                       <RefreshCw className="mr-1.5 size-3" />
                     )}
                     Retry send
                   </Button>
+                  {e.provider === "resend" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 rounded-sm text-[11.5px]"
+                      disabled={
+                        retryM.isPending &&
+                        retryM.variables?.id === e.id &&
+                        retryM.variables?.provider === "brevo"
+                      }
+                      onClick={() =>
+                        retryM.mutate({ id: e.id, provider: "brevo" })
+                      }
+                    >
+                      {retryM.isPending &&
+                      retryM.variables?.id === e.id &&
+                      retryM.variables?.provider === "brevo" ? (
+                        <Loader2 className="mr-1.5 size-3 animate-spin" />
+                      ) : (
+                        <BrevoLogo className="mr-1.5 size-3" />
+                      )}
+                      Retry via Brevo
+                    </Button>
+                  )}
+                  {e.provider === "brevo" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 rounded-sm text-[11.5px]"
+                      disabled={
+                        retryM.isPending &&
+                        retryM.variables?.id === e.id &&
+                        retryM.variables?.provider === "resend"
+                      }
+                      onClick={() =>
+                        retryM.mutate({ id: e.id, provider: "resend" })
+                      }
+                    >
+                      {retryM.isPending &&
+                      retryM.variables?.id === e.id &&
+                      retryM.variables?.provider === "resend" ? (
+                        <Loader2 className="mr-1.5 size-3 animate-spin" />
+                      ) : (
+                        <ResendLogo className="mr-1.5 size-3" />
+                      )}
+                      Retry via Resend
+                    </Button>
+                  )}
                 </div>
               )}
             </li>

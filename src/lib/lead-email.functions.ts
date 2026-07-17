@@ -12,11 +12,13 @@ export type LeadEmailStatus =
   | "failed"
   | "received";
 
+export type LeadEmailProvider = "resend" | "brevo";
+
 export interface LeadEmailRow {
   id: string;
   lead_id: string;
   direction: "outbound" | "inbound";
-  provider: "gmail" | "resend";
+  provider: LeadEmailProvider | "gmail";
   message_id: string | null;
   thread_id: string | null;
   subject: string | null;
@@ -39,9 +41,12 @@ const SendInput = z.object({
   subject: z.string().trim().min(1).max(300),
   body: z.string().trim().min(1).max(100_000),
   contentType: z.enum(["html", "text"]).default("html"),
+  provider: z.enum(["resend", "brevo"]).default("resend"),
 });
 
-const RESEND_FROM = "Branta Tech <hello@brantatech.com>";
+const LEAD_FROM_EMAIL = "hello@brantatech.com";
+const LEAD_FROM_NAME = "Branta Tech";
+const RESEND_FROM = `${LEAD_FROM_NAME} <${LEAD_FROM_EMAIL}>`;
 
 /** Public helper: substitute {{tokens}} against a value map. Unknown tokens are left intact. */
 export function renderVariables(
@@ -71,6 +76,7 @@ export const MAX_CONCURRENT_SENDS = 10;
 type ProcessableRow = {
   id: string;
   lead_id: string;
+  provider: LeadEmailProvider;
   to_emails: string[];
   cc_emails: string[];
   subject: string | null;
@@ -79,13 +85,10 @@ type ProcessableRow = {
   sent_by: string | null;
 };
 
-/** Deliver a single queued row via Resend. Row must already be marked `sending`. */
-async function deliverQueuedRow(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  adminClient: any,
+async function deliverViaResend(
   row: ProcessableRow,
   leadSlug: string,
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: true; messageId: string } | { ok: false; error: string }> {
   const { callGateway } = await import("@/lib/connector-gateway.server");
   const recipient = row.to_emails[0];
   try {
@@ -107,11 +110,66 @@ async function deliverQueuedRow(
         ],
       },
     });
+    return { ok: true, messageId: resp.id };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+async function deliverViaBrevo(
+  row: ProcessableRow,
+  leadSlug: string,
+): Promise<{ ok: true; messageId: string } | { ok: false; error: string }> {
+  const { callGateway } = await import("@/lib/connector-gateway.server");
+  const recipient = row.to_emails[0];
+  try {
+    // Brevo returns { messageId: "<...@smtp-relay.mailin.fr>" }
+    const resp = await callGateway<{ messageId?: string }>({
+      connector: "brevo",
+      path: "/smtp/email",
+      method: "POST",
+      body: {
+        sender: { name: LEAD_FROM_NAME, email: LEAD_FROM_EMAIL },
+        to: [{ email: recipient }],
+        cc: row.cc_emails.length
+          ? row.cc_emails.map((e) => ({ email: e }))
+          : undefined,
+        subject: row.subject ?? "",
+        htmlContent: row.body_html ?? undefined,
+        ...(row.body_text && !row.body_html ? { textContent: row.body_text } : {}),
+        // Brevo tags are string[]; prefix-encoded so the webhook can decode them.
+        tags: [
+          `lead_id:${row.lead_id}`,
+          `lead_slug:${leadSlug}`,
+          `lead_email_id:${row.id}`,
+        ],
+      },
+    });
+    return { ok: true, messageId: resp.messageId ?? "" };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/** Deliver a single queued row via the row's provider. Row must be `sending`. */
+async function deliverQueuedRow(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  adminClient: any,
+  row: ProcessableRow,
+  leadSlug: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const recipient = row.to_emails[0];
+  const result =
+    row.provider === "brevo"
+      ? await deliverViaBrevo(row, leadSlug)
+      : await deliverViaResend(row, leadSlug);
+
+  if (result.ok) {
     await adminClient
       .from("lead_emails")
       .update({
         status: "sent",
-        message_id: resp.id,
+        message_id: result.messageId || null,
         sent_at: new Date().toISOString(),
         error_message: null,
       })
@@ -120,29 +178,38 @@ async function deliverQueuedRow(
       lead_id: row.lead_id,
       actor_id: row.sent_by,
       kind: "email",
-      body: `Sent to ${recipient}: ${row.subject ?? ""}`,
-      meta: { provider: "resend", to: recipient, status: "sent", email_id: row.id },
+      body: `Sent to ${recipient} via ${row.provider}: ${row.subject ?? ""}`,
+      meta: {
+        provider: row.provider,
+        to: recipient,
+        status: "sent",
+        email_id: row.id,
+      },
     });
     return { ok: true };
-  } catch (e) {
-    const errorMessage = e instanceof Error ? e.message : String(e);
-    await adminClient
-      .from("lead_emails")
-      .update({
-        status: "failed",
-        error_message: errorMessage,
-        sent_at: new Date().toISOString(),
-      })
-      .eq("id", row.id);
-    await adminClient.from("lead_activities").insert({
-      lead_id: row.lead_id,
-      actor_id: row.sent_by,
-      kind: "email",
-      body: `Failed to ${recipient}: ${errorMessage}`,
-      meta: { provider: "resend", to: recipient, status: "failed", email_id: row.id },
-    });
-    return { ok: false, error: errorMessage };
   }
+
+  await adminClient
+    .from("lead_emails")
+    .update({
+      status: "failed",
+      error_message: result.error,
+      sent_at: new Date().toISOString(),
+    })
+    .eq("id", row.id);
+  await adminClient.from("lead_activities").insert({
+    lead_id: row.lead_id,
+    actor_id: row.sent_by,
+    kind: "email",
+    body: `Failed to ${recipient} via ${row.provider}: ${result.error}`,
+    meta: {
+      provider: row.provider,
+      to: recipient,
+      status: "failed",
+      email_id: row.id,
+    },
+  });
+  return { ok: false, error: result.error };
 }
 
 /**
@@ -208,11 +275,11 @@ export const sendLeadEmail = createServerFn({ method: "POST" })
         return {
           lead_id: data.leadId,
           direction: "outbound" as const,
-          provider: "resend" as const,
+          provider: data.provider,
           subject: renderedSubject,
           body_html: html,
           body_text: text ?? renderedBody,
-          from_email: "hello@brantatech.com",
+          from_email: LEAD_FROM_EMAIL,
           to_emails: [recipient],
           cc_emails: data.cc,
           status: "queued" as const,
@@ -244,7 +311,7 @@ export const sendLeadEmail = createServerFn({ method: "POST" })
           .in("id", claimIds)
           .eq("status", "queued")
           .select(
-            "id, lead_id, to_emails, cc_emails, subject, body_html, body_text, sent_by",
+            "id, lead_id, provider, to_emails, cc_emails, subject, body_html, body_text, sent_by",
           );
         const claimedRows = (claimed ?? []) as ProcessableRow[];
         const results = await Promise.all(
@@ -284,7 +351,7 @@ export const drainEmailQueue = createServerFn({ method: "POST" })
         .from("lead_emails")
         .select("id")
         .eq("status", "queued")
-        .eq("provider", "resend")
+        .in("provider", ["resend", "brevo"])
         .order("created_at", { ascending: true })
         .limit(available);
       const ids = (candidates ?? []).map((r) => r.id);
@@ -296,7 +363,7 @@ export const drainEmailQueue = createServerFn({ method: "POST" })
         .in("id", ids)
         .eq("status", "queued")
         .select(
-          "id, lead_id, to_emails, cc_emails, subject, body_html, body_text, sent_by",
+          "id, lead_id, provider, to_emails, cc_emails, subject, body_html, body_text, sent_by",
         );
       const claimedRows = (claimed ?? []) as ProcessableRow[];
 
@@ -413,16 +480,31 @@ export const listFailedEmails = createServerFn({ method: "GET" })
     }));
   });
 
-/** Requeue a single failed email so `drainEmailQueue` picks it up again. */
+/**
+ * Requeue a single failed email so `drainEmailQueue` picks it up again.
+ * Optionally switch provider on retry (Resend fallback → Brevo, or vice versa).
+ */
 export const retryFailedEmail = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { id: string }) =>
-    z.object({ id: z.string().uuid() }).parse(d),
+  .inputValidator((d: { id: string; provider?: LeadEmailProvider }) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        provider: z.enum(["resend", "brevo"]).optional(),
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }): Promise<{ ok: true }> => {
+    const patch: {
+      status: "queued";
+      error_message: null;
+      sent_at: null;
+      provider?: LeadEmailProvider;
+    } = { status: "queued", error_message: null, sent_at: null };
+    if (data.provider) patch.provider = data.provider;
     const { error } = await context.supabase
       .from("lead_emails")
-      .update({ status: "queued", error_message: null, sent_at: null })
+      .update(patch)
       .eq("id", data.id)
       .eq("status", "failed");
     if (error) throw new Error(error.message);
