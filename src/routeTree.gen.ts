@@ -20,6 +20,7 @@ import { Route as AuthenticatedAppProfileRouteImport } from './routes/_authentic
 import { Route as AuthenticatedAppMailQueueRouteImport } from './routes/_authenticated/app.mail-queue'
 import { Route as AuthenticatedAppLeadsRouteImport } from './routes/_authenticated/app.leads'
 import { Route as AuthenticatedAppEmployeesRouteImport } from './routes/_authenticated/app.employees'
+import { Route as AuthenticatedAppLeadsIndexRouteImport } from './routes/_authenticated/app.leads.index'
 import { Route as ApiPublicResendWebhookRouteImport } from './routes/api/public/resend.webhook'
 import { Route as ApiPublicBrevoWebhookRouteImport } from './routes/api/public/brevo.webhook'
 import { Route as AuthenticatedAppLeadsSlugRouteImport } from './routes/_authenticated/app.leads.$slug'
@@ -81,6 +82,12 @@ const AuthenticatedAppEmployeesRoute =
     path: '/employees',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
+const AuthenticatedAppLeadsIndexRoute =
+  AuthenticatedAppLeadsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedAppLeadsRoute,
+  } as any)
 const ApiPublicResendWebhookRoute = ApiPublicResendWebhookRouteImport.update({
   id: '/api/public/resend/webhook',
   path: '/api/public/resend/webhook',
@@ -112,12 +119,12 @@ export interface FileRoutesByFullPath {
   '/app/leads/$slug': typeof AuthenticatedAppLeadsSlugRoute
   '/api/public/brevo/webhook': typeof ApiPublicBrevoWebhookRoute
   '/api/public/resend/webhook': typeof ApiPublicResendWebhookRoute
+  '/app/leads/': typeof AuthenticatedAppLeadsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/app/employees': typeof AuthenticatedAppEmployeesRoute
-  '/app/leads': typeof AuthenticatedAppLeadsRouteWithChildren
   '/app/mail-queue': typeof AuthenticatedAppMailQueueRoute
   '/app/profile': typeof AuthenticatedAppProfileRoute
   '/app/settings': typeof AuthenticatedAppSettingsRoute
@@ -126,6 +133,7 @@ export interface FileRoutesByTo {
   '/app/leads/$slug': typeof AuthenticatedAppLeadsSlugRoute
   '/api/public/brevo/webhook': typeof ApiPublicBrevoWebhookRoute
   '/api/public/resend/webhook': typeof ApiPublicResendWebhookRoute
+  '/app/leads': typeof AuthenticatedAppLeadsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -143,6 +151,7 @@ export interface FileRoutesById {
   '/_authenticated/app/leads/$slug': typeof AuthenticatedAppLeadsSlugRoute
   '/api/public/brevo/webhook': typeof ApiPublicBrevoWebhookRoute
   '/api/public/resend/webhook': typeof ApiPublicResendWebhookRoute
+  '/_authenticated/app/leads/': typeof AuthenticatedAppLeadsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -160,12 +169,12 @@ export interface FileRouteTypes {
     | '/app/leads/$slug'
     | '/api/public/brevo/webhook'
     | '/api/public/resend/webhook'
+    | '/app/leads/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
     | '/app/employees'
-    | '/app/leads'
     | '/app/mail-queue'
     | '/app/profile'
     | '/app/settings'
@@ -174,6 +183,7 @@ export interface FileRouteTypes {
     | '/app/leads/$slug'
     | '/api/public/brevo/webhook'
     | '/api/public/resend/webhook'
+    | '/app/leads'
   id:
     | '__root__'
     | '/'
@@ -190,6 +200,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/leads/$slug'
     | '/api/public/brevo/webhook'
     | '/api/public/resend/webhook'
+    | '/_authenticated/app/leads/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -280,6 +291,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppEmployeesRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
+    '/_authenticated/app/leads/': {
+      id: '/_authenticated/app/leads/'
+      path: '/'
+      fullPath: '/app/leads/'
+      preLoaderRoute: typeof AuthenticatedAppLeadsIndexRouteImport
+      parentRoute: typeof AuthenticatedAppLeadsRoute
+    }
     '/api/public/resend/webhook': {
       id: '/api/public/resend/webhook'
       path: '/api/public/resend/webhook'
@@ -306,10 +324,12 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedAppLeadsRouteChildren {
   AuthenticatedAppLeadsSlugRoute: typeof AuthenticatedAppLeadsSlugRoute
+  AuthenticatedAppLeadsIndexRoute: typeof AuthenticatedAppLeadsIndexRoute
 }
 
 const AuthenticatedAppLeadsRouteChildren: AuthenticatedAppLeadsRouteChildren = {
   AuthenticatedAppLeadsSlugRoute: AuthenticatedAppLeadsSlugRoute,
+  AuthenticatedAppLeadsIndexRoute: AuthenticatedAppLeadsIndexRoute,
 }
 
 const AuthenticatedAppLeadsRouteWithChildren =
