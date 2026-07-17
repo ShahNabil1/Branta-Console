@@ -202,6 +202,47 @@ export type Database = {
           },
         ]
       }
+      lead_contacts: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          email: string
+          id: string
+          is_primary: boolean
+          label: string | null
+          lead_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          email: string
+          id?: string
+          is_primary?: boolean
+          label?: string | null
+          lead_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          email?: string
+          id?: string
+          is_primary?: boolean
+          label?: string | null
+          lead_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_contacts_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_documents: {
         Row: {
           created_at: string
@@ -372,7 +413,6 @@ export type Database = {
           company: string | null
           created_at: string
           created_by: string | null
-          email: string | null
           id: string
           last_activity_at: string
           lead_code: string
@@ -382,6 +422,7 @@ export type Database = {
           owner_id: string | null
           phone: string | null
           sheet_row_id: string | null
+          slug: string
           source: string | null
           status: Database["public"]["Enums"]["lead_status"]
           synced_at: string | null
@@ -392,7 +433,6 @@ export type Database = {
           company?: string | null
           created_at?: string
           created_by?: string | null
-          email?: string | null
           id?: string
           last_activity_at?: string
           lead_code?: string
@@ -402,6 +442,7 @@ export type Database = {
           owner_id?: string | null
           phone?: string | null
           sheet_row_id?: string | null
+          slug: string
           source?: string | null
           status?: Database["public"]["Enums"]["lead_status"]
           synced_at?: string | null
@@ -412,7 +453,6 @@ export type Database = {
           company?: string | null
           created_at?: string
           created_by?: string | null
-          email?: string | null
           id?: string
           last_activity_at?: string
           lead_code?: string
@@ -422,6 +462,7 @@ export type Database = {
           owner_id?: string | null
           phone?: string | null
           sheet_row_id?: string | null
+          slug?: string
           source?: string | null
           status?: Database["public"]["Enums"]["lead_status"]
           synced_at?: string | null
