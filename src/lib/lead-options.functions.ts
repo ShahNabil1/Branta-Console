@@ -19,6 +19,14 @@ export interface LeadSourceOption {
   is_active: boolean;
 }
 
+export interface LeadServiceOption {
+  key: string;
+  label: string;
+  sort_order: number;
+  requires_detail: boolean;
+  is_active: boolean;
+}
+
 export const listLeadStatusOptions = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<LeadStatusOption[]> => {
@@ -42,6 +50,20 @@ export const listLeadSourceOptions = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     return (data ?? []) as LeadSourceOption[];
   });
+
+export const listLeadServiceOptions = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<LeadServiceOption[]> => {
+    const { data, error } = await context.supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .from("lead_service_options" as any)
+      .select("key,label,sort_order,requires_detail,is_active")
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true });
+    if (error) throw new Error(error.message);
+    return (data ?? []) as LeadServiceOption[];
+  });
+
 
 // Fallbacks used when the server hasn't responded yet so the UI never renders empty.
 export const STATUS_FALLBACK: LeadStatusOption[] = [
