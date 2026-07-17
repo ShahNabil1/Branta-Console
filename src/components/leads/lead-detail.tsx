@@ -612,12 +612,34 @@ export function LeadDetail({
             </div>
           </div>
           {statusChanged && (
-            <Textarea
-              value={statusChangeNote}
-              onChange={(e) => setStatusChangeNote(e.target.value)}
-              placeholder={`Why moving to "${statusLabel(form.status, statusOptions)}"? (added to Activity Logs)`}
-              className="min-h-[56px] rounded-sm text-[12px]"
-            />
+            <div className="space-y-2">
+              <Textarea
+                value={statusChangeNote}
+                onChange={(e) => setStatusChangeNote(e.target.value)}
+                placeholder={`Why moving to "${statusLabel(form.status, statusOptions)}"? (added to Activity Logs)`}
+                className="min-h-[56px] rounded-sm text-[12px]"
+              />
+              <div className="flex justify-end">
+                <Button
+                  size="sm"
+                  disabled={statusUpdateM.isPending}
+                  onClick={() => statusUpdateM.mutate()}
+                  className="h-8 rounded-sm bg-primary px-3 text-[12px] font-medium text-primary-foreground hover:bg-primary/90"
+                >
+                  {statusUpdateM.isPending ? (
+                    <>
+                      <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                      Updating…
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="mr-1.5 size-3.5" />
+                      Update status
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
           )}
         </div>
       </div>
