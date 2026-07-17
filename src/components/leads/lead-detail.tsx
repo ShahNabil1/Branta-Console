@@ -1009,7 +1009,420 @@ export function LeadDetail({
   );
 }
 
+// ---------- Team members / additional contacts ----------
+const MAX_TEAMMATES = 10;
+const EMPTY_CONTACT_DRAFT = {
+  name: "",
+  role: "",
+  email: "",
+  email_label: "",
+  alt_email: "",
+  alt_email_label: "",
+  phone: "",
+  phone_label: "",
+  alt_phone: "",
+  alt_phone_label: "",
+  contact_preference: "",
+};
+
+function TeammatesSection({ lead }: { lead: LeadRow }) {
+  const qc = useQueryClient();
+  const listFn = useServerFn(listLeadContacts);
+  const addFn = useServerFn(addLeadContact);
+  const delFn = useServerFn(deleteLeadContact);
+  const primaryFn = useServerFn(setPrimaryLeadContact);
+  const contacts = useQuery({
+    queryKey: ["lead-contacts", lead.id],
+    queryFn: () => listFn({ data: { leadId: lead.id } }),
+    staleTime: 15_000,
+  });
+  // Teammates = every stored contact except the auto-created "primary" that
+  // just mirrors the lead's own email (label "Primary", no name/role).
+  const teammates = (contacts.data ?? []).filter(
+    (c) =>
+      !(
+        c.is_primary &&
+        !c.name &&
+        !c.role &&
+        (c.label === "Primary" || c.label === null)
+      ),
+  );
+
+  const [drafting, setDrafting] = useState(false);
+  const [draft, setDraft] = useState({ ...EMPTY_CONTACT_DRAFT });
+
+  const addM = useMutation({
+    mutationFn: () =>
+      addFn({
+        data: {
+          leadId: lead.id,
+          name: draft.name.trim() || null,
+          role: draft.role.trim() || null,
+          email: draft.email.trim(),
+          label: draft.name.trim() || "Teammate",
+          email_label: draft.email_label || null,
+          alt_email: draft.alt_email.trim() || null,
+          alt_email_label: draft.alt_email_label || null,
+          phone: draft.phone.trim() || null,
+          phone_label: draft.phone_label || null,
+          alt_phone: draft.alt_phone.trim() || null,
+          alt_phone_label: draft.alt_phone_label || null,
+          contact_preference: draft.contact_preference.trim() || null,
+          isPrimary: false,
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Contact added");
+      setDraft({ ...EMPTY_CONTACT_DRAFT });
+      setDrafting(false);
+      qc.invalidateQueries({ queryKey: ["lead-contacts", lead.id] });
+    },
+    onError: (e) =>
+      toast.error(e instanceof Error ? e.message : "Could not add contact"),
+  });
+
+  const delM = useMutation({
+    mutationFn: (id: string) => delFn({ data: { id } }),
+    onSuccess: () => {
+      toast.success("Contact removed");
+      qc.invalidateQueries({ queryKey: ["lead-contacts", lead.id] });
+    },
+    onError: (e) =>
+      toast.error(e instanceof Error ? e.message : "Delete failed"),
+  });
+
+  const primaryM = useMutation({
+    mutationFn: (id: string) => primaryFn({ data: { id } }),
+    onSuccess: () => {
+      toast.success("Primary contact updated");
+      qc.invalidateQueries({ queryKey: ["lead-contacts", lead.id] });
+    },
+    onError: (e) =>
+      toast.error(e instanceof Error ? e.message : "Update failed"),
+  });
+
+  const total = teammates.length;
+  const canAddMore = total < MAX_TEAMMATES;
+
+  return (
+    <section className="rounded-sm border border-border bg-card">
+      <div className="flex items-center justify-between border-b border-border px-3 py-2">
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-foreground">
+            Team members / additional contacts
+          </span>
+          <span className="rounded-sm bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+            {total} / {MAX_TEAMMATES}
+          </span>
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-8 rounded-sm text-[12px]"
+          disabled={!canAddMore || drafting}
+          onClick={() => setDrafting(true)}
+        >
+          + Add contact
+        </Button>
+      </div>
+
+      <div className="grid gap-3 p-3">
+        {teammates.length === 0 && !drafting && (
+          <div className="rounded-sm border border-dashed border-border px-3 py-4 text-center text-[12px] text-muted-foreground">
+            No additional contacts. Add teammates from the same company here —
+            all their emails appear in the compose recipient list.
+          </div>
+        )}
+
+        {teammates.map((c) => (
+          <TeammateCard
+            key={c.id}
+            contact={c}
+            onDelete={() => {
+              if (confirm(`Remove ${c.name || c.email} from this lead?`))
+                delM.mutate(c.id);
+            }}
+            onMakePrimary={() => primaryM.mutate(c.id)}
+          />
+        ))}
+
+        {drafting && (
+          <div className="grid gap-2 rounded-sm border border-primary/40 bg-primary/5 p-3">
+            <div className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+              New contact
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Input
+                placeholder="Name"
+                value={draft.name}
+                onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+                className="h-9 rounded-sm text-[12.5px]"
+              />
+              <Input
+                placeholder="Role (e.g. Marketing Manager)"
+                value={draft.role}
+                onChange={(e) => setDraft({ ...draft, role: e.target.value })}
+                className="h-9 rounded-sm text-[12.5px]"
+              />
+            </div>
+            <EmailRow
+              label="Email"
+              value={draft.email}
+              onChange={(v) => setDraft({ ...draft, email: v })}
+              tag={draft.email_label}
+              onTagChange={(v) => setDraft({ ...draft, email_label: v })}
+              onCompose={() => toast.info("Save the contact first, then compose.")}
+              className="col-span-2"
+            />
+            <EmailRow
+              label="Alternative email"
+              value={draft.alt_email}
+              onChange={(v) => setDraft({ ...draft, alt_email: v })}
+              tag={draft.alt_email_label}
+              onTagChange={(v) => setDraft({ ...draft, alt_email_label: v })}
+              onCompose={() => toast.info("Save the contact first, then compose.")}
+              className="col-span-2"
+            />
+            <PhoneRow
+              label="Phone"
+              value={draft.phone}
+              onChange={(v) => setDraft({ ...draft, phone: v })}
+              tag={draft.phone_label}
+              onTagChange={(v) => setDraft({ ...draft, phone_label: v })}
+              className="col-span-2"
+            />
+            <PhoneRow
+              label="Alternative phone"
+              value={draft.alt_phone}
+              onChange={(v) => setDraft({ ...draft, alt_phone: v })}
+              tag={draft.alt_phone_label}
+              onTagChange={(v) => setDraft({ ...draft, alt_phone_label: v })}
+              className="col-span-2"
+            />
+            <Field label="Contact preference & availability" className="col-span-2">
+              <Textarea
+                value={draft.contact_preference}
+                onChange={(e) =>
+                  setDraft({ ...draft, contact_preference: e.target.value })
+                }
+                placeholder="Preferred channel, days, times, timezone…"
+                className="min-h-[54px] rounded-sm text-[12.5px]"
+              />
+            </Field>
+            <div className="flex items-center justify-end gap-2">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 rounded-sm text-[12px]"
+                onClick={() => {
+                  setDrafting(false);
+                  setDraft({ ...EMPTY_CONTACT_DRAFT });
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                className="h-8 rounded-sm bg-primary text-[12px] text-primary-foreground hover:bg-brand-700"
+                disabled={addM.isPending || !draft.email.trim()}
+                onClick={() => addM.mutate()}
+              >
+                {addM.isPending ? (
+                  <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                ) : null}
+                Save contact
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {!canAddMore && (
+          <div className="text-[11px] text-muted-foreground">
+            Maximum {MAX_TEAMMATES} additional contacts per lead. Remove one to
+            add another.
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function TeammateCard({
+  contact,
+  onDelete,
+  onMakePrimary,
+}: {
+  contact: LeadContactRow;
+  onDelete: () => void;
+  onMakePrimary: () => void;
+}) {
+  const updateFn = useServerFn(updateLeadContact);
+  const qc = useQueryClient();
+  const [form, setForm] = useState({
+    name: contact.name ?? "",
+    role: contact.role ?? "",
+    email: contact.email,
+    email_label: contact.email_label ?? "",
+    alt_email: contact.alt_email ?? "",
+    alt_email_label: contact.alt_email_label ?? "",
+    phone: contact.phone ?? "",
+    phone_label: contact.phone_label ?? "",
+    alt_phone: contact.alt_phone ?? "",
+    alt_phone_label: contact.alt_phone_label ?? "",
+    contact_preference: contact.contact_preference ?? "",
+  });
+  const [open, setOpen] = useState(false);
+
+  const saveM = useMutation({
+    mutationFn: () =>
+      updateFn({
+        data: {
+          id: contact.id,
+          name: form.name.trim() || null,
+          role: form.role.trim() || null,
+          email: form.email.trim(),
+          email_label: form.email_label || null,
+          alt_email: form.alt_email.trim() || null,
+          alt_email_label: form.alt_email_label || null,
+          phone: form.phone.trim() || null,
+          phone_label: form.phone_label || null,
+          alt_phone: form.alt_phone.trim() || null,
+          alt_phone_label: form.alt_phone_label || null,
+          contact_preference: form.contact_preference.trim() || null,
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Contact updated");
+      qc.invalidateQueries({ queryKey: ["lead-contacts", contact.lead_id] });
+    },
+    onError: (e) =>
+      toast.error(e instanceof Error ? e.message : "Update failed"),
+  });
+
+  return (
+    <div className="rounded-sm border border-border bg-white">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left hover:bg-muted/40"
+      >
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 text-[12.5px] font-medium text-foreground">
+            {form.name || "(no name)"}
+            {contact.is_primary && (
+              <span className="rounded-sm bg-primary/10 px-1.5 py-[1px] text-[9.5px] uppercase tracking-wider text-primary">
+                primary
+              </span>
+            )}
+          </div>
+          <div className="truncate text-[11.5px] text-muted-foreground">
+            {form.role ? `${form.role} · ` : ""}
+            {form.email}
+          </div>
+        </div>
+        <span className="font-mono text-[11px] text-muted-foreground">
+          {open ? "− collapse" : "+ edit"}
+        </span>
+      </button>
+      {open && (
+        <div className="grid gap-2 border-t border-border p-3">
+          <div className="grid grid-cols-2 gap-2">
+            <Input
+              placeholder="Name"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              className="h-9 rounded-sm text-[12.5px]"
+            />
+            <Input
+              placeholder="Role"
+              value={form.role}
+              onChange={(e) => setForm({ ...form, role: e.target.value })}
+              className="h-9 rounded-sm text-[12.5px]"
+            />
+          </div>
+          <EmailRow
+            label="Email"
+            value={form.email}
+            onChange={(v) => setForm({ ...form, email: v })}
+            tag={form.email_label}
+            onTagChange={(v) => setForm({ ...form, email_label: v })}
+            onCompose={() => toast.info("Select this contact in the Emails tab.")}
+          />
+          <EmailRow
+            label="Alternative email"
+            value={form.alt_email}
+            onChange={(v) => setForm({ ...form, alt_email: v })}
+            tag={form.alt_email_label}
+            onTagChange={(v) => setForm({ ...form, alt_email_label: v })}
+            onCompose={() => toast.info("Select this contact in the Emails tab.")}
+          />
+          <PhoneRow
+            label="Phone"
+            value={form.phone}
+            onChange={(v) => setForm({ ...form, phone: v })}
+            tag={form.phone_label}
+            onTagChange={(v) => setForm({ ...form, phone_label: v })}
+          />
+          <PhoneRow
+            label="Alternative phone"
+            value={form.alt_phone}
+            onChange={(v) => setForm({ ...form, alt_phone: v })}
+            tag={form.alt_phone_label}
+            onTagChange={(v) => setForm({ ...form, alt_phone_label: v })}
+          />
+          <Field label="Contact preference & availability">
+            <Textarea
+              value={form.contact_preference}
+              onChange={(e) =>
+                setForm({ ...form, contact_preference: e.target.value })
+              }
+              className="min-h-[54px] rounded-sm text-[12.5px]"
+            />
+          </Field>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              {!contact.is_primary && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 rounded-sm text-[12px]"
+                  onClick={onMakePrimary}
+                >
+                  Make primary
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 rounded-sm text-[12px] text-red-600 hover:bg-red-50 hover:text-red-700"
+                onClick={onDelete}
+              >
+                <Trash2 className="mr-1.5 size-3.5" />
+                Remove
+              </Button>
+            </div>
+            <Button
+              size="sm"
+              className="h-8 rounded-sm bg-primary text-[12px] text-primary-foreground hover:bg-brand-700"
+              disabled={saveM.isPending || !form.email.trim()}
+              onClick={() => saveM.mutate()}
+            >
+              {saveM.isPending ? (
+                <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+              ) : (
+                <Save className="mr-1.5 size-3.5" />
+              )}
+              Save
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ---------- Emails tab (Resend-only compose) ----------
+
 const EMAIL_VARIABLES: { token: string; label: string }[] = [
   { token: "{{lead.first_name}}", label: "First name" },
   { token: "{{lead.name}}", label: "Full name" },
