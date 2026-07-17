@@ -1,5 +1,5 @@
 // Lead email compose — Resend-only, branded, multi-recipient with variable substitution.
-// Gmail pull is retained for inbound sync only; outbound is 100% Resend.
+
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
