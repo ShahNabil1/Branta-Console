@@ -1866,9 +1866,8 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
     setBody(contentType === "html" ? DEFAULT_HTML_BODY : DEFAULT_TEXT_BODY);
   }, [contentType]);
 
-  const selectedEmails = (contacts.data ?? [])
-    .filter((c) => selectedIds.includes(c.id))
-    .map((c) => c.email);
+
+
 
   function insertToken(token: string) {
     if (activeField === "subject") {
