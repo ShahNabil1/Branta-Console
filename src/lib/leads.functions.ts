@@ -33,13 +33,19 @@ export interface LeadRow {
   owner_name?: string | null;
 }
 
+export type LeadActivityMeta = {
+  from?: string;
+  to?: string;
+  [k: string]: string | number | boolean | null | undefined;
+};
+
 export interface LeadActivityRow {
   id: string;
   lead_id: string;
   actor_id: string | null;
   kind: string;
   body: string | null;
-  meta: Record<string, unknown>;
+  meta: LeadActivityMeta;
   created_at: string;
   actor_name?: string | null;
 }
@@ -170,7 +176,8 @@ export const updateLead = createServerFn({ method: "POST" })
 
     const { data: row, error } = await context.supabase
       .from("leads")
-      .update(patch)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .update(patch as any)
       .eq("id", data.id)
       .select("*")
       .single();
@@ -181,8 +188,8 @@ export const updateLead = createServerFn({ method: "POST" })
         lead_id: data.id,
         actor_id: context.userId,
         kind: "status_change",
-        body: `Status: ${prior.status} → ${patch.status}`,
-        meta: { from: prior.status, to: patch.status },
+        body: `Status: ${prior.status} → ${String(patch.status)}`,
+        meta: { from: prior.status, to: String(patch.status) },
       });
     }
     return row as LeadRow;
