@@ -173,6 +173,27 @@ export function LeadDetail({
   const listAct = useServerFn(listLeadActivities);
   const addAct = useServerFn(addLeadActivity);
 
+  const listStatusOpts = useServerFn(listLeadStatusOptions);
+  const listSourceOpts = useServerFn(listLeadSourceOptions);
+  const statusOptsQ = useQuery({
+    queryKey: ["lead-status-options"],
+    queryFn: () => listStatusOpts(),
+    staleTime: 5 * 60_000,
+    initialData: STATUS_FALLBACK,
+  });
+  const sourceOptsQ = useQuery({
+    queryKey: ["lead-source-options"],
+    queryFn: () => listSourceOpts(),
+    staleTime: 5 * 60_000,
+    initialData: SOURCE_FALLBACK,
+  });
+  const statusOptions: LeadStatusOption[] = statusOptsQ.data ?? STATUS_FALLBACK;
+  const sourceOptions: LeadSourceOption[] = sourceOptsQ.data ?? SOURCE_FALLBACK;
+
+  const [tab, setTab] = useState<"overview" | "emails" | "meetings" | "docs">(
+    "overview",
+  );
+
   const [form, setForm] = useState({
     name: lead.name,
     company: lead.company ?? "",
@@ -180,12 +201,15 @@ export function LeadDetail({
     phone: lead.phone ?? "",
     status: lead.status,
     source: lead.source ?? "",
+    source_other: lead.source_other ?? "",
     owner_id: lead.owner_id ?? "",
     value_usd: lead.value_usd == null ? "" : String(lead.value_usd),
     currency: (lead.currency ?? "BDT") as "BDT" | "USD",
     next_action: lead.next_action ?? "",
     notes: lead.notes ?? "",
   });
+  // Optional note captured when status changes; cleared after save.
+  const [statusChangeNote, setStatusChangeNote] = useState("");
 
   useEffect(() => {
     setForm({
@@ -195,12 +219,14 @@ export function LeadDetail({
       phone: lead.phone ?? "",
       status: lead.status,
       source: lead.source ?? "",
+      source_other: lead.source_other ?? "",
       owner_id: lead.owner_id ?? "",
       value_usd: lead.value_usd == null ? "" : String(lead.value_usd),
       currency: (lead.currency ?? "BDT") as "BDT" | "USD",
       next_action: lead.next_action ?? "",
       notes: lead.notes ?? "",
     });
+    setStatusChangeNote("");
   }, [lead.id, lead.status, lead.owner_id, lead.updated_at]);
 
   const activities = useQuery({
