@@ -180,6 +180,161 @@ function Field({
   );
 }
 
+const CONTACT_LABEL_OPTIONS = [
+  "work",
+  "personal",
+  "home",
+  "mobile",
+  "whatsapp",
+  "other",
+] as const;
+
+function LabelSelect({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <Select
+      value={value || "__none"}
+      onValueChange={(v) => onChange(v === "__none" ? "" : v)}
+    >
+      <SelectTrigger className="h-9 w-[110px] shrink-0 rounded-sm text-[11.5px] capitalize">
+        <SelectValue placeholder="Label" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="__none">— label —</SelectItem>
+        {CONTACT_LABEL_OPTIONS.map((l) => (
+          <SelectItem key={l} value={l} className="capitalize">
+            {l}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+function EmailRow({
+  label,
+  value,
+  onChange,
+  tag,
+  onTagChange,
+  onCompose,
+  className,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  tag: string;
+  onTagChange: (v: string) => void;
+  onCompose: () => void;
+  className?: string;
+}) {
+  return (
+    <Field label={label} className={className}>
+      <div className="flex items-center gap-1.5">
+        <Input
+          type="email"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-9 flex-1 rounded-sm text-[12.5px]"
+          placeholder="name@company.com"
+        />
+        <LabelSelect value={tag} onChange={onTagChange} />
+        <TooltipProvider delayDuration={200}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-9 w-9 shrink-0 rounded-sm"
+                disabled={!value.trim()}
+                onClick={onCompose}
+                aria-label="Compose email"
+              >
+                <Mail className="size-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top">Compose in Emails tab</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
+    </Field>
+  );
+}
+
+function PhoneRow({
+  label,
+  value,
+  onChange,
+  tag,
+  onTagChange,
+  className,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  tag: string;
+  onTagChange: (v: string) => void;
+  className?: string;
+}) {
+  const digits = value.replace(/[^\d]/g, "");
+  return (
+    <Field label={label} className={className}>
+      <div className="flex items-center gap-1.5">
+        <Input
+          type="tel"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-9 flex-1 rounded-sm text-[12.5px]"
+          placeholder="+8801XXXXXXXXX"
+        />
+        <LabelSelect value={tag} onChange={onTagChange} />
+        <TooltipProvider delayDuration={200}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <a
+                href={value ? `tel:${value.replace(/\s+/g, "")}` : undefined}
+                aria-disabled={!value.trim()}
+                className={cn(
+                  "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-sm border border-input bg-background text-foreground transition-colors hover:bg-muted",
+                  !value.trim() && "pointer-events-none opacity-50",
+                )}
+                aria-label="Call this number"
+              >
+                <PhoneIcon className="size-3.5" />
+              </a>
+            </TooltipTrigger>
+            <TooltipContent side="top">Call</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <a
+                href={digits ? `https://wa.me/${digits}` : undefined}
+                target="_blank"
+                rel="noreferrer"
+                aria-disabled={!digits}
+                className={cn(
+                  "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-sm border border-input bg-background transition-colors hover:bg-muted",
+                  !digits && "pointer-events-none opacity-50",
+                )}
+                aria-label="Open in WhatsApp"
+              >
+                <WhatsAppIcon className="size-4" />
+              </a>
+            </TooltipTrigger>
+            <TooltipContent side="top">WhatsApp</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
+    </Field>
+  );
+
+
 export function LeadDetail({
   lead,
   users,
