@@ -2157,147 +2157,173 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
           {emails.data?.length === 0 && !emails.isLoading && (
             <li className="p-3 text-[12px] text-muted-foreground">No emails yet.</li>
           )}
-          {emails.data?.map((e: LeadEmailRow) => (
-            <li key={e.id} className="grid gap-1 p-3">
-              <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                <span
-                  className={cn(
-                    "rounded-sm px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider",
-                    e.direction === "inbound" ? "bg-blue-50 text-blue-700" : "bg-muted",
+          {emails.data?.map((e: LeadEmailRow) => {
+            const ts = e.sent_at ?? e.created_at;
+            const dt = new Date(ts);
+            const dateStr = dt.toLocaleString(undefined, {
+              year: "numeric",
+              month: "short",
+              day: "2-digit",
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+            return (
+              <li
+                key={e.id}
+                className="grid gap-1.5 p-3 sm:grid-cols-[1fr_auto] sm:items-center"
+              >
+                <div className="min-w-0 space-y-1">
+                  <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                    <span className="font-mono text-foreground">{dateStr}</span>
+                    <span>·</span>
+                    <span>
+                      by{" "}
+                      <span className="font-medium text-foreground">
+                        {e.direction === "inbound"
+                          ? (e.from_email ?? "inbound")
+                          : (e.sent_by_name ?? "—")}
+                      </span>
+                    </span>
+                    <span>·</span>
+                    {e.provider === "resend" ? (
+                      <ResendChip />
+                    ) : e.provider === "brevo" ? (
+                      <BrevoChip />
+                    ) : (
+                      <span className="rounded-sm bg-muted px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider">
+                        {e.provider}
+                      </span>
+                    )}
+                    {e.status === "queued" && (
+                      <span className="rounded-sm bg-amber-50 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-amber-700">
+                        in queue
+                      </span>
+                    )}
+                    {e.status === "sending" && (
+                      <span className="rounded-sm bg-blue-50 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-blue-700">
+                        sending…
+                      </span>
+                    )}
+                    {e.status === "failed" && (
+                      <span className="rounded-sm bg-red-50 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-red-700">
+                        failed
+                      </span>
+                    )}
+                    {e.provider === "resend" && e.status === "sent" && (
+                      <ProviderStatusChip
+                        provider="resend"
+                        events={events.data?.[e.id] ?? []}
+                      />
+                    )}
+                    {e.provider === "brevo" && e.status === "sent" && (
+                      <ProviderStatusChip
+                        provider="brevo"
+                        events={brevoEvents.data?.[e.id] ?? []}
+                      />
+                    )}
+                    {e.provider !== "resend" &&
+                      e.provider !== "brevo" &&
+                      e.status === "sent" && (
+                        <span className="rounded-sm bg-emerald-50 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-emerald-700">
+                          sent
+                        </span>
+                      )}
+                  </div>
+                  <div className="truncate text-[12.5px] font-medium">
+                    {e.subject || "(no subject)"}
+                  </div>
+                  {e.error_message && (
+                    <div className="text-[11px] text-red-600">
+                      {e.error_message}
+                    </div>
                   )}
-                >
-                  {e.direction}
-                </span>
-                {e.provider === "resend" ? (
-                  <ResendChip />
-                ) : e.provider === "brevo" ? (
-                  <BrevoChip />
-                ) : (
-                  <span className="rounded-sm bg-muted px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider">
-                    {e.provider}
-                  </span>
-                )}
-                {e.status === "queued" && (
-                  <span className="rounded-sm bg-amber-50 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-amber-700">
-                    in queue
-                  </span>
-                )}
-                {e.status === "sending" && (
-                  <span className="rounded-sm bg-blue-50 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-blue-700">
-                    sending…
-                  </span>
-                )}
-                {e.status === "failed" && (
-                  <span className="rounded-sm bg-red-50 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-red-700">
-                    failed
-                  </span>
-                )}
-                {e.provider === "resend" && e.status === "sent" && (
-                  <ProviderStatusChip
-                    provider="resend"
-                    events={events.data?.[e.id] ?? []}
-                  />
-                )}
-                {e.provider === "brevo" && e.status === "sent" && (
-                  <ProviderStatusChip
-                    provider="brevo"
-                    events={brevoEvents.data?.[e.id] ?? []}
-                  />
-                )}
-                {e.provider !== "resend" && e.provider !== "brevo" && e.status === "sent" && (
-                  <span className="rounded-sm bg-emerald-50 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-emerald-700">
-                    sent
-                  </span>
-                )}
-                <span>·</span>
-                <span className="font-mono">{relTime(e.sent_at ?? e.created_at)}</span>
-              </div>
-              <div className="text-[12.5px] font-medium">{e.subject || "(no subject)"}</div>
-              <div className="text-[11.5px] text-muted-foreground">
-                {e.from_email} → {e.to_emails.join(", ")}
-              </div>
-              {e.body_text && (
-                <div className="mt-1 line-clamp-3 whitespace-pre-wrap text-[12px] text-foreground/80">
-                  {e.body_text}
                 </div>
-              )}
-              {e.error_message && (
-                <div className="text-[11px] text-red-600">{e.error_message}</div>
-              )}
-              {e.status === "failed" && (
-                <div className="mt-1 flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center justify-end gap-2">
                   <Button
                     size="sm"
                     variant="outline"
                     className="h-7 rounded-sm text-[11.5px]"
-                    disabled={
-                      retryM.isPending &&
-                      retryM.variables?.id === e.id &&
-                      !retryM.variables?.provider
-                    }
-                    onClick={() => retryM.mutate({ id: e.id })}
+                    onClick={() => setViewMail(e)}
                   >
-                    {retryM.isPending &&
-                    retryM.variables?.id === e.id &&
-                    !retryM.variables?.provider ? (
-                      <Loader2 className="mr-1.5 size-3 animate-spin" />
-                    ) : (
-                      <RefreshCw className="mr-1.5 size-3" />
-                    )}
-                    Retry send
+                    <Eye className="mr-1.5 size-3" />
+                    View mail
                   </Button>
-                  {e.provider === "resend" && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 rounded-sm text-[11.5px]"
-                      disabled={
-                        retryM.isPending &&
+                  {e.status === "failed" && (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 rounded-sm text-[11.5px]"
+                        disabled={
+                          retryM.isPending &&
+                          retryM.variables?.id === e.id &&
+                          !retryM.variables?.provider
+                        }
+                        onClick={() => retryM.mutate({ id: e.id })}
+                      >
+                        {retryM.isPending &&
                         retryM.variables?.id === e.id &&
-                        retryM.variables?.provider === "brevo"
-                      }
-                      onClick={() =>
-                        retryM.mutate({ id: e.id, provider: "brevo" })
-                      }
-                    >
-                      {retryM.isPending &&
-                      retryM.variables?.id === e.id &&
-                      retryM.variables?.provider === "brevo" ? (
-                        <Loader2 className="mr-1.5 size-3 animate-spin" />
-                      ) : (
-                        <BrevoLogo className="mr-1.5 size-3" />
+                        !retryM.variables?.provider ? (
+                          <Loader2 className="mr-1.5 size-3 animate-spin" />
+                        ) : (
+                          <RefreshCw className="mr-1.5 size-3" />
+                        )}
+                        Retry
+                      </Button>
+                      {e.provider === "resend" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 rounded-sm text-[11.5px]"
+                          disabled={
+                            retryM.isPending &&
+                            retryM.variables?.id === e.id &&
+                            retryM.variables?.provider === "brevo"
+                          }
+                          onClick={() =>
+                            retryM.mutate({ id: e.id, provider: "brevo" })
+                          }
+                        >
+                          {retryM.isPending &&
+                          retryM.variables?.id === e.id &&
+                          retryM.variables?.provider === "brevo" ? (
+                            <Loader2 className="mr-1.5 size-3 animate-spin" />
+                          ) : (
+                            <BrevoLogo className="mr-1.5 size-3" />
+                          )}
+                          Retry via Brevo
+                        </Button>
                       )}
-                      Retry via Brevo
-                    </Button>
-                  )}
-                  {e.provider === "brevo" && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 rounded-sm text-[11.5px]"
-                      disabled={
-                        retryM.isPending &&
-                        retryM.variables?.id === e.id &&
-                        retryM.variables?.provider === "resend"
-                      }
-                      onClick={() =>
-                        retryM.mutate({ id: e.id, provider: "resend" })
-                      }
-                    >
-                      {retryM.isPending &&
-                      retryM.variables?.id === e.id &&
-                      retryM.variables?.provider === "resend" ? (
-                        <Loader2 className="mr-1.5 size-3 animate-spin" />
-                      ) : (
-                        <ResendLogo className="mr-1.5 size-3" />
+                      {e.provider === "brevo" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 rounded-sm text-[11.5px]"
+                          disabled={
+                            retryM.isPending &&
+                            retryM.variables?.id === e.id &&
+                            retryM.variables?.provider === "resend"
+                          }
+                          onClick={() =>
+                            retryM.mutate({ id: e.id, provider: "resend" })
+                          }
+                        >
+                          {retryM.isPending &&
+                          retryM.variables?.id === e.id &&
+                          retryM.variables?.provider === "resend" ? (
+                            <Loader2 className="mr-1.5 size-3 animate-spin" />
+                          ) : (
+                            <ResendLogo className="mr-1.5 size-3" />
+                          )}
+                          Retry via Resend
+                        </Button>
                       )}
-                      Retry via Resend
-                    </Button>
+                    </>
                   )}
                 </div>
-              )}
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ul>
       </section>
 
