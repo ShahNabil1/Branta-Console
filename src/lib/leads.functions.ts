@@ -277,12 +277,16 @@ export const updateLead = createServerFn({ method: "POST" })
     }
 
     if (patch.status && prior && prior.status !== patch.status) {
+      const note = data.statusChangeNote?.trim();
+      const body = note
+        ? `Status: ${prior.status} → ${String(patch.status)} — ${note}`
+        : `Status: ${prior.status} → ${String(patch.status)}`;
       await context.supabase.from("lead_activities").insert({
         lead_id: data.id,
         actor_id: context.userId,
         kind: "status_change",
-        body: `Status: ${prior.status} → ${String(patch.status)}`,
-        meta: { from: prior.status, to: String(patch.status) },
+        body,
+        meta: { from: prior.status, to: String(patch.status), note: note ?? null },
       });
     }
     const base = { ...(row as LeadRow), email: null };
