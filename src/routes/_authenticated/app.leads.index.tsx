@@ -512,13 +512,43 @@ function CreateLeadDialog({
             />
           </FormRow>
           <FormRow label="Source">
-            <Input
-              value={form.source}
-              onChange={(e) => set("source", e.target.value)}
-              placeholder="Referral, LinkedIn…"
-              className="h-9 rounded-sm text-[12.5px]"
-            />
+            <Select
+              value={form.source || "__unset"}
+              onValueChange={(v) => {
+                const next = v === "__unset" ? "" : v;
+                setForm((p) => ({
+                  ...p,
+                  source: next,
+                  source_other:
+                    next && sourceOptions.find((o) => o.key === next)?.requires_detail
+                      ? p.source_other
+                      : "",
+                }));
+              }}
+            >
+              <SelectTrigger className="h-9 rounded-sm text-[12.5px]">
+                <SelectValue placeholder="Select source" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__unset">— None —</SelectItem>
+                {sourceOptions.map((s) => (
+                  <SelectItem key={s.key} value={s.key}>
+                    {s.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </FormRow>
+          {sourceNeedsDetail && (
+            <FormRow label={`${activeSource?.label ?? "Source"} details *`}>
+              <Input
+                value={form.source_other}
+                onChange={(e) => set("source_other", e.target.value)}
+                placeholder="Describe the source"
+                className="h-9 rounded-sm text-[12.5px]"
+              />
+            </FormRow>
+          )}
           <FormRow label="Email">
             <Input
               value={form.email}
