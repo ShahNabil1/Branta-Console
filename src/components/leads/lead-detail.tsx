@@ -772,6 +772,13 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
     refetchInterval: 5_000,
     staleTime: 3_000,
   });
+  const brevoEventsFn = useServerFn(listBrevoEventsForLead);
+  const brevoEvents = useQuery({
+    queryKey: ["lead-brevo-events", lead.id],
+    queryFn: () => brevoEventsFn({ data: { leadId: lead.id } }),
+    refetchInterval: 5_000,
+    staleTime: 3_000,
+  });
 
   // Realtime: any change to this lead's emails invalidates the thread.
   useEffect(() => {
