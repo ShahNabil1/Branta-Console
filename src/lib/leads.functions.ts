@@ -101,6 +101,8 @@ const CreateInput = z.object({
   status: StatusInput.default("new"),
   source: z.string().trim().max(80).optional().nullable(),
   source_other: z.string().trim().max(200).optional().nullable(),
+  service: z.string().trim().max(80).optional().nullable(),
+  service_other: z.string().trim().max(200).optional().nullable(),
   owner_id: z.string().uuid().optional().nullable(),
   value_usd: z.number().nonnegative().optional().nullable(),
   currency: z.enum(["BDT", "USD"]).optional(),
