@@ -637,7 +637,6 @@ function ResendStatusChip({ events }: { events: ResendEvent[] }) {
 function EmailsTab({ lead }: { lead: LeadRow }) {
   const listFn = useServerFn(listLeadEmails);
   const sendFn = useServerFn(sendLeadEmail);
-  const pullFn = useServerFn(pullGmailForLead);
   const drainFn = useServerFn(drainEmailQueue);
   const retryFn = useServerFn(retryFailedEmail);
   const listContactsFn = useServerFn(listLeadContacts);
