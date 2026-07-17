@@ -985,6 +985,8 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
                 </button>
               ))}
             </div>
+            <QuotaChip provider={provider} usage={usage.data} />
+
             <div className="inline-flex rounded-sm border border-border bg-muted p-0.5">
               {(["html", "text"] as const).map((t) => (
                 <button
