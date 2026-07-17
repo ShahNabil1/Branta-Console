@@ -937,7 +937,10 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
                     failed
                   </span>
                 )}
-                {e.status === "sent" && (
+                {e.provider === "resend" && e.status === "sent" && (
+                  <ResendStatusChip events={events.data?.[e.id] ?? []} />
+                )}
+                {e.provider !== "resend" && e.status === "sent" && (
                   <span className="rounded-sm bg-emerald-50 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-emerald-700">
                     sent
                   </span>
