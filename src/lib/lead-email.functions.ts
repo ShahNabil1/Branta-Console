@@ -25,7 +25,7 @@ export interface LeadEmailRow {
   from_email: string | null;
   to_emails: string[];
   cc_emails: string[];
-  status: "draft" | "sent" | "failed" | "received";
+  status: LeadEmailStatus;
   error_message: string | null;
   sent_at: string | null;
   sent_by: string | null;
