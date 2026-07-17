@@ -43,6 +43,7 @@ import {
   type LeadStatusDB,
 } from "@/lib/leads.functions";
 import {
+  drainEmailQueue,
   listLeadEmails,
   pullGmailForLead,
   renderVariables,
