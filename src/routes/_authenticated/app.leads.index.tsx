@@ -336,7 +336,7 @@ function LeadsPage() {
                   </span>
                 </div>
                 <div className="text-right font-mono text-[12.5px] text-foreground">
-                  {money(row.value_usd)}
+                  {money(row.value_usd, row.currency)}
                 </div>
                 <div className="text-right font-mono text-[11.5px] text-muted-foreground">
                   {relTime(row.last_activity_at)}
