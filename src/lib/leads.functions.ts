@@ -15,9 +15,11 @@ export type LeadStatusDB =
 
 export interface LeadRow {
   id: string;
+  slug: string;
   lead_code: string;
   name: string;
   company: string | null;
+  /** Derived from the primary lead_contacts row (email column removed). */
   email: string | null;
   phone: string | null;
   status: LeadStatusDB;
@@ -31,6 +33,17 @@ export interface LeadRow {
   created_at: string;
   updated_at: string;
   owner_name?: string | null;
+}
+
+export interface LeadContactRow {
+  id: string;
+  lead_id: string;
+  email: string;
+  label: string | null;
+  is_primary: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export type LeadActivityMeta = {
@@ -77,6 +90,26 @@ const UpdateInput = z.object({
   patch: CreateInput.partial(),
 });
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function attachPrimaryEmails(supabase: any, rows: LeadRow[]): Promise<LeadRow[]> {
+  if (rows.length === 0) return rows;
+  const ids = rows.map((r) => r.id);
+  const { data } = await supabase
+    .from("lead_contacts")
+    .select("lead_id, email, is_primary")
+    .in("lead_id", ids);
+  const primaryByLead = new Map<string, string>();
+  const anyByLead = new Map<string, string>();
+  (data ?? []).forEach((c: { lead_id: string; email: string; is_primary: boolean }) => {
+    if (c.is_primary) primaryByLead.set(c.lead_id, c.email);
+    if (!anyByLead.has(c.lead_id)) anyByLead.set(c.lead_id, c.email);
+  });
+  return rows.map((r) => ({
+    ...r,
+    email: primaryByLead.get(r.id) ?? anyByLead.get(r.id) ?? null,
+  }));
+}
+
 async function attachOwnerNames(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
@@ -100,6 +133,27 @@ async function attachOwnerNames(
   }));
 }
 
+async function upsertPrimaryContact(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  leadId: string,
+  email: string,
+  userId: string,
+) {
+  // Clear existing primary flag then upsert this email as primary.
+  await supabase.from("lead_contacts").update({ is_primary: false }).eq("lead_id", leadId);
+  await supabase.from("lead_contacts").upsert(
+    {
+      lead_id: leadId,
+      email,
+      label: "Primary",
+      is_primary: true,
+      created_by: userId,
+    },
+    { onConflict: "lead_id,email" },
+  );
+}
+
 export const listLeads = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<LeadRow[]> => {
@@ -109,7 +163,9 @@ export const listLeads = createServerFn({ method: "GET" })
       .order("last_activity_at", { ascending: false })
       .limit(500);
     if (error) throw new Error(error.message);
-    return attachOwnerNames(context.supabase, (data ?? []) as LeadRow[]);
+    const rows = ((data ?? []) as unknown as LeadRow[]).map((r) => ({ ...r, email: null }));
+    const withEmails = await attachPrimaryEmails(context.supabase, rows);
+    return attachOwnerNames(context.supabase, withEmails);
   });
 
 export const getLead = createServerFn({ method: "GET" })
@@ -123,7 +179,28 @@ export const getLead = createServerFn({ method: "GET" })
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!row) return null;
-    const [withName] = await attachOwnerNames(context.supabase, [row as LeadRow]);
+    const base = { ...(row as unknown as LeadRow), email: null };
+    const [withEmail] = await attachPrimaryEmails(context.supabase, [base]);
+    const [withName] = await attachOwnerNames(context.supabase, [withEmail]);
+    return withName;
+  });
+
+export const getLeadBySlug = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { slug: string }) =>
+    z.object({ slug: z.string().trim().min(1).max(40) }).parse(data),
+  )
+  .handler(async ({ data, context }): Promise<LeadRow | null> => {
+    const { data: row, error } = await context.supabase
+      .from("leads")
+      .select("*")
+      .ilike("slug", data.slug)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!row) return null;
+    const base = { ...(row as unknown as LeadRow), email: null };
+    const [withEmail] = await attachPrimaryEmails(context.supabase, [base]);
+    const [withName] = await attachOwnerNames(context.supabase, [withEmail]);
     return withName;
   });
 
@@ -137,7 +214,6 @@ export const createLead = createServerFn({ method: "POST" })
       .insert({
         name: data.name,
         company: data.company ?? null,
-        email,
         phone: data.phone ?? null,
         status: data.status,
         source: data.source ?? null,
@@ -146,18 +222,21 @@ export const createLead = createServerFn({ method: "POST" })
         next_action: data.next_action ?? null,
         notes: data.notes ?? null,
         created_by: context.userId,
-      })
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any)
       .select("*")
       .single();
     if (error) throw new Error(error.message);
-    // Seed an initial activity row
+    if (email) {
+      await upsertPrimaryContact(context.supabase, row.id, email, context.userId);
+    }
     await context.supabase.from("lead_activities").insert({
       lead_id: row.id,
       actor_id: context.userId,
       kind: "created",
       body: `Lead created`,
     });
-    return row as LeadRow;
+    return { ...(row as unknown as LeadRow), email };
   });
 
 export const updateLead = createServerFn({ method: "POST" })
@@ -165,23 +244,40 @@ export const updateLead = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => UpdateInput.parse(data))
   .handler(async ({ data, context }): Promise<LeadRow> => {
     const patch = { ...data.patch } as Record<string, unknown>;
-    if (patch.email === "") patch.email = null;
+    // Split email out — it lives in lead_contacts now.
+    const emailPatch = patch.email;
+    delete patch.email;
 
-    // Snapshot the prior status so we can log a status_change activity
     const { data: prior } = await context.supabase
       .from("leads")
       .select("status")
       .eq("id", data.id)
       .maybeSingle();
 
-    const { data: row, error } = await context.supabase
-      .from("leads")
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .update(patch as any)
-      .eq("id", data.id)
-      .select("*")
-      .single();
-    if (error) throw new Error(error.message);
+    let row: unknown;
+    if (Object.keys(patch).length > 0) {
+      const { data: updated, error } = await context.supabase
+        .from("leads")
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .update(patch as any)
+        .eq("id", data.id)
+        .select("*")
+        .single();
+      if (error) throw new Error(error.message);
+      row = updated;
+    } else {
+      const { data: current, error } = await context.supabase
+        .from("leads")
+        .select("*")
+        .eq("id", data.id)
+        .single();
+      if (error) throw new Error(error.message);
+      row = current;
+    }
+
+    if (typeof emailPatch === "string" && emailPatch.trim()) {
+      await upsertPrimaryContact(context.supabase, data.id, emailPatch.trim(), context.userId);
+    }
 
     if (patch.status && prior && prior.status !== patch.status) {
       await context.supabase.from("lead_activities").insert({
@@ -192,7 +288,9 @@ export const updateLead = createServerFn({ method: "POST" })
         meta: { from: prior.status, to: String(patch.status) },
       });
     }
-    return row as LeadRow;
+    const base = { ...(row as LeadRow), email: null };
+    const [withEmail] = await attachPrimaryEmails(context.supabase, [base]);
+    return withEmail;
   });
 
 export const deleteLead = createServerFn({ method: "POST" })
@@ -279,4 +377,128 @@ export const listAssignableUsers = createServerFn({ method: "GET" })
       .limit(500);
     if (error) throw new Error(error.message);
     return (data ?? []) as AssignableUser[];
+  });
+
+// -------- Lead contacts CRUD --------
+
+export const listLeadContacts = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { leadId: string }) =>
+    z.object({ leadId: z.string().uuid() }).parse(d),
+  )
+  .handler(async ({ data, context }): Promise<LeadContactRow[]> => {
+    const { data: rows, error } = await context.supabase
+      .from("lead_contacts")
+      .select("*")
+      .eq("lead_id", data.leadId)
+      .order("is_primary", { ascending: false })
+      .order("created_at", { ascending: true });
+    if (error) throw new Error(error.message);
+    return (rows ?? []) as LeadContactRow[];
+  });
+
+const ContactInput = z.object({
+  leadId: z.string().uuid(),
+  email: z.string().trim().email().max(200),
+  label: z.string().trim().max(80).optional().nullable(),
+  isPrimary: z.boolean().optional(),
+});
+
+export const addLeadContact = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => ContactInput.parse(d))
+  .handler(async ({ data, context }): Promise<LeadContactRow> => {
+    if (data.isPrimary) {
+      await context.supabase
+        .from("lead_contacts")
+        .update({ is_primary: false })
+        .eq("lead_id", data.leadId);
+    } else {
+      // If no primary exists, make this one primary.
+      const { data: existing } = await context.supabase
+        .from("lead_contacts")
+        .select("id")
+        .eq("lead_id", data.leadId)
+        .eq("is_primary", true)
+        .maybeSingle();
+      if (!existing) data.isPrimary = true;
+    }
+    const { data: row, error } = await context.supabase
+      .from("lead_contacts")
+      .insert({
+        lead_id: data.leadId,
+        email: data.email,
+        label: data.label ?? null,
+        is_primary: data.isPrimary ?? false,
+        created_by: context.userId,
+      })
+      .select("*")
+      .single();
+    if (error) throw new Error(error.message);
+    return row as LeadContactRow;
+  });
+
+export const updateLeadContact = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        email: z.string().trim().email().max(200).optional(),
+        label: z.string().trim().max(80).optional().nullable(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }): Promise<LeadContactRow> => {
+    const patch: Record<string, unknown> = {};
+    if (data.email) patch.email = data.email;
+    if (data.label !== undefined) patch.label = data.label;
+    const { data: row, error } = await context.supabase
+      .from("lead_contacts")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .update(patch as any)
+      .eq("id", data.id)
+      .select("*")
+      .single();
+    if (error) throw new Error(error.message);
+    return row as LeadContactRow;
+  });
+
+export const setPrimaryLeadContact = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string }) =>
+    z.object({ id: z.string().uuid() }).parse(d),
+  )
+  .handler(async ({ data, context }): Promise<{ ok: true }> => {
+    const { data: c, error: e1 } = await context.supabase
+      .from("lead_contacts")
+      .select("lead_id")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (e1) throw new Error(e1.message);
+    if (!c) throw new Error("Contact not found");
+    await context.supabase
+      .from("lead_contacts")
+      .update({ is_primary: false })
+      .eq("lead_id", c.lead_id);
+    const { error } = await context.supabase
+      .from("lead_contacts")
+      .update({ is_primary: true })
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const deleteLeadContact = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string }) =>
+    z.object({ id: z.string().uuid() }).parse(d),
+  )
+  .handler(async ({ data, context }): Promise<{ ok: true }> => {
+    const { error } = await context.supabase
+      .from("lead_contacts")
+      .delete()
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });
