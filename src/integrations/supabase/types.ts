@@ -468,6 +468,47 @@ export type Database = {
         }
         Relationships: []
       }
+      lead_social_links: {
+        Row: {
+          created_at: string
+          id: string
+          label: string | null
+          lead_id: string
+          platform: string
+          sort_order: number
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label?: string | null
+          lead_id: string
+          platform: string
+          sort_order?: number
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string | null
+          lead_id?: string
+          platform?: string
+          sort_order?: number
+          updated_at?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_social_links_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_source_options: {
         Row: {
           created_at: string
