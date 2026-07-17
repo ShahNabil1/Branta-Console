@@ -893,7 +893,7 @@ export function LeadDetail({
 
           <TeammatesSection lead={lead} />
 
-          <SocialLinksSection leadId={lead.id} />
+
 
 
 
