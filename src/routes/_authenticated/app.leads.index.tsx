@@ -533,7 +533,21 @@ function CreateLeadDialog({
               </SelectContent>
             </Select>
           </FormRow>
-          <FormRow label="Value (USD)">
+          <FormRow label="Currency">
+            <Select
+              value={form.currency}
+              onValueChange={(v) => set("currency", v as "BDT" | "USD")}
+            >
+              <SelectTrigger className="h-9 rounded-sm text-[12.5px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="BDT">BDT — Bangladeshi Taka</SelectItem>
+                <SelectItem value="USD">USD — US Dollar</SelectItem>
+              </SelectContent>
+            </Select>
+          </FormRow>
+          <FormRow label={`Value (${form.currency})`}>
             <Input
               inputMode="decimal"
               value={form.value_usd}
