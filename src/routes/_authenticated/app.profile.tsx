@@ -15,7 +15,6 @@ import {
 import {
   getMyProfile,
   updateMyProfile,
-  markKycSubmitted,
   requestKycReupload,
   type ProfileRow,
 } from "@/lib/profile.functions";
@@ -135,7 +134,7 @@ function ProfilePage() {
   const router = useRouter();
   const fetchProfile = useServerFn(getMyProfile);
   const update = useServerFn(updateMyProfile);
-  const markSubmitted = useServerFn(markKycSubmitted);
+  
   const reupload = useServerFn(requestKycReupload);
   const presign = useServerFn(requestR2Upload);
   
