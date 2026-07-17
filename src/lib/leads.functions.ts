@@ -14,10 +14,18 @@ export interface LeadRow {
   slug: string;
   lead_code: string;
   name: string;
+  role: string | null;
   company: string | null;
   /** Derived from the primary lead_contacts row (email column removed). */
   email: string | null;
+  email_label: string | null;
+  alt_email: string | null;
+  alt_email_label: string | null;
   phone: string | null;
+  phone_label: string | null;
+  alt_phone: string | null;
+  alt_phone_label: string | null;
+  contact_preference: string | null;
   status: LeadStatusDB;
   source: string | null;
   source_other: string | null;
@@ -36,13 +44,24 @@ export interface LeadRow {
 export interface LeadContactRow {
   id: string;
   lead_id: string;
+  name: string | null;
+  role: string | null;
   email: string;
   label: string | null;
+  email_label: string | null;
+  alt_email: string | null;
+  alt_email_label: string | null;
+  phone: string | null;
+  phone_label: string | null;
+  alt_phone: string | null;
+  alt_phone_label: string | null;
+  contact_preference: string | null;
   is_primary: boolean;
   created_by: string | null;
   created_at: string;
   updated_at: string;
 }
+
 
 export type LeadActivityMeta = {
   from?: string;
