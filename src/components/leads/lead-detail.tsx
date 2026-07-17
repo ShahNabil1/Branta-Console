@@ -81,6 +81,7 @@ import {
   type LeadDocumentRow,
 } from "@/lib/lead-docs.functions";
 import { Checkbox } from "@/components/ui/checkbox";
+import { SocialLinksSection } from "@/components/leads/social-links-section";
 import {
   Dialog,
   DialogContent,
@@ -911,6 +912,8 @@ export function LeadDetail({
           </section>
 
           <TeammatesSection lead={lead} />
+
+          <SocialLinksSection leadId={lead.id} />
 
 
 
