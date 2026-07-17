@@ -13,6 +13,16 @@ import {
   MessageSquarePlus,
   Filter,
   RefreshCw,
+  Sheet as SheetIcon,
+  ArrowUpToLine,
+  ArrowDownToLine,
+  ExternalLink,
+  Send,
+  Mail,
+  CalendarPlus,
+  FileText,
+  Video,
+  Copy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,6 +50,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
   addLeadActivity,
   createLead,
   deleteLead,
@@ -50,6 +67,30 @@ import {
   type LeadRow,
   type LeadStatusDB,
 } from "@/lib/leads.functions";
+import {
+  getSheetSyncStatus,
+  pushLeadsToSheet,
+  pullLeadsFromSheet,
+} from "@/lib/leads-sheets.functions";
+import {
+  listLeadEmails,
+  pullGmailForLead,
+  sendLeadEmail,
+  type LeadEmailRow,
+} from "@/lib/lead-email.functions";
+import {
+  cancelLeadMeeting,
+  listLeadMeetings,
+  scheduleLeadMeeting,
+  type LeadMeetingRow,
+} from "@/lib/lead-meetings.functions";
+import {
+  deleteLeadDoc,
+  generateLeadDoc,
+  listLeadDocs,
+  type LeadDocumentRow,
+} from "@/lib/lead-docs.functions";
+
 
 export const Route = createFileRoute("/_authenticated/app/leads")({
   component: LeadsPage,
