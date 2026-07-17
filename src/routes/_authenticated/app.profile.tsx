@@ -4,20 +4,16 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
-  BadgeCheck,
-  ShieldAlert,
-  ShieldQuestion,
   Loader2,
   Upload,
   ExternalLink,
-  RefreshCw,
 } from "lucide-react";
 import {
   getMyProfile,
   updateMyProfile,
-  requestKycReupload,
   type ProfileRow,
 } from "@/lib/profile.functions";
+
 
 import { requestR2Upload } from "@/lib/r2.functions";
 import { supabase } from "@/integrations/supabase/client";
@@ -33,49 +29,6 @@ export const Route = createFileRoute("/_authenticated/app/profile")({
 
 
 
-// ---------- KYC status badge ----------
-type KycStatus = "not_verified" | "under_review" | "verified" | "rejected";
-const STATUS_META: Record<
-  KycStatus,
-  { label: string; tone: string; Icon: typeof BadgeCheck }
-> = {
-  not_verified: {
-    label: "Not Verified",
-    tone: "bg-muted text-muted-foreground border-border",
-    Icon: ShieldQuestion,
-  },
-  under_review: {
-    label: "Under Review",
-    tone: "bg-amber-50 text-amber-800 border-amber-200",
-    Icon: Loader2,
-  },
-  verified: {
-    label: "Verified",
-    tone: "bg-emerald-50 text-emerald-800 border-emerald-200",
-    Icon: BadgeCheck,
-  },
-  rejected: {
-    label: "Rejected",
-    tone: "bg-red-50 text-red-800 border-red-200",
-    Icon: ShieldAlert,
-  },
-};
-
-function KycBadge({ status }: { status: string }) {
-  const s = (STATUS_META[status as KycStatus] ?? STATUS_META.not_verified);
-  const spin = status === "under_review";
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-sm border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.06em]",
-        s.tone,
-      )}
-    >
-      <s.Icon className={cn("size-3", spin && "animate-spin")} strokeWidth={2} />
-      {s.label}
-    </span>
-  );
-}
 
 // ---------- Field primitives ----------
 function Field({
@@ -134,9 +87,8 @@ function ProfilePage() {
   const router = useRouter();
   const fetchProfile = useServerFn(getMyProfile);
   const update = useServerFn(updateMyProfile);
-  
-  const reupload = useServerFn(requestKycReupload);
   const presign = useServerFn(requestR2Upload);
+
   
 
   const profileQuery = useQuery({
@@ -145,8 +97,7 @@ function ProfilePage() {
     staleTime: 15_000,
   });
 
-  // Realtime: subscribe to this user's profile row so KYC fields update live
-  // when an admin changes status in the database.
+  // Realtime: subscribe to this user's profile row so updates land live.
   const userId = profileQuery.data?.profile.user_id;
   useEffect(() => {
     if (!userId) return;
@@ -170,6 +121,7 @@ function ProfilePage() {
     };
   }, [userId, profileQuery]);
 
+
   if (profileQuery.isLoading) return <ProfileSkeleton />;
   if (profileQuery.error)
     return (
@@ -189,9 +141,9 @@ function ProfilePage() {
         router.invalidate();
       }}
       update={update}
-      reupload={reupload}
       presign={presign}
     />
+
   );
 }
 
@@ -210,8 +162,8 @@ interface FormProps {
   email: string;
   onSaved: () => void;
   update: ReturnType<typeof useServerFn<typeof updateMyProfile>>;
-  reupload: ReturnType<typeof useServerFn<typeof requestKycReupload>>;
   presign: ReturnType<typeof useServerFn<typeof requestR2Upload>>;
+
 }
 
 function ProfileForm({
@@ -219,44 +171,17 @@ function ProfileForm({
   email,
   onSaved,
   update,
-  reupload,
   presign,
 }: FormProps) {
   const [form, setForm] = useState<ProfileRow>(profile);
   useEffect(() => setForm(profile), [profile]);
   const [saving, setSaving] = useState(false);
-  const [reuploading, setReuploading] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
-
-  const submitReupload = async () => {
-    if (form.kyc_status !== "rejected") return;
-    if (!form.nid_url && !form.cv_url) {
-      toast.error("Add updated NID or CV first", {
-        description: "Upload replacement files in the Documents section.",
-      });
-      return;
-    }
-    setReuploading(true);
-    try {
-      const res = await reupload({ data: { note: null } });
-      toast.success("Re-submitted for review", {
-        description: `${res.submitted} document(s) queued for the KYC team.`,
-      });
-      onSaved();
-    } catch (err) {
-      toast.error("Re-upload failed", {
-        description: (err as Error).message,
-      });
-    } finally {
-      setReuploading(false);
-    }
-  };
-
-
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
   }, []);
+
 
   const set = <K extends keyof ProfileRow>(k: K, v: ProfileRow[K]) =>
     setForm((prev) => ({ ...prev, [k]: v }));
@@ -319,7 +244,7 @@ function ProfileForm({
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <KycBadge status={form.kyc_status} />
+
           <Button
             onClick={save}
             disabled={!dirty || saving}
@@ -521,96 +446,12 @@ function ProfileForm({
             />
           </div>
         </Section>
-
-        {/* KYC / Didit */}
-        <Section
-          title="Identity Verification (KYC)"
-          right={<KycBadge status={form.kyc_status} />}
-        >
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-[1fr_auto]">
-            <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-[12px]">
-              <KycRow label="Document Type" value={form.kyc_document_type} />
-              <KycRow label="Document Number" value={form.kyc_document_number} mono />
-              <KycRow label="Document Expiry" value={form.kyc_document_expiry} mono />
-              <KycRow label="Extracted Name" value={form.kyc_extracted_full_name} />
-              <KycRow
-                label="Extracted Address"
-                value={form.kyc_extracted_address}
-                className="col-span-2"
-              />
-              <KycRow
-                label="Submitted"
-                value={form.kyc_submitted_at ? new Date(form.kyc_submitted_at).toLocaleString() : null}
-                mono
-              />
-              <KycRow
-                label="Verified"
-                value={form.kyc_verified_at ? new Date(form.kyc_verified_at).toLocaleString() : null}
-                mono
-              />
-              {form.kyc_rejection_reason && (
-                <KycRow
-                  label="Rejection reason"
-                  value={form.kyc_rejection_reason}
-                  className="col-span-2 text-red-700"
-                />
-              )}
-            </dl>
-            <div className="flex flex-col items-stretch justify-start gap-2 md:min-w-[220px]">
-              {form.kyc_status === "rejected" && (
-                <Button
-                  onClick={submitReupload}
-                  disabled={reuploading || (!form.nid_url && !form.cv_url)}
-                  variant="outline"
-                  className="h-9 rounded-sm border-primary/40 text-[12px] font-semibold text-primary hover:bg-primary/5"
-                >
-                  {reuploading ? (
-                    <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-                  ) : (
-                    <RefreshCw className="mr-1.5 size-3.5" />
-                  )}
-                  Request Re-upload
-                </Button>
-              )}
-              <p className="text-[11px] leading-relaxed text-muted-foreground">
-                KYC is reviewed manually by the Branta Tech admin team. Upload updated NID / CV in the Documents section, then request re-upload if previously rejected.
-              </p>
-            </div>
-          </div>
-        </Section>
       </div>
     </div>
   );
 }
 
-function KycRow({
-  label,
-  value,
-  mono,
-  className,
-}: {
-  label: string;
-  value: string | null;
-  mono?: boolean;
-  className?: string;
-}) {
-  return (
-    <div className={cn("flex flex-col", className)}>
-      <dt className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-        {label}
-      </dt>
-      <dd
-        className={cn(
-          "mt-0.5 text-[13px] text-foreground",
-          mono && "font-mono text-[12px]",
-          !value && "text-muted-foreground",
-        )}
-      >
-        {value ?? "—"}
-      </dd>
-    </div>
-  );
-}
+
 
 // ---------- Uploaders ----------
 function useR2Upload(
