@@ -572,8 +572,8 @@ function CreateLeadDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {STATUSES.map((s) => (
-                  <SelectItem key={s.value} value={s.value}>
+                {statusOptions.map((s) => (
+                  <SelectItem key={s.key} value={s.key}>
                     {s.label}
                   </SelectItem>
                 ))}
