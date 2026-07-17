@@ -21,6 +21,7 @@ import {
   ChevronLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -43,6 +44,7 @@ import {
   type LeadStatusDB,
 } from "@/lib/leads.functions";
 import {
+  drainEmailQueue,
   listLeadEmails,
   pullGmailForLead,
   renderVariables,
@@ -527,6 +529,7 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
   const listFn = useServerFn(listLeadEmails);
   const sendFn = useServerFn(sendLeadEmail);
   const pullFn = useServerFn(pullGmailForLead);
+  const drainFn = useServerFn(drainEmailQueue);
   const listContactsFn = useServerFn(listLeadContacts);
   const qc = useQueryClient();
 
@@ -540,6 +543,45 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
     queryFn: () => listContactsFn({ data: { leadId: lead.id } }),
     staleTime: 30_000,
   });
+
+  // Realtime: any change to this lead's emails invalidates the thread.
+  useEffect(() => {
+    const ch = supabase
+      .channel(`lead-emails-${lead.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "lead_emails", filter: `lead_id=eq.${lead.id}` },
+        () => qc.invalidateQueries({ queryKey: ["lead-emails", lead.id] }),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, [lead.id, qc]);
+
+  // Drain pump: whenever we have queued rows visible, poll drain until empty.
+  const hasQueue = (emails.data ?? []).some(
+    (e) => e.status === "queued" || e.status === "sending",
+  );
+  useEffect(() => {
+    if (!hasQueue) return;
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        await drainFn();
+      } catch {
+        /* silent — realtime will retry on next status flip */
+      }
+      if (!cancelled) qc.invalidateQueries({ queryKey: ["lead-emails", lead.id] });
+    };
+    const iv = setInterval(tick, 3000);
+    tick();
+    return () => {
+      cancelled = true;
+      clearInterval(iv);
+    };
+  }, [hasQueue, drainFn, qc, lead.id]);
+
 
   const [contentType, setContentType] = useState<"html" | "text">("html");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -628,11 +670,14 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
         },
       }),
     onSuccess: (r) => {
-      if (r.failed === 0) {
-        toast.success(`Sent to ${r.sent} recipient${r.sent === 1 ? "" : "s"}`);
-      } else {
-        toast.warning(`Sent ${r.sent}, failed ${r.failed}`);
-      }
+      const queued = r.queued - r.processing;
+      const parts: string[] = [];
+      if (r.sent > 0) parts.push(`${r.sent} sent`);
+      if (r.failed > 0) parts.push(`${r.failed} failed`);
+      if (queued > 0) parts.push(`${queued} in queue`);
+      const msg = parts.join(" · ") || `${r.queued} queued`;
+      if (r.failed > 0) toast.warning(msg);
+      else toast.success(msg);
       setSubject("");
       setBody(contentType === "html" ? DEFAULT_HTML_BODY : DEFAULT_TEXT_BODY);
       qc.invalidateQueries({ queryKey: ["lead-emails", lead.id] });
@@ -865,9 +910,24 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
                     {e.provider}
                   </span>
                 )}
+                {e.status === "queued" && (
+                  <span className="rounded-sm bg-amber-50 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-amber-700">
+                    in queue
+                  </span>
+                )}
+                {e.status === "sending" && (
+                  <span className="rounded-sm bg-blue-50 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-blue-700">
+                    sending…
+                  </span>
+                )}
                 {e.status === "failed" && (
                   <span className="rounded-sm bg-red-50 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-red-700">
                     failed
+                  </span>
+                )}
+                {e.status === "sent" && (
+                  <span className="rounded-sm bg-emerald-50 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-emerald-700">
+                    sent
                   </span>
                 )}
                 <span>·</span>
