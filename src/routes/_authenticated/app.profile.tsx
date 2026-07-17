@@ -134,11 +134,11 @@ function Section({
 function ProfilePage() {
   const router = useRouter();
   const fetchProfile = useServerFn(getMyProfile);
-  const fetchMetamap = useServerFn(getMetamapConfig);
   const update = useServerFn(updateMyProfile);
   const markSubmitted = useServerFn(markKycSubmitted);
   const reupload = useServerFn(requestKycReupload);
   const presign = useServerFn(requestR2Upload);
+  const startDidit = useServerFn(createDiditSession);
 
   const profileQuery = useQuery({
     queryKey: ["me", "profile"],
@@ -146,14 +146,8 @@ function ProfilePage() {
     staleTime: 15_000,
   });
 
-  const metamapQuery = useQuery({
-    queryKey: ["me", "metamap-config"],
-    queryFn: () => fetchMetamap(),
-    staleTime: Infinity,
-  });
-
   // Realtime: subscribe to this user's profile row so the KYC badge flips
-  // the instant the MetaMap webhook writes to Supabase.
+  // the instant the Didit webhook writes to Supabase.
   const userId = profileQuery.data?.profile.user_id;
   useEffect(() => {
     if (!userId) return;
@@ -177,7 +171,7 @@ function ProfilePage() {
     };
   }, [userId, profileQuery]);
 
-  // Handle ?kyc=success redirect back from MetaMap.
+  // Handle ?kyc=success redirect back from Didit.
   useEffect(() => {
     if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
@@ -200,13 +194,11 @@ function ProfilePage() {
     );
 
   const { profile, email } = profileQuery.data!;
-  const metamap = metamapQuery.data;
 
   return (
     <ProfileForm
       profile={profile}
       email={email}
-      metamap={metamap ?? { clientId: null, flowId: null }}
       onSaved={() => {
         profileQuery.refetch();
         router.invalidate();
@@ -215,6 +207,7 @@ function ProfilePage() {
       markSubmitted={markSubmitted}
       reupload={reupload}
       presign={presign}
+      startDidit={startDidit}
     />
   );
 }
