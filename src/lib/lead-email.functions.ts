@@ -339,6 +339,113 @@ export const listLeadEmails = createServerFn({ method: "GET" })
     return (rows ?? []) as LeadEmailRow[];
   });
 
+// ---------------- Failure management ----------------
+
+export interface FailedEmailRow extends LeadEmailRow {
+  lead_name: string | null;
+  lead_slug: string | null;
+  sent_by_name: string | null;
+}
+
+export interface QueueMetrics {
+  queued: number;
+  sending: number;
+  failed: number;
+  sentToday: number;
+}
+
+export const getQueueMetrics = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<QueueMetrics> => {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const [q, s, f, sent] = await Promise.all([
+      context.supabase.from("lead_emails").select("id", { count: "exact", head: true }).eq("status", "queued"),
+      context.supabase.from("lead_emails").select("id", { count: "exact", head: true }).eq("status", "sending"),
+      context.supabase.from("lead_emails").select("id", { count: "exact", head: true }).eq("status", "failed"),
+      context.supabase
+        .from("lead_emails")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "sent")
+        .gte("sent_at", startOfDay.toISOString()),
+    ]);
+    return {
+      queued: q.count ?? 0,
+      sending: s.count ?? 0,
+      failed: f.count ?? 0,
+      sentToday: sent.count ?? 0,
+    };
+  });
+
+export const listFailedEmails = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<FailedEmailRow[]> => {
+    const { data: rows, error } = await context.supabase
+      .from("lead_emails")
+      .select("*, leads:lead_id(name, slug, lead_code)")
+      .eq("status", "failed")
+      .order("sent_at", { ascending: false, nullsFirst: false })
+      .limit(200);
+    if (error) throw new Error(error.message);
+    const raw = (rows ?? []) as unknown as (LeadEmailRow & {
+      leads: { name: string | null; slug: string | null; lead_code: string | null } | null;
+    })[];
+    const senderIds = Array.from(
+      new Set(raw.map((r) => r.sent_by).filter(Boolean)),
+    ) as string[];
+    const nameById = new Map<string, string | null>();
+    if (senderIds.length > 0) {
+      const { data: profs } = await context.supabase
+        .from("profiles")
+        .select("user_id, full_name")
+        .in("user_id", senderIds);
+      for (const p of profs ?? [])
+        nameById.set(
+          (p as { user_id: string }).user_id,
+          (p as { full_name: string | null }).full_name,
+        );
+    }
+    return raw.map((r) => ({
+      ...r,
+      lead_name: r.leads?.name ?? null,
+      lead_slug: r.leads?.slug ?? r.leads?.lead_code ?? null,
+      sent_by_name: r.sent_by ? (nameById.get(r.sent_by) ?? null) : null,
+    }));
+  });
+
+/** Requeue a single failed email so `drainEmailQueue` picks it up again. */
+export const retryFailedEmail = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string }) =>
+    z.object({ id: z.string().uuid() }).parse(d),
+  )
+  .handler(async ({ data, context }): Promise<{ ok: true }> => {
+    const { error } = await context.supabase
+      .from("lead_emails")
+      .update({ status: "queued", error_message: null, sent_at: null })
+      .eq("id", data.id)
+      .eq("status", "failed");
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/** Bulk requeue every failed email (optionally scoped to one lead). */
+export const retryAllFailed = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { leadId?: string } | undefined) =>
+    z.object({ leadId: z.string().uuid().optional() }).parse(d ?? {}),
+  )
+  .handler(async ({ data, context }): Promise<{ retried: number }> => {
+    let q = context.supabase
+      .from("lead_emails")
+      .update({ status: "queued", error_message: null, sent_at: null })
+      .eq("status", "failed");
+    if (data.leadId) q = q.eq("lead_id", data.leadId);
+    const { data: rows, error } = await q.select("id");
+    if (error) throw new Error(error.message);
+    return { retried: (rows ?? []).length };
+  });
+
 interface GmailListItem {
   id: string;
   threadId: string;
