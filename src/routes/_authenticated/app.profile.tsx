@@ -562,10 +562,9 @@ function ProfileForm({
           </div>
         </Section>
 
-        {/* KYC / MetaMap */}
+        {/* KYC / Didit */}
         <Section
           title="Identity Verification (KYC)"
-          description="Complete a one-time biometric check via MetaMap. Results appear here automatically."
           right={<KycBadge status={form.kyc_status} />}
         >
           <div className="grid grid-cols-1 gap-6 md:grid-cols-[1fr_auto]">
@@ -598,36 +597,24 @@ function ProfileForm({
               )}
             </dl>
             <div className="flex flex-col items-stretch justify-start gap-2 md:min-w-[220px]">
-              {metamapReady ? (
-                <>
-                  {/* MetaMap web button. Attributes are lowercase per the web-component spec. */}
-                  <MetamapButton
-                    ref={(node: HTMLElement | null) => {
-                      btnRef.current = node;
-                    }}
-                    clientid={metamap.clientId!}
-                    flowid={metamap.flowId!}
-                    metadata={JSON.stringify({ userId })}
-                    redirecturl="https://console.brantatech.com/app/profile?kyc=success"
-                    color="#E56A17"
-                    textcolor="#FFFFFF"
-                  />
-                  <p className="text-[11px] text-muted-foreground">
-                    Have your NID and a well-lit space ready. Takes ~2 minutes.
-                  </p>
-                  {form.kyc_status === "rejected" && (
-                    <p className="text-[11px] text-muted-foreground">
-                      Or re-submit the updated NID/CV you uploaded above.
-                    </p>
-                  )}
-                </>
-              ) : (
-                <div className="rounded-sm border border-dashed border-border bg-muted/40 px-3 py-4 text-[12px] text-muted-foreground">
-                  MetaMap is not fully configured yet. Set{" "}
-                  <code className="font-mono">METAMAP_CLIENT_ID</code> and{" "}
-                  <code className="font-mono">METAMAP_FLOW_ID</code>.
-                </div>
-              )}
+              <Button
+                onClick={beginDidit}
+                disabled={startingKyc || form.kyc_status === "verified"}
+                className="h-9 rounded-sm bg-primary text-primary-foreground hover:bg-brand-700"
+              >
+                {startingKyc ? (
+                  <>
+                    <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                    Opening Didit…
+                  </>
+                ) : form.kyc_status === "verified" ? (
+                  "Verified"
+                ) : form.kyc_status === "under_review" ? (
+                  "Continue verification"
+                ) : (
+                  "Verify with Didit"
+                )}
+              </Button>
               {form.kyc_status === "rejected" && (
                 <Button
                   onClick={submitReupload}
