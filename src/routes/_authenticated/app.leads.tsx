@@ -259,6 +259,7 @@ function LeadsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <SheetSyncButton />
           <Button
             variant="outline"
             size="sm"
@@ -275,6 +276,7 @@ function LeadsPage() {
             <Plus className="mr-1.5 size-3.5" /> New lead
           </Button>
         </div>
+
       </div>
 
       {/* Filter bar */}
