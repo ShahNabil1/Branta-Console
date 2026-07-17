@@ -480,16 +480,30 @@ export const listFailedEmails = createServerFn({ method: "GET" })
     }));
   });
 
-/** Requeue a single failed email so `drainEmailQueue` picks it up again. */
+/**
+ * Requeue a single failed email so `drainEmailQueue` picks it up again.
+ * Optionally switch provider on retry (Resend fallback → Brevo, or vice versa).
+ */
 export const retryFailedEmail = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { id: string }) =>
-    z.object({ id: z.string().uuid() }).parse(d),
+  .inputValidator((d: { id: string; provider?: LeadEmailProvider }) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        provider: z.enum(["resend", "brevo"]).optional(),
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }): Promise<{ ok: true }> => {
+    const patch: Record<string, unknown> = {
+      status: "queued",
+      error_message: null,
+      sent_at: null,
+    };
+    if (data.provider) patch.provider = data.provider;
     const { error } = await context.supabase
       .from("lead_emails")
-      .update({ status: "queued", error_message: null, sent_at: null })
+      .update(patch)
       .eq("id", data.id)
       .eq("status", "failed");
     if (error) throw new Error(error.message);
