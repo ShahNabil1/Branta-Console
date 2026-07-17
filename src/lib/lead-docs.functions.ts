@@ -21,6 +21,7 @@ interface LeadCtx {
   company: string | null;
   email: string | null;
   value_usd: number | null;
+  currency: "BDT" | "USD";
 }
 
 function templateContent(kind: TemplateKind, lead: LeadCtx): string {
