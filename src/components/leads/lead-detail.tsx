@@ -19,6 +19,7 @@ import {
   ExternalLink,
   Copy,
   ChevronLeft,
+  Phone as PhoneIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
