@@ -218,9 +218,17 @@ export function LeadDetail({
 
   const [form, setForm] = useState({
     name: lead.name,
+    role: lead.role ?? "",
     company: lead.company ?? "",
     email: lead.email ?? "",
+    email_label: lead.email_label ?? "",
+    alt_email: lead.alt_email ?? "",
+    alt_email_label: lead.alt_email_label ?? "",
     phone: lead.phone ?? "",
+    phone_label: lead.phone_label ?? "",
+    alt_phone: lead.alt_phone ?? "",
+    alt_phone_label: lead.alt_phone_label ?? "",
+    contact_preference: lead.contact_preference ?? "",
     status: lead.status,
     source: lead.source ?? "",
     source_other: lead.source_other ?? "",
@@ -236,9 +244,17 @@ export function LeadDetail({
   useEffect(() => {
     setForm({
       name: lead.name,
+      role: lead.role ?? "",
       company: lead.company ?? "",
       email: lead.email ?? "",
+      email_label: lead.email_label ?? "",
+      alt_email: lead.alt_email ?? "",
+      alt_email_label: lead.alt_email_label ?? "",
       phone: lead.phone ?? "",
+      phone_label: lead.phone_label ?? "",
+      alt_phone: lead.alt_phone ?? "",
+      alt_phone_label: lead.alt_phone_label ?? "",
+      contact_preference: lead.contact_preference ?? "",
       status: lead.status,
       source: lead.source ?? "",
       source_other: lead.source_other ?? "",
@@ -250,6 +266,7 @@ export function LeadDetail({
     });
     setStatusChangeNote("");
   }, [lead.id, lead.status, lead.owner_id, lead.updated_at]);
+
 
   const activities = useQuery({
     queryKey: ["leads", "activities", lead.id],
