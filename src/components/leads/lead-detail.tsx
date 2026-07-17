@@ -3,7 +3,7 @@
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
   Loader2,
@@ -36,13 +36,16 @@ import {
   addLeadActivity,
   deleteLead,
   listLeadActivities,
+  listLeadContacts,
   updateLead,
+  type LeadContactRow,
   type LeadRow,
   type LeadStatusDB,
 } from "@/lib/leads.functions";
 import {
   listLeadEmails,
   pullGmailForLead,
+  renderVariables,
   sendLeadEmail,
   type LeadEmailRow,
 } from "@/lib/lead-email.functions";
@@ -58,6 +61,14 @@ import {
   listLeadDocs,
   type LeadDocumentRow,
 } from "@/lib/lead-docs.functions";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Eye } from "lucide-react";
 
 // Same status metadata as the list page.
 const STATUSES: { value: LeadStatusDB; label: string; dotVar: string }[] = [
@@ -473,48 +484,166 @@ export function LeadDetail({
   );
 }
 
-// ---------- Emails tab ----------
+// ---------- Emails tab (Resend-only compose) ----------
+const EMAIL_VARIABLES: { token: string; label: string }[] = [
+  { token: "{{lead.first_name}}", label: "First name" },
+  { token: "{{lead.name}}", label: "Full name" },
+  { token: "{{lead.company}}", label: "Company" },
+  { token: "{{lead.email}}", label: "Recipient email" },
+  { token: "{{lead.status}}", label: "Status" },
+  { token: "{{lead.slug}}", label: "Lead code" },
+  { token: "{{owner.name}}", label: "Owner name" },
+  { token: "{{today}}", label: "Today (YYYY-MM-DD)" },
+];
+
+const DEFAULT_HTML_BODY = `<p>Hi {{lead.first_name}},</p>
+<p>Great connecting with you. I wanted to follow up on {{lead.company}} regarding our conversation.</p>
+<p>Best,<br/>{{owner.name}}<br/>Branta Tech</p>`;
+
+const DEFAULT_TEXT_BODY = `Hi {{lead.first_name}},
+
+Great connecting with you. I wanted to follow up on {{lead.company}} regarding our conversation.
+
+Best,
+{{owner.name}}
+Branta Tech`;
+
+function ResendChip() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-sm border border-border bg-white px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-foreground">
+      <svg viewBox="0 0 32 32" className="size-3" aria-hidden>
+        <rect width="32" height="32" rx="6" fill="#000" />
+        <path
+          d="M10 22V10h6.4c2.6 0 4.4 1.5 4.4 3.9 0 1.7-.9 3-2.4 3.5L22 22h-3l-2.9-4.3H12.7V22H10zm2.7-6.5h3.4c1.2 0 2-.7 2-1.8s-.8-1.8-2-1.8h-3.4v3.6z"
+          fill="#fff"
+        />
+      </svg>
+      resend
+    </span>
+  );
+}
+
 function EmailsTab({ lead }: { lead: LeadRow }) {
   const listFn = useServerFn(listLeadEmails);
   const sendFn = useServerFn(sendLeadEmail);
   const pullFn = useServerFn(pullGmailForLead);
+  const listContactsFn = useServerFn(listLeadContacts);
   const qc = useQueryClient();
+
   const emails = useQuery({
     queryKey: ["lead-emails", lead.id],
     queryFn: () => listFn({ data: { leadId: lead.id } }),
     staleTime: 10_000,
   });
-  const [provider, setProvider] = useState<"gmail" | "resend">("gmail");
-  const [to, setTo] = useState(lead.email ?? "");
+  const contacts = useQuery({
+    queryKey: ["lead-contacts", lead.id],
+    queryFn: () => listContactsFn({ data: { leadId: lead.id } }),
+    staleTime: 30_000,
+  });
+
+  const [contentType, setContentType] = useState<"html" | "text">("html");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [subject, setSubject] = useState("");
-  const [body, setBody] = useState("");
+  const [body, setBody] = useState(DEFAULT_HTML_BODY);
+  const [previewOpen, setPreviewOpen] = useState(false);
+
+  // Focus tracking so variable chips insert into the last-focused field.
+  const subjectRef = React.useRef<HTMLInputElement>(null);
+  const bodyRef = React.useRef<HTMLTextAreaElement>(null);
+  const [activeField, setActiveField] = useState<"subject" | "body">("body");
+
+  // When lead contacts load / change, preselect the primary one.
   useEffect(() => {
-    setTo(lead.email ?? "");
-  }, [lead.id, lead.email]);
+    if (!contacts.data) return;
+    if (selectedIds.length > 0) return;
+    const primary = contacts.data.find((c) => c.is_primary) ?? contacts.data[0];
+    if (primary) setSelectedIds([primary.id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contacts.data?.length]);
+
+  useEffect(() => {
+    setBody(contentType === "html" ? DEFAULT_HTML_BODY : DEFAULT_TEXT_BODY);
+  }, [contentType]);
+
+  const selectedEmails = (contacts.data ?? [])
+    .filter((c) => selectedIds.includes(c.id))
+    .map((c) => c.email);
+
+  function insertToken(token: string) {
+    if (activeField === "subject") {
+      const el = subjectRef.current;
+      if (!el) {
+        setSubject((s) => s + token);
+        return;
+      }
+      const start = el.selectionStart ?? subject.length;
+      const end = el.selectionEnd ?? subject.length;
+      const next = subject.slice(0, start) + token + subject.slice(end);
+      setSubject(next);
+      requestAnimationFrame(() => {
+        el.focus();
+        el.setSelectionRange(start + token.length, start + token.length);
+      });
+    } else {
+      const el = bodyRef.current;
+      if (!el) {
+        setBody((b) => b + token);
+        return;
+      }
+      const start = el.selectionStart ?? body.length;
+      const end = el.selectionEnd ?? body.length;
+      const next = body.slice(0, start) + token + body.slice(end);
+      setBody(next);
+      requestAnimationFrame(() => {
+        el.focus();
+        el.setSelectionRange(start + token.length, start + token.length);
+      });
+    }
+  }
+
+  // Client-side preview substitution (mirror of server-side renderVariables).
+  const previewVars: Record<string, string | null> = {
+    "lead.name": lead.name,
+    "lead.first_name": (lead.name || "").split(/\s+/)[0] || null,
+    "lead.company": lead.company,
+    "lead.email": selectedEmails[0] ?? lead.email ?? "recipient@example.com",
+    "lead.status": lead.status,
+    "lead.slug": lead.slug ?? lead.lead_code,
+    "owner.name": null,
+    today: new Date().toISOString().slice(0, 10),
+  };
+  const previewSubject = renderVariables(subject || "(no subject)", previewVars);
+  const previewBodyRendered = renderVariables(body, previewVars);
 
   const sendM = useMutation({
     mutationFn: () =>
       sendFn({
         data: {
           leadId: lead.id,
-          provider,
-          to: to.trim(),
+          to: selectedEmails,
           cc: [],
           subject: subject.trim(),
           body: body.trim(),
+          contentType,
         },
       }),
-    onSuccess: () => {
-      toast.success("Email sent");
+    onSuccess: (r) => {
+      if (r.failed === 0) {
+        toast.success(`Sent to ${r.sent} recipient${r.sent === 1 ? "" : "s"}`);
+      } else {
+        toast.warning(`Sent ${r.sent}, failed ${r.failed}`);
+      }
       setSubject("");
-      setBody("");
+      setBody(contentType === "html" ? DEFAULT_HTML_BODY : DEFAULT_TEXT_BODY);
       qc.invalidateQueries({ queryKey: ["lead-emails", lead.id] });
       qc.invalidateQueries({ queryKey: ["leads", "activities", lead.id] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Send failed"),
   });
+
+  const primaryEmail = lead.email ?? contacts.data?.[0]?.email ?? "";
   const pullM = useMutation({
-    mutationFn: () => pullFn({ data: { leadId: lead.id, email: to.trim() } }),
+    mutationFn: () => pullFn({ data: { leadId: lead.id, email: primaryEmail } }),
     onSuccess: (r) => {
       toast.success(`Pulled ${r.pulled} messages`);
       qc.invalidateQueries({ queryKey: ["lead-emails", lead.id] });
@@ -522,75 +651,187 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Pull failed"),
   });
 
+  const canSend =
+    !sendM.isPending &&
+    selectedEmails.length > 0 &&
+    subject.trim().length > 0 &&
+    body.trim().length > 0;
+
   return (
     <div className="grid gap-4">
       <section className="rounded-sm border border-border bg-card">
         <div className="flex items-center justify-between border-b border-border px-3 py-2">
-          <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-            Compose
+          <span className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+            Compose <ResendChip />
           </span>
-          <Select
-            value={provider}
-            onValueChange={(v) => setProvider(v as "gmail" | "resend")}
-          >
-            <SelectTrigger className="h-7 w-32 rounded-sm text-[11.5px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="gmail">Gmail (thread)</SelectItem>
-              <SelectItem value="resend">Resend (branded)</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="inline-flex rounded-sm border border-border bg-muted p-0.5">
+            {(["html", "text"] as const).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setContentType(t)}
+                className={cn(
+                  "rounded-sm px-2 py-0.5 text-[11px] font-medium uppercase tracking-wider",
+                  contentType === t
+                    ? "bg-white text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {t === "html" ? "HTML" : "Plain"}
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="grid gap-2 p-3">
+
+        <div className="grid gap-3 p-3">
+          {/* Recipients */}
+          <div className="grid gap-1.5">
+            <div className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+              Recipients ({selectedEmails.length} selected)
+            </div>
+            {contacts.isLoading ? (
+              <div className="text-[12px] text-muted-foreground">Loading contacts…</div>
+            ) : (contacts.data ?? []).length === 0 ? (
+              <div className="rounded-sm border border-dashed border-border px-3 py-2 text-[12px] text-muted-foreground">
+                No contacts on this lead. Add one in Overview → Email.
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {(contacts.data ?? []).map((c: LeadContactRow) => {
+                  const active = selectedIds.includes(c.id);
+                  return (
+                    <label
+                      key={c.id}
+                      className={cn(
+                        "inline-flex cursor-pointer items-center gap-2 rounded-sm border px-2 py-1 text-[12px] transition-colors",
+                        active
+                          ? "border-primary bg-primary/5 text-foreground"
+                          : "border-border bg-white text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      <Checkbox
+                        checked={active}
+                        onCheckedChange={(v) => {
+                          setSelectedIds((prev) =>
+                            v
+                              ? Array.from(new Set([...prev, c.id]))
+                              : prev.filter((id) => id !== c.id),
+                          );
+                        }}
+                        className="size-3.5"
+                      />
+                      <span className="font-mono text-[11.5px]">{c.email}</span>
+                      {c.is_primary && (
+                        <span className="rounded-sm bg-muted px-1 py-[1px] text-[9.5px] uppercase tracking-wider text-muted-foreground">
+                          primary
+                        </span>
+                      )}
+                      {c.label && (
+                        <span className="text-[10.5px] text-muted-foreground">
+                          · {c.label}
+                        </span>
+                      )}
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Variables */}
+          <div className="grid gap-1.5">
+            <div className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+              Personalization — inserts into {activeField}
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {EMAIL_VARIABLES.map((v) => (
+                <button
+                  key={v.token}
+                  type="button"
+                  onClick={() => insertToken(v.token)}
+                  title={v.label}
+                  className="rounded-sm border border-border bg-white px-1.5 py-0.5 font-mono text-[10.5px] text-foreground hover:border-primary hover:bg-primary/5"
+                >
+                  {v.token}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <Input
-            placeholder="Recipient email"
-            value={to}
-            onChange={(e) => setTo(e.target.value)}
-            className="h-9 rounded-sm text-[12.5px]"
-          />
-          <Input
+            ref={subjectRef}
             placeholder="Subject"
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
+            onFocus={() => setActiveField("subject")}
             className="h-9 rounded-sm text-[12.5px]"
           />
           <Textarea
-            placeholder="Write your message… (HTML supported)"
+            ref={bodyRef}
+            placeholder={contentType === "html" ? "<p>Hi {{lead.first_name}}…</p>" : "Write your message…"}
             value={body}
             onChange={(e) => setBody(e.target.value)}
-            className="min-h-[140px] rounded-sm text-[12.5px]"
+            onFocus={() => setActiveField("body")}
+            className={cn(
+              "min-h-[200px] rounded-sm text-[12.5px]",
+              contentType === "html" && "font-mono text-[12px]",
+            )}
           />
-          <div className="flex justify-end gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 rounded-sm text-[12px]"
-              disabled={!to.trim() || pullM.isPending}
-              onClick={() => pullM.mutate()}
-            >
-              {pullM.isPending ? (
-                <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-              ) : (
-                <RefreshCw className="mr-1.5 size-3.5" />
+
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="text-[11px] text-muted-foreground">
+              From <span className="font-mono">noreply@brantatech.com</span>
+              {selectedEmails.length > 0 && (
+                <>
+                  {" "}
+                  → to{" "}
+                  <span className="font-mono text-foreground">
+                    {selectedEmails.join(", ")}
+                  </span>
+                </>
               )}
-              Sync Gmail
-            </Button>
-            <Button
-              size="sm"
-              className="h-8 rounded-sm bg-primary text-[12px] text-primary-foreground hover:bg-brand-700"
-              disabled={
-                sendM.isPending || !to.trim() || !subject.trim() || !body.trim()
-              }
-              onClick={() => sendM.mutate()}
-            >
-              {sendM.isPending ? (
-                <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-              ) : (
-                <Send className="mr-1.5 size-3.5" />
+            </div>
+            <div className="flex gap-2">
+              {contentType === "html" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 rounded-sm text-[12px]"
+                  disabled={!body.trim()}
+                  onClick={() => setPreviewOpen(true)}
+                >
+                  <Eye className="mr-1.5 size-3.5" /> Preview
+                </Button>
               )}
-              Send
-            </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 rounded-sm text-[12px]"
+                disabled={!primaryEmail || pullM.isPending}
+                onClick={() => pullM.mutate()}
+                title="Pull inbound Gmail for the primary contact"
+              >
+                {pullM.isPending ? (
+                  <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="mr-1.5 size-3.5" />
+                )}
+                Sync inbound
+              </Button>
+              <Button
+                size="sm"
+                className="h-8 rounded-sm bg-primary text-[12px] text-primary-foreground hover:bg-brand-700"
+                disabled={!canSend}
+                onClick={() => sendM.mutate()}
+              >
+                {sendM.isPending ? (
+                  <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                ) : (
+                  <Send className="mr-1.5 size-3.5" />
+                )}
+                Send {selectedEmails.length > 1 ? `(${selectedEmails.length})` : ""}
+              </Button>
+            </div>
           </div>
         </div>
       </section>
@@ -604,9 +845,7 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
             <li className="p-3 text-[12px] text-muted-foreground">Loading…</li>
           )}
           {emails.data?.length === 0 && !emails.isLoading && (
-            <li className="p-3 text-[12px] text-muted-foreground">
-              No emails yet.
-            </li>
+            <li className="p-3 text-[12px] text-muted-foreground">No emails yet.</li>
           )}
           {emails.data?.map((e: LeadEmailRow) => (
             <li key={e.id} className="grid gap-1 p-3">
@@ -614,29 +853,27 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
                 <span
                   className={cn(
                     "rounded-sm px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider",
-                    e.direction === "inbound"
-                      ? "bg-blue-50 text-blue-700"
-                      : "bg-muted",
+                    e.direction === "inbound" ? "bg-blue-50 text-blue-700" : "bg-muted",
                   )}
                 >
                   {e.direction}
                 </span>
-                <span className="rounded-sm bg-muted px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider">
-                  {e.provider}
-                </span>
+                {e.provider === "resend" ? (
+                  <ResendChip />
+                ) : (
+                  <span className="rounded-sm bg-muted px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider">
+                    {e.provider}
+                  </span>
+                )}
                 {e.status === "failed" && (
                   <span className="rounded-sm bg-red-50 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-red-700">
                     failed
                   </span>
                 )}
                 <span>·</span>
-                <span className="font-mono">
-                  {relTime(e.sent_at ?? e.created_at)}
-                </span>
+                <span className="font-mono">{relTime(e.sent_at ?? e.created_at)}</span>
               </div>
-              <div className="text-[12.5px] font-medium">
-                {e.subject || "(no subject)"}
-              </div>
+              <div className="text-[12.5px] font-medium">{e.subject || "(no subject)"}</div>
               <div className="text-[11.5px] text-muted-foreground">
                 {e.from_email} → {e.to_emails.join(", ")}
               </div>
@@ -652,9 +889,45 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
           ))}
         </ul>
       </section>
+
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-[14px]">Email preview</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-2">
+            <div className="rounded-sm border border-border bg-muted/50 px-3 py-2 text-[11.5px]">
+              <div>
+                <span className="text-muted-foreground">From</span>{" "}
+                <span className="font-mono">Branta Tech &lt;noreply@brantatech.com&gt;</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">To</span>{" "}
+                <span className="font-mono">
+                  {selectedEmails.length > 0
+                    ? selectedEmails.join(", ")
+                    : "(no recipients selected)"}
+                </span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Subject</span>{" "}
+                <span className="font-medium">{previewSubject}</span>
+              </div>
+            </div>
+            <iframe
+              title="email-preview"
+              sandbox=""
+              className="h-[60vh] w-full rounded-sm border border-border bg-white"
+              srcDoc={`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0;padding:24px;font:14px/1.55 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#111}</style></head><body>${previewBodyRendered}</body></html>`}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
+
 
 // ---------- Meetings tab ----------
 function toLocalInput(d: Date) {
