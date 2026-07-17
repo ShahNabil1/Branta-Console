@@ -412,8 +412,6 @@ export function LeadDetail({
     service: lead.service ?? "",
     service_other: lead.service_other ?? "",
     owner_id: lead.owner_id ?? "",
-    value_usd: lead.value_usd == null ? "" : String(lead.value_usd),
-    currency: (lead.currency ?? "BDT") as "BDT" | "USD",
     next_action: lead.next_action ?? "",
     notes: lead.notes ?? "",
   });
