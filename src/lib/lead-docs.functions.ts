@@ -122,16 +122,31 @@ export const generateLeadDoc = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<LeadDocumentRow> => {
     const { data: lead, error: lErr } = await context.supabase
       .from("leads")
-      .select("name, company, email, value_usd, lead_code")
+      .select("name, company, value_usd, lead_code, slug")
       .eq("id", data.leadId)
       .maybeSingle();
     if (lErr) throw new Error(lErr.message);
     if (!lead) throw new Error("Lead not found");
 
+    const { data: primary } = await context.supabase
+      .from("lead_contacts")
+      .select("email")
+      .eq("lead_id", data.leadId)
+      .order("is_primary", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const leadCtx: LeadCtx = {
+      name: lead.name,
+      company: lead.company,
+      email: primary?.email ?? null,
+      value_usd: lead.value_usd,
+    };
+
     const title =
       data.title?.trim() ||
-      `${data.templateKind[0].toUpperCase() + data.templateKind.slice(1)} — ${lead.company || lead.name} (${lead.lead_code})`;
-    const body = templateContent(data.templateKind, lead as LeadCtx);
+      `${data.templateKind[0].toUpperCase() + data.templateKind.slice(1)} — ${lead.company || lead.name} (${lead.slug ?? lead.lead_code})`;
+    const body = templateContent(data.templateKind, leadCtx);
 
     const { callGateway } = await import("@/lib/connector-gateway.server");
     const created = await callGateway<{ documentId: string }>({

@@ -6,10 +6,11 @@ const SHEET_TITLE = "Branta Tech · Leads";
 const SHEET_TAB = "Leads";
 const HEADERS = [
   "id",
+  "slug",
   "lead_code",
   "name",
   "company",
-  "email",
+  "email", // primary contact email (derived)
   "phone",
   "status",
   "source",
@@ -58,7 +59,6 @@ async function ensureSheet(supabase: any): Promise<string> {
       sheets: [{ properties: { title: SHEET_TAB } }],
     },
   });
-  // Write header row
   await callGateway({
     connector: "google_sheets",
     path: `/v4/spreadsheets/${created.spreadsheetId}/values/${SHEET_TAB}!A1:${String.fromCharCode(64 + HEADERS.length)}1`,
@@ -68,6 +68,46 @@ async function ensureSheet(supabase: any): Promise<string> {
   });
   await upsertSync(supabase, { resource_id: created.spreadsheetId });
   return created.spreadsheetId;
+}
+
+async function fetchPrimaryEmailMap(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  leadIds: string[],
+): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  if (leadIds.length === 0) return map;
+  const { data } = await supabase
+    .from("lead_contacts")
+    .select("lead_id, email, is_primary")
+    .in("lead_id", leadIds);
+  const anyBy = new Map<string, string>();
+  (data ?? []).forEach((c: { lead_id: string; email: string; is_primary: boolean }) => {
+    if (c.is_primary) map.set(c.lead_id, c.email);
+    if (!anyBy.has(c.lead_id)) anyBy.set(c.lead_id, c.email);
+  });
+  for (const [lid, e] of anyBy.entries()) if (!map.has(lid)) map.set(lid, e);
+  return map;
+}
+
+async function upsertPrimaryContact(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  leadId: string,
+  email: string,
+  userId: string,
+) {
+  await supabase.from("lead_contacts").update({ is_primary: false }).eq("lead_id", leadId);
+  await supabase.from("lead_contacts").upsert(
+    {
+      lead_id: leadId,
+      email,
+      label: "Primary",
+      is_primary: true,
+      created_by: userId,
+    },
+    { onConflict: "lead_id,email" },
+  );
 }
 
 export interface SheetSyncStatus {
@@ -96,19 +136,24 @@ export const pushLeadsToSheet = createServerFn({ method: "POST" })
     const { data: leads, error } = await context.supabase
       .from("leads")
       .select(
-        "id, lead_code, name, company, email, phone, status, source, value_usd, next_action, notes, last_activity_at",
+        "id, slug, lead_code, name, company, phone, status, source, value_usd, next_action, notes, last_activity_at",
       )
-      .order("lead_code", { ascending: true })
+      .order("slug", { ascending: true })
       .limit(5000);
     if (error) throw new Error(error.message);
-    const rows = (leads ?? []).map((l) =>
+    const leadRows = (leads ?? []) as Array<Record<string, unknown> & { id: string }>;
+    const emailMap = await fetchPrimaryEmailMap(
+      context.supabase,
+      leadRows.map((l) => l.id),
+    );
+    const rows = leadRows.map((l) =>
       HEADERS.map((h) => {
-        const v = (l as Record<string, unknown>)[h];
+        if (h === "email") return emailMap.get(l.id) ?? "";
+        const v = l[h];
         return v == null ? "" : String(v);
       }),
     );
     const { callGateway } = await import("@/lib/connector-gateway.server");
-    // Clear then write
     await callGateway({
       connector: "google_sheets",
       path: `/v4/spreadsheets/${sheetId}/values/${SHEET_TAB}!A2:Z100000:clear`,
@@ -132,10 +177,7 @@ export const pushLeadsToSheet = createServerFn({ method: "POST" })
     await context.supabase
       .from("leads")
       .update({ synced_at: now })
-      .in(
-        "id",
-        (leads ?? []).map((l) => l.id),
-      );
+      .in("id", leadRows.map((l) => l.id));
     return {
       spreadsheetId: sheetId,
       spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${sheetId}/edit`,
@@ -184,10 +226,10 @@ export const pullLeadsFromSheet = createServerFn({ method: "POST" })
           | "meeting"
           | "converted"
           | "lost";
-        const patch = {
+        const emailFromSheet = rec.email && rec.email.includes("@") ? rec.email : null;
+        const leadPatch = {
           name: rec.name,
           company: rec.company || null,
-          email: rec.email || null,
           phone: rec.phone || null,
           status,
           source: rec.source || null,
@@ -199,10 +241,17 @@ export const pullLeadsFromSheet = createServerFn({ method: "POST" })
           notes: rec.notes || null,
         };
 
-        // Resolve existing row: prefer UUID id, then lead_code, then email.
+        // Resolve existing row: prefer UUID id, then slug, then lead_code.
         let existingId: string | null = null;
         if (rec.id && UUID_RE.test(rec.id)) {
           existingId = rec.id;
+        } else if (rec.slug) {
+          const { data: found } = await context.supabase
+            .from("leads")
+            .select("id")
+            .ilike("slug", rec.slug)
+            .maybeSingle();
+          if (found?.id) existingId = found.id;
         } else if (rec.lead_code) {
           const code = rec.lead_code.startsWith("L-")
             ? rec.lead_code
@@ -218,15 +267,26 @@ export const pullLeadsFromSheet = createServerFn({ method: "POST" })
         if (existingId) {
           const { error, count } = await context.supabase
             .from("leads")
-            .update(patch, { count: "exact" })
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .update(leadPatch as any, { count: "exact" })
             .eq("id", existingId);
           if (!error && (count ?? 0) > 0) updated += 1;
+          if (emailFromSheet)
+            await upsertPrimaryContact(context.supabase, existingId, emailFromSheet, context.userId);
         } else {
-          const { error } = await context.supabase
+          const { data: inserted, error } = await context.supabase
             .from("leads")
-            .insert({ ...patch, created_by: context.userId });
-          if (!error) created += 1;
-          else console.error("[sheet-pull] insert failed", error.message, patch);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .insert({ ...leadPatch, created_by: context.userId } as any)
+            .select("id")
+            .single();
+          if (!error && inserted?.id) {
+            created += 1;
+            if (emailFromSheet)
+              await upsertPrimaryContact(context.supabase, inserted.id, emailFromSheet, context.userId);
+          } else if (error) {
+            console.error("[sheet-pull] insert failed", error.message, leadPatch);
+          }
         }
       }
       const now = new Date().toISOString();
