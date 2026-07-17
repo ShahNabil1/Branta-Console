@@ -351,7 +351,7 @@ export const drainEmailQueue = createServerFn({ method: "POST" })
         .from("lead_emails")
         .select("id")
         .eq("status", "queued")
-        .eq("provider", "resend")
+        .in("provider", ["resend", "brevo"])
         .order("created_at", { ascending: true })
         .limit(available);
       const ids = (candidates ?? []).map((r) => r.id);
@@ -363,7 +363,7 @@ export const drainEmailQueue = createServerFn({ method: "POST" })
         .in("id", ids)
         .eq("status", "queued")
         .select(
-          "id, lead_id, to_emails, cc_emails, subject, body_html, body_text, sent_by",
+          "id, lead_id, provider, to_emails, cc_emails, subject, body_html, body_text, sent_by",
         );
       const claimedRows = (claimed ?? []) as ProcessableRow[];
 
