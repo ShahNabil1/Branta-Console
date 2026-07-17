@@ -539,7 +539,7 @@ export function LeadDetail({
   return (
     <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-4 p-6">
       {/* Header */}
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <Link
             to="/app/leads"
@@ -559,6 +559,69 @@ export function LeadDetail({
           <p className="text-[13px] text-muted-foreground">
             {lead.company ?? "No company"}
           </p>
+        </div>
+
+        {/* Top-right: Status + Owner quick controls */}
+        <div className="flex flex-col gap-2 sm:min-w-[360px]">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <div className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                Status
+              </div>
+              <Select
+                value={form.status}
+                onValueChange={(v) => setForm({ ...form, status: v })}
+              >
+                <SelectTrigger className="h-9 rounded-sm text-[12.5px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {statusOptions.map((s) => (
+                    <SelectItem key={s.key} value={s.key}>
+                      <span className="inline-flex items-center gap-2">
+                        <span
+                          className="size-1.5 rounded-full"
+                          style={{ background: `var(${s.color_var ?? "--color-status-contacted"})` }}
+                        />
+                        {s.label}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <div className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                Owner
+              </div>
+              <Select
+                value={form.owner_id || "none"}
+                onValueChange={(v) =>
+                  setForm({ ...form, owner_id: v === "none" ? "" : v })
+                }
+              >
+                <SelectTrigger className="h-9 rounded-sm text-[12.5px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Unassigned</SelectItem>
+                  {users.map((u) => (
+                    <SelectItem key={u.user_id} value={u.user_id}>
+                      {u.full_name || u.user_id.slice(0, 8)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          {statusChanged && (
+            <Textarea
+              value={statusChangeNote}
+              onChange={(e) => setStatusChangeNote(e.target.value)}
+              placeholder={`Why moving to "${statusLabel(form.status, statusOptions)}"? (added to Activity Logs)`}
+              className="min-h-[56px] rounded-sm text-[12px]"
+            />
+          )}
         </div>
       </div>
 
