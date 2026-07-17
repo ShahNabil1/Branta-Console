@@ -594,17 +594,45 @@ Best,
 {{owner.name}}
 Branta Tech`;
 
+function ResendLogo({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 32 32" className={className} aria-hidden>
+      <rect width="32" height="32" rx="6" fill="#000" />
+      <path
+        d="M10 22V10h6.4c2.6 0 4.4 1.5 4.4 3.9 0 1.7-.9 3-2.4 3.5L22 22h-3l-2.9-4.3H12.7V22H10zm2.7-6.5h3.4c1.2 0 2-.7 2-1.8s-.8-1.8-2-1.8h-3.4v3.6z"
+        fill="#fff"
+      />
+    </svg>
+  );
+}
+
+function BrevoLogo({ className }: { className?: string }) {
+  // Brevo brand mark (formerly Sendinblue) — stylised "b" on the brand indigo.
+  return (
+    <svg viewBox="0 0 32 32" className={className} aria-hidden>
+      <rect width="32" height="32" rx="6" fill="#0B996E" />
+      <path
+        d="M9 22V10h5.7c2.5 0 4.1 1.2 4.1 3 0 1.1-.7 2-1.8 2.4 1.6.3 2.6 1.4 2.6 2.9 0 2.2-1.8 3.7-4.5 3.7H9zm2.6-7.2h2.7c1.1 0 1.9-.6 1.9-1.5s-.8-1.4-1.9-1.4h-2.7v2.9zm0 5.1h3c1.3 0 2.1-.6 2.1-1.7s-.8-1.6-2.1-1.6h-3v3.3z"
+        fill="#fff"
+      />
+    </svg>
+  );
+}
+
 function ResendChip() {
   return (
     <span className="inline-flex items-center gap-1 rounded-sm border border-border bg-white px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-foreground">
-      <svg viewBox="0 0 32 32" className="size-3" aria-hidden>
-        <rect width="32" height="32" rx="6" fill="#000" />
-        <path
-          d="M10 22V10h6.4c2.6 0 4.4 1.5 4.4 3.9 0 1.7-.9 3-2.4 3.5L22 22h-3l-2.9-4.3H12.7V22H10zm2.7-6.5h3.4c1.2 0 2-.7 2-1.8s-.8-1.8-2-1.8h-3.4v3.6z"
-          fill="#fff"
-        />
-      </svg>
+      <ResendLogo className="size-3" />
       resend
+    </span>
+  );
+}
+
+function BrevoChip() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-sm border border-border bg-white px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-foreground">
+      <BrevoLogo className="size-3" />
+      brevo
     </span>
   );
 }
