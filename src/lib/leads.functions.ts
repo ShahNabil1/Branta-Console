@@ -26,6 +26,7 @@ export interface LeadRow {
   source: string | null;
   owner_id: string | null;
   value_usd: number | null;
+  currency: "BDT" | "USD";
   next_action: string | null;
   notes: string | null;
   last_activity_at: string;
