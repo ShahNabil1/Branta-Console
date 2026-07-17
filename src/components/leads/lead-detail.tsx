@@ -1771,6 +1771,7 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState(DEFAULT_HTML_BODY);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [viewMail, setViewMail] = useState<LeadEmailRow | null>(null);
 
   // Focus tracking so variable chips insert into the last-focused field.
   const subjectRef = React.useRef<HTMLInputElement>(null);
