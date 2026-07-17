@@ -406,10 +406,10 @@ function ProfileForm({
                   readOnly
                 />
               </Field>
-              <Field label="MetaMap Identity ID" hint="Set by the KYC webhook">
+              <Field label="Didit Session ID">
                 <Input
                   className="h-9 rounded-sm bg-muted font-mono text-[12px]"
-                  value={form.metamap_identity_id ?? "—"}
+                  value={form.didit_session_id ?? "—"}
                   readOnly
                 />
               </Field>
