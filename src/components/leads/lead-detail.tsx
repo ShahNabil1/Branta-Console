@@ -20,6 +20,7 @@ import {
   Copy,
   ChevronLeft,
   Phone as PhoneIcon,
+  Info,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -143,15 +144,36 @@ function Field({
   label,
   children,
   className,
+  hint,
 }: {
   label: string;
   children: React.ReactNode;
   className?: string;
+  hint?: React.ReactNode;
 }) {
   return (
     <label className={cn("space-y-1", className)}>
-      <div className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-        {label}
+      <div className="flex items-center gap-1.5 text-[10.5px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+        <span>{label}</span>
+        {hint && (
+          <TooltipProvider delayDuration={150}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex size-3.5 items-center justify-center rounded-full text-muted-foreground/70 hover:text-foreground focus:outline-none"
+                  aria-label="What is this field?"
+                  onClick={(e) => e.preventDefault()}
+                >
+                  <Info className="size-3" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-[280px] text-[11.5px] leading-relaxed normal-case tracking-normal">
+                {hint}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
       </div>
       {children}
     </label>
@@ -563,19 +585,51 @@ export function LeadDetail({
                   className="h-9 rounded-sm font-mono text-[12.5px]"
                 />
               </Field>
-              <Field label="Next action" className="col-span-2 md:col-span-3">
+              <Field
+                label="Next action"
+                className="col-span-2 md:col-span-3"
+                hint={
+                  <>
+                    <b>একটি single reminder</b> — এই lead-এর জন্য পরের কাজ কী।
+                    Leads list-এ visible থাকে, filter/sort করা যায়। কাজ শেষ হলে
+                    overwrite করে নতুন action লিখো। History রাখে না।
+                    <br />
+                    <span className="text-muted-foreground">
+                      Example: "Call Monday 3pm", "Send proposal", "Follow up
+                      after demo"
+                    </span>
+                  </>
+                }
+              >
                 <Input
                   value={form.next_action}
                   onChange={(e) =>
                     setForm({ ...form, next_action: e.target.value })
                   }
+                  placeholder="What's the next step for this lead? (e.g. Call Monday 3pm, Send proposal)"
                   className="h-9 rounded-sm text-[12.5px]"
                 />
               </Field>
-              <Field label="Notes" className="col-span-2 md:col-span-3">
+              <Field
+                label="Notes (about this lead)"
+                className="col-span-2 md:col-span-3"
+                hint={
+                  <>
+                    <b>Permanent context</b> — এই lead সম্পর্কে সবসময় জানার
+                    দরকার এমন তথ্য। একটাই field, overwrite হয়, history রাখে না।
+                    Lead-এর "profile summary" হিসেবে ভাবো।
+                    <br />
+                    <span className="text-muted-foreground">
+                      Example: "Prefers WhatsApp over email", "Budget ~50k BDT",
+                      "Decision maker: CTO Rahim", "Referred by Karim"
+                    </span>
+                  </>
+                }
+              >
                 <Textarea
                   value={form.notes}
                   onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                  placeholder="Permanent context about this lead — preferences, budget, decision-makers, background. Always visible at the top."
                   className="min-h-[80px] rounded-sm text-[12.5px]"
                 />
               </Field>
@@ -635,10 +689,36 @@ export function LeadDetail({
               </span>
             </div>
             <div className="grid gap-2 border-b border-border p-3">
+              <div className="flex items-center gap-1.5 text-[10.5px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                <span>Add timeline entry</span>
+                <TooltipProvider delayDuration={150}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        className="inline-flex size-3.5 items-center justify-center rounded-full text-muted-foreground/70 hover:text-foreground focus:outline-none"
+                        aria-label="What is this field?"
+                      >
+                        <Info className="size-3" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-[280px] text-[11.5px] leading-relaxed normal-case tracking-normal">
+                      <b>Time-stamped journal entry</b> — কী ঘটেছে সেটার log।
+                      Append-only, প্রতিটা note আলাদা row হিসেবে save হয় সাথে
+                      timestamp আর কে লিখেছে। Overwrite হয় না — audit trail।
+                      <br />
+                      <span className="text-muted-foreground">
+                        Example: "Called at 3:24pm, no answer", "Sent revised
+                        quote", "Client confirmed budget"
+                      </span>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
               <Textarea
                 value={noteText}
                 onChange={(e) => setNoteText(e.target.value)}
-                placeholder="Add a note (call summary, next steps, blockers…)"
+                placeholder="Log what just happened — call summary, meeting outcome, blocker, decision. Adds a new time-stamped entry below."
                 className="min-h-[70px] rounded-sm text-[12.5px]"
               />
               <div className="flex justify-end">
