@@ -367,7 +367,23 @@ export function LeadDetail({
                   </SelectContent>
                 </Select>
               </Field>
-              <Field label="Value (USD)">
+              <Field label="Currency">
+                <Select
+                  value={form.currency}
+                  onValueChange={(v) =>
+                    setForm({ ...form, currency: v as "BDT" | "USD" })
+                  }
+                >
+                  <SelectTrigger className="h-9 rounded-sm text-[12.5px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="BDT">BDT — Bangladeshi Taka</SelectItem>
+                    <SelectItem value="USD">USD — US Dollar</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label={`Value (${form.currency})`}>
                 <Input
                   inputMode="decimal"
                   value={form.value_usd}
