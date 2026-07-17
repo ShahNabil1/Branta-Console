@@ -1249,7 +1249,6 @@ function TeammatesSection({ lead }: { lead: LeadRow }) {
               tag={draft.email_label}
               onTagChange={(v) => setDraft({ ...draft, email_label: v })}
               onCompose={() => toast.info("Save the contact first, then compose.")}
-              className="col-span-2"
             />
             <EmailRow
               label="Alternative email"
@@ -1258,7 +1257,6 @@ function TeammatesSection({ lead }: { lead: LeadRow }) {
               tag={draft.alt_email_label}
               onTagChange={(v) => setDraft({ ...draft, alt_email_label: v })}
               onCompose={() => toast.info("Save the contact first, then compose.")}
-              className="col-span-2"
             />
             <PhoneRow
               label="Phone"
@@ -1266,7 +1264,6 @@ function TeammatesSection({ lead }: { lead: LeadRow }) {
               onChange={(v) => setDraft({ ...draft, phone: v })}
               tag={draft.phone_label}
               onTagChange={(v) => setDraft({ ...draft, phone_label: v })}
-              className="col-span-2"
             />
             <PhoneRow
               label="Alternative phone"
@@ -1274,7 +1271,6 @@ function TeammatesSection({ lead }: { lead: LeadRow }) {
               onChange={(v) => setDraft({ ...draft, alt_phone: v })}
               tag={draft.alt_phone_label}
               onTagChange={(v) => setDraft({ ...draft, alt_phone_label: v })}
-              className="col-span-2"
             />
             <Field label="Contact preference & availability" className="col-span-2">
               <Textarea
