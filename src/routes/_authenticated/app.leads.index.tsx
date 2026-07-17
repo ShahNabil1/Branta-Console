@@ -75,25 +75,20 @@ export const Route = createFileRoute("/_authenticated/app/leads/")({
   }),
 });
 
-const STATUSES: { value: LeadStatusDB; label: string; dotVar: string }[] = [
-  { value: "new", label: "New", dotVar: "--color-status-new" },
-  { value: "contacted", label: "Contacted", dotVar: "--color-status-contacted" },
-  { value: "viewed", label: "Viewed", dotVar: "--color-status-viewed" },
-  { value: "meeting", label: "Meeting Scheduled", dotVar: "--color-status-meeting" },
-  { value: "converted", label: "Converted", dotVar: "--color-status-converted" },
-  { value: "lost", label: "Lost", dotVar: "--color-status-contacted" },
-];
-const STATUS_META = new Map(STATUSES.map((s) => [s.value, s] as const));
-
-function StatusBadge({ status }: { status: LeadStatusDB }) {
-  const meta = STATUS_META.get(status);
+function StatusBadge({
+  status,
+  options,
+}: {
+  status: LeadStatusDB;
+  options: LeadStatusOption[];
+}) {
   return (
     <span className="inline-flex items-center gap-2 text-[12.5px] font-medium text-foreground">
       <span
         className="size-1.5 rounded-full"
-        style={{ background: `var(${meta?.dotVar})` }}
+        style={{ background: `var(${statusColorVar(status, options)})` }}
       />
-      {meta?.label ?? status}
+      {statusLabel(status, options)}
     </span>
   );
 }
