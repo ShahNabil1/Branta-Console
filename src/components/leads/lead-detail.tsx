@@ -689,10 +689,59 @@ export function LeadDetail({
 
         <TabsContent value="overview" className="m-0 mt-4 grid gap-4">
           <section className="rounded-sm border border-border bg-card">
-            <div className="border-b border-border px-3 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-              Details
+            <div className="flex items-center justify-between border-b border-border px-3 py-2">
+              <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                Details {!editing && <span className="ml-1 font-normal normal-case tracking-normal text-muted-foreground/70">· locked</span>}
+              </div>
+              {!editing ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 rounded-sm text-[11.5px]"
+                  onClick={() => setEditing(true)}
+                >
+                  <Pencil className="mr-1.5 size-3" />
+                  Edit
+                </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 rounded-sm text-[11.5px] text-muted-foreground"
+                  onClick={() => {
+                    // Reset form to lead's persisted values
+                    setForm({
+                      name: lead.name,
+                      role: lead.role ?? "",
+                      company: lead.company ?? "",
+                      email: lead.email ?? "",
+                      email_label: lead.email_label ?? "",
+                      alt_email: lead.alt_email ?? "",
+                      alt_email_label: lead.alt_email_label ?? "",
+                      phone: lead.phone ?? "",
+                      phone_label: lead.phone_label ?? "",
+                      alt_phone: lead.alt_phone ?? "",
+                      alt_phone_label: lead.alt_phone_label ?? "",
+                      contact_preference: lead.contact_preference ?? "",
+                      source: lead.source ?? "",
+                      source_other: lead.source_other ?? "",
+                      service: lead.service ?? "",
+                      service_other: lead.service_other ?? "",
+                      status: lead.status,
+                      owner_id: lead.owner_id ?? "",
+                      next_action: lead.next_action ?? "",
+                      notes: lead.notes ?? "",
+                    });
+                    setEditing(false);
+                  }}
+                >
+                  Cancel
+                </Button>
+              )}
             </div>
+            <fieldset disabled={!editing} className="contents">
             <div className="grid grid-cols-2 gap-3 p-3 md:grid-cols-3">
+
               <Field label="Name">
                 <Input
                   value={form.name}
