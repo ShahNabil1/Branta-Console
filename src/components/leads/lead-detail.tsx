@@ -585,19 +585,51 @@ export function LeadDetail({
                   className="h-9 rounded-sm font-mono text-[12.5px]"
                 />
               </Field>
-              <Field label="Next action" className="col-span-2 md:col-span-3">
+              <Field
+                label="Next action"
+                className="col-span-2 md:col-span-3"
+                hint={
+                  <>
+                    <b>একটি single reminder</b> — এই lead-এর জন্য পরের কাজ কী।
+                    Leads list-এ visible থাকে, filter/sort করা যায়। কাজ শেষ হলে
+                    overwrite করে নতুন action লিখো। History রাখে না।
+                    <br />
+                    <span className="text-muted-foreground">
+                      Example: "Call Monday 3pm", "Send proposal", "Follow up
+                      after demo"
+                    </span>
+                  </>
+                }
+              >
                 <Input
                   value={form.next_action}
                   onChange={(e) =>
                     setForm({ ...form, next_action: e.target.value })
                   }
+                  placeholder="What's the next step for this lead? (e.g. Call Monday 3pm, Send proposal)"
                   className="h-9 rounded-sm text-[12.5px]"
                 />
               </Field>
-              <Field label="Notes" className="col-span-2 md:col-span-3">
+              <Field
+                label="Notes (about this lead)"
+                className="col-span-2 md:col-span-3"
+                hint={
+                  <>
+                    <b>Permanent context</b> — এই lead সম্পর্কে সবসময় জানার
+                    দরকার এমন তথ্য। একটাই field, overwrite হয়, history রাখে না।
+                    Lead-এর "profile summary" হিসেবে ভাবো।
+                    <br />
+                    <span className="text-muted-foreground">
+                      Example: "Prefers WhatsApp over email", "Budget ~50k BDT",
+                      "Decision maker: CTO Rahim", "Referred by Karim"
+                    </span>
+                  </>
+                }
+              >
                 <Textarea
                   value={form.notes}
                   onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                  placeholder="Permanent context about this lead — preferences, budget, decision-makers, background. Always visible at the top."
                   className="min-h-[80px] rounded-sm text-[12.5px]"
                 />
               </Field>
