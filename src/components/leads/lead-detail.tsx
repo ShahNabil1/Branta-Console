@@ -52,7 +52,6 @@ import {
 import {
   drainEmailQueue,
   listLeadEmails,
-  pullGmailForLead,
   renderVariables,
   retryFailedEmail,
   sendLeadEmail,
