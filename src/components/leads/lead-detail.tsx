@@ -235,6 +235,10 @@ export function LeadDetail({
     staleTime: 10_000,
   });
 
+  const statusChanged = form.status !== lead.status;
+  const activeSource = sourceOptions.find((s) => s.key === form.source);
+  const sourceNeedsDetail = activeSource?.requires_detail ?? false;
+
   const saveM = useMutation({
     mutationFn: () =>
       update({
@@ -247,17 +251,26 @@ export function LeadDetail({
             phone: form.phone.trim() || null,
             status: form.status,
             source: form.source.trim() || null,
+            source_other: sourceNeedsDetail
+              ? form.source_other.trim() || null
+              : null,
             owner_id: form.owner_id || null,
             value_usd: form.value_usd ? Number(form.value_usd) : null,
             currency: form.currency,
             next_action: form.next_action.trim() || null,
             notes: form.notes.trim() || null,
           },
+          statusChangeNote:
+            statusChanged && statusChangeNote.trim()
+              ? statusChangeNote.trim()
+              : undefined,
         },
       }),
     onSuccess: () => {
       toast.success("Lead updated");
+      setStatusChangeNote("");
       qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["leads", "activities", lead.id] });
     },
     onError: (e: unknown) =>
       toast.error(e instanceof Error ? e.message : "Update failed"),
