@@ -1014,7 +1014,7 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
 
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="text-[11px] text-muted-foreground">
-              From <span className="font-mono">noreply@brantatech.com</span>
+              From <span className="font-mono">hello@brantatech.com</span>
               {selectedEmails.length > 0 && (
                 <>
                   {" "}
@@ -1154,7 +1154,7 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
             <div className="rounded-sm border border-border bg-muted/50 px-3 py-2 text-[11.5px]">
               <div>
                 <span className="text-muted-foreground">From</span>{" "}
-                <span className="font-mono">Branta Tech &lt;noreply@brantatech.com&gt;</span>
+                <span className="font-mono">Branta Tech &lt;hello@brantatech.com&gt;</span>
               </div>
               <div>
                 <span className="text-muted-foreground">To</span>{" "}
