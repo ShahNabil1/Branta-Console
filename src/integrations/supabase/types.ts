@@ -408,6 +408,66 @@ export type Database = {
           },
         ]
       }
+      lead_source_options: {
+        Row: {
+          created_at: string
+          is_active: boolean
+          key: string
+          label: string
+          requires_detail: boolean
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          is_active?: boolean
+          key: string
+          label: string
+          requires_detail?: boolean
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          is_active?: boolean
+          key?: string
+          label?: string
+          requires_detail?: boolean
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      lead_status_options: {
+        Row: {
+          color_var: string | null
+          created_at: string
+          is_active: boolean
+          key: string
+          label: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          color_var?: string | null
+          created_at?: string
+          is_active?: boolean
+          key: string
+          label: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          color_var?: string | null
+          created_at?: string
+          is_active?: boolean
+          key?: string
+          label?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       leads: {
         Row: {
           company: string | null
@@ -425,7 +485,8 @@ export type Database = {
           sheet_row_id: string | null
           slug: string
           source: string | null
-          status: Database["public"]["Enums"]["lead_status"]
+          source_other: string | null
+          status: string
           synced_at: string | null
           updated_at: string
           value_usd: number | null
@@ -446,7 +507,8 @@ export type Database = {
           sheet_row_id?: string | null
           slug: string
           source?: string | null
-          status?: Database["public"]["Enums"]["lead_status"]
+          source_other?: string | null
+          status?: string
           synced_at?: string | null
           updated_at?: string
           value_usd?: number | null
@@ -467,7 +529,8 @@ export type Database = {
           sheet_row_id?: string | null
           slug?: string
           source?: string | null
-          status?: Database["public"]["Enums"]["lead_status"]
+          source_other?: string | null
+          status?: string
           synced_at?: string | null
           updated_at?: string
           value_usd?: number | null
