@@ -113,12 +113,12 @@ function initialsOf(name?: string | null) {
     .slice(0, 2);
 }
 
-const money = (v: number | null | undefined) =>
+const money = (v: number | null | undefined, currency: string = "BDT") =>
   v == null
     ? "—"
-    : new Intl.NumberFormat("en-US", {
+    : new Intl.NumberFormat(currency === "BDT" ? "en-BD" : "en-US", {
         style: "currency",
-        currency: "USD",
+        currency: currency === "USD" ? "USD" : "BDT",
         maximumFractionDigits: 0,
       }).format(v);
 
