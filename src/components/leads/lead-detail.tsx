@@ -52,6 +52,10 @@ import {
   type LeadEmailRow,
 } from "@/lib/lead-email.functions";
 import {
+  listResendEventsForLead,
+  type ResendEvent,
+} from "@/lib/resend-events.functions";
+import {
   cancelLeadMeeting,
   listLeadMeetings,
   scheduleLeadMeeting,
