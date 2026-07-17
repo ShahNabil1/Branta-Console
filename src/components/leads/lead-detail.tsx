@@ -34,6 +34,12 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   addLeadActivity,
   deleteLead,
   listLeadActivities,
@@ -51,6 +57,10 @@ import {
   sendLeadEmail,
   type LeadEmailRow,
 } from "@/lib/lead-email.functions";
+import {
+  listResendEventsForLead,
+  type ResendEvent,
+} from "@/lib/resend-events.functions";
 import {
   cancelLeadMeeting,
   listLeadMeetings,
@@ -525,6 +535,105 @@ function ResendChip() {
   );
 }
 
+// Priority for choosing which webhook event "wins" as the displayed status.
+// Higher wins — bounce/complaint/failure trumps opened/clicked/delivered.
+const EVENT_PRIORITY: Record<string, number> = {
+  scheduled: 1,
+  sent: 2,
+  delivery_delayed: 3,
+  delivered: 4,
+  opened: 5,
+  clicked: 6,
+  received: 7,
+  suppressed: 8,
+  complained: 9,
+  bounced: 10,
+  failed: 11,
+};
+const EVENT_STYLE: Record<string, string> = {
+  scheduled: "bg-slate-50 text-slate-700",
+  sent: "bg-emerald-50 text-emerald-700",
+  delivered: "bg-emerald-50 text-emerald-700",
+  delivery_delayed: "bg-amber-50 text-amber-700",
+  opened: "bg-sky-50 text-sky-700",
+  clicked: "bg-indigo-50 text-indigo-700",
+  received: "bg-sky-50 text-sky-700",
+  suppressed: "bg-zinc-100 text-zinc-700",
+  complained: "bg-red-50 text-red-700",
+  bounced: "bg-red-50 text-red-700",
+  failed: "bg-red-50 text-red-700",
+};
+
+function fmtWhen(ts: string): string {
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return ts;
+  return d.toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}
+
+function ResendStatusChip({ events }: { events: ResendEvent[] }) {
+  const latest = events.length
+    ? [...events].sort(
+        (a, b) =>
+          (EVENT_PRIORITY[b.event_type] ?? 0) -
+          (EVENT_PRIORITY[a.event_type] ?? 0),
+      )[0]
+    : null;
+  const label = latest?.event_type ?? "sent";
+  const style = EVENT_STYLE[label] ?? "bg-emerald-50 text-emerald-700";
+  return (
+    <TooltipProvider delayDuration={100}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span
+            className={cn(
+              "inline-flex cursor-default items-center gap-1 rounded-sm px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider",
+              style,
+            )}
+          >
+            <svg viewBox="0 0 32 32" className="size-2.5" aria-hidden>
+              <rect width="32" height="32" rx="6" fill="#000" />
+              <path
+                d="M10 22V10h6.4c2.6 0 4.4 1.5 4.4 3.9 0 1.7-.9 3-2.4 3.5L22 22h-3l-2.9-4.3H12.7V22H10zm2.7-6.5h3.4c1.2 0 2-.7 2-1.8s-.8-1.8-2-1.8h-3.4v3.6z"
+                fill="#fff"
+              />
+            </svg>
+            {label.replace(/_/g, " ")}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-xs bg-foreground text-background">
+          {events.length === 0 ? (
+            <div className="text-[11px]">
+              Sent — awaiting webhook events.
+            </div>
+          ) : (
+            <ul className="grid gap-0.5 text-[11px]">
+              {[...events]
+                .sort((a, b) => a.timestamp.localeCompare(b.timestamp))
+                .map((ev, i) => (
+                  <li key={`${ev.timestamp}-${i}`} className="flex gap-2">
+                    <span className="font-mono uppercase tracking-wider">
+                      {ev.event_type.replace(/_/g, " ")}
+                    </span>
+                    <span className="font-mono opacity-80">
+                      {fmtWhen(ev.timestamp)}
+                    </span>
+                  </li>
+                ))}
+            </ul>
+          )}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
 function EmailsTab({ lead }: { lead: LeadRow }) {
   const listFn = useServerFn(listLeadEmails);
   const sendFn = useServerFn(sendLeadEmail);
@@ -542,6 +651,14 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
     queryKey: ["lead-contacts", lead.id],
     queryFn: () => listContactsFn({ data: { leadId: lead.id } }),
     staleTime: 30_000,
+  });
+
+  const resendEventsFn = useServerFn(listResendEventsForLead);
+  const events = useQuery({
+    queryKey: ["lead-resend-events", lead.id],
+    queryFn: () => resendEventsFn({ data: { leadId: lead.id } }),
+    refetchInterval: 5_000,
+    staleTime: 3_000,
   });
 
   // Realtime: any change to this lead's emails invalidates the thread.
@@ -925,7 +1042,10 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
                     failed
                   </span>
                 )}
-                {e.status === "sent" && (
+                {e.provider === "resend" && e.status === "sent" && (
+                  <ResendStatusChip events={events.data?.[e.id] ?? []} />
+                )}
+                {e.provider !== "resend" && e.status === "sent" && (
                   <span className="rounded-sm bg-emerald-50 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-emerald-700">
                     sent
                   </span>
