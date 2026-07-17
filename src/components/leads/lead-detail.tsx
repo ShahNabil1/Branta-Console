@@ -54,6 +54,7 @@ import {
   listLeadEmails,
   pullGmailForLead,
   renderVariables,
+  retryFailedEmail,
   sendLeadEmail,
   type LeadEmailRow,
 } from "@/lib/lead-email.functions";
