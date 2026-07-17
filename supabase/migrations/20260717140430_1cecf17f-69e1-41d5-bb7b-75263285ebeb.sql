@@ -1,0 +1,1 @@
+ALTER TABLE public.profiles RENAME COLUMN metamap_identity_id TO didit_session_id;
