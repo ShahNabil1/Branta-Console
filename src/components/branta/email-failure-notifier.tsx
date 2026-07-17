@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
+import { notifications } from "@/lib/notifications-store";
 
 interface LeadEmailPayload {
   id: string;
@@ -37,8 +38,17 @@ export function EmailFailureNotifier() {
           seen.current.add(row.id);
           if (currentUserId.current && row.sent_by !== currentUserId.current) return;
           const to = row.to_emails?.[0] ?? "recipient";
-          toast.error(`Email to ${to} failed`, {
-            description: row.error_message ?? row.subject ?? undefined,
+          const title = `Email to ${to} failed`;
+          const description = row.error_message ?? row.subject ?? undefined;
+          notifications.push({
+            id: `email_failed:${row.id}`,
+            kind: "email_failed",
+            title,
+            description,
+            href: "/app/mail-queue",
+          });
+          toast.error(title, {
+            description,
             action: {
               label: "Mail queue",
               onClick: () => navigate({ to: "/app/mail-queue" }),
