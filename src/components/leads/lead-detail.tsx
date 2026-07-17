@@ -527,6 +527,9 @@ export function LeadDetail({
     },
     onError: (e: unknown) =>
       toast.error(e instanceof Error ? e.message : "Status update failed"),
+  });
+
+
 
   const delM = useMutation({
     mutationFn: () => del({ data: { id: lead.id } }),
