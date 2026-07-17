@@ -89,12 +89,15 @@ import {
 } from "@/components/ui/dialog";
 import { Eye } from "lucide-react";
 import {
+  listLeadServiceOptions,
   listLeadSourceOptions,
   listLeadStatusOptions,
+  SERVICE_FALLBACK,
   SOURCE_FALLBACK,
   STATUS_FALLBACK,
   statusColorVar,
   statusLabel,
+  type LeadServiceOption,
   type LeadSourceOption,
   type LeadStatusOption,
 } from "@/lib/lead-options.functions";
@@ -240,7 +243,7 @@ function EmailRow({
 }) {
   return (
     <Field label={label} className={className}>
-      <div className="flex max-w-[420px] items-center gap-1.5">
+      <div className="flex items-center gap-1.5">
 
         <Input
           type="email"
@@ -291,7 +294,7 @@ function PhoneRow({
   const digits = value.replace(/[^\d]/g, "");
   return (
     <Field label={label} className={className}>
-      <div className="flex max-w-[380px] items-center gap-1.5">
+      <div className="flex items-center gap-1.5">
 
         <Input
           type="tel"
@@ -362,6 +365,7 @@ export function LeadDetail({
 
   const listStatusOpts = useServerFn(listLeadStatusOptions);
   const listSourceOpts = useServerFn(listLeadSourceOptions);
+  const listServiceOpts = useServerFn(listLeadServiceOptions);
   const statusOptsQ = useQuery({
     queryKey: ["lead-status-options"],
     queryFn: () => listStatusOpts(),
@@ -374,8 +378,16 @@ export function LeadDetail({
     staleTime: 5 * 60_000,
     initialData: SOURCE_FALLBACK,
   });
+  const serviceOptsQ = useQuery({
+    queryKey: ["lead-service-options"],
+    queryFn: () => listServiceOpts(),
+    staleTime: 5 * 60_000,
+    initialData: SERVICE_FALLBACK,
+  });
   const statusOptions: LeadStatusOption[] = statusOptsQ.data ?? STATUS_FALLBACK;
   const sourceOptions: LeadSourceOption[] = sourceOptsQ.data ?? SOURCE_FALLBACK;
+  const serviceOptions: LeadServiceOption[] = serviceOptsQ.data ?? SERVICE_FALLBACK;
+
 
   const [tab, setTab] = useState<"overview" | "emails" | "meetings" | "docs">(
     "overview",
@@ -397,6 +409,8 @@ export function LeadDetail({
     status: lead.status,
     source: lead.source ?? "",
     source_other: lead.source_other ?? "",
+    service: lead.service ?? "",
+    service_other: lead.service_other ?? "",
     owner_id: lead.owner_id ?? "",
     value_usd: lead.value_usd == null ? "" : String(lead.value_usd),
     currency: (lead.currency ?? "BDT") as "BDT" | "USD",
@@ -423,6 +437,8 @@ export function LeadDetail({
       status: lead.status,
       source: lead.source ?? "",
       source_other: lead.source_other ?? "",
+      service: lead.service ?? "",
+      service_other: lead.service_other ?? "",
       owner_id: lead.owner_id ?? "",
       value_usd: lead.value_usd == null ? "" : String(lead.value_usd),
       currency: (lead.currency ?? "BDT") as "BDT" | "USD",
@@ -442,6 +458,8 @@ export function LeadDetail({
   const statusChanged = form.status !== lead.status;
   const activeSource = sourceOptions.find((s) => s.key === form.source);
   const sourceNeedsDetail = activeSource?.requires_detail ?? false;
+  const activeService = serviceOptions.find((s) => s.key === form.service);
+  const serviceNeedsDetail = activeService?.requires_detail ?? false;
 
   const saveM = useMutation({
     mutationFn: () =>
@@ -465,6 +483,10 @@ export function LeadDetail({
             source: form.source.trim() || null,
             source_other: sourceNeedsDetail
               ? form.source_other.trim() || null
+              : null,
+            service: form.service.trim() || null,
+            service_other: serviceNeedsDetail
+              ? form.service_other.trim() || null
               : null,
             owner_id: form.owner_id || null,
             value_usd: form.value_usd ? Number(form.value_usd) : null,
@@ -629,6 +651,62 @@ export function LeadDetail({
                 </Field>
               )}
 
+              <Field
+                label="Service interest"
+                hint={
+                  <>
+                    <b>Which service is this lead considering?</b>
+                    <br />
+                    <span className="text-muted-foreground">
+                      Pick the closest service; choose "Other" and describe it
+                      when nothing fits. Super admin will manage this list.
+                    </span>
+                  </>
+                }
+              >
+                <Select
+                  value={form.service || "__unset"}
+                  onValueChange={(v) => {
+                    const next = v === "__unset" ? "" : v;
+                    setForm((prev) => ({
+                      ...prev,
+                      service: next,
+                      service_other:
+                        next && serviceOptions.find((o) => o.key === next)?.requires_detail
+                          ? prev.service_other
+                          : "",
+                    }));
+                  }}
+                >
+                  <SelectTrigger className="h-9 rounded-sm text-[12.5px]">
+                    <SelectValue placeholder="Select service" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__unset">— None —</SelectItem>
+                    {serviceOptions.map((s) => (
+                      <SelectItem key={s.key} value={s.key}>
+                        {s.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              {serviceNeedsDetail && (
+                <Field
+                  label={`${activeService?.label ?? "Service"} details *`}
+                  className="col-span-2 md:col-span-2"
+                >
+                  <Input
+                    value={form.service_other}
+                    onChange={(e) =>
+                      setForm({ ...form, service_other: e.target.value })
+                    }
+                    placeholder="Which service does this lead want?"
+                    className="h-9 rounded-sm text-[12.5px]"
+                  />
+                </Field>
+              )}
+
               <EmailRow
                 label="Email"
                 value={form.email}
@@ -636,7 +714,6 @@ export function LeadDetail({
                 tag={form.email_label}
                 onTagChange={(v) => setForm({ ...form, email_label: v })}
                 onCompose={() => setTab("emails")}
-                className="col-span-2 md:col-span-3"
               />
               <EmailRow
                 label="Alternative email"
@@ -645,7 +722,6 @@ export function LeadDetail({
                 tag={form.alt_email_label}
                 onTagChange={(v) => setForm({ ...form, alt_email_label: v })}
                 onCompose={() => setTab("emails")}
-                className="col-span-2 md:col-span-3"
               />
               <PhoneRow
                 label="Phone"
@@ -653,7 +729,6 @@ export function LeadDetail({
                 onChange={(v) => setForm({ ...form, phone: v })}
                 tag={form.phone_label}
                 onTagChange={(v) => setForm({ ...form, phone_label: v })}
-                className="col-span-2 md:col-span-3"
               />
               <PhoneRow
                 label="Alternative phone"
@@ -661,7 +736,6 @@ export function LeadDetail({
                 onChange={(v) => setForm({ ...form, alt_phone: v })}
                 tag={form.alt_phone_label}
                 onTagChange={(v) => setForm({ ...form, alt_phone_label: v })}
-                className="col-span-2 md:col-span-3"
               />
 
               <Field
@@ -843,7 +917,8 @@ export function LeadDetail({
                 disabled={
                   saveM.isPending ||
                   !form.name.trim() ||
-                  (sourceNeedsDetail && !form.source_other.trim())
+                  (sourceNeedsDetail && !form.source_other.trim()) ||
+                  (serviceNeedsDetail && !form.service_other.trim())
                 }
                 onClick={() => saveM.mutate()}
               >
@@ -1174,7 +1249,6 @@ function TeammatesSection({ lead }: { lead: LeadRow }) {
               tag={draft.email_label}
               onTagChange={(v) => setDraft({ ...draft, email_label: v })}
               onCompose={() => toast.info("Save the contact first, then compose.")}
-              className="col-span-2"
             />
             <EmailRow
               label="Alternative email"
@@ -1183,7 +1257,6 @@ function TeammatesSection({ lead }: { lead: LeadRow }) {
               tag={draft.alt_email_label}
               onTagChange={(v) => setDraft({ ...draft, alt_email_label: v })}
               onCompose={() => toast.info("Save the contact first, then compose.")}
-              className="col-span-2"
             />
             <PhoneRow
               label="Phone"
@@ -1191,7 +1264,6 @@ function TeammatesSection({ lead }: { lead: LeadRow }) {
               onChange={(v) => setDraft({ ...draft, phone: v })}
               tag={draft.phone_label}
               onTagChange={(v) => setDraft({ ...draft, phone_label: v })}
-              className="col-span-2"
             />
             <PhoneRow
               label="Alternative phone"
@@ -1199,7 +1271,6 @@ function TeammatesSection({ lead }: { lead: LeadRow }) {
               onChange={(v) => setDraft({ ...draft, alt_phone: v })}
               tag={draft.alt_phone_label}
               onTagChange={(v) => setDraft({ ...draft, alt_phone_label: v })}
-              className="col-span-2"
             />
             <Field label="Contact preference & availability" className="col-span-2">
               <Textarea

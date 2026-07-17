@@ -29,6 +29,8 @@ export interface LeadRow {
   status: LeadStatusDB;
   source: string | null;
   source_other: string | null;
+  service: string | null;
+  service_other: string | null;
   owner_id: string | null;
   value_usd: number | null;
   currency: "BDT" | "USD";
@@ -99,6 +101,8 @@ const CreateInput = z.object({
   status: StatusInput.default("new"),
   source: z.string().trim().max(80).optional().nullable(),
   source_other: z.string().trim().max(200).optional().nullable(),
+  service: z.string().trim().max(80).optional().nullable(),
+  service_other: z.string().trim().max(200).optional().nullable(),
   owner_id: z.string().uuid().optional().nullable(),
   value_usd: z.number().nonnegative().optional().nullable(),
   currency: z.enum(["BDT", "USD"]).optional(),
@@ -250,6 +254,8 @@ export const createLead = createServerFn({ method: "POST" })
         status: data.status,
         source: data.source ?? null,
         source_other: data.source_other ?? null,
+        service: data.service ?? null,
+        service_other: data.service_other ?? null,
         owner_id: data.owner_id ?? context.userId,
         value_usd: data.value_usd ?? null,
         currency: data.currency ?? "BDT",

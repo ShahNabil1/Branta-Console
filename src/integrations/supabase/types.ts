@@ -438,6 +438,36 @@ export type Database = {
           },
         ]
       }
+      lead_service_options: {
+        Row: {
+          created_at: string
+          is_active: boolean
+          key: string
+          label: string
+          requires_detail: boolean
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          is_active?: boolean
+          key: string
+          label: string
+          requires_detail?: boolean
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          is_active?: boolean
+          key?: string
+          label?: string
+          requires_detail?: boolean
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       lead_source_options: {
         Row: {
           created_at: string
@@ -520,6 +550,8 @@ export type Database = {
           phone: string | null
           phone_label: string | null
           role: string | null
+          service: string | null
+          service_other: string | null
           sheet_row_id: string | null
           slug: string
           source: string | null
@@ -550,6 +582,8 @@ export type Database = {
           phone?: string | null
           phone_label?: string | null
           role?: string | null
+          service?: string | null
+          service_other?: string | null
           sheet_row_id?: string | null
           slug: string
           source?: string | null
@@ -580,6 +614,8 @@ export type Database = {
           phone?: string | null
           phone_label?: string | null
           role?: string | null
+          service?: string | null
+          service_other?: string | null
           sheet_row_id?: string | null
           slug?: string
           source?: string | null

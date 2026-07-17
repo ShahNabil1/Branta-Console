@@ -19,6 +19,14 @@ export interface LeadSourceOption {
   is_active: boolean;
 }
 
+export interface LeadServiceOption {
+  key: string;
+  label: string;
+  sort_order: number;
+  requires_detail: boolean;
+  is_active: boolean;
+}
+
 export const listLeadStatusOptions = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<LeadStatusOption[]> => {
@@ -42,6 +50,20 @@ export const listLeadSourceOptions = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     return (data ?? []) as LeadSourceOption[];
   });
+
+export const listLeadServiceOptions = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<LeadServiceOption[]> => {
+    const { data, error } = await context.supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .from("lead_service_options" as any)
+      .select("key,label,sort_order,requires_detail,is_active")
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true });
+    if (error) throw new Error(error.message);
+    return (data ?? []) as unknown as LeadServiceOption[];
+  });
+
 
 // Fallbacks used when the server hasn't responded yet so the UI never renders empty.
 export const STATUS_FALLBACK: LeadStatusOption[] = [
@@ -68,6 +90,20 @@ export const SOURCE_FALLBACK: LeadSourceOption[] = [
   { key: "direct", label: "Direct", sort_order: 80, requires_detail: false, is_active: true },
   { key: "other", label: "Other", sort_order: 999, requires_detail: true, is_active: true },
 ];
+
+export const SERVICE_FALLBACK: LeadServiceOption[] = [
+  { key: "web_development", label: "Web Development", sort_order: 10, requires_detail: false, is_active: true },
+  { key: "mobile_app", label: "Mobile App Development", sort_order: 20, requires_detail: false, is_active: true },
+  { key: "ui_ux_design", label: "UI/UX Design", sort_order: 30, requires_detail: false, is_active: true },
+  { key: "branding", label: "Branding & Identity", sort_order: 40, requires_detail: false, is_active: true },
+  { key: "seo", label: "SEO", sort_order: 50, requires_detail: false, is_active: true },
+  { key: "digital_marketing", label: "Digital Marketing", sort_order: 60, requires_detail: false, is_active: true },
+  { key: "devops_cloud", label: "DevOps & Cloud", sort_order: 70, requires_detail: false, is_active: true },
+  { key: "consulting", label: "Consulting", sort_order: 80, requires_detail: false, is_active: true },
+  { key: "other", label: "Other", sort_order: 999, requires_detail: true, is_active: true },
+];
+
+
 
 export function statusLabel(key: string, options: LeadStatusOption[]): string {
   return options.find((o) => o.key === key)?.label ?? key;
