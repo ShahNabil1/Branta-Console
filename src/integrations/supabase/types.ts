@@ -131,6 +131,101 @@ export type Database = {
         }
         Relationships: []
       }
+      lead_activities: {
+        Row: {
+          actor_id: string | null
+          body: string | null
+          created_at: string
+          id: string
+          kind: string
+          lead_id: string
+          meta: Json
+        }
+        Insert: {
+          actor_id?: string | null
+          body?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          lead_id: string
+          meta?: Json
+        }
+        Update: {
+          actor_id?: string | null
+          body?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          lead_id?: string
+          meta?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_activities_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leads: {
+        Row: {
+          company: string | null
+          created_at: string
+          created_by: string | null
+          email: string | null
+          id: string
+          last_activity_at: string
+          lead_code: string
+          name: string
+          next_action: string | null
+          notes: string | null
+          owner_id: string | null
+          phone: string | null
+          source: string | null
+          status: Database["public"]["Enums"]["lead_status"]
+          updated_at: string
+          value_usd: number | null
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          last_activity_at?: string
+          lead_code?: string
+          name: string
+          next_action?: string | null
+          notes?: string | null
+          owner_id?: string | null
+          phone?: string | null
+          source?: string | null
+          status?: Database["public"]["Enums"]["lead_status"]
+          updated_at?: string
+          value_usd?: number | null
+        }
+        Update: {
+          company?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          last_activity_at?: string
+          lead_code?: string
+          name?: string
+          next_action?: string | null
+          notes?: string | null
+          owner_id?: string | null
+          phone?: string | null
+          source?: string | null
+          status?: Database["public"]["Enums"]["lead_status"]
+          updated_at?: string
+          value_usd?: number | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           address_line1: string | null
@@ -281,6 +376,13 @@ export type Database = {
     }
     Enums: {
       app_role: "super_admin" | "admin" | "manager" | "user"
+      lead_status:
+        | "new"
+        | "contacted"
+        | "viewed"
+        | "meeting"
+        | "converted"
+        | "lost"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -409,6 +511,14 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["super_admin", "admin", "manager", "user"],
+      lead_status: [
+        "new",
+        "contacted",
+        "viewed",
+        "meeting",
+        "converted",
+        "lost",
+      ],
     },
   },
 } as const
