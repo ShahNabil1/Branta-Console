@@ -95,12 +95,47 @@ const PLATFORM_META: Record<
   },
 };
 
-function normalizeUrl(url: string): string {
+const PLATFORM_DOMAINS: Record<SocialPlatform, string[]> = {
+  website: [],
+  linkedin: ["linkedin.com", "lnkd.in"],
+  facebook: ["facebook.com", "fb.com", "fb.me"],
+  instagram: ["instagram.com", "instagr.am"],
+  youtube: ["youtube.com", "youtu.be"],
+  x: ["x.com", "twitter.com"],
+  tiktok: ["tiktok.com"],
+};
+
+function normalizeUrl(platform: SocialPlatform, url: string): string {
   const trimmed = url.trim();
   if (!trimmed) return trimmed;
   if (/^https?:\/\//i.test(trimmed)) return trimmed;
   return `https://${trimmed}`;
 }
+
+/** Returns null when valid, else a user-facing error string. */
+function validateUrl(platform: SocialPlatform, url: string): string | null {
+  const trimmed = url.trim();
+  if (!trimmed) return "URL is required";
+  const normalized = normalizeUrl(platform, trimmed);
+  let parsed: URL;
+  try {
+    parsed = new URL(normalized);
+  } catch {
+    return "Enter a valid URL";
+  }
+  if (!/^https?:$/.test(parsed.protocol)) {
+    return "URL must start with http:// or https://";
+  }
+  if (platform === "website") return null;
+  const host = parsed.hostname.toLowerCase().replace(/^www\./, "");
+  const allowed = PLATFORM_DOMAINS[platform];
+  const ok = allowed.some((d) => host === d || host.endsWith(`.${d}`));
+  if (!ok) {
+    return `${PLATFORM_META[platform].name} link must be on ${allowed.join(" or ")}`;
+  }
+  return null;
+}
+
 
 function PlatformIcon({ platform }: { platform: string }) {
   const meta = PLATFORM_META[platform as SocialPlatform];
@@ -164,7 +199,7 @@ export function SocialLinksSection({ leadId }: { leadId: string }) {
         data: {
           leadId,
           platform: draftPlatform,
-          url: normalizeUrl(draftUrl),
+          url: normalizeUrl(draftPlatform, draftUrl),
           label: draftLabel || null,
         },
       }),
@@ -259,17 +294,25 @@ export function SocialLinksSection({ leadId }: { leadId: string }) {
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8 rounded-sm"
-                      disabled={updateM.isPending || !editDraft.url.trim()}
-                      onClick={() =>
+                      disabled={
+                        updateM.isPending ||
+                        validateUrl(editDraft.platform, editDraft.url) !== null
+                      }
+                      onClick={() => {
+                        const err = validateUrl(editDraft.platform, editDraft.url);
+                        if (err) {
+                          toast.error(err);
+                          return;
+                        }
                         updateM.mutate({
                           id: row.id,
                           patch: {
                             platform: editDraft.platform,
-                            url: normalizeUrl(editDraft.url),
+                            url: normalizeUrl(editDraft.platform, editDraft.url),
                             label: editDraft.label || null,
                           },
-                        })
-                      }
+                        });
+                      }}
                       aria-label="Save"
                     >
                       {updateM.isPending ? (
@@ -278,6 +321,7 @@ export function SocialLinksSection({ leadId }: { leadId: string }) {
                         <Check className="size-3.5" />
                       )}
                     </Button>
+
                     <Button
                       type="button"
                       variant="ghost"
@@ -356,39 +400,69 @@ export function SocialLinksSection({ leadId }: { leadId: string }) {
         )}
 
         {/* Add new row */}
-        <div className="flex flex-wrap items-center gap-1.5">
-          <PlatformSelect
-            value={draftPlatform}
-            onChange={setDraftPlatform}
-            className="h-9 w-[160px] shrink-0 rounded-sm text-[12.5px]"
-          />
-          <Input
-            value={draftUrl}
-            onChange={(e) => setDraftUrl(e.target.value)}
-            placeholder="https://facebook.com/…"
-            className="h-9 min-w-[220px] flex-1 rounded-sm text-[12.5px]"
-          />
-          <Input
-            value={draftLabel}
-            onChange={(e) => setDraftLabel(e.target.value)}
-            placeholder="Label — e.g. Company, Personal"
-            className="h-9 w-[200px] rounded-sm text-[12.5px]"
-          />
-          <Button
-            type="button"
-            size="sm"
-            className="h-9 rounded-sm text-[12px]"
-            disabled={addM.isPending || !draftUrl.trim()}
-            onClick={() => addM.mutate()}
-          >
-            {addM.isPending ? (
-              <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-            ) : (
-              <Plus className="mr-1.5 size-3.5" />
-            )}
-            Add
-          </Button>
-        </div>
+        {(() => {
+          const draftError = draftUrl.trim()
+            ? validateUrl(draftPlatform, draftUrl)
+            : null;
+          const placeholder =
+            draftPlatform === "website"
+              ? "http://yourdomain.com"
+              : `https://${PLATFORM_DOMAINS[draftPlatform][0]}/…`;
+          return (
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <PlatformSelect
+                  value={draftPlatform}
+                  onChange={(v) => setDraftPlatform(v)}
+                  className="h-9 w-[160px] shrink-0 rounded-sm text-[12.5px]"
+                />
+                <Input
+                  value={draftUrl}
+                  onChange={(e) => setDraftUrl(e.target.value)}
+                  placeholder={placeholder}
+                  className={`h-9 min-w-[220px] flex-1 rounded-sm text-[12.5px] ${
+                    draftError ? "border-red-500 focus-visible:ring-red-500" : ""
+                  }`}
+                />
+                <Input
+                  value={draftLabel}
+                  onChange={(e) => setDraftLabel(e.target.value)}
+                  placeholder="Label — e.g. Company, Personal"
+                  className="h-9 w-[200px] rounded-sm text-[12.5px]"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-9 rounded-sm text-[12px]"
+                  disabled={
+                    addM.isPending ||
+                    !draftUrl.trim() ||
+                    draftError !== null
+                  }
+                  onClick={() => {
+                    const err = validateUrl(draftPlatform, draftUrl);
+                    if (err) {
+                      toast.error(err);
+                      return;
+                    }
+                    addM.mutate();
+                  }}
+                >
+                  {addM.isPending ? (
+                    <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                  ) : (
+                    <Plus className="mr-1.5 size-3.5" />
+                  )}
+                  Add
+                </Button>
+              </div>
+              {draftError && (
+                <p className="text-[11px] text-red-600">{draftError}</p>
+              )}
+            </div>
+          );
+        })()}
+
 
         {rows.length === 0 && !q.isLoading && (
           <p className="text-[11.5px] text-muted-foreground">
