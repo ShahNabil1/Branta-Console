@@ -62,6 +62,10 @@ import {
   type ResendEvent,
 } from "@/lib/resend-events.functions";
 import {
+  listBrevoEventsForLead,
+  type BrevoLeadEvent,
+} from "@/lib/brevo-events.functions";
+import {
   cancelLeadMeeting,
   listLeadMeetings,
   scheduleLeadMeeting,
