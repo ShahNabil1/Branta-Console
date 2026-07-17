@@ -939,26 +939,50 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
   return (
     <div className="grid gap-4">
       <section className="rounded-sm border border-border bg-card">
-        <div className="flex items-center justify-between border-b border-border px-3 py-2">
+        <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
           <span className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-            Compose <ResendChip />
+            Compose via {provider === "resend" ? <ResendChip /> : <BrevoChip />}
           </span>
-          <div className="inline-flex rounded-sm border border-border bg-muted p-0.5">
-            {(["html", "text"] as const).map((t) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => setContentType(t)}
-                className={cn(
-                  "rounded-sm px-2 py-0.5 text-[11px] font-medium uppercase tracking-wider",
-                  contentType === t
-                    ? "bg-white text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {t === "html" ? "HTML" : "Plain"}
-              </button>
-            ))}
+          <div className="flex items-center gap-2">
+            <div className="inline-flex rounded-sm border border-border bg-muted p-0.5">
+              {(["resend", "brevo"] as const).map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setProvider(p)}
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-sm px-2 py-0.5 text-[11px] font-medium uppercase tracking-wider",
+                    provider === p
+                      ? "bg-white text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {p === "resend" ? (
+                    <ResendLogo className="size-3" />
+                  ) : (
+                    <BrevoLogo className="size-3" />
+                  )}
+                  {p}
+                </button>
+              ))}
+            </div>
+            <div className="inline-flex rounded-sm border border-border bg-muted p-0.5">
+              {(["html", "text"] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setContentType(t)}
+                  className={cn(
+                    "rounded-sm px-2 py-0.5 text-[11px] font-medium uppercase tracking-wider",
+                    contentType === t
+                      ? "bg-white text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {t === "html" ? "HTML" : "Plain"}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
