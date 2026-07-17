@@ -529,6 +529,7 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
   const listFn = useServerFn(listLeadEmails);
   const sendFn = useServerFn(sendLeadEmail);
   const pullFn = useServerFn(pullGmailForLead);
+  const drainFn = useServerFn(drainEmailQueue);
   const listContactsFn = useServerFn(listLeadContacts);
   const qc = useQueryClient();
 
@@ -542,6 +543,45 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
     queryFn: () => listContactsFn({ data: { leadId: lead.id } }),
     staleTime: 30_000,
   });
+
+  // Realtime: any change to this lead's emails invalidates the thread.
+  useEffect(() => {
+    const ch = supabase
+      .channel(`lead-emails-${lead.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "lead_emails", filter: `lead_id=eq.${lead.id}` },
+        () => qc.invalidateQueries({ queryKey: ["lead-emails", lead.id] }),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, [lead.id, qc]);
+
+  // Drain pump: whenever we have queued rows visible, poll drain until empty.
+  const hasQueue = (emails.data ?? []).some(
+    (e) => e.status === "queued" || e.status === "sending",
+  );
+  useEffect(() => {
+    if (!hasQueue) return;
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        await drainFn();
+      } catch {
+        /* silent — realtime will retry on next status flip */
+      }
+      if (!cancelled) qc.invalidateQueries({ queryKey: ["lead-emails", lead.id] });
+    };
+    const iv = setInterval(tick, 3000);
+    tick();
+    return () => {
+      cancelled = true;
+      clearInterval(iv);
+    };
+  }, [hasQueue, drainFn, qc, lead.id]);
+
 
   const [contentType, setContentType] = useState<"html" | "text">("html");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
