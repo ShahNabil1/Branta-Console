@@ -386,6 +386,7 @@ type CreateForm = {
   source: string;
   owner_id: string;
   value_usd: string;
+  currency: "BDT" | "USD";
   next_action: string;
   notes: string;
 };
