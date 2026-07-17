@@ -375,6 +375,8 @@ function LeadsPage() {
         open={createOpen}
         onOpenChange={setCreateOpen}
         users={usersQuery.data ?? []}
+        statusOptions={statusOptions}
+        sourceOptions={sourceOptions}
       />
     </div>
   );
