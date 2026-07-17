@@ -410,6 +410,7 @@ type CreateForm = {
   phone: string;
   status: LeadStatusDB;
   source: string;
+  source_other: string;
   owner_id: string;
   value_usd: string;
   currency: "BDT" | "USD";
@@ -423,6 +424,7 @@ const emptyForm: CreateForm = {
   phone: "",
   status: "new",
   source: "",
+  source_other: "",
   owner_id: "",
   value_usd: "",
   currency: "BDT",
@@ -434,15 +436,21 @@ function CreateLeadDialog({
   open,
   onOpenChange,
   users,
+  statusOptions,
+  sourceOptions,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   users: { user_id: string; full_name: string | null }[];
+  statusOptions: LeadStatusOption[];
+  sourceOptions: LeadSourceOption[];
 }) {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const create = useServerFn(createLead);
   const [form, setForm] = useState<CreateForm>(emptyForm);
+  const activeSource = sourceOptions.find((s) => s.key === form.source);
+  const sourceNeedsDetail = activeSource?.requires_detail ?? false;
 
   useEffect(() => {
     if (open) setForm(emptyForm);
