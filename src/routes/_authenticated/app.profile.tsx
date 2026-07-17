@@ -16,10 +16,10 @@ import {
   getMyProfile,
   updateMyProfile,
   markKycSubmitted,
-  getMetamapConfig,
   requestKycReupload,
   type ProfileRow,
 } from "@/lib/profile.functions";
+import { createDiditSession } from "@/lib/didit.functions";
 import { requestR2Upload } from "@/lib/r2.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
