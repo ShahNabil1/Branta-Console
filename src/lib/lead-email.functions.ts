@@ -12,11 +12,13 @@ export type LeadEmailStatus =
   | "failed"
   | "received";
 
+export type LeadEmailProvider = "resend" | "brevo";
+
 export interface LeadEmailRow {
   id: string;
   lead_id: string;
   direction: "outbound" | "inbound";
-  provider: "gmail" | "resend";
+  provider: LeadEmailProvider | "gmail";
   message_id: string | null;
   thread_id: string | null;
   subject: string | null;
@@ -39,9 +41,12 @@ const SendInput = z.object({
   subject: z.string().trim().min(1).max(300),
   body: z.string().trim().min(1).max(100_000),
   contentType: z.enum(["html", "text"]).default("html"),
+  provider: z.enum(["resend", "brevo"]).default("resend"),
 });
 
-const RESEND_FROM = "Branta Tech <hello@brantatech.com>";
+const LEAD_FROM_EMAIL = "hello@brantatech.com";
+const LEAD_FROM_NAME = "Branta Tech";
+const RESEND_FROM = `${LEAD_FROM_NAME} <${LEAD_FROM_EMAIL}>`;
 
 /** Public helper: substitute {{tokens}} against a value map. Unknown tokens are left intact. */
 export function renderVariables(
