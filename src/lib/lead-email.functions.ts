@@ -31,6 +31,7 @@ export interface LeadEmailRow {
   error_message: string | null;
   sent_at: string | null;
   sent_by: string | null;
+  sent_by_name: string | null;
   created_at: string;
 }
 
