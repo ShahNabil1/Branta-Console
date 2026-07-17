@@ -244,7 +244,7 @@ function ProfileForm({
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <KycBadge status={form.kyc_status} />
+
           <Button
             onClick={save}
             disabled={!dirty || saving}
