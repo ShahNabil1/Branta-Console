@@ -132,6 +132,8 @@ function LeadsPage() {
   const navigate = useNavigate();
   const list = useServerFn(listLeads);
   const listUsers = useServerFn(listAssignableUsers);
+  const listStatusOpts = useServerFn(listLeadStatusOptions);
+  const listSourceOpts = useServerFn(listLeadSourceOptions);
 
   const leadsQuery = useQuery({
     queryKey: ["leads", "list"],
@@ -144,6 +146,23 @@ function LeadsPage() {
     queryFn: () => listUsers(),
     staleTime: 60_000,
   });
+
+  const statusOptsQ = useQuery({
+    queryKey: ["lead-status-options"],
+    queryFn: () => listStatusOpts(),
+    staleTime: 5 * 60_000,
+    initialData: STATUS_FALLBACK,
+  });
+  const sourceOptsQ = useQuery({
+    queryKey: ["lead-source-options"],
+    queryFn: () => listSourceOpts(),
+    staleTime: 5 * 60_000,
+    initialData: SOURCE_FALLBACK,
+  });
+  const statusOptions: LeadStatusOption[] =
+    statusOptsQ.data ?? STATUS_FALLBACK;
+  const sourceOptions: LeadSourceOption[] =
+    sourceOptsQ.data ?? SOURCE_FALLBACK;
 
   useEffect(() => {
     const ch = supabase
