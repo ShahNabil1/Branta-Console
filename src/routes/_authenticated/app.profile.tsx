@@ -211,10 +211,8 @@ interface FormProps {
   email: string;
   onSaved: () => void;
   update: ReturnType<typeof useServerFn<typeof updateMyProfile>>;
-  markSubmitted: ReturnType<typeof useServerFn<typeof markKycSubmitted>>;
   reupload: ReturnType<typeof useServerFn<typeof requestKycReupload>>;
   presign: ReturnType<typeof useServerFn<typeof requestR2Upload>>;
-  startDidit: ReturnType<typeof useServerFn<typeof createDiditSession>>;
 }
 
 function ProfileForm({
@@ -222,16 +220,13 @@ function ProfileForm({
   email,
   onSaved,
   update,
-  markSubmitted: _markSubmitted,
   reupload,
   presign,
-  startDidit,
 }: FormProps) {
   const [form, setForm] = useState<ProfileRow>(profile);
   useEffect(() => setForm(profile), [profile]);
   const [saving, setSaving] = useState(false);
   const [reuploading, setReuploading] = useState(false);
-  const [startingKyc, setStartingKyc] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
 
   const submitReupload = async () => {
@@ -258,18 +253,7 @@ function ProfileForm({
     }
   };
 
-  const beginDidit = async () => {
-    setStartingKyc(true);
-    try {
-      const { url } = await startDidit({});
-      window.location.href = url;
-    } catch (err) {
-      toast.error("Could not start verification", {
-        description: (err as Error).message,
-      });
-      setStartingKyc(false);
-    }
-  };
+
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
