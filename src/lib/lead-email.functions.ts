@@ -495,11 +495,12 @@ export const retryFailedEmail = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data, context }): Promise<{ ok: true }> => {
-    const patch: Record<string, unknown> = {
-      status: "queued",
-      error_message: null,
-      sent_at: null,
-    };
+    const patch: {
+      status: "queued";
+      error_message: null;
+      sent_at: null;
+      provider?: LeadEmailProvider;
+    } = { status: "queued", error_message: null, sent_at: null };
     if (data.provider) patch.provider = data.provider;
     const { error } = await context.supabase
       .from("lead_emails")
