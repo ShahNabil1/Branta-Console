@@ -87,7 +87,7 @@ export const Route = createFileRoute("/api/public/resend/webhook")({
             email_id?: string;
             to?: string[] | string;
             subject?: string;
-            tags?: Array<{ name: string; value: string }>;
+            tags?: unknown;
           };
         };
         try {
