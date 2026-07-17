@@ -798,30 +798,6 @@ export function LeadDetail({
                 onTagChange={(v) => setForm({ ...form, alt_phone_label: v })}
               />
 
-              <Field
-                label="Contact preference & availability"
-                className="col-span-2 md:col-span-3"
-                hint={
-                  <>
-                    <b>Optional</b> — কীভাবে ও কখন contact করলে best।
-                    <br />
-                    <span className="text-muted-foreground">
-                      Example: "WhatsApp preferred", "Call after 6pm weekdays",
-                      "Message on Nov 20 at 12am, then he will reply", "Email
-                      only — no calls"
-                    </span>
-                  </>
-                }
-              >
-                <Textarea
-                  value={form.contact_preference}
-                  onChange={(e) =>
-                    setForm({ ...form, contact_preference: e.target.value })
-                  }
-                  placeholder="How & when does this person prefer to be contacted? Preferred channel, days, times, timezone…"
-                  className="min-h-[60px] rounded-sm text-[12.5px]"
-                />
-              </Field>
 
               <Field
                 label="Next action"
