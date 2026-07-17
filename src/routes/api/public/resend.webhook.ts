@@ -42,13 +42,20 @@ function verifySvix(
   return false;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// Resend delivers `data.tags` as an object `{ key: value }` in webhook payloads,
+// even though the send API accepts `[{name, value}]`. Handle both shapes.
 function pickTag(tags: unknown, name: string): string {
-  if (!Array.isArray(tags)) return "";
-  const hit = (tags as Array<{ name?: string; value?: string }>).find(
-    (t) => t?.name === name,
-  );
-  return hit?.value ?? "";
+  if (Array.isArray(tags)) {
+    const hit = (tags as Array<{ name?: string; value?: string }>).find(
+      (t) => t?.name === name,
+    );
+    return hit?.value ?? "";
+  }
+  if (tags && typeof tags === "object") {
+    const v = (tags as Record<string, unknown>)[name];
+    return typeof v === "string" ? v : "";
+  }
+  return "";
 }
 
 export const Route = createFileRoute("/api/public/resend/webhook")({
