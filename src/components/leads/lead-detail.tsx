@@ -968,21 +968,6 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
                 </Button>
               )}
               <Button
-                variant="outline"
-                size="sm"
-                className="h-8 rounded-sm text-[12px]"
-                disabled={!primaryEmail || pullM.isPending}
-                onClick={() => pullM.mutate()}
-                title="Pull inbound Gmail for the primary contact"
-              >
-                {pullM.isPending ? (
-                  <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-                ) : (
-                  <RefreshCw className="mr-1.5 size-3.5" />
-                )}
-                Sync inbound
-              </Button>
-              <Button
                 size="sm"
                 className="h-8 rounded-sm bg-primary text-[12px] text-primary-foreground hover:bg-brand-700"
                 disabled={!canSend}
