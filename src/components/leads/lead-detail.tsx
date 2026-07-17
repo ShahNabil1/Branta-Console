@@ -1124,6 +1124,8 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
                 </span>
                 {e.provider === "resend" ? (
                   <ResendChip />
+                ) : e.provider === "brevo" ? (
+                  <BrevoChip />
                 ) : (
                   <span className="rounded-sm bg-muted px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider">
                     {e.provider}
@@ -1145,9 +1147,18 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
                   </span>
                 )}
                 {e.provider === "resend" && e.status === "sent" && (
-                  <ResendStatusChip events={events.data?.[e.id] ?? []} />
+                  <ProviderStatusChip
+                    provider="resend"
+                    events={events.data?.[e.id] ?? []}
+                  />
                 )}
-                {e.provider !== "resend" && e.status === "sent" && (
+                {e.provider === "brevo" && e.status === "sent" && (
+                  <ProviderStatusChip
+                    provider="brevo"
+                    events={brevoEvents.data?.[e.id] ?? []}
+                  />
+                )}
+                {e.provider !== "resend" && e.provider !== "brevo" && e.status === "sent" && (
                   <span className="rounded-sm bg-emerald-50 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-emerald-700">
                     sent
                   </span>
@@ -1168,21 +1179,75 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
                 <div className="text-[11px] text-red-600">{e.error_message}</div>
               )}
               {e.status === "failed" && (
-                <div className="mt-1">
+                <div className="mt-1 flex flex-wrap items-center gap-2">
                   <Button
                     size="sm"
                     variant="outline"
                     className="h-7 rounded-sm text-[11.5px]"
-                    disabled={retryM.isPending && retryM.variables === e.id}
-                    onClick={() => retryM.mutate(e.id)}
+                    disabled={
+                      retryM.isPending &&
+                      retryM.variables?.id === e.id &&
+                      !retryM.variables?.provider
+                    }
+                    onClick={() => retryM.mutate({ id: e.id })}
                   >
-                    {retryM.isPending && retryM.variables === e.id ? (
+                    {retryM.isPending &&
+                    retryM.variables?.id === e.id &&
+                    !retryM.variables?.provider ? (
                       <Loader2 className="mr-1.5 size-3 animate-spin" />
                     ) : (
                       <RefreshCw className="mr-1.5 size-3" />
                     )}
                     Retry send
                   </Button>
+                  {e.provider === "resend" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 rounded-sm text-[11.5px]"
+                      disabled={
+                        retryM.isPending &&
+                        retryM.variables?.id === e.id &&
+                        retryM.variables?.provider === "brevo"
+                      }
+                      onClick={() =>
+                        retryM.mutate({ id: e.id, provider: "brevo" })
+                      }
+                    >
+                      {retryM.isPending &&
+                      retryM.variables?.id === e.id &&
+                      retryM.variables?.provider === "brevo" ? (
+                        <Loader2 className="mr-1.5 size-3 animate-spin" />
+                      ) : (
+                        <BrevoLogo className="mr-1.5 size-3" />
+                      )}
+                      Retry via Brevo
+                    </Button>
+                  )}
+                  {e.provider === "brevo" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 rounded-sm text-[11.5px]"
+                      disabled={
+                        retryM.isPending &&
+                        retryM.variables?.id === e.id &&
+                        retryM.variables?.provider === "resend"
+                      }
+                      onClick={() =>
+                        retryM.mutate({ id: e.id, provider: "resend" })
+                      }
+                    >
+                      {retryM.isPending &&
+                      retryM.variables?.id === e.id &&
+                      retryM.variables?.provider === "resend" ? (
+                        <Loader2 className="mr-1.5 size-3 animate-spin" />
+                      ) : (
+                        <ResendLogo className="mr-1.5 size-3" />
+                      )}
+                      Retry via Resend
+                    </Button>
+                  )}
                 </div>
               )}
             </li>
