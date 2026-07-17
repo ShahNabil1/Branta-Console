@@ -85,9 +85,17 @@ const StatusInput = z.string().trim().min(1).max(60);
 
 const CreateInput = z.object({
   name: z.string().trim().min(1).max(160),
+  role: z.string().trim().max(120).optional().nullable(),
   company: z.string().trim().max(160).optional().nullable(),
   email: z.string().trim().email().max(200).optional().nullable().or(z.literal("")),
+  email_label: z.string().trim().max(40).optional().nullable(),
+  alt_email: z.string().trim().email().max(200).optional().nullable().or(z.literal("")),
+  alt_email_label: z.string().trim().max(40).optional().nullable(),
   phone: z.string().trim().max(40).optional().nullable(),
+  phone_label: z.string().trim().max(40).optional().nullable(),
+  alt_phone: z.string().trim().max(40).optional().nullable(),
+  alt_phone_label: z.string().trim().max(40).optional().nullable(),
+  contact_preference: z.string().trim().max(2000).optional().nullable(),
   status: StatusInput.default("new"),
   source: z.string().trim().max(80).optional().nullable(),
   source_other: z.string().trim().max(200).optional().nullable(),
@@ -97,6 +105,7 @@ const CreateInput = z.object({
   next_action: z.string().trim().max(200).optional().nullable(),
   notes: z.string().trim().max(4000).optional().nullable(),
 });
+
 
 const UpdateInput = z.object({
   id: z.string().uuid(),
