@@ -689,10 +689,36 @@ export function LeadDetail({
               </span>
             </div>
             <div className="grid gap-2 border-b border-border p-3">
+              <div className="flex items-center gap-1.5 text-[10.5px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                <span>Add timeline entry</span>
+                <TooltipProvider delayDuration={150}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        className="inline-flex size-3.5 items-center justify-center rounded-full text-muted-foreground/70 hover:text-foreground focus:outline-none"
+                        aria-label="What is this field?"
+                      >
+                        <Info className="size-3" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-[280px] text-[11.5px] leading-relaxed normal-case tracking-normal">
+                      <b>Time-stamped journal entry</b> — কী ঘটেছে সেটার log।
+                      Append-only, প্রতিটা note আলাদা row হিসেবে save হয় সাথে
+                      timestamp আর কে লিখেছে। Overwrite হয় না — audit trail।
+                      <br />
+                      <span className="text-muted-foreground">
+                        Example: "Called at 3:24pm, no answer", "Sent revised
+                        quote", "Client confirmed budget"
+                      </span>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
               <Textarea
                 value={noteText}
                 onChange={(e) => setNoteText(e.target.value)}
-                placeholder="Add a note (call summary, next steps, blockers…)"
+                placeholder="Log what just happened — call summary, meeting outcome, blocker, decision. Adds a new time-stamped entry below."
                 className="min-h-[70px] rounded-sm text-[12.5px]"
               />
               <div className="flex justify-end">
