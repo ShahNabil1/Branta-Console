@@ -444,6 +444,77 @@ export const getQueueMetrics = createServerFn({ method: "GET" })
     };
   });
 
+// ---------------- Provider daily quota (real-time) ----------------
+// Free-plan hard caps. Change if the workspace upgrades.
+export const RESEND_DAILY_LIMIT = 100;
+export const BREVO_DAILY_LIMIT = 300;
+
+export interface ProviderUsage {
+  used: number; // sent + sending + queued today (queued reserves capacity)
+  sent: number;
+  reserved: number; // queued + sending
+  limit: number;
+}
+
+export interface EmailUsageToday {
+  resend: ProviderUsage;
+  brevo: ProviderUsage;
+  /** ISO of start-of-day used for the counters (server clock, UTC). */
+  since: string;
+}
+
+/**
+ * Count lead_emails per provider for "today" (UTC start-of-day) grouped by
+ * status. This is the source of truth for the compose header quota chip:
+ * queued/sending consume a slot, sent stays consumed, failed frees the slot.
+ * Real-time updates arrive via the client's lead_emails realtime channel.
+ */
+export const getEmailUsageToday = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<EmailUsageToday> => {
+    const start = new Date();
+    start.setUTCHours(0, 0, 0, 0);
+    const sinceIso = start.toISOString();
+
+    async function countFor(
+      provider: "resend" | "brevo",
+      statuses: LeadEmailStatus[],
+    ): Promise<number> {
+      const { count } = await context.supabase
+        .from("lead_emails")
+        .select("id", { count: "exact", head: true })
+        .eq("provider", provider)
+        .in("status", statuses)
+        .gte("created_at", sinceIso);
+      return count ?? 0;
+    }
+
+    const [rSent, rReserved, bSent, bReserved] = await Promise.all([
+      countFor("resend", ["sent"]),
+      countFor("resend", ["queued", "sending"]),
+      countFor("brevo", ["sent"]),
+      countFor("brevo", ["queued", "sending"]),
+    ]);
+
+    return {
+      since: sinceIso,
+      resend: {
+        sent: rSent,
+        reserved: rReserved,
+        used: rSent + rReserved,
+        limit: RESEND_DAILY_LIMIT,
+      },
+      brevo: {
+        sent: bSent,
+        reserved: bReserved,
+        used: bSent + bReserved,
+        limit: BREVO_DAILY_LIMIT,
+      },
+    };
+  });
+
+
+
 export const listFailedEmails = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<FailedEmailRow[]> => {

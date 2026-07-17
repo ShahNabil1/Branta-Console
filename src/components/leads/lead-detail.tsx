@@ -51,10 +51,12 @@ import {
 } from "@/lib/leads.functions";
 import {
   drainEmailQueue,
+  getEmailUsageToday,
   listLeadEmails,
   renderVariables,
   retryFailedEmail,
   sendLeadEmail,
+  type EmailUsageToday,
   type LeadEmailRow,
 } from "@/lib/lead-email.functions";
 import { listResendEventsForLead } from "@/lib/resend-events.functions";
@@ -631,6 +633,74 @@ function BrevoChip() {
   );
 }
 
+function QuotaChip({
+  provider,
+  usage,
+}: {
+  provider: "resend" | "brevo";
+  usage: EmailUsageToday | undefined;
+}) {
+  const p = usage?.[provider];
+  const used = p?.used ?? 0;
+  const limit = p?.limit ?? (provider === "resend" ? 100 : 300);
+  const reserved = p?.reserved ?? 0;
+  const sent = p?.sent ?? 0;
+  const remaining = Math.max(0, limit - used);
+  const pct = Math.min(100, (used / limit) * 100);
+  const isNear = pct >= 80;
+  const isFull = used >= limit;
+  const tone = isFull
+    ? "border-rose-200 bg-rose-50 text-rose-700"
+    : isNear
+      ? "border-amber-200 bg-amber-50 text-amber-800"
+      : "border-border bg-white text-foreground";
+  const barTone = isFull
+    ? "bg-rose-500"
+    : isNear
+      ? "bg-amber-500"
+      : provider === "resend"
+        ? "bg-black"
+        : "bg-emerald-600";
+  return (
+    <TooltipProvider delayDuration={100}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div
+            className={cn(
+              "inline-flex items-center gap-2 rounded-sm border px-2 py-1 font-mono text-[10.5px]",
+              tone,
+            )}
+          >
+            {provider === "resend" ? (
+              <ResendLogo className="size-3" />
+            ) : (
+              <BrevoLogo className="size-3" />
+            )}
+            <span className="tabular-nums">
+              {String(used).padStart(2, "0")} / {limit}
+            </span>
+            <span className="h-1 w-14 overflow-hidden rounded-full bg-muted">
+              <span
+                className={cn("block h-full transition-all", barTone)}
+                style={{ width: `${pct}%` }}
+              />
+            </span>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="text-[11px]">
+          <div className="font-medium capitalize">{provider} · daily free plan</div>
+          <div className="mt-1 grid gap-0.5 font-mono text-[10.5px] text-muted-foreground">
+            <div>Sent today: {sent}</div>
+            <div>In queue / sending: {reserved}</div>
+            <div>Remaining: {remaining}</div>
+            <div>Resets at UTC midnight</div>
+          </div>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
 // Priority for choosing which webhook event "wins" as the displayed status.
 // Higher wins — bounce/complaint/failure trumps opened/clicked/delivered.
 const EVENT_PRIORITY: Record<string, number> = {
@@ -791,6 +861,29 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
       supabase.removeChannel(ch);
     };
   }, [lead.id, qc]);
+
+  // Real-time provider quota (Resend/Brevo daily usage across ALL leads).
+  const usageFn = useServerFn(getEmailUsageToday);
+  const usage = useQuery({
+    queryKey: ["email-usage-today"],
+    queryFn: () => usageFn(),
+    refetchInterval: 5_000,
+    staleTime: 2_000,
+  });
+  useEffect(() => {
+    // Any lead_emails INSERT/UPDATE anywhere in the org changes the counter.
+    const ch = supabase
+      .channel("email-usage-today")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "lead_emails" },
+        () => qc.invalidateQueries({ queryKey: ["email-usage-today"] }),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, [qc]);
 
   // Drain pump: whenever we have queued rows visible, poll drain until empty.
   const hasQueue = (emails.data ?? []).some(
@@ -960,6 +1053,8 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
                 </button>
               ))}
             </div>
+            <QuotaChip provider={provider} usage={usage.data} />
+
             <div className="inline-flex rounded-sm border border-border bg-muted p-0.5">
               {(["html", "text"] as const).map((t) => (
                 <button
