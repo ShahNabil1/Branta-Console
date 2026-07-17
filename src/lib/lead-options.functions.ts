@@ -91,6 +91,26 @@ export const SOURCE_FALLBACK: LeadSourceOption[] = [
   { key: "other", label: "Other", sort_order: 999, requires_detail: true, is_active: true },
 ];
 
+export const SERVICE_FALLBACK: LeadServiceOption[] = [
+  { key: "web_development", label: "Web Development", sort_order: 10, requires_detail: false, is_active: true },
+  { key: "mobile_app", label: "Mobile App Development", sort_order: 20, requires_detail: false, is_active: true },
+  { key: "ui_ux_design", label: "UI/UX Design", sort_order: 30, requires_detail: false, is_active: true },
+  { key: "branding", label: "Branding & Identity", sort_order: 40, requires_detail: false, is_active: true },
+  { key: "seo", label: "SEO", sort_order: 50, requires_detail: false, is_active: true },
+  { key: "digital_marketing", label: "Digital Marketing", sort_order: 60, requires_detail: false, is_active: true },
+  { key: "devops_cloud", label: "DevOps & Cloud", sort_order: 70, requires_detail: false, is_active: true },
+  { key: "consulting", label: "Consulting", sort_order: 80, requires_detail: false, is_active: true },
+  { key: "other", label: "Other", sort_order: 999, requires_detail: true, is_active: true },
+];
+
+  { key: "tiktok", label: "TikTok", sort_order: 40, requires_detail: false, is_active: true },
+  { key: "whatsapp", label: "WhatsApp", sort_order: 50, requires_detail: false, is_active: true },
+  { key: "website", label: "Website", sort_order: 60, requires_detail: false, is_active: true },
+  { key: "referral", label: "Referral", sort_order: 70, requires_detail: false, is_active: true },
+  { key: "direct", label: "Direct", sort_order: 80, requires_detail: false, is_active: true },
+  { key: "other", label: "Other", sort_order: 999, requires_detail: true, is_active: true },
+];
+
 export function statusLabel(key: string, options: LeadStatusOption[]): string {
   return options.find((o) => o.key === key)?.label ?? key;
 }
