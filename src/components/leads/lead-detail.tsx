@@ -82,6 +82,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Eye } from "lucide-react";
+import {
+  listLeadSourceOptions,
+  listLeadStatusOptions,
+  SOURCE_FALLBACK,
+  STATUS_FALLBACK,
+  statusColorVar,
+  statusLabel,
+  type LeadSourceOption,
+  type LeadStatusOption,
+} from "@/lib/lead-options.functions";
 
 // Same status metadata as the list page.
 const STATUSES: { value: LeadStatusDB; label: string; dotVar: string }[] = [
