@@ -651,6 +651,62 @@ export function LeadDetail({
                 </Field>
               )}
 
+              <Field
+                label="Service interest"
+                hint={
+                  <>
+                    <b>Which service is this lead considering?</b>
+                    <br />
+                    <span className="text-muted-foreground">
+                      Pick the closest service; choose "Other" and describe it
+                      when nothing fits. Super admin will manage this list.
+                    </span>
+                  </>
+                }
+              >
+                <Select
+                  value={form.service || "__unset"}
+                  onValueChange={(v) => {
+                    const next = v === "__unset" ? "" : v;
+                    setForm((prev) => ({
+                      ...prev,
+                      service: next,
+                      service_other:
+                        next && serviceOptions.find((o) => o.key === next)?.requires_detail
+                          ? prev.service_other
+                          : "",
+                    }));
+                  }}
+                >
+                  <SelectTrigger className="h-9 rounded-sm text-[12.5px]">
+                    <SelectValue placeholder="Select service" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__unset">— None —</SelectItem>
+                    {serviceOptions.map((s) => (
+                      <SelectItem key={s.key} value={s.key}>
+                        {s.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              {serviceNeedsDetail && (
+                <Field
+                  label={`${activeService?.label ?? "Service"} details *`}
+                  className="col-span-2 md:col-span-2"
+                >
+                  <Input
+                    value={form.service_other}
+                    onChange={(e) =>
+                      setForm({ ...form, service_other: e.target.value })
+                    }
+                    placeholder="Which service does this lead want?"
+                    className="h-9 rounded-sm text-[12.5px]"
+                  />
+                </Field>
+              )}
+
               <EmailRow
                 label="Email"
                 value={form.email}
@@ -658,7 +714,6 @@ export function LeadDetail({
                 tag={form.email_label}
                 onTagChange={(v) => setForm({ ...form, email_label: v })}
                 onCompose={() => setTab("emails")}
-                className="col-span-2 md:col-span-3"
               />
               <EmailRow
                 label="Alternative email"
@@ -667,7 +722,6 @@ export function LeadDetail({
                 tag={form.alt_email_label}
                 onTagChange={(v) => setForm({ ...form, alt_email_label: v })}
                 onCompose={() => setTab("emails")}
-                className="col-span-2 md:col-span-3"
               />
               <PhoneRow
                 label="Phone"
@@ -675,7 +729,6 @@ export function LeadDetail({
                 onChange={(v) => setForm({ ...form, phone: v })}
                 tag={form.phone_label}
                 onTagChange={(v) => setForm({ ...form, phone_label: v })}
-                className="col-span-2 md:col-span-3"
               />
               <PhoneRow
                 label="Alternative phone"
