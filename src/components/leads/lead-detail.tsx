@@ -813,14 +813,7 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
   });
 
   const primaryEmail = lead.email ?? contacts.data?.[0]?.email ?? "";
-  const pullM = useMutation({
-    mutationFn: () => pullFn({ data: { leadId: lead.id, email: primaryEmail } }),
-    onSuccess: (r) => {
-      toast.success(`Pulled ${r.pulled} messages`);
-      qc.invalidateQueries({ queryKey: ["lead-emails", lead.id] });
-    },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Pull failed"),
-  });
+
 
   const canSend =
     !sendM.isPending &&
