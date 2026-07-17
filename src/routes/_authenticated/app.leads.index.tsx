@@ -265,8 +265,8 @@ function LeadsPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All statuses</SelectItem>
-            {STATUSES.map((s) => (
-              <SelectItem key={s.value} value={s.value}>
+            {statusOptions.map((s) => (
+              <SelectItem key={s.key} value={s.key}>
                 {s.label}
               </SelectItem>
             ))}
