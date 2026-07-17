@@ -794,6 +794,29 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
     };
   }, [lead.id, qc]);
 
+  // Real-time provider quota (Resend/Brevo daily usage across ALL leads).
+  const usageFn = useServerFn(getEmailUsageToday);
+  const usage = useQuery({
+    queryKey: ["email-usage-today"],
+    queryFn: () => usageFn(),
+    refetchInterval: 5_000,
+    staleTime: 2_000,
+  });
+  useEffect(() => {
+    // Any lead_emails INSERT/UPDATE anywhere in the org changes the counter.
+    const ch = supabase
+      .channel("email-usage-today")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "lead_emails" },
+        () => qc.invalidateQueries({ queryKey: ["email-usage-today"] }),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, [qc]);
+
   // Drain pump: whenever we have queued rows visible, poll drain until empty.
   const hasQueue = (emails.data ?? []).some(
     (e) => e.status === "queued" || e.status === "sending",
