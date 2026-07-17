@@ -558,24 +558,6 @@ function ProfileForm({
               )}
             </dl>
             <div className="flex flex-col items-stretch justify-start gap-2 md:min-w-[220px]">
-              <Button
-                onClick={beginDidit}
-                disabled={startingKyc || form.kyc_status === "verified"}
-                className="h-9 rounded-sm bg-primary text-primary-foreground hover:bg-brand-700"
-              >
-                {startingKyc ? (
-                  <>
-                    <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-                    Opening Didit…
-                  </>
-                ) : form.kyc_status === "verified" ? (
-                  "Verified"
-                ) : form.kyc_status === "under_review" ? (
-                  "Continue verification"
-                ) : (
-                  "Verify with Didit"
-                )}
-              </Button>
               {form.kyc_status === "rejected" && (
                 <Button
                   onClick={submitReupload}
@@ -591,6 +573,9 @@ function ProfileForm({
                   Request Re-upload
                 </Button>
               )}
+              <p className="text-[11px] leading-relaxed text-muted-foreground">
+                KYC is reviewed manually by the Branta Tech admin team. Upload updated NID / CV in the Documents section, then request re-upload if previously rejected.
+              </p>
             </div>
           </div>
         </Section>
