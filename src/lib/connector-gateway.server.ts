@@ -5,6 +5,7 @@ const BASE = "https://connector-gateway.lovable.dev";
 
 export type ConnectorId =
   | "resend"
+  | "brevo"
   | "google_mail"
   | "google_calendar"
   | "google_docs"
@@ -12,6 +13,7 @@ export type ConnectorId =
 
 const KEY_ENV: Record<ConnectorId, string> = {
   resend: "RESEND_API_KEY",
+  brevo: "BREVO_API_KEY",
   google_mail: "GOOGLE_MAIL_API_KEY",
   google_calendar: "GOOGLE_CALENDAR_API_KEY",
   google_docs: "GOOGLE_DOCS_API_KEY",
