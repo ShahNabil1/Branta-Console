@@ -319,8 +319,8 @@ function extractIdFields(decision: Json | null): Extracted {
 
   const fullName =
     asStr(first.full_name) ??
-    [asStr(first.first_name), asStr(first.last_name)].filter(Boolean).join(" ") ||
-    null;
+    ([asStr(first.first_name), asStr(first.last_name)].filter(Boolean).join(" ") ||
+      null);
 
   return {
     documentType: asStr(first.document_type),
