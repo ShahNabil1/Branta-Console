@@ -548,6 +548,14 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
     staleTime: 30_000,
   });
 
+  const resendEventsFn = useServerFn(listResendEventsForLead);
+  const events = useQuery({
+    queryKey: ["lead-resend-events", lead.id],
+    queryFn: () => resendEventsFn({ data: { leadId: lead.id } }),
+    refetchInterval: 5_000,
+    staleTime: 3_000,
+  });
+
   // Realtime: any change to this lead's emails invalidates the thread.
   useEffect(() => {
     const ch = supabase
