@@ -85,7 +85,9 @@ export async function appendResendEvent(
     query: { valueInputOption: "RAW", insertDataOption: "INSERT_ROWS" },
     body: {
       values: [
-        EVENT_HEADERS.map((h) => (ev as Record<string, string>)[h] ?? ""),
+        EVENT_HEADERS.map(
+          (h) => (ev as unknown as Record<string, string>)[h] ?? "",
+        ),
       ],
     },
   });
