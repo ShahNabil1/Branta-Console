@@ -46,6 +46,16 @@ import {
   type LeadStatusDB,
 } from "@/lib/leads.functions";
 import {
+  listLeadSourceOptions,
+  listLeadStatusOptions,
+  SOURCE_FALLBACK,
+  STATUS_FALLBACK,
+  statusColorVar,
+  statusLabel,
+  type LeadSourceOption,
+  type LeadStatusOption,
+} from "@/lib/lead-options.functions";
+import {
   getSheetSyncStatus,
   pushLeadsToSheet,
   pullLeadsFromSheet,
