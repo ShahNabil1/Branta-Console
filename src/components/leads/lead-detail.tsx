@@ -947,6 +947,7 @@ export function LeadDetail({
                 />
               </Field>
             </div>
+            </fieldset>
             <div className="flex items-center justify-between border-t border-border px-3 py-2">
               <Button
                 variant="ghost"
@@ -965,24 +966,26 @@ export function LeadDetail({
                 )}
                 Delete
               </Button>
-              <Button
-                size="sm"
-                className="h-8 rounded-sm bg-primary text-[12px] text-primary-foreground hover:bg-brand-700"
-                disabled={
-                  saveM.isPending ||
-                  !form.name.trim() ||
-                  (sourceNeedsDetail && !form.source_other.trim()) ||
-                  (serviceNeedsDetail && !form.service_other.trim())
-                }
-                onClick={() => saveM.mutate()}
-              >
-                {saveM.isPending ? (
-                  <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-                ) : (
-                  <Save className="mr-1.5 size-3.5" />
-                )}
-                Save changes
-              </Button>
+              {editing && (
+                <Button
+                  size="sm"
+                  className="h-8 rounded-sm bg-primary text-[12px] text-primary-foreground hover:bg-brand-700"
+                  disabled={
+                    saveM.isPending ||
+                    !form.name.trim() ||
+                    (sourceNeedsDetail && !form.source_other.trim()) ||
+                    (serviceNeedsDetail && !form.service_other.trim())
+                  }
+                  onClick={() => saveM.mutate()}
+                >
+                  {saveM.isPending ? (
+                    <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                  ) : (
+                    <Save className="mr-1.5 size-3.5" />
+                  )}
+                  Save changes
+                </Button>
+              )}
             </div>
           </section>
 
