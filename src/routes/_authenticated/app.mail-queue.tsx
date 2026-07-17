@@ -54,7 +54,7 @@ function Metric({
   label: string;
   value: number;
   tone: "neutral" | "warn" | "info" | "danger" | "ok";
-  icon: React.ComponentType<{ className?: string }>;
+  icon: ComponentType<{ className?: string }>;
 }) {
   const toneCls: Record<typeof tone, string> = {
     neutral: "text-foreground",
