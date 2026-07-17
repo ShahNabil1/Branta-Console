@@ -368,45 +368,157 @@ export function LeadDetail({
                 />
               </Field>
               <Field label="Source">
-                <Input
-                  value={form.source}
-                  onChange={(e) => setForm({ ...form, source: e.target.value })}
-                  className="h-9 rounded-sm text-[12.5px]"
-                />
-              </Field>
-              <Field label="Email">
-                <Input
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  className="h-9 rounded-sm text-[12.5px]"
-                />
-              </Field>
-              <Field label="Phone">
-                <Input
-                  value={form.phone}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                  className="h-9 rounded-sm text-[12.5px]"
-                />
-              </Field>
-              <Field label="Status">
                 <Select
-                  value={form.status}
-                  onValueChange={(v) =>
-                    setForm({ ...form, status: v as LeadStatusDB })
-                  }
+                  value={form.source || "__unset"}
+                  onValueChange={(v) => {
+                    const next = v === "__unset" ? "" : v;
+                    setForm((prev) => ({
+                      ...prev,
+                      source: next,
+                      source_other:
+                        next && sourceOptions.find((o) => o.key === next)?.requires_detail
+                          ? prev.source_other
+                          : "",
+                    }));
+                  }}
                 >
                   <SelectTrigger className="h-9 rounded-sm text-[12.5px]">
-                    <SelectValue />
+                    <SelectValue placeholder="Select source" />
                   </SelectTrigger>
                   <SelectContent>
-                    {STATUSES.map((s) => (
-                      <SelectItem key={s.value} value={s.value}>
+                    <SelectItem value="__unset">— None —</SelectItem>
+                    {sourceOptions.map((s) => (
+                      <SelectItem key={s.key} value={s.key}>
                         {s.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </Field>
+              {sourceNeedsDetail && (
+                <Field label={`${activeSource?.label ?? "Source"} details *`}>
+                  <Input
+                    value={form.source_other}
+                    onChange={(e) =>
+                      setForm({ ...form, source_other: e.target.value })
+                    }
+                    placeholder="Describe the source"
+                    className="h-9 rounded-sm text-[12.5px]"
+                  />
+                </Field>
+              )}
+              <Field label="Email">
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    className="h-9 flex-1 rounded-sm text-[12.5px]"
+                  />
+                  <TooltipProvider delayDuration={200}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="h-9 w-9 shrink-0 rounded-sm"
+                          disabled={!form.email.trim()}
+                          onClick={() => setTab("emails")}
+                          aria-label="Compose email"
+                        >
+                          <Mail className="size-3.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">Compose in Emails tab</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+              </Field>
+              <Field label="Phone">
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    value={form.phone}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                    className="h-9 flex-1 rounded-sm text-[12.5px]"
+                  />
+                  <TooltipProvider delayDuration={200}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <a
+                          href={form.phone ? `tel:${form.phone.replace(/\s+/g, "")}` : undefined}
+                          aria-disabled={!form.phone.trim()}
+                          className={cn(
+                            "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-sm border border-input bg-background text-foreground transition-colors hover:bg-muted",
+                            !form.phone.trim() && "pointer-events-none opacity-50",
+                          )}
+                          aria-label="Call this number"
+                        >
+                          <PhoneIcon className="size-3.5" />
+                        </a>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">Call</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <a
+                          href={
+                            form.phone
+                              ? `https://wa.me/${form.phone.replace(/[^\d]/g, "")}`
+                              : undefined
+                          }
+                          target="_blank"
+                          rel="noreferrer"
+                          aria-disabled={!form.phone.trim()}
+                          className={cn(
+                            "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-sm border border-input bg-background transition-colors hover:bg-muted",
+                            !form.phone.trim() && "pointer-events-none opacity-50",
+                          )}
+                          aria-label="Open in WhatsApp"
+                        >
+                          <WhatsAppIcon className="size-4" />
+                        </a>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">WhatsApp</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+              </Field>
+              <Field label="Status">
+                <Select
+                  value={form.status}
+                  onValueChange={(v) => setForm({ ...form, status: v })}
+                >
+                  <SelectTrigger className="h-9 rounded-sm text-[12.5px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {statusOptions.map((s) => (
+                      <SelectItem key={s.key} value={s.key}>
+                        <span className="inline-flex items-center gap-2">
+                          <span
+                            className="size-1.5 rounded-full"
+                            style={{ background: `var(${s.color_var ?? "--color-status-contacted"})` }}
+                          />
+                          {s.label}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              {statusChanged && (
+                <Field
+                  label={`Reason for status change → ${statusLabel(form.status, statusOptions)} (optional)`}
+                  className="col-span-2 md:col-span-3"
+                >
+                  <Textarea
+                    value={statusChangeNote}
+                    onChange={(e) => setStatusChangeNote(e.target.value)}
+                    placeholder={`Why is this lead moving to "${statusLabel(form.status, statusOptions)}"? (added to Activity Logs)`}
+                    className="min-h-[64px] rounded-sm text-[12.5px]"
+                  />
+                </Field>
+              )}
               <Field label="Owner">
                 <Select
                   value={form.owner_id || "none"}
