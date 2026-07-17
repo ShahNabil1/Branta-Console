@@ -736,7 +736,6 @@ export function LeadDetail({
                 onChange={(v) => setForm({ ...form, alt_phone: v })}
                 tag={form.alt_phone_label}
                 onTagChange={(v) => setForm({ ...form, alt_phone_label: v })}
-                className="col-span-2 md:col-span-3"
               />
 
               <Field
