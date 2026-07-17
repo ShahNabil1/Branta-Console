@@ -103,6 +103,7 @@ async function deliverQueuedRow(
         tags: [
           { name: "lead_id", value: row.lead_id },
           { name: "lead_slug", value: leadSlug },
+          { name: "lead_email_id", value: row.id },
         ],
       },
     });
