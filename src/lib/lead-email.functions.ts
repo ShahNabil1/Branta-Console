@@ -275,11 +275,11 @@ export const sendLeadEmail = createServerFn({ method: "POST" })
         return {
           lead_id: data.leadId,
           direction: "outbound" as const,
-          provider: "resend" as const,
+          provider: data.provider,
           subject: renderedSubject,
           body_html: html,
           body_text: text ?? renderedBody,
-          from_email: "hello@brantatech.com",
+          from_email: LEAD_FROM_EMAIL,
           to_emails: [recipient],
           cc_emails: data.cc,
           status: "queued" as const,
@@ -311,7 +311,7 @@ export const sendLeadEmail = createServerFn({ method: "POST" })
           .in("id", claimIds)
           .eq("status", "queued")
           .select(
-            "id, lead_id, to_emails, cc_emails, subject, body_html, body_text, sent_by",
+            "id, lead_id, provider, to_emails, cc_emails, subject, body_html, body_text, sent_by",
           );
         const claimedRows = (claimed ?? []) as ProcessableRow[];
         const results = await Promise.all(
