@@ -61,22 +61,17 @@ export interface LeadActivityRow {
   actor_name?: string | null;
 }
 
-const StatusEnum = z.enum([
-  "new",
-  "contacted",
-  "viewed",
-  "meeting",
-  "converted",
-  "lost",
-]);
+// Status is a free-form key validated against lead_status_options in the UI.
+const StatusInput = z.string().trim().min(1).max(60);
 
 const CreateInput = z.object({
   name: z.string().trim().min(1).max(160),
   company: z.string().trim().max(160).optional().nullable(),
   email: z.string().trim().email().max(200).optional().nullable().or(z.literal("")),
   phone: z.string().trim().max(40).optional().nullable(),
-  status: StatusEnum.default("new"),
+  status: StatusInput.default("new"),
   source: z.string().trim().max(80).optional().nullable(),
+  source_other: z.string().trim().max(200).optional().nullable(),
   owner_id: z.string().uuid().optional().nullable(),
   value_usd: z.number().nonnegative().optional().nullable(),
   currency: z.enum(["BDT", "USD"]).optional(),
@@ -87,6 +82,7 @@ const CreateInput = z.object({
 const UpdateInput = z.object({
   id: z.string().uuid(),
   patch: CreateInput.partial(),
+  statusChangeNote: z.string().trim().max(1000).optional(),
 });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
