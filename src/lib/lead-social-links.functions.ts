@@ -82,7 +82,11 @@ export const updateLeadSocialLink = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ context, data }) => {
-    const patch: Record<string, unknown> = {};
+    const patch: {
+      platform?: string;
+      url?: string;
+      label?: string | null;
+    } = {};
     if (data.patch.platform !== undefined) patch.platform = data.patch.platform;
     if (data.patch.url !== undefined) patch.url = data.patch.url.trim();
     if (data.patch.label !== undefined)
