@@ -16,10 +16,10 @@ import {
   getMyProfile,
   updateMyProfile,
   markKycSubmitted,
-  getMetamapConfig,
   requestKycReupload,
   type ProfileRow,
 } from "@/lib/profile.functions";
+import { createDiditSession } from "@/lib/didit.functions";
 import { requestR2Upload } from "@/lib/r2.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
@@ -32,10 +32,7 @@ export const Route = createFileRoute("/_authenticated/app/profile")({
   component: ProfilePage,
 });
 
-// MetaMap ships a custom element; wrap it so React/TS don't complain about
-// unknown intrinsic elements.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const MetamapButton = "metamap-button" as any;
+// (Didit uses a hosted URL — no custom element needed.)
 
 // ---------- KYC status badge ----------
 type KycStatus = "not_verified" | "under_review" | "verified" | "rejected";
@@ -137,11 +134,11 @@ function Section({
 function ProfilePage() {
   const router = useRouter();
   const fetchProfile = useServerFn(getMyProfile);
-  const fetchMetamap = useServerFn(getMetamapConfig);
   const update = useServerFn(updateMyProfile);
   const markSubmitted = useServerFn(markKycSubmitted);
   const reupload = useServerFn(requestKycReupload);
   const presign = useServerFn(requestR2Upload);
+  const startDidit = useServerFn(createDiditSession);
 
   const profileQuery = useQuery({
     queryKey: ["me", "profile"],
@@ -149,14 +146,8 @@ function ProfilePage() {
     staleTime: 15_000,
   });
 
-  const metamapQuery = useQuery({
-    queryKey: ["me", "metamap-config"],
-    queryFn: () => fetchMetamap(),
-    staleTime: Infinity,
-  });
-
   // Realtime: subscribe to this user's profile row so the KYC badge flips
-  // the instant the MetaMap webhook writes to Supabase.
+  // the instant the Didit webhook writes to Supabase.
   const userId = profileQuery.data?.profile.user_id;
   useEffect(() => {
     if (!userId) return;
@@ -180,7 +171,7 @@ function ProfilePage() {
     };
   }, [userId, profileQuery]);
 
-  // Handle ?kyc=success redirect back from MetaMap.
+  // Handle ?kyc=success redirect back from Didit.
   useEffect(() => {
     if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
@@ -203,13 +194,11 @@ function ProfilePage() {
     );
 
   const { profile, email } = profileQuery.data!;
-  const metamap = metamapQuery.data;
 
   return (
     <ProfileForm
       profile={profile}
       email={email}
-      metamap={metamap ?? { clientId: null, flowId: null }}
       onSaved={() => {
         profileQuery.refetch();
         router.invalidate();
@@ -218,6 +207,7 @@ function ProfilePage() {
       markSubmitted={markSubmitted}
       reupload={reupload}
       presign={presign}
+      startDidit={startDidit}
     />
   );
 }
@@ -235,28 +225,29 @@ function ProfileSkeleton() {
 interface FormProps {
   profile: ProfileRow;
   email: string;
-  metamap: { clientId: string | null; flowId: string | null };
   onSaved: () => void;
   update: ReturnType<typeof useServerFn<typeof updateMyProfile>>;
   markSubmitted: ReturnType<typeof useServerFn<typeof markKycSubmitted>>;
   reupload: ReturnType<typeof useServerFn<typeof requestKycReupload>>;
   presign: ReturnType<typeof useServerFn<typeof requestR2Upload>>;
+  startDidit: ReturnType<typeof useServerFn<typeof createDiditSession>>;
 }
 
 function ProfileForm({
   profile,
   email,
-  metamap,
   onSaved,
   update,
-  markSubmitted,
+  markSubmitted: _markSubmitted,
   reupload,
   presign,
+  startDidit,
 }: FormProps) {
   const [form, setForm] = useState<ProfileRow>(profile);
   useEffect(() => setForm(profile), [profile]);
   const [saving, setSaving] = useState(false);
   const [reuploading, setReuploading] = useState(false);
+  const [startingKyc, setStartingKyc] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
 
   const submitReupload = async () => {
@@ -280,6 +271,19 @@ function ProfileForm({
       });
     } finally {
       setReuploading(false);
+    }
+  };
+
+  const beginDidit = async () => {
+    setStartingKyc(true);
+    try {
+      const { url } = await startDidit({});
+      window.location.href = url;
+    } catch (err) {
+      toast.error("Could not start verification", {
+        description: (err as Error).message,
+      });
+      setStartingKyc(false);
     }
   };
 
@@ -330,44 +334,7 @@ function ProfileForm({
     }
   };
 
-  // ---- MetaMap SDK ----
-  const metamapReady = !!metamap.clientId && !!metamap.flowId && !!userId;
-  const btnRef = useRef<HTMLElement | null>(null);
-
-  useEffect(() => {
-    if (!metamapReady) return;
-    // Load MetaMap web SDK once.
-    if (!document.querySelector("script[data-metamap]")) {
-      const s = document.createElement("script");
-      s.src = "https://web-button.metamap.com/button.js";
-      s.async = true;
-      s.defer = true;
-      s.dataset.metamap = "1";
-      document.body.appendChild(s);
-    }
-  }, [metamapReady]);
-
-  useEffect(() => {
-    const el = btnRef.current;
-    if (!el) return;
-    const onFinished = () => {
-      toast.success("Verification submitted", {
-        description: "Your KYC is now under review.",
-      });
-      void markSubmitted({}).then(() => onSaved());
-    };
-    const onExited = () => {
-      toast("Verification closed", {
-        description: "You closed the MetaMap window before finishing.",
-      });
-    };
-    el.addEventListener("metamap:userFinishedSdk", onFinished);
-    el.addEventListener("metamap:exitedSdk", onExited);
-    return () => {
-      el.removeEventListener("metamap:userFinishedSdk", onFinished);
-      el.removeEventListener("metamap:exitedSdk", onExited);
-    };
-  }, [markSubmitted, onSaved]);
+  void userId; // reserved for future use
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-8">
@@ -439,10 +406,10 @@ function ProfileForm({
                   readOnly
                 />
               </Field>
-              <Field label="MetaMap Identity ID" hint="Set by the KYC webhook">
+              <Field label="Didit Session ID">
                 <Input
                   className="h-9 rounded-sm bg-muted font-mono text-[12px]"
-                  value={form.metamap_identity_id ?? "—"}
+                  value={form.didit_session_id ?? "—"}
                   readOnly
                 />
               </Field>
@@ -595,10 +562,9 @@ function ProfileForm({
           </div>
         </Section>
 
-        {/* KYC / MetaMap */}
+        {/* KYC / Didit */}
         <Section
           title="Identity Verification (KYC)"
-          description="Complete a one-time biometric check via MetaMap. Results appear here automatically."
           right={<KycBadge status={form.kyc_status} />}
         >
           <div className="grid grid-cols-1 gap-6 md:grid-cols-[1fr_auto]">
@@ -631,36 +597,24 @@ function ProfileForm({
               )}
             </dl>
             <div className="flex flex-col items-stretch justify-start gap-2 md:min-w-[220px]">
-              {metamapReady ? (
-                <>
-                  {/* MetaMap web button. Attributes are lowercase per the web-component spec. */}
-                  <MetamapButton
-                    ref={(node: HTMLElement | null) => {
-                      btnRef.current = node;
-                    }}
-                    clientid={metamap.clientId!}
-                    flowid={metamap.flowId!}
-                    metadata={JSON.stringify({ userId })}
-                    redirecturl="https://console.brantatech.com/app/profile?kyc=success"
-                    color="#E56A17"
-                    textcolor="#FFFFFF"
-                  />
-                  <p className="text-[11px] text-muted-foreground">
-                    Have your NID and a well-lit space ready. Takes ~2 minutes.
-                  </p>
-                  {form.kyc_status === "rejected" && (
-                    <p className="text-[11px] text-muted-foreground">
-                      Or re-submit the updated NID/CV you uploaded above.
-                    </p>
-                  )}
-                </>
-              ) : (
-                <div className="rounded-sm border border-dashed border-border bg-muted/40 px-3 py-4 text-[12px] text-muted-foreground">
-                  MetaMap is not fully configured yet. Set{" "}
-                  <code className="font-mono">METAMAP_CLIENT_ID</code> and{" "}
-                  <code className="font-mono">METAMAP_FLOW_ID</code>.
-                </div>
-              )}
+              <Button
+                onClick={beginDidit}
+                disabled={startingKyc || form.kyc_status === "verified"}
+                className="h-9 rounded-sm bg-primary text-primary-foreground hover:bg-brand-700"
+              >
+                {startingKyc ? (
+                  <>
+                    <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                    Opening Didit…
+                  </>
+                ) : form.kyc_status === "verified" ? (
+                  "Verified"
+                ) : form.kyc_status === "under_review" ? (
+                  "Continue verification"
+                ) : (
+                  "Verify with Didit"
+                )}
+              </Button>
               {form.kyc_status === "rejected" && (
                 <Button
                   onClick={submitReupload}

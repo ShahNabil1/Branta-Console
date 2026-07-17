@@ -1,7 +1,6 @@
-// Profile page server functions: read + update the current user's profile,
-// and expose the MetaMap client/flow IDs so the browser can render the
-// <metamap-button>. Client ID + Flow ID are public config per MetaMap docs,
-// so returning them to any authenticated user is safe.
+// Profile page server functions: read + update the current user's profile.
+// KYC is powered by Didit.me. See src/lib/didit.functions.ts for session
+// creation and src/routes/api/public/didit.webhook.ts for webhook ingest.
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -66,7 +65,7 @@ export type ProfileRow = {
   kyc_submitted_at: string | null;
   kyc_verified_at: string | null;
   kyc_rejection_reason: string | null;
-  metamap_identity_id: string | null;
+  didit_session_id: string | null;
   updated_at: string;
 };
 
@@ -79,8 +78,6 @@ export const getMyProfile = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
     );
-    // Ensure a row exists (handle_new_user_profile normally creates it, but
-    // pre-existing users may still be missing one).
     const { data: existing } = await supabaseAdmin
       .from("profiles")
       .select("*")
@@ -102,7 +99,7 @@ export const getMyProfile = createServerFn({ method: "GET" })
       context.userId,
     );
     return {
-      profile: profile as ProfileRow,
+      profile: profile as unknown as ProfileRow,
       email: userData.user?.email ?? "",
     };
   });
@@ -124,9 +121,9 @@ export const updateMyProfile = createServerFn({ method: "POST" })
   });
 
 /**
- * Mark KYC as submitted after the user finishes the MetaMap flow client-side.
- * Real state transitions come from the webhook — this is just so the badge
- * flips to "Under Review" immediately.
+ * Flip KYC status to "under_review" the instant the user finishes the Didit
+ * flow client-side, so the badge doesn't sit on "Not Verified" while we wait
+ * for the webhook.
  */
 export const markKycSubmitted = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -142,29 +139,13 @@ export const markKycSubmitted = createServerFn({ method: "POST" })
         kyc_submitted_at: new Date().toISOString(),
       } as any)
       .eq("user_id", context.userId)
-      // Don't clobber a verified status if a webhook arrived first.
       .in("kyc_status", ["not_verified", "rejected", "under_review"]);
     if (error) throw new Error(error.message);
     return { ok: true as const };
   });
 
-export const getMetamapConfig = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async () => {
-    return {
-      clientId: process.env.METAMAP_CLIENT_ID ?? null,
-      flowId: process.env.METAMAP_FLOW_ID ?? null,
-    };
-  });
-
 /**
- * Re-submit updated NID/CV documents after a rejection. The current NID/CV
- * URLs on the profile are logged into `kyc_documents` (so admins can see the
- * new files alongside the MetaMap capture), KYC status is flipped back to
- * `under_review`, and the rejection reason is cleared.
- *
- * Only allowed from the `rejected` state to avoid overriding a live MetaMap
- * decision or a still-in-flight review.
+ * Re-submit updated NID/CV documents after a rejection.
  */
 export const requestKycReupload = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -182,7 +163,7 @@ export const requestKycReupload = createServerFn({ method: "POST" })
 
     const { data: profile, error: readErr } = await supabaseAdmin
       .from("profiles")
-      .select("kyc_status, nid_url, cv_url, metamap_identity_id")
+      .select("kyc_status, nid_url, cv_url, didit_session_id")
       .eq("user_id", context.userId)
       .maybeSingle();
     if (readErr) throw new Error(readErr.message);
@@ -214,7 +195,7 @@ export const requestKycReupload = createServerFn({ method: "POST" })
           reason: "user_reupload",
           note: data.note ?? null,
           submitted_at: now,
-          previous_identity_id: profile.metamap_identity_id,
+          previous_session_id: profile.didit_session_id,
         },
       });
     }
@@ -231,7 +212,7 @@ export const requestKycReupload = createServerFn({ method: "POST" })
           reason: "user_reupload",
           note: data.note ?? null,
           submitted_at: now,
-          previous_identity_id: profile.metamap_identity_id,
+          previous_session_id: profile.didit_session_id,
         },
       });
     }
