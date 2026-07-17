@@ -2014,17 +2014,17 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
             </div>
             {contacts.isLoading ? (
               <div className="text-[12px] text-muted-foreground">Loading contacts…</div>
-            ) : (contacts.data ?? []).length === 0 ? (
+            ) : recipientOptions.length === 0 ? (
               <div className="rounded-sm border border-dashed border-border px-3 py-2 text-[12px] text-muted-foreground">
-                No contacts on this lead. Add one in Overview → Email.
+                No emails on this lead yet. Add an email in Overview.
               </div>
             ) : (
               <div className="flex flex-wrap gap-1.5">
-                {(contacts.data ?? []).map((c: LeadContactRow) => {
-                  const active = selectedIds.includes(c.id);
+                {recipientOptions.map((r) => {
+                  const active = selectedIds.includes(r.id);
                   return (
                     <label
-                      key={c.id}
+                      key={r.id}
                       className={cn(
                         "inline-flex cursor-pointer items-center gap-2 rounded-sm border px-2 py-1 text-[12px] transition-colors",
                         active
@@ -2037,21 +2037,21 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
                         onCheckedChange={(v) => {
                           setSelectedIds((prev) =>
                             v
-                              ? Array.from(new Set([...prev, c.id]))
-                              : prev.filter((id) => id !== c.id),
+                              ? Array.from(new Set([...prev, r.id]))
+                              : prev.filter((id) => id !== r.id),
                           );
                         }}
                         className="size-3.5"
                       />
-                      <span className="font-mono text-[11.5px]">{c.email}</span>
-                      {c.is_primary && (
-                        <span className="rounded-sm bg-muted px-1 py-[1px] text-[9.5px] uppercase tracking-wider text-muted-foreground">
-                          primary
+                      {r.name && (
+                        <span className="text-[11.5px] font-medium text-foreground">
+                          {r.name}
                         </span>
                       )}
-                      {c.label && (
-                        <span className="text-[10.5px] text-muted-foreground">
-                          · {c.label}
+                      <span className="font-mono text-[11.5px]">{r.email}</span>
+                      {r.labelBadge && (
+                        <span className="rounded-sm bg-muted px-1 py-[1px] text-[9.5px] uppercase tracking-wider text-muted-foreground">
+                          {r.labelBadge}
                         </span>
                       )}
                     </label>
@@ -2059,6 +2059,7 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
                 })}
               </div>
             )}
+
           </div>
 
           {/* Variables */}
