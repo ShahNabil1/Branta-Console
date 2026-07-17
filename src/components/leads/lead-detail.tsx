@@ -679,7 +679,13 @@ function fmtWhen(ts: string): string {
   });
 }
 
-function ResendStatusChip({ events }: { events: ResendEvent[] }) {
+function ProviderStatusChip({
+  provider,
+  events,
+}: {
+  provider: "resend" | "brevo";
+  events: { timestamp: string; event_type: string }[];
+}) {
   const latest = events.length
     ? [...events].sort(
         (a, b) =>
@@ -689,6 +695,7 @@ function ResendStatusChip({ events }: { events: ResendEvent[] }) {
     : null;
   const label = latest?.event_type ?? "sent";
   const style = EVENT_STYLE[label] ?? "bg-emerald-50 text-emerald-700";
+  const Logo = provider === "brevo" ? BrevoLogo : ResendLogo;
   return (
     <TooltipProvider delayDuration={100}>
       <Tooltip>
@@ -699,20 +706,14 @@ function ResendStatusChip({ events }: { events: ResendEvent[] }) {
               style,
             )}
           >
-            <svg viewBox="0 0 32 32" className="size-2.5" aria-hidden>
-              <rect width="32" height="32" rx="6" fill="#000" />
-              <path
-                d="M10 22V10h6.4c2.6 0 4.4 1.5 4.4 3.9 0 1.7-.9 3-2.4 3.5L22 22h-3l-2.9-4.3H12.7V22H10zm2.7-6.5h3.4c1.2 0 2-.7 2-1.8s-.8-1.8-2-1.8h-3.4v3.6z"
-                fill="#fff"
-              />
-            </svg>
+            <Logo className="size-2.5" />
             {label.replace(/_/g, " ")}
           </span>
         </TooltipTrigger>
         <TooltipContent className="max-w-xs bg-foreground text-background">
           {events.length === 0 ? (
             <div className="text-[11px]">
-              Sent — awaiting webhook events.
+              Sent via {provider} — awaiting webhook events.
             </div>
           ) : (
             <ul className="grid gap-0.5 text-[11px]">
