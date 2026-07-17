@@ -2360,6 +2360,70 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
           </div>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!viewMail} onOpenChange={(o) => !o && setViewMail(null)}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-[14px]">
+              {viewMail?.subject || "(no subject)"}
+            </DialogTitle>
+          </DialogHeader>
+          {viewMail && (
+            <div className="grid gap-2">
+              <div className="grid gap-1 rounded-sm border border-border bg-muted/50 px-3 py-2 text-[11.5px]">
+                <div>
+                  <span className="text-muted-foreground">From</span>{" "}
+                  <span className="font-mono">
+                    {viewMail.sent_by_name
+                      ? `${viewMail.sent_by_name} <${viewMail.from_email ?? ""}>`
+                      : (viewMail.from_email ?? "—")}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">To</span>{" "}
+                  <span className="font-mono">
+                    {viewMail.to_emails.join(", ") || "—"}
+                  </span>
+                </div>
+                {viewMail.cc_emails.length > 0 && (
+                  <div>
+                    <span className="text-muted-foreground">Cc</span>{" "}
+                    <span className="font-mono">
+                      {viewMail.cc_emails.join(", ")}
+                    </span>
+                  </div>
+                )}
+                <div>
+                  <span className="text-muted-foreground">Sent</span>{" "}
+                  <span className="font-mono">
+                    {new Date(
+                      viewMail.sent_at ?? viewMail.created_at,
+                    ).toLocaleString()}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Provider</span>{" "}
+                  <span className="font-mono uppercase">
+                    {viewMail.provider}
+                  </span>
+                </div>
+              </div>
+              {viewMail.body_html ? (
+                <iframe
+                  title="mail-view"
+                  sandbox=""
+                  className="h-[60vh] w-full rounded-sm border border-border bg-white"
+                  srcDoc={`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0;padding:24px;font:14px/1.55 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#111}</style></head><body>${viewMail.body_html}</body></html>`}
+                />
+              ) : (
+                <pre className="max-h-[60vh] overflow-auto whitespace-pre-wrap rounded-sm border border-border bg-white p-3 text-[12.5px]">
+                  {viewMail.body_text ?? "(empty)"}
+                </pre>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
