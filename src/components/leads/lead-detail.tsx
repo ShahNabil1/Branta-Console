@@ -904,6 +904,7 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
           subject: subject.trim(),
           body: body.trim(),
           contentType,
+          provider,
         },
       }),
     onSuccess: (r) => {
