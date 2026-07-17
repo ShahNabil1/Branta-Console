@@ -5,13 +5,9 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
-export type LeadStatusDB =
-  | "new"
-  | "contacted"
-  | "viewed"
-  | "meeting"
-  | "converted"
-  | "lost";
+// Status keys are dynamic (managed via public.lead_status_options).
+// Kept as a string alias for backward-compat with existing imports.
+export type LeadStatusDB = string;
 
 export interface LeadRow {
   id: string;
@@ -24,6 +20,7 @@ export interface LeadRow {
   phone: string | null;
   status: LeadStatusDB;
   source: string | null;
+  source_other: string | null;
   owner_id: string | null;
   value_usd: number | null;
   currency: "BDT" | "USD";
