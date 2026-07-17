@@ -232,12 +232,21 @@ export const createLead = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => CreateInput.parse(data))
   .handler(async ({ data, context }): Promise<LeadRow> => {
     const email = data.email === "" ? null : data.email ?? null;
+    const altEmail = data.alt_email === "" ? null : data.alt_email ?? null;
     const { data: row, error } = await context.supabase
       .from("leads")
       .insert({
         name: data.name,
+        role: data.role ?? null,
         company: data.company ?? null,
         phone: data.phone ?? null,
+        phone_label: data.phone_label ?? null,
+        alt_phone: data.alt_phone ?? null,
+        alt_phone_label: data.alt_phone_label ?? null,
+        email_label: data.email_label ?? null,
+        alt_email: altEmail,
+        alt_email_label: data.alt_email_label ?? null,
+        contact_preference: data.contact_preference ?? null,
         status: data.status,
         source: data.source ?? null,
         source_other: data.source_other ?? null,
@@ -263,6 +272,7 @@ export const createLead = createServerFn({ method: "POST" })
     });
     return { ...(row as unknown as LeadRow), email };
   });
+
 
 export const updateLead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
