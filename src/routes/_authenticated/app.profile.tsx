@@ -225,28 +225,29 @@ function ProfileSkeleton() {
 interface FormProps {
   profile: ProfileRow;
   email: string;
-  metamap: { clientId: string | null; flowId: string | null };
   onSaved: () => void;
   update: ReturnType<typeof useServerFn<typeof updateMyProfile>>;
   markSubmitted: ReturnType<typeof useServerFn<typeof markKycSubmitted>>;
   reupload: ReturnType<typeof useServerFn<typeof requestKycReupload>>;
   presign: ReturnType<typeof useServerFn<typeof requestR2Upload>>;
+  startDidit: ReturnType<typeof useServerFn<typeof createDiditSession>>;
 }
 
 function ProfileForm({
   profile,
   email,
-  metamap,
   onSaved,
   update,
-  markSubmitted,
+  markSubmitted: _markSubmitted,
   reupload,
   presign,
+  startDidit,
 }: FormProps) {
   const [form, setForm] = useState<ProfileRow>(profile);
   useEffect(() => setForm(profile), [profile]);
   const [saving, setSaving] = useState(false);
   const [reuploading, setReuploading] = useState(false);
+  const [startingKyc, setStartingKyc] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
 
   const submitReupload = async () => {
@@ -270,6 +271,19 @@ function ProfileForm({
       });
     } finally {
       setReuploading(false);
+    }
+  };
+
+  const beginDidit = async () => {
+    setStartingKyc(true);
+    try {
+      const { url } = await startDidit({});
+      window.location.href = url;
+    } catch (err) {
+      toast.error("Could not start verification", {
+        description: (err as Error).message,
+      });
+      setStartingKyc(false);
     }
   };
 
@@ -320,44 +334,7 @@ function ProfileForm({
     }
   };
 
-  // ---- MetaMap SDK ----
-  const metamapReady = !!metamap.clientId && !!metamap.flowId && !!userId;
-  const btnRef = useRef<HTMLElement | null>(null);
-
-  useEffect(() => {
-    if (!metamapReady) return;
-    // Load MetaMap web SDK once.
-    if (!document.querySelector("script[data-metamap]")) {
-      const s = document.createElement("script");
-      s.src = "https://web-button.metamap.com/button.js";
-      s.async = true;
-      s.defer = true;
-      s.dataset.metamap = "1";
-      document.body.appendChild(s);
-    }
-  }, [metamapReady]);
-
-  useEffect(() => {
-    const el = btnRef.current;
-    if (!el) return;
-    const onFinished = () => {
-      toast.success("Verification submitted", {
-        description: "Your KYC is now under review.",
-      });
-      void markSubmitted({}).then(() => onSaved());
-    };
-    const onExited = () => {
-      toast("Verification closed", {
-        description: "You closed the MetaMap window before finishing.",
-      });
-    };
-    el.addEventListener("metamap:userFinishedSdk", onFinished);
-    el.addEventListener("metamap:exitedSdk", onExited);
-    return () => {
-      el.removeEventListener("metamap:userFinishedSdk", onFinished);
-      el.removeEventListener("metamap:exitedSdk", onExited);
-    };
-  }, [markSubmitted, onSaved]);
+  void userId; // reserved for future use
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-8">
