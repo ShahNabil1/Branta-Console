@@ -167,6 +167,27 @@
     background: color-mix(in oklab, var(--brand-600) 22%, transparent);
     color: var(--text);
   }
+
+  /* Global interactive affordances — every button/link feels alive. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  a[href],
+  summary,
+  label[for],
+  [data-slot="trigger"] {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+
+  /* Subtle press feedback on real buttons unless the component opts out
+     (Radix triggers with data-state get their own visuals). */
+  button:not(:disabled):not([data-no-press]):active {
+    transform: translateY(0.5px);
+  }
 }
 
 @utility hairline-b {

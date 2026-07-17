@@ -127,7 +127,7 @@ export function AppSidebar() {
                     key={item.label + item.to}
                     to={item.to}
                     className={cn(
-                      "flex items-center gap-2 rounded-sm px-2 py-1.5 text-[13px] font-medium transition-colors",
+                      "flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-[13px] font-medium transition-colors active:scale-[0.98]",
                       active
                         ? "bg-brand-50 text-brand"
                         : "text-muted-foreground hover:bg-muted hover:text-foreground",
