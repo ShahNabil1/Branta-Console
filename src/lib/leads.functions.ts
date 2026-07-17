@@ -29,6 +29,8 @@ export interface LeadRow {
   status: LeadStatusDB;
   source: string | null;
   source_other: string | null;
+  service: string | null;
+  service_other: string | null;
   owner_id: string | null;
   value_usd: number | null;
   currency: "BDT" | "USD";
