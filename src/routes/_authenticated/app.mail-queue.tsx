@@ -4,7 +4,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, type ComponentType } from "react";
 import { toast } from "sonner";
 import {
   AlertTriangle,
