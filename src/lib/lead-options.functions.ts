@@ -103,13 +103,7 @@ export const SERVICE_FALLBACK: LeadServiceOption[] = [
   { key: "other", label: "Other", sort_order: 999, requires_detail: true, is_active: true },
 ];
 
-  { key: "tiktok", label: "TikTok", sort_order: 40, requires_detail: false, is_active: true },
-  { key: "whatsapp", label: "WhatsApp", sort_order: 50, requires_detail: false, is_active: true },
-  { key: "website", label: "Website", sort_order: 60, requires_detail: false, is_active: true },
-  { key: "referral", label: "Referral", sort_order: 70, requires_detail: false, is_active: true },
-  { key: "direct", label: "Direct", sort_order: 80, requires_detail: false, is_active: true },
-  { key: "other", label: "Other", sort_order: 999, requires_detail: true, is_active: true },
-];
+
 
 export function statusLabel(key: string, options: LeadStatusOption[]): string {
   return options.find((o) => o.key === key)?.label ?? key;
