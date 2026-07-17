@@ -399,6 +399,7 @@ const emptyForm: CreateForm = {
   source: "",
   owner_id: "",
   value_usd: "",
+  currency: "BDT",
   next_action: "",
   notes: "",
 };
