@@ -1229,16 +1229,6 @@ function TeammatesSection({ lead }: { lead: LeadRow }) {
               tag={draft.alt_phone_label}
               onTagChange={(v) => setDraft({ ...draft, alt_phone_label: v })}
             />
-            <Field label="Contact preference & availability" className="col-span-2">
-              <Textarea
-                value={draft.contact_preference}
-                onChange={(e) =>
-                  setDraft({ ...draft, contact_preference: e.target.value })
-                }
-                placeholder="Preferred channel, days, times, timezone…"
-                className="min-h-[54px] rounded-sm text-[12.5px]"
-              />
-            </Field>
             <div className="flex items-center justify-end gap-2">
               <Button
                 size="sm"
