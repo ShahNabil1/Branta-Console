@@ -199,7 +199,7 @@ export function SocialLinksSection({ leadId }: { leadId: string }) {
         data: {
           leadId,
           platform: draftPlatform,
-          url: normalizeUrl(draftUrl),
+          url: normalizeUrl(draftPlatform, draftUrl),
           label: draftLabel || null,
         },
       }),
