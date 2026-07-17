@@ -912,6 +912,8 @@ export function LeadDetail({
 
           <TeammatesSection lead={lead} />
 
+          <SocialLinksSection leadId={lead.id} />
+
 
 
           <section className="rounded-sm border border-border bg-card">
