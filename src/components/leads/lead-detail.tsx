@@ -294,7 +294,7 @@ function PhoneRow({
   const digits = value.replace(/[^\d]/g, "");
   return (
     <Field label={label} className={className}>
-      <div className="flex max-w-[380px] items-center gap-1.5">
+      <div className="flex items-center gap-1.5">
 
         <Input
           type="tel"
