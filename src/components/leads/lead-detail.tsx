@@ -508,6 +508,26 @@ export function LeadDetail({
       toast.error(e instanceof Error ? e.message : "Update failed"),
   });
 
+  // Dedicated quick-update for the header Status control.
+  // Persists only status (+ optional note → Activity Logs), independent of form edits.
+  const statusUpdateM = useMutation({
+    mutationFn: () =>
+      update({
+        data: {
+          id: lead.id,
+          patch: { status: form.status },
+          statusChangeNote: statusChangeNote.trim() || undefined,
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Status updated");
+      setStatusChangeNote("");
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["leads", "activities", lead.id] });
+    },
+    onError: (e: unknown) =>
+      toast.error(e instanceof Error ? e.message : "Status update failed"),
+
   const delM = useMutation({
     mutationFn: () => del({ data: { id: lead.id } }),
     onSuccess: () => {
