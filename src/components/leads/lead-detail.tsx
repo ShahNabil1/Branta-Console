@@ -1390,15 +1390,6 @@ function TeammateCard({
             tag={form.alt_phone_label}
             onTagChange={(v) => setForm({ ...form, alt_phone_label: v })}
           />
-          <Field label="Contact preference & availability">
-            <Textarea
-              value={form.contact_preference}
-              onChange={(e) =>
-                setForm({ ...form, contact_preference: e.target.value })
-              }
-              className="min-h-[54px] rounded-sm text-[12.5px]"
-            />
-          </Field>
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               {!contact.is_primary && (
