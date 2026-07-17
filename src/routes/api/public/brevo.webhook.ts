@@ -184,29 +184,88 @@ async function handlePost(request: Request): Promise<Response> {
 
   const items = normalizeItems(body);
 
-  const rows: EventRow[] = [];
+  // Split into lead-tagged (routed to Google Sheet) and non-lead (routed to
+  // public.email_events for the Employees welcome-mail status column).
+  const leadItems: Record<string, unknown>[] = [];
+  const otherItems: Record<string, unknown>[] = [];
   for (const item of items) {
+    const tagList = collectTags(item);
+    if (tagList.some((t) => t.startsWith("lead_id:"))) leadItems.push(item);
+    else otherItems.push(item);
+  }
+
+  const rows: EventRow[] = [];
+  for (const item of otherItems) {
     const row = buildRow(item);
     if (row) rows.push(row);
   }
 
+  // Forward lead-tagged events to the Brevo events sheet (fire-and-forget-ish).
+  let sheetAppended = 0;
+  if (leadItems.length > 0) {
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { appendBrevoEvent, canonicalBrevoEvent } = await import(
+        "@/lib/brevo-events.server"
+      );
+      for (const item of leadItems) {
+        const tagList = collectTags(item);
+        const kv = new Map<string, string>();
+        for (const t of tagList) {
+          const idx = t.indexOf(":");
+          if (idx > 0) kv.set(t.slice(0, idx), t.slice(idx + 1));
+        }
+        const emailRaw =
+          (item.email as string | undefined) ??
+          (item.recipient as string | undefined) ??
+          "";
+        await appendBrevoEvent(supabaseAdmin, {
+          timestamp: pickDate(item),
+          event_type: canonicalBrevoEvent(String(item.event ?? "unknown")),
+          email_id:
+            (item["message-id"] as string | undefined) ??
+            (item.message_id as string | undefined) ??
+            "",
+          lead_email_id: kv.get("lead_email_id") ?? "",
+          lead_id: kv.get("lead_id") ?? "",
+          lead_slug: kv.get("lead_slug") ?? "",
+          recipient: emailRaw.toLowerCase(),
+          subject: (item.subject as string | undefined) ?? "",
+        });
+        sheetAppended++;
+      }
+    } catch (e) {
+      console.error("[brevo-webhook] sheet append failed", e);
+      return new Response("Sheet append failed", { status: 500 });
+    }
+  }
+
   if (rows.length === 0) {
-    return new Response(JSON.stringify({ ok: true, inserted: 0 }), {
-      headers: jsonHeaders,
-    });
+    return new Response(
+      JSON.stringify({ ok: true, inserted: 0, sheet: sheetAppended }),
+      { headers: jsonHeaders },
+    );
   }
 
   try {
     const inserted = await insertEmailEvents(rows);
-    return new Response(JSON.stringify({ ok: true, inserted }), {
-      headers: jsonHeaders,
-    });
+    return new Response(
+      JSON.stringify({ ok: true, inserted, sheet: sheetAppended }),
+      { headers: jsonHeaders },
+    );
   } catch (error) {
     console.error("[brevo-webhook] insert failed", error);
     // 500 makes Brevo retry — desirable for transient DB failures.
     const message = error instanceof Error ? error.message : "Unknown DB error";
     return new Response(`DB error: ${message}`, { status: 500 });
   }
+}
+
+function collectTags(item: Record<string, unknown>): string[] {
+  const t = item.tags ?? item.tag;
+  if (Array.isArray(t)) return t.map(String);
+  if (typeof t === "string") return t.split(/[,\s]+/).filter(Boolean);
+  return [];
 }
 
 async function insertEmailEvents(rows: EventRow[]): Promise<number> {
