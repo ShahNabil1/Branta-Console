@@ -400,39 +400,69 @@ export function SocialLinksSection({ leadId }: { leadId: string }) {
         )}
 
         {/* Add new row */}
-        <div className="flex flex-wrap items-center gap-1.5">
-          <PlatformSelect
-            value={draftPlatform}
-            onChange={setDraftPlatform}
-            className="h-9 w-[160px] shrink-0 rounded-sm text-[12.5px]"
-          />
-          <Input
-            value={draftUrl}
-            onChange={(e) => setDraftUrl(e.target.value)}
-            placeholder="https://facebook.com/…"
-            className="h-9 min-w-[220px] flex-1 rounded-sm text-[12.5px]"
-          />
-          <Input
-            value={draftLabel}
-            onChange={(e) => setDraftLabel(e.target.value)}
-            placeholder="Label — e.g. Company, Personal"
-            className="h-9 w-[200px] rounded-sm text-[12.5px]"
-          />
-          <Button
-            type="button"
-            size="sm"
-            className="h-9 rounded-sm text-[12px]"
-            disabled={addM.isPending || !draftUrl.trim()}
-            onClick={() => addM.mutate()}
-          >
-            {addM.isPending ? (
-              <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-            ) : (
-              <Plus className="mr-1.5 size-3.5" />
-            )}
-            Add
-          </Button>
-        </div>
+        {(() => {
+          const draftError = draftUrl.trim()
+            ? validateUrl(draftPlatform, draftUrl)
+            : null;
+          const placeholder =
+            draftPlatform === "website"
+              ? "http://yourdomain.com"
+              : `https://${PLATFORM_DOMAINS[draftPlatform][0]}/…`;
+          return (
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <PlatformSelect
+                  value={draftPlatform}
+                  onChange={(v) => setDraftPlatform(v)}
+                  className="h-9 w-[160px] shrink-0 rounded-sm text-[12.5px]"
+                />
+                <Input
+                  value={draftUrl}
+                  onChange={(e) => setDraftUrl(e.target.value)}
+                  placeholder={placeholder}
+                  className={`h-9 min-w-[220px] flex-1 rounded-sm text-[12.5px] ${
+                    draftError ? "border-red-500 focus-visible:ring-red-500" : ""
+                  }`}
+                />
+                <Input
+                  value={draftLabel}
+                  onChange={(e) => setDraftLabel(e.target.value)}
+                  placeholder="Label — e.g. Company, Personal"
+                  className="h-9 w-[200px] rounded-sm text-[12.5px]"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-9 rounded-sm text-[12px]"
+                  disabled={
+                    addM.isPending ||
+                    !draftUrl.trim() ||
+                    draftError !== null
+                  }
+                  onClick={() => {
+                    const err = validateUrl(draftPlatform, draftUrl);
+                    if (err) {
+                      toast.error(err);
+                      return;
+                    }
+                    addM.mutate();
+                  }}
+                >
+                  {addM.isPending ? (
+                    <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                  ) : (
+                    <Plus className="mr-1.5 size-3.5" />
+                  )}
+                  Add
+                </Button>
+              </div>
+              {draftError && (
+                <p className="text-[11px] text-red-600">{draftError}</p>
+              )}
+            </div>
+          );
+        })()}
+
 
         {rows.length === 0 && !q.isLoading && (
           <p className="text-[11.5px] text-muted-foreground">
