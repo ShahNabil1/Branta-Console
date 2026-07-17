@@ -746,9 +746,12 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
   const qc = useQueryClient();
 
   const retryM = useMutation({
-    mutationFn: (id: string) => retryFn({ data: { id } }),
-    onSuccess: () => {
-      toast.success("Requeued");
+    mutationFn: (v: { id: string; provider?: "resend" | "brevo" }) =>
+      retryFn({ data: v }),
+    onSuccess: (_r, v) => {
+      toast.success(
+        v.provider ? `Requeued via ${v.provider}` : "Requeued",
+      );
       qc.invalidateQueries({ queryKey: ["lead-emails", lead.id] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Retry failed"),
