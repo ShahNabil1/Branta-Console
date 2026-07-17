@@ -19,7 +19,7 @@ import {
   requestKycReupload,
   type ProfileRow,
 } from "@/lib/profile.functions";
-import { createDiditSession } from "@/lib/didit.functions";
+
 import { requestR2Upload } from "@/lib/r2.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
@@ -32,7 +32,7 @@ export const Route = createFileRoute("/_authenticated/app/profile")({
   component: ProfilePage,
 });
 
-// (Didit uses a hosted URL — no custom element needed.)
+
 
 // ---------- KYC status badge ----------
 type KycStatus = "not_verified" | "under_review" | "verified" | "rejected";
@@ -138,7 +138,7 @@ function ProfilePage() {
   const markSubmitted = useServerFn(markKycSubmitted);
   const reupload = useServerFn(requestKycReupload);
   const presign = useServerFn(requestR2Upload);
-  const startDidit = useServerFn(createDiditSession);
+  
 
   const profileQuery = useQuery({
     queryKey: ["me", "profile"],
@@ -146,8 +146,8 @@ function ProfilePage() {
     staleTime: 15_000,
   });
 
-  // Realtime: subscribe to this user's profile row so the KYC badge flips
-  // the instant the Didit webhook writes to Supabase.
+  // Realtime: subscribe to this user's profile row so KYC fields update live
+  // when an admin changes status in the database.
   const userId = profileQuery.data?.profile.user_id;
   useEffect(() => {
     if (!userId) return;
@@ -171,20 +171,6 @@ function ProfilePage() {
     };
   }, [userId, profileQuery]);
 
-  // Handle ?kyc=success redirect back from Didit.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const url = new URL(window.location.href);
-    if (url.searchParams.get("kyc") === "success") {
-      void markSubmitted({}).then(() => profileQuery.refetch());
-      toast.success("Verification submitted", {
-        description: "Your KYC is now under review.",
-      });
-      url.searchParams.delete("kyc");
-      window.history.replaceState({}, "", url.toString());
-    }
-  }, [markSubmitted, profileQuery]);
-
   if (profileQuery.isLoading) return <ProfileSkeleton />;
   if (profileQuery.error)
     return (
@@ -204,10 +190,8 @@ function ProfilePage() {
         router.invalidate();
       }}
       update={update}
-      markSubmitted={markSubmitted}
       reupload={reupload}
       presign={presign}
-      startDidit={startDidit}
     />
   );
 }
