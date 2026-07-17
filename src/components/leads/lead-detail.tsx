@@ -424,10 +424,22 @@ export function LeadDetail({
           </section>
 
           <section className="rounded-sm border border-border bg-card">
-            <div className="border-b border-border px-3 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-              Activity
+            <div className="flex items-center justify-between border-b border-border px-3 py-2">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-foreground">
+                  Activity Logs
+                </span>
+                {activities.data && activities.data.length > 0 && (
+                  <span className="rounded-sm bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                    {activities.data.length}
+                  </span>
+                )}
+              </div>
+              <span className="text-[10px] text-muted-foreground">
+                Newest first
+              </span>
             </div>
-            <div className="grid gap-2 p-3">
+            <div className="grid gap-2 border-b border-border p-3">
               <Textarea
                 value={noteText}
                 onChange={(e) => setNoteText(e.target.value)}
@@ -450,36 +462,75 @@ export function LeadDetail({
                 </Button>
               </div>
             </div>
-            <ul className="divide-y divide-border border-t border-border">
+            <div className="max-h-[520px] overflow-y-auto">
               {activities.isLoading && (
-                <li className="p-3 text-[12px] text-muted-foreground">
+                <div className="p-4 text-[12px] text-muted-foreground">
                   Loading activity…
-                </li>
+                </div>
               )}
               {activities.data?.length === 0 && !activities.isLoading && (
-                <li className="p-3 text-[12px] text-muted-foreground">
-                  No activity yet.
-                </li>
-              )}
-              {activities.data?.map((a) => (
-                <li key={a.id} className="grid gap-1 p-3">
-                  <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                    <span className="rounded-sm bg-muted px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider">
-                      {a.kind}
-                    </span>
-                    <span>{a.actor_name ?? "System"}</span>
-                    <span>·</span>
-                    <span className="font-mono">{relTime(a.created_at)}</span>
+                <div className="flex flex-col items-center justify-center gap-1 px-4 py-10 text-center">
+                  <div className="text-[12.5px] font-medium text-foreground">
+                    No activity yet
                   </div>
-                  {a.body && (
-                    <div className="whitespace-pre-wrap text-[12.5px] text-foreground">
-                      {a.body}
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
+                  <div className="text-[11px] text-muted-foreground">
+                    Notes, emails, meetings, and status changes will appear here.
+                  </div>
+                </div>
+              )}
+              {activities.data && activities.data.length > 0 && (
+                <ol className="relative px-3 py-3">
+                  <span
+                    className="pointer-events-none absolute bottom-3 left-[19px] top-3 w-px bg-border"
+                    aria-hidden
+                  />
+                  {activities.data.map((a) => {
+                    const d = new Date(a.created_at);
+                    const abs = d.toLocaleString(undefined, {
+                      year: "numeric",
+                      month: "short",
+                      day: "2-digit",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      second: "2-digit",
+                      hour12: true,
+                    });
+                    return (
+                      <li key={a.id} className="relative pb-4 pl-8 last:pb-0">
+                        <span
+                          className="absolute left-[15px] top-1.5 grid size-2 place-items-center rounded-full bg-brand ring-4 ring-card"
+                          aria-hidden
+                        />
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <span className="rounded-sm bg-muted px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                            {a.kind}
+                          </span>
+                          <span className="text-[12px] font-medium text-foreground">
+                            {a.actor_name ?? "System"}
+                          </span>
+                        </div>
+                        {a.body && (
+                          <div className="mt-1 whitespace-pre-wrap text-[12.5px] text-foreground">
+                            {a.body}
+                          </div>
+                        )}
+                        <div
+                          className="mt-1 font-mono text-[10.5px] text-muted-foreground"
+                          title={d.toISOString()}
+                        >
+                          {abs}
+                          <span className="ml-1.5 text-[10px] text-muted-foreground/70">
+                            · {relTime(a.created_at)}
+                          </span>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ol>
+              )}
+            </div>
           </section>
+
         </TabsContent>
 
         <TabsContent value="emails" className="m-0 mt-4">
