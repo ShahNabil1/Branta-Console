@@ -20,6 +20,7 @@ function AppShell() {
         </main>
       </div>
       <CommandPalette />
+      <EmailFailureNotifier />
     </div>
   );
 }
