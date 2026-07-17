@@ -59,6 +59,39 @@ export type Database = {
         }
         Relationships: []
       }
+      integration_sync_state: {
+        Row: {
+          created_at: string
+          cursor: string | null
+          id: string
+          kind: string
+          last_sync_at: string | null
+          meta: Json
+          resource_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          cursor?: string | null
+          id?: string
+          kind: string
+          last_sync_at?: string | null
+          meta?: Json
+          resource_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          cursor?: string | null
+          id?: string
+          kind?: string
+          last_sync_at?: string | null
+          meta?: Json
+          resource_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       kyc_documents: {
         Row: {
           created_at: string
@@ -169,6 +202,171 @@ export type Database = {
           },
         ]
       }
+      lead_documents: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          doc_id: string
+          doc_url: string
+          id: string
+          lead_id: string
+          template_kind: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          doc_id: string
+          doc_url: string
+          id?: string
+          lead_id: string
+          template_kind: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          doc_id?: string
+          doc_url?: string
+          id?: string
+          lead_id?: string
+          template_kind?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_documents_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_emails: {
+        Row: {
+          body_html: string | null
+          body_text: string | null
+          cc_emails: string[]
+          created_at: string
+          direction: string
+          error_message: string | null
+          from_email: string | null
+          id: string
+          lead_id: string
+          message_id: string | null
+          provider: string
+          sent_at: string | null
+          sent_by: string | null
+          status: string
+          subject: string | null
+          thread_id: string | null
+          to_emails: string[]
+        }
+        Insert: {
+          body_html?: string | null
+          body_text?: string | null
+          cc_emails?: string[]
+          created_at?: string
+          direction: string
+          error_message?: string | null
+          from_email?: string | null
+          id?: string
+          lead_id: string
+          message_id?: string | null
+          provider: string
+          sent_at?: string | null
+          sent_by?: string | null
+          status?: string
+          subject?: string | null
+          thread_id?: string | null
+          to_emails?: string[]
+        }
+        Update: {
+          body_html?: string | null
+          body_text?: string | null
+          cc_emails?: string[]
+          created_at?: string
+          direction?: string
+          error_message?: string | null
+          from_email?: string | null
+          id?: string
+          lead_id?: string
+          message_id?: string | null
+          provider?: string
+          sent_at?: string | null
+          sent_by?: string | null
+          status?: string
+          subject?: string | null
+          thread_id?: string | null
+          to_emails?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_emails_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_meetings: {
+        Row: {
+          attendees: string[]
+          created_at: string
+          created_by: string | null
+          description: string | null
+          ends_at: string
+          google_event_id: string | null
+          id: string
+          lead_id: string
+          meeting_link: string | null
+          starts_at: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          attendees?: string[]
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          ends_at: string
+          google_event_id?: string | null
+          id?: string
+          lead_id: string
+          meeting_link?: string | null
+          starts_at: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          attendees?: string[]
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          ends_at?: string
+          google_event_id?: string | null
+          id?: string
+          lead_id?: string
+          meeting_link?: string | null
+          starts_at?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_meetings_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           company: string | null
@@ -183,8 +381,10 @@ export type Database = {
           notes: string | null
           owner_id: string | null
           phone: string | null
+          sheet_row_id: string | null
           source: string | null
           status: Database["public"]["Enums"]["lead_status"]
+          synced_at: string | null
           updated_at: string
           value_usd: number | null
         }
@@ -201,8 +401,10 @@ export type Database = {
           notes?: string | null
           owner_id?: string | null
           phone?: string | null
+          sheet_row_id?: string | null
           source?: string | null
           status?: Database["public"]["Enums"]["lead_status"]
+          synced_at?: string | null
           updated_at?: string
           value_usd?: number | null
         }
@@ -219,8 +421,10 @@ export type Database = {
           notes?: string | null
           owner_id?: string | null
           phone?: string | null
+          sheet_row_id?: string | null
           source?: string | null
           status?: Database["public"]["Enums"]["lead_status"]
+          synced_at?: string | null
           updated_at?: string
           value_usd?: number | null
         }
