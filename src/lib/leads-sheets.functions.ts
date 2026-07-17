@@ -15,6 +15,7 @@ const HEADERS = [
   "status",
   "source",
   "value_usd",
+  "currency",
   "next_action",
   "notes",
   "last_activity_at",
