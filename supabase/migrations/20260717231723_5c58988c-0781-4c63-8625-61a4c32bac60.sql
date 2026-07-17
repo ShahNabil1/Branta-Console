@@ -1,0 +1,2 @@
+ALTER TABLE public.lead_emails DROP CONSTRAINT IF EXISTS lead_emails_provider_check;
+ALTER TABLE public.lead_emails ADD CONSTRAINT lead_emails_provider_check CHECK (provider = ANY (ARRAY['resend'::text, 'brevo'::text, 'gmail'::text]));
