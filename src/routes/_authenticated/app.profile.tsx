@@ -15,11 +15,10 @@ import {
 import {
   getMyProfile,
   updateMyProfile,
-  markKycSubmitted,
   requestKycReupload,
   type ProfileRow,
 } from "@/lib/profile.functions";
-import { createDiditSession } from "@/lib/didit.functions";
+
 import { requestR2Upload } from "@/lib/r2.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
@@ -32,7 +31,7 @@ export const Route = createFileRoute("/_authenticated/app/profile")({
   component: ProfilePage,
 });
 
-// (Didit uses a hosted URL — no custom element needed.)
+
 
 // ---------- KYC status badge ----------
 type KycStatus = "not_verified" | "under_review" | "verified" | "rejected";
@@ -135,10 +134,10 @@ function ProfilePage() {
   const router = useRouter();
   const fetchProfile = useServerFn(getMyProfile);
   const update = useServerFn(updateMyProfile);
-  const markSubmitted = useServerFn(markKycSubmitted);
+  
   const reupload = useServerFn(requestKycReupload);
   const presign = useServerFn(requestR2Upload);
-  const startDidit = useServerFn(createDiditSession);
+  
 
   const profileQuery = useQuery({
     queryKey: ["me", "profile"],
@@ -146,8 +145,8 @@ function ProfilePage() {
     staleTime: 15_000,
   });
 
-  // Realtime: subscribe to this user's profile row so the KYC badge flips
-  // the instant the Didit webhook writes to Supabase.
+  // Realtime: subscribe to this user's profile row so KYC fields update live
+  // when an admin changes status in the database.
   const userId = profileQuery.data?.profile.user_id;
   useEffect(() => {
     if (!userId) return;
@@ -171,20 +170,6 @@ function ProfilePage() {
     };
   }, [userId, profileQuery]);
 
-  // Handle ?kyc=success redirect back from Didit.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const url = new URL(window.location.href);
-    if (url.searchParams.get("kyc") === "success") {
-      void markSubmitted({}).then(() => profileQuery.refetch());
-      toast.success("Verification submitted", {
-        description: "Your KYC is now under review.",
-      });
-      url.searchParams.delete("kyc");
-      window.history.replaceState({}, "", url.toString());
-    }
-  }, [markSubmitted, profileQuery]);
-
   if (profileQuery.isLoading) return <ProfileSkeleton />;
   if (profileQuery.error)
     return (
@@ -204,10 +189,8 @@ function ProfilePage() {
         router.invalidate();
       }}
       update={update}
-      markSubmitted={markSubmitted}
       reupload={reupload}
       presign={presign}
-      startDidit={startDidit}
     />
   );
 }
@@ -227,10 +210,8 @@ interface FormProps {
   email: string;
   onSaved: () => void;
   update: ReturnType<typeof useServerFn<typeof updateMyProfile>>;
-  markSubmitted: ReturnType<typeof useServerFn<typeof markKycSubmitted>>;
   reupload: ReturnType<typeof useServerFn<typeof requestKycReupload>>;
   presign: ReturnType<typeof useServerFn<typeof requestR2Upload>>;
-  startDidit: ReturnType<typeof useServerFn<typeof createDiditSession>>;
 }
 
 function ProfileForm({
@@ -238,16 +219,13 @@ function ProfileForm({
   email,
   onSaved,
   update,
-  markSubmitted: _markSubmitted,
   reupload,
   presign,
-  startDidit,
 }: FormProps) {
   const [form, setForm] = useState<ProfileRow>(profile);
   useEffect(() => setForm(profile), [profile]);
   const [saving, setSaving] = useState(false);
   const [reuploading, setReuploading] = useState(false);
-  const [startingKyc, setStartingKyc] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
 
   const submitReupload = async () => {
@@ -274,18 +252,7 @@ function ProfileForm({
     }
   };
 
-  const beginDidit = async () => {
-    setStartingKyc(true);
-    try {
-      const { url } = await startDidit({});
-      window.location.href = url;
-    } catch (err) {
-      toast.error("Could not start verification", {
-        description: (err as Error).message,
-      });
-      setStartingKyc(false);
-    }
-  };
+
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
@@ -403,13 +370,6 @@ function ProfileForm({
                 <Input
                   className="h-9 rounded-sm bg-muted font-mono text-[12px]"
                   value={email}
-                  readOnly
-                />
-              </Field>
-              <Field label="Didit Session ID">
-                <Input
-                  className="h-9 rounded-sm bg-muted font-mono text-[12px]"
-                  value={form.didit_session_id ?? "—"}
                   readOnly
                 />
               </Field>
@@ -597,24 +557,6 @@ function ProfileForm({
               )}
             </dl>
             <div className="flex flex-col items-stretch justify-start gap-2 md:min-w-[220px]">
-              <Button
-                onClick={beginDidit}
-                disabled={startingKyc || form.kyc_status === "verified"}
-                className="h-9 rounded-sm bg-primary text-primary-foreground hover:bg-brand-700"
-              >
-                {startingKyc ? (
-                  <>
-                    <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-                    Opening Didit…
-                  </>
-                ) : form.kyc_status === "verified" ? (
-                  "Verified"
-                ) : form.kyc_status === "under_review" ? (
-                  "Continue verification"
-                ) : (
-                  "Verify with Didit"
-                )}
-              </Button>
               {form.kyc_status === "rejected" && (
                 <Button
                   onClick={submitReupload}
@@ -630,6 +572,9 @@ function ProfileForm({
                   Request Re-upload
                 </Button>
               )}
+              <p className="text-[11px] leading-relaxed text-muted-foreground">
+                KYC is reviewed manually by the Branta Tech admin team. Upload updated NID / CV in the Documents section, then request re-upload if previously rejected.
+              </p>
             </div>
           </div>
         </Section>
