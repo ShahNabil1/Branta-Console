@@ -61,7 +61,7 @@ export const listLeadServiceOptions = createServerFn({ method: "GET" })
       .eq("is_active", true)
       .order("sort_order", { ascending: true });
     if (error) throw new Error(error.message);
-    return (data ?? []) as LeadServiceOption[];
+    return (data ?? []) as unknown as LeadServiceOption[];
   });
 
 
