@@ -89,12 +89,15 @@ import {
 } from "@/components/ui/dialog";
 import { Eye } from "lucide-react";
 import {
+  listLeadServiceOptions,
   listLeadSourceOptions,
   listLeadStatusOptions,
+  SERVICE_FALLBACK,
   SOURCE_FALLBACK,
   STATUS_FALLBACK,
   statusColorVar,
   statusLabel,
+  type LeadServiceOption,
   type LeadSourceOption,
   type LeadStatusOption,
 } from "@/lib/lead-options.functions";
