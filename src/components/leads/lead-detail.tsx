@@ -51,10 +51,12 @@ import {
 } from "@/lib/leads.functions";
 import {
   drainEmailQueue,
+  getEmailUsageToday,
   listLeadEmails,
   renderVariables,
   retryFailedEmail,
   sendLeadEmail,
+  type EmailUsageToday,
   type LeadEmailRow,
 } from "@/lib/lead-email.functions";
 import { listResendEventsForLead } from "@/lib/resend-events.functions";
