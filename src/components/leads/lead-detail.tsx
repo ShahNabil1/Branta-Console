@@ -812,7 +812,7 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Send failed"),
   });
 
-  const primaryEmail = lead.email ?? contacts.data?.[0]?.email ?? "";
+  
 
 
   const canSend =
