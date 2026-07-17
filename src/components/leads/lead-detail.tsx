@@ -865,7 +865,8 @@ export function LeadDetail({
                 disabled={
                   saveM.isPending ||
                   !form.name.trim() ||
-                  (sourceNeedsDetail && !form.source_other.trim())
+                  (sourceNeedsDetail && !form.source_other.trim()) ||
+                  (serviceNeedsDetail && !form.service_other.trim())
                 }
                 onClick={() => saveM.mutate()}
               >
