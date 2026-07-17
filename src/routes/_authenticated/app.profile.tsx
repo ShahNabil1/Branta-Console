@@ -87,9 +87,8 @@ function ProfilePage() {
   const router = useRouter();
   const fetchProfile = useServerFn(getMyProfile);
   const update = useServerFn(updateMyProfile);
-  
-  const reupload = useServerFn(requestKycReupload);
   const presign = useServerFn(requestR2Upload);
+
   
 
   const profileQuery = useQuery({
@@ -98,8 +97,7 @@ function ProfilePage() {
     staleTime: 15_000,
   });
 
-  // Realtime: subscribe to this user's profile row so KYC fields update live
-  // when an admin changes status in the database.
+  // Realtime: subscribe to this user's profile row so updates land live.
   const userId = profileQuery.data?.profile.user_id;
   useEffect(() => {
     if (!userId) return;
@@ -123,6 +121,7 @@ function ProfilePage() {
     };
   }, [userId, profileQuery]);
 
+
   if (profileQuery.isLoading) return <ProfileSkeleton />;
   if (profileQuery.error)
     return (
@@ -142,9 +141,9 @@ function ProfilePage() {
         router.invalidate();
       }}
       update={update}
-      reupload={reupload}
       presign={presign}
     />
+
   );
 }
 
@@ -163,8 +162,8 @@ interface FormProps {
   email: string;
   onSaved: () => void;
   update: ReturnType<typeof useServerFn<typeof updateMyProfile>>;
-  reupload: ReturnType<typeof useServerFn<typeof requestKycReupload>>;
   presign: ReturnType<typeof useServerFn<typeof requestR2Upload>>;
+
 }
 
 function ProfileForm({
