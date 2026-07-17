@@ -1076,6 +1076,24 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
               {e.error_message && (
                 <div className="text-[11px] text-red-600">{e.error_message}</div>
               )}
+              {e.status === "failed" && (
+                <div className="mt-1">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 rounded-sm text-[11.5px]"
+                    disabled={retryM.isPending && retryM.variables === e.id}
+                    onClick={() => retryM.mutate(e.id)}
+                  >
+                    {retryM.isPending && retryM.variables === e.id ? (
+                      <Loader2 className="mr-1.5 size-3 animate-spin" />
+                    ) : (
+                      <RefreshCw className="mr-1.5 size-3" />
+                    )}
+                    Retry send
+                  </Button>
+                </div>
+              )}
             </li>
           ))}
         </ul>
