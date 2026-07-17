@@ -222,7 +222,8 @@ export const createLead = createServerFn({ method: "POST" })
         next_action: data.next_action ?? null,
         notes: data.notes ?? null,
         created_by: context.userId,
-      })
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any)
       .select("*")
       .single();
     if (error) throw new Error(error.message);
