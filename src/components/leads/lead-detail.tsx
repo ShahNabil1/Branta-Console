@@ -484,6 +484,10 @@ export function LeadDetail({
             source_other: sourceNeedsDetail
               ? form.source_other.trim() || null
               : null,
+            service: form.service.trim() || null,
+            service_other: serviceNeedsDetail
+              ? form.service_other.trim() || null
+              : null,
             owner_id: form.owner_id || null,
             value_usd: form.value_usd ? Number(form.value_usd) : null,
             currency: form.currency,
