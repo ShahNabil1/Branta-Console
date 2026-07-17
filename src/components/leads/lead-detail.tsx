@@ -36,13 +36,16 @@ import {
   addLeadActivity,
   deleteLead,
   listLeadActivities,
+  listLeadContacts,
   updateLead,
+  type LeadContactRow,
   type LeadRow,
   type LeadStatusDB,
 } from "@/lib/leads.functions";
 import {
   listLeadEmails,
   pullGmailForLead,
+  renderVariables,
   sendLeadEmail,
   type LeadEmailRow,
 } from "@/lib/lead-email.functions";
@@ -58,6 +61,14 @@ import {
   listLeadDocs,
   type LeadDocumentRow,
 } from "@/lib/lead-docs.functions";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Eye } from "lucide-react";
 
 // Same status metadata as the list page.
 const STATUSES: { value: LeadStatusDB; label: string; dotVar: string }[] = [
