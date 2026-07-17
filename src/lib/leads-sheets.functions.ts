@@ -238,6 +238,10 @@ export const pullLeadsFromSheet = createServerFn({ method: "POST" })
             rec.value_usd && !Number.isNaN(Number(rec.value_usd))
               ? Number(rec.value_usd)
               : null,
+          currency:
+            rec.currency && ["BDT", "USD"].includes(rec.currency.toUpperCase())
+              ? (rec.currency.toUpperCase() as "BDT" | "USD")
+              : "BDT",
           next_action: rec.next_action || null,
           notes: rec.notes || null,
         };
