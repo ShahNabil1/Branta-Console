@@ -66,6 +66,95 @@ function textToHtml(text: string): string {
  * Send a Resend email — one Resend request per recipient so each row tracks its
  * own message_id, deliverability, and future webhook events independently.
  */
+export const MAX_CONCURRENT_SENDS = 10;
+
+type ProcessableRow = {
+  id: string;
+  lead_id: string;
+  to_emails: string[];
+  cc_emails: string[];
+  subject: string | null;
+  body_html: string | null;
+  body_text: string | null;
+  sent_by: string | null;
+};
+
+/** Deliver a single queued row via Resend. Row must already be marked `sending`. */
+async function deliverQueuedRow(
+  adminClient: {
+    from: (t: string) => {
+      update: (v: Record<string, unknown>) => { eq: (c: string, v: unknown) => Promise<{ error: unknown }> };
+      insert: (v: Record<string, unknown>) => Promise<{ error: unknown }>;
+    };
+  },
+  row: ProcessableRow,
+  leadSlug: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const { callGateway } = await import("@/lib/connector-gateway.server");
+  const recipient = row.to_emails[0];
+  try {
+    const resp = await callGateway<{ id: string }>({
+      connector: "resend",
+      path: "/emails",
+      method: "POST",
+      body: {
+        from: RESEND_FROM,
+        to: [recipient],
+        cc: row.cc_emails.length ? row.cc_emails : undefined,
+        subject: row.subject ?? "",
+        html: row.body_html ?? undefined,
+        ...(row.body_text && !row.body_html ? { text: row.body_text } : {}),
+        tags: [
+          { name: "lead_id", value: row.lead_id },
+          { name: "lead_slug", value: leadSlug },
+        ],
+      },
+    });
+    await adminClient
+      .from("lead_emails")
+      .update({
+        status: "sent",
+        message_id: resp.id,
+        sent_at: new Date().toISOString(),
+        error_message: null,
+      })
+      .eq("id", row.id);
+    await adminClient.from("lead_activities").insert({
+      lead_id: row.lead_id,
+      actor_id: row.sent_by,
+      kind: "email",
+      body: `Sent to ${recipient}: ${row.subject ?? ""}`,
+      meta: { provider: "resend", to: recipient, status: "sent", email_id: row.id },
+    });
+    return { ok: true };
+  } catch (e) {
+    const errorMessage = e instanceof Error ? e.message : String(e);
+    await adminClient
+      .from("lead_emails")
+      .update({
+        status: "failed",
+        error_message: errorMessage,
+        sent_at: new Date().toISOString(),
+      })
+      .eq("id", row.id);
+    await adminClient.from("lead_activities").insert({
+      lead_id: row.lead_id,
+      actor_id: row.sent_by,
+      kind: "email",
+      body: `Failed to ${recipient}: ${errorMessage}`,
+      meta: { provider: "resend", to: recipient, status: "failed", email_id: row.id },
+    });
+    return { ok: false, error: errorMessage };
+  }
+}
+
+/**
+ * Queue then send. Always inserts one lead_emails row per recipient with status
+ * `queued`, then claims up to `MAX_CONCURRENT_SENDS − currentlySending` slots,
+ * flips those to `sending`, and processes them in parallel. The rest stay
+ * queued and are drained by `drainEmailQueue` (called by the client on a poll
+ * / realtime tick).
+ */
 export const sendLeadEmail = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => SendInput.parse(d))
@@ -73,10 +162,15 @@ export const sendLeadEmail = createServerFn({ method: "POST" })
     async ({
       data,
       context,
-    }): Promise<{ sent: number; failed: number; rows: LeadEmailRow[] }> => {
-      const { callGateway } = await import("@/lib/connector-gateway.server");
+    }): Promise<{
+      queued: number;
+      processing: number;
+      sent: number;
+      failed: number;
+      rows: LeadEmailRow[];
+    }> => {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-      // Resolve lead + owner for variable substitution.
       const { data: lead } = await context.supabase
         .from("leads")
         .select("id, slug, lead_code, name, company, status, owner_id")
@@ -96,98 +190,141 @@ export const sendLeadEmail = createServerFn({ method: "POST" })
 
       const today = new Date().toISOString().slice(0, 10);
       const firstName = (lead.name || "").split(/\s+/)[0] || null;
+      const leadSlug = String(lead.slug ?? lead.lead_code);
 
-      const rows: LeadEmailRow[] = [];
-      let sent = 0;
-      let failed = 0;
-
-      for (const recipient of data.to) {
+      // Build + insert all rows as `queued`.
+      const toInsert = data.to.map((recipient) => {
         const vars = {
           "lead.name": lead.name,
           "lead.first_name": firstName,
           "lead.company": lead.company,
           "lead.email": recipient,
           "lead.status": lead.status,
-          "lead.slug": lead.slug ?? lead.lead_code,
+          "lead.slug": leadSlug,
           "owner.name": ownerName,
           today,
         } as Record<string, string | null>;
-
         const renderedSubject = renderVariables(data.subject, vars);
         const renderedBody = renderVariables(data.body, vars);
-        const html =
-          data.contentType === "html" ? renderedBody : textToHtml(renderedBody);
+        const html = data.contentType === "html" ? renderedBody : textToHtml(renderedBody);
         const text = data.contentType === "text" ? renderedBody : null;
-
-        let messageId: string | null = null;
-        let status: "sent" | "failed" = "sent";
-        let errorMessage: string | null = null;
-
-        try {
-          const resp = await callGateway<{ id: string }>({
-            connector: "resend",
-            path: "/emails",
-            method: "POST",
-            body: {
-              from: RESEND_FROM,
-              to: [recipient],
-              cc: data.cc.length ? data.cc : undefined,
-              subject: renderedSubject,
-              html,
-              ...(text ? { text } : {}),
-              tags: [
-                { name: "lead_id", value: lead.id },
-                { name: "lead_slug", value: String(lead.slug ?? lead.lead_code) },
-              ],
-            },
-          });
-          messageId = resp.id;
-          sent += 1;
-        } catch (e) {
-          status = "failed";
-          errorMessage = e instanceof Error ? e.message : String(e);
-          failed += 1;
-        }
-
-        const { data: row, error } = await context.supabase
-          .from("lead_emails")
-          .insert({
-            lead_id: data.leadId,
-            direction: "outbound",
-            provider: "resend",
-            message_id: messageId,
-            thread_id: null,
-            subject: renderedSubject,
-            body_html: html,
-            body_text: text ?? renderedBody,
-            from_email: "noreply@brantatech.com",
-            to_emails: [recipient],
-            cc_emails: data.cc,
-            status,
-            error_message: errorMessage,
-            sent_at: new Date().toISOString(),
-            sent_by: context.userId,
-          })
-          .select("*")
-          .single();
-        if (error) throw new Error(error.message);
-        rows.push(row as LeadEmailRow);
-
-        await context.supabase.from("lead_activities").insert({
+        return {
           lead_id: data.leadId,
-          actor_id: context.userId,
-          kind: "email",
-          body:
-            status === "sent"
-              ? `Sent to ${recipient}: ${renderedSubject}`
-              : `Failed to ${recipient}: ${errorMessage}`,
-          meta: { provider: "resend", to: recipient, status },
-        });
+          direction: "outbound" as const,
+          provider: "resend" as const,
+          subject: renderedSubject,
+          body_html: html,
+          body_text: text ?? renderedBody,
+          from_email: "noreply@brantatech.com",
+          to_emails: [recipient],
+          cc_emails: data.cc,
+          status: "queued" as const,
+          sent_by: context.userId,
+        };
+      });
+
+      const { data: inserted, error: insErr } = await context.supabase
+        .from("lead_emails")
+        .insert(toInsert)
+        .select("*");
+      if (insErr) throw new Error(insErr.message);
+      const rows = (inserted ?? []) as LeadEmailRow[];
+
+      // Claim slots up to MAX_CONCURRENT_SENDS.
+      const { count: sendingCount } = await supabaseAdmin
+        .from("lead_emails")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "sending");
+      const available = Math.max(0, MAX_CONCURRENT_SENDS - (sendingCount ?? 0));
+      const claimIds = rows.slice(0, available).map((r) => r.id);
+
+      let sent = 0;
+      let failed = 0;
+      if (claimIds.length > 0) {
+        const { data: claimed } = await supabaseAdmin
+          .from("lead_emails")
+          .update({ status: "sending" })
+          .in("id", claimIds)
+          .eq("status", "queued")
+          .select(
+            "id, lead_id, to_emails, cc_emails, subject, body_html, body_text, sent_by",
+          );
+        const claimedRows = (claimed ?? []) as ProcessableRow[];
+        const results = await Promise.all(
+          claimedRows.map((r) => deliverQueuedRow(supabaseAdmin, r, leadSlug)),
+        );
+        for (const r of results) (r.ok ? (sent += 1) : (failed += 1));
       }
 
-      return { sent, failed, rows };
+      return {
+        queued: rows.length,
+        processing: claimIds.length,
+        sent,
+        failed,
+        rows,
+      };
     },
   );
+
+/**
+ * Drain oldest queued lead_emails rows across ALL leads up to the concurrency
+ * budget. Safe to call frequently — no-op when nothing is available.
+ */
+export const drainEmailQueue = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(
+    async (): Promise<{ processed: number; sent: number; failed: number }> => {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+      const { count: sendingCount } = await supabaseAdmin
+        .from("lead_emails")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "sending");
+      const available = Math.max(0, MAX_CONCURRENT_SENDS - (sendingCount ?? 0));
+      if (available === 0) return { processed: 0, sent: 0, failed: 0 };
+
+      const { data: candidates } = await supabaseAdmin
+        .from("lead_emails")
+        .select("id")
+        .eq("status", "queued")
+        .eq("provider", "resend")
+        .order("created_at", { ascending: true })
+        .limit(available);
+      const ids = (candidates ?? []).map((r) => r.id);
+      if (ids.length === 0) return { processed: 0, sent: 0, failed: 0 };
+
+      const { data: claimed } = await supabaseAdmin
+        .from("lead_emails")
+        .update({ status: "sending" })
+        .in("id", ids)
+        .eq("status", "queued")
+        .select(
+          "id, lead_id, to_emails, cc_emails, subject, body_html, body_text, sent_by",
+        );
+      const claimedRows = (claimed ?? []) as ProcessableRow[];
+
+      // Resolve lead slugs in one query.
+      const leadIds = Array.from(new Set(claimedRows.map((r) => r.lead_id)));
+      const { data: leads } = await supabaseAdmin
+        .from("leads")
+        .select("id, slug, lead_code")
+        .in("id", leadIds);
+      const slugById = new Map(
+        (leads ?? []).map((l) => [l.id as string, String(l.slug ?? l.lead_code)]),
+      );
+
+      const results = await Promise.all(
+        claimedRows.map((r) =>
+          deliverQueuedRow(supabaseAdmin, r, slugById.get(r.lead_id) ?? ""),
+        ),
+      );
+      let sent = 0;
+      let failed = 0;
+      for (const r of results) (r.ok ? (sent += 1) : (failed += 1));
+      return { processed: claimedRows.length, sent, failed };
+    },
+  );
+
 
 export const listLeadEmails = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
