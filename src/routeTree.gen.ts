@@ -19,7 +19,6 @@ import { Route as AuthenticatedAppSettingsRouteImport } from './routes/_authenti
 import { Route as AuthenticatedAppProfileRouteImport } from './routes/_authenticated/app.profile'
 import { Route as AuthenticatedAppLeadsRouteImport } from './routes/_authenticated/app.leads'
 import { Route as AuthenticatedAppEmployeesRouteImport } from './routes/_authenticated/app.employees'
-import { Route as ApiPublicMetamapWebhookRouteImport } from './routes/api/public/metamap.webhook'
 import { Route as ApiPublicBrevoWebhookRouteImport } from './routes/api/public/brevo.webhook'
 
 const LoginRoute = LoginRouteImport.update({
@@ -73,11 +72,6 @@ const AuthenticatedAppEmployeesRoute =
     path: '/employees',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
-const ApiPublicMetamapWebhookRoute = ApiPublicMetamapWebhookRouteImport.update({
-  id: '/api/public/metamap/webhook',
-  path: '/api/public/metamap/webhook',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiPublicBrevoWebhookRoute = ApiPublicBrevoWebhookRouteImport.update({
   id: '/api/public/brevo/webhook',
   path: '/api/public/brevo/webhook',
@@ -95,7 +89,6 @@ export interface FileRoutesByFullPath {
   '/api/public/r2-health': typeof ApiPublicR2HealthRoute
   '/app/': typeof AuthenticatedAppIndexRoute
   '/api/public/brevo/webhook': typeof ApiPublicBrevoWebhookRoute
-  '/api/public/metamap/webhook': typeof ApiPublicMetamapWebhookRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -107,7 +100,6 @@ export interface FileRoutesByTo {
   '/api/public/r2-health': typeof ApiPublicR2HealthRoute
   '/app': typeof AuthenticatedAppIndexRoute
   '/api/public/brevo/webhook': typeof ApiPublicBrevoWebhookRoute
-  '/api/public/metamap/webhook': typeof ApiPublicMetamapWebhookRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -122,7 +114,6 @@ export interface FileRoutesById {
   '/api/public/r2-health': typeof ApiPublicR2HealthRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
   '/api/public/brevo/webhook': typeof ApiPublicBrevoWebhookRoute
-  '/api/public/metamap/webhook': typeof ApiPublicMetamapWebhookRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -137,7 +128,6 @@ export interface FileRouteTypes {
     | '/api/public/r2-health'
     | '/app/'
     | '/api/public/brevo/webhook'
-    | '/api/public/metamap/webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -149,7 +139,6 @@ export interface FileRouteTypes {
     | '/api/public/r2-health'
     | '/app'
     | '/api/public/brevo/webhook'
-    | '/api/public/metamap/webhook'
   id:
     | '__root__'
     | '/'
@@ -163,7 +152,6 @@ export interface FileRouteTypes {
     | '/api/public/r2-health'
     | '/_authenticated/app/'
     | '/api/public/brevo/webhook'
-    | '/api/public/metamap/webhook'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -172,7 +160,6 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   ApiPublicR2HealthRoute: typeof ApiPublicR2HealthRoute
   ApiPublicBrevoWebhookRoute: typeof ApiPublicBrevoWebhookRoute
-  ApiPublicMetamapWebhookRoute: typeof ApiPublicMetamapWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -247,13 +234,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppEmployeesRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
-    '/api/public/metamap/webhook': {
-      id: '/api/public/metamap/webhook'
-      path: '/api/public/metamap/webhook'
-      fullPath: '/api/public/metamap/webhook'
-      preLoaderRoute: typeof ApiPublicMetamapWebhookRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/public/brevo/webhook': {
       id: '/api/public/brevo/webhook'
       path: '/api/public/brevo/webhook'
@@ -300,7 +280,6 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   ApiPublicR2HealthRoute: ApiPublicR2HealthRoute,
   ApiPublicBrevoWebhookRoute: ApiPublicBrevoWebhookRoute,
-  ApiPublicMetamapWebhookRoute: ApiPublicMetamapWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
