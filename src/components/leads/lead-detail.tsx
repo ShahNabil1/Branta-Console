@@ -798,8 +798,12 @@ export function LeadDetail({
                 onTagChange={(v) => setForm({ ...form, alt_phone_label: v })}
               />
 
+              <div className="col-span-2 md:col-span-3">
+                <SocialLinksSection leadId={lead.id} />
+              </div>
 
               <Field
+
                 label="Next action"
                 className="col-span-2 md:col-span-3"
                 hint={
