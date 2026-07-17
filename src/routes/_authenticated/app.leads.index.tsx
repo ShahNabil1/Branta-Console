@@ -46,6 +46,16 @@ import {
   type LeadStatusDB,
 } from "@/lib/leads.functions";
 import {
+  listLeadSourceOptions,
+  listLeadStatusOptions,
+  SOURCE_FALLBACK,
+  STATUS_FALLBACK,
+  statusColorVar,
+  statusLabel,
+  type LeadSourceOption,
+  type LeadStatusOption,
+} from "@/lib/lead-options.functions";
+import {
   getSheetSyncStatus,
   pushLeadsToSheet,
   pullLeadsFromSheet,
@@ -65,25 +75,20 @@ export const Route = createFileRoute("/_authenticated/app/leads/")({
   }),
 });
 
-const STATUSES: { value: LeadStatusDB; label: string; dotVar: string }[] = [
-  { value: "new", label: "New", dotVar: "--color-status-new" },
-  { value: "contacted", label: "Contacted", dotVar: "--color-status-contacted" },
-  { value: "viewed", label: "Viewed", dotVar: "--color-status-viewed" },
-  { value: "meeting", label: "Meeting Scheduled", dotVar: "--color-status-meeting" },
-  { value: "converted", label: "Converted", dotVar: "--color-status-converted" },
-  { value: "lost", label: "Lost", dotVar: "--color-status-contacted" },
-];
-const STATUS_META = new Map(STATUSES.map((s) => [s.value, s] as const));
-
-function StatusBadge({ status }: { status: LeadStatusDB }) {
-  const meta = STATUS_META.get(status);
+function StatusBadge({
+  status,
+  options,
+}: {
+  status: LeadStatusDB;
+  options: LeadStatusOption[];
+}) {
   return (
     <span className="inline-flex items-center gap-2 text-[12.5px] font-medium text-foreground">
       <span
         className="size-1.5 rounded-full"
-        style={{ background: `var(${meta?.dotVar})` }}
+        style={{ background: `var(${statusColorVar(status, options)})` }}
       />
-      {meta?.label ?? status}
+      {statusLabel(status, options)}
     </span>
   );
 }
@@ -127,6 +132,8 @@ function LeadsPage() {
   const navigate = useNavigate();
   const list = useServerFn(listLeads);
   const listUsers = useServerFn(listAssignableUsers);
+  const listStatusOpts = useServerFn(listLeadStatusOptions);
+  const listSourceOpts = useServerFn(listLeadSourceOptions);
 
   const leadsQuery = useQuery({
     queryKey: ["leads", "list"],
@@ -139,6 +146,23 @@ function LeadsPage() {
     queryFn: () => listUsers(),
     staleTime: 60_000,
   });
+
+  const statusOptsQ = useQuery({
+    queryKey: ["lead-status-options"],
+    queryFn: () => listStatusOpts(),
+    staleTime: 5 * 60_000,
+    initialData: STATUS_FALLBACK,
+  });
+  const sourceOptsQ = useQuery({
+    queryKey: ["lead-source-options"],
+    queryFn: () => listSourceOpts(),
+    staleTime: 5 * 60_000,
+    initialData: SOURCE_FALLBACK,
+  });
+  const statusOptions: LeadStatusOption[] =
+    statusOptsQ.data ?? STATUS_FALLBACK;
+  const sourceOptions: LeadSourceOption[] =
+    sourceOptsQ.data ?? SOURCE_FALLBACK;
 
   useEffect(() => {
     const ch = supabase
@@ -241,8 +265,8 @@ function LeadsPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All statuses</SelectItem>
-            {STATUSES.map((s) => (
-              <SelectItem key={s.value} value={s.value}>
+            {statusOptions.map((s) => (
+              <SelectItem key={s.key} value={s.key}>
                 {s.label}
               </SelectItem>
             ))}
@@ -325,7 +349,7 @@ function LeadsPage() {
                 </div>
                 <div className="truncate text-foreground">{row.company ?? "—"}</div>
                 <div>
-                  <StatusBadge status={row.status} />
+                  <StatusBadge status={row.status} options={statusOptions} />
                 </div>
                 <div className="flex min-w-0 items-center gap-2">
                   <span className="grid size-6 shrink-0 place-items-center rounded-full bg-muted text-[10px] font-bold text-foreground">
@@ -351,6 +375,8 @@ function LeadsPage() {
         open={createOpen}
         onOpenChange={setCreateOpen}
         users={usersQuery.data ?? []}
+        statusOptions={statusOptions}
+        sourceOptions={sourceOptions}
       />
     </div>
   );
@@ -384,6 +410,7 @@ type CreateForm = {
   phone: string;
   status: LeadStatusDB;
   source: string;
+  source_other: string;
   owner_id: string;
   value_usd: string;
   currency: "BDT" | "USD";
@@ -397,6 +424,7 @@ const emptyForm: CreateForm = {
   phone: "",
   status: "new",
   source: "",
+  source_other: "",
   owner_id: "",
   value_usd: "",
   currency: "BDT",
@@ -408,15 +436,21 @@ function CreateLeadDialog({
   open,
   onOpenChange,
   users,
+  statusOptions,
+  sourceOptions,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   users: { user_id: string; full_name: string | null }[];
+  statusOptions: LeadStatusOption[];
+  sourceOptions: LeadSourceOption[];
 }) {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const create = useServerFn(createLead);
   const [form, setForm] = useState<CreateForm>(emptyForm);
+  const activeSource = sourceOptions.find((s) => s.key === form.source);
+  const sourceNeedsDetail = activeSource?.requires_detail ?? false;
 
   useEffect(() => {
     if (open) setForm(emptyForm);
@@ -432,6 +466,7 @@ function CreateLeadDialog({
           phone: form.phone.trim() || null,
           status: form.status,
           source: form.source.trim() || null,
+          source_other: sourceNeedsDetail ? form.source_other.trim() || null : null,
           owner_id: form.owner_id || null,
           value_usd: form.value_usd ? Number(form.value_usd) : null,
           currency: form.currency,
@@ -477,13 +512,43 @@ function CreateLeadDialog({
             />
           </FormRow>
           <FormRow label="Source">
-            <Input
-              value={form.source}
-              onChange={(e) => set("source", e.target.value)}
-              placeholder="Referral, LinkedIn…"
-              className="h-9 rounded-sm text-[12.5px]"
-            />
+            <Select
+              value={form.source || "__unset"}
+              onValueChange={(v) => {
+                const next = v === "__unset" ? "" : v;
+                setForm((p) => ({
+                  ...p,
+                  source: next,
+                  source_other:
+                    next && sourceOptions.find((o) => o.key === next)?.requires_detail
+                      ? p.source_other
+                      : "",
+                }));
+              }}
+            >
+              <SelectTrigger className="h-9 rounded-sm text-[12.5px]">
+                <SelectValue placeholder="Select source" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__unset">— None —</SelectItem>
+                {sourceOptions.map((s) => (
+                  <SelectItem key={s.key} value={s.key}>
+                    {s.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </FormRow>
+          {sourceNeedsDetail && (
+            <FormRow label={`${activeSource?.label ?? "Source"} details *`}>
+              <Input
+                value={form.source_other}
+                onChange={(e) => set("source_other", e.target.value)}
+                placeholder="Describe the source"
+                className="h-9 rounded-sm text-[12.5px]"
+              />
+            </FormRow>
+          )}
           <FormRow label="Email">
             <Input
               value={form.email}
@@ -507,8 +572,8 @@ function CreateLeadDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {STATUSES.map((s) => (
-                  <SelectItem key={s.value} value={s.value}>
+                {statusOptions.map((s) => (
+                  <SelectItem key={s.key} value={s.key}>
                     {s.label}
                   </SelectItem>
                 ))}
@@ -581,7 +646,11 @@ function CreateLeadDialog({
           </Button>
           <Button
             className="h-9 rounded-sm bg-primary text-primary-foreground hover:bg-brand-700"
-            disabled={m.isPending || !form.name.trim()}
+            disabled={
+              m.isPending ||
+              !form.name.trim() ||
+              (sourceNeedsDetail && !form.source_other.trim())
+            }
             onClick={() => m.mutate()}
           >
             {m.isPending ? (

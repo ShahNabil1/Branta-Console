@@ -19,6 +19,7 @@ import {
   ExternalLink,
   Copy,
   ChevronLeft,
+  Phone as PhoneIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -81,28 +82,44 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Eye } from "lucide-react";
+import {
+  listLeadSourceOptions,
+  listLeadStatusOptions,
+  SOURCE_FALLBACK,
+  STATUS_FALLBACK,
+  statusColorVar,
+  statusLabel,
+  type LeadSourceOption,
+  type LeadStatusOption,
+} from "@/lib/lead-options.functions";
 
-// Same status metadata as the list page.
-const STATUSES: { value: LeadStatusDB; label: string; dotVar: string }[] = [
-  { value: "new", label: "New", dotVar: "--color-status-new" },
-  { value: "contacted", label: "Contacted", dotVar: "--color-status-contacted" },
-  { value: "viewed", label: "Viewed", dotVar: "--color-status-viewed" },
-  { value: "meeting", label: "Meeting Scheduled", dotVar: "--color-status-meeting" },
-  { value: "converted", label: "Converted", dotVar: "--color-status-converted" },
-  { value: "lost", label: "Lost", dotVar: "--color-status-contacted" },
-];
-const STATUS_META = new Map(STATUSES.map((s) => [s.value, s] as const));
-
-function StatusBadge({ status }: { status: LeadStatusDB }) {
-  const meta = STATUS_META.get(status);
+function StatusBadge({
+  status,
+  options,
+}: {
+  status: LeadStatusDB;
+  options: LeadStatusOption[];
+}) {
   return (
     <span className="inline-flex items-center gap-2 text-[12.5px] font-medium text-foreground">
       <span
         className="size-1.5 rounded-full"
-        style={{ background: `var(${meta?.dotVar})` }}
+        style={{ background: `var(${statusColorVar(status, options)})` }}
       />
-      {meta?.label ?? status}
+      {statusLabel(status, options)}
     </span>
+  );
+}
+
+// Inline WhatsApp logo (green) for phone action button.
+function WhatsAppIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 32 32" className={className} aria-hidden>
+      <path
+        fill="#25D366"
+        d="M16 3C8.82 3 3 8.82 3 16c0 2.29.6 4.52 1.74 6.49L3 29l6.7-1.72A12.94 12.94 0 0 0 16 29c7.18 0 13-5.82 13-13S23.18 3 16 3zm7.5 18.36c-.32.9-1.85 1.72-2.58 1.83-.68.1-1.54.14-2.5-.16a12.85 12.85 0 0 1-2.28-.85c-4-1.74-6.6-5.77-6.8-6.04-.2-.27-1.62-2.15-1.62-4.1s1.02-2.9 1.38-3.3c.36-.4.78-.5 1.04-.5.26 0 .52 0 .74.01.24.01.56-.09.87.66.32.78 1.1 2.7 1.2 2.9.1.2.16.44.03.7-.13.27-.2.44-.4.68-.2.24-.42.53-.6.72-.2.2-.4.42-.17.82.23.4 1.02 1.68 2.2 2.72 1.51 1.33 2.78 1.75 3.18 1.95.4.2.63.17.86-.1.24-.27.99-1.15 1.25-1.55.26-.4.52-.33.87-.2.36.13 2.28 1.08 2.68 1.28.4.2.66.3.76.47.1.17.1 1-.22 1.9z"
+      />
+    </svg>
   );
 }
 
@@ -156,6 +173,27 @@ export function LeadDetail({
   const listAct = useServerFn(listLeadActivities);
   const addAct = useServerFn(addLeadActivity);
 
+  const listStatusOpts = useServerFn(listLeadStatusOptions);
+  const listSourceOpts = useServerFn(listLeadSourceOptions);
+  const statusOptsQ = useQuery({
+    queryKey: ["lead-status-options"],
+    queryFn: () => listStatusOpts(),
+    staleTime: 5 * 60_000,
+    initialData: STATUS_FALLBACK,
+  });
+  const sourceOptsQ = useQuery({
+    queryKey: ["lead-source-options"],
+    queryFn: () => listSourceOpts(),
+    staleTime: 5 * 60_000,
+    initialData: SOURCE_FALLBACK,
+  });
+  const statusOptions: LeadStatusOption[] = statusOptsQ.data ?? STATUS_FALLBACK;
+  const sourceOptions: LeadSourceOption[] = sourceOptsQ.data ?? SOURCE_FALLBACK;
+
+  const [tab, setTab] = useState<"overview" | "emails" | "meetings" | "docs">(
+    "overview",
+  );
+
   const [form, setForm] = useState({
     name: lead.name,
     company: lead.company ?? "",
@@ -163,12 +201,15 @@ export function LeadDetail({
     phone: lead.phone ?? "",
     status: lead.status,
     source: lead.source ?? "",
+    source_other: lead.source_other ?? "",
     owner_id: lead.owner_id ?? "",
     value_usd: lead.value_usd == null ? "" : String(lead.value_usd),
     currency: (lead.currency ?? "BDT") as "BDT" | "USD",
     next_action: lead.next_action ?? "",
     notes: lead.notes ?? "",
   });
+  // Optional note captured when status changes; cleared after save.
+  const [statusChangeNote, setStatusChangeNote] = useState("");
 
   useEffect(() => {
     setForm({
@@ -178,12 +219,14 @@ export function LeadDetail({
       phone: lead.phone ?? "",
       status: lead.status,
       source: lead.source ?? "",
+      source_other: lead.source_other ?? "",
       owner_id: lead.owner_id ?? "",
       value_usd: lead.value_usd == null ? "" : String(lead.value_usd),
       currency: (lead.currency ?? "BDT") as "BDT" | "USD",
       next_action: lead.next_action ?? "",
       notes: lead.notes ?? "",
     });
+    setStatusChangeNote("");
   }, [lead.id, lead.status, lead.owner_id, lead.updated_at]);
 
   const activities = useQuery({
@@ -191,6 +234,10 @@ export function LeadDetail({
     queryFn: () => listAct({ data: { leadId: lead.id } }),
     staleTime: 10_000,
   });
+
+  const statusChanged = form.status !== lead.status;
+  const activeSource = sourceOptions.find((s) => s.key === form.source);
+  const sourceNeedsDetail = activeSource?.requires_detail ?? false;
 
   const saveM = useMutation({
     mutationFn: () =>
@@ -204,17 +251,26 @@ export function LeadDetail({
             phone: form.phone.trim() || null,
             status: form.status,
             source: form.source.trim() || null,
+            source_other: sourceNeedsDetail
+              ? form.source_other.trim() || null
+              : null,
             owner_id: form.owner_id || null,
             value_usd: form.value_usd ? Number(form.value_usd) : null,
             currency: form.currency,
             next_action: form.next_action.trim() || null,
             notes: form.notes.trim() || null,
           },
+          statusChangeNote:
+            statusChanged && statusChangeNote.trim()
+              ? statusChangeNote.trim()
+              : undefined,
         },
       }),
     onSuccess: () => {
       toast.success("Lead updated");
+      setStatusChangeNote("");
       qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["leads", "activities", lead.id] });
     },
     onError: (e: unknown) =>
       toast.error(e instanceof Error ? e.message : "Update failed"),
@@ -260,7 +316,7 @@ export function LeadDetail({
             <span className="rounded-sm bg-muted px-2 py-0.5 font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
               {lead.slug ?? lead.lead_code}
             </span>
-            <StatusBadge status={lead.status} />
+            <StatusBadge status={lead.status} options={statusOptions} />
           </div>
           <h1 className="mt-1 text-[22px] font-semibold tracking-tight text-foreground">
             {lead.name}
@@ -271,7 +327,11 @@ export function LeadDetail({
         </div>
       </div>
 
-      <Tabs defaultValue="overview" className="flex min-h-0 flex-1 flex-col">
+      <Tabs
+        value={tab}
+        onValueChange={(v) => setTab(v as typeof tab)}
+        className="flex min-h-0 flex-1 flex-col"
+      >
         <TabsList className="grid h-9 w-full max-w-md grid-cols-4 rounded-sm bg-muted p-0.5">
           <TabsTrigger value="overview" className="h-8 rounded-sm text-[12px]">
             Overview
@@ -308,45 +368,157 @@ export function LeadDetail({
                 />
               </Field>
               <Field label="Source">
-                <Input
-                  value={form.source}
-                  onChange={(e) => setForm({ ...form, source: e.target.value })}
-                  className="h-9 rounded-sm text-[12.5px]"
-                />
-              </Field>
-              <Field label="Email">
-                <Input
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  className="h-9 rounded-sm text-[12.5px]"
-                />
-              </Field>
-              <Field label="Phone">
-                <Input
-                  value={form.phone}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                  className="h-9 rounded-sm text-[12.5px]"
-                />
-              </Field>
-              <Field label="Status">
                 <Select
-                  value={form.status}
-                  onValueChange={(v) =>
-                    setForm({ ...form, status: v as LeadStatusDB })
-                  }
+                  value={form.source || "__unset"}
+                  onValueChange={(v) => {
+                    const next = v === "__unset" ? "" : v;
+                    setForm((prev) => ({
+                      ...prev,
+                      source: next,
+                      source_other:
+                        next && sourceOptions.find((o) => o.key === next)?.requires_detail
+                          ? prev.source_other
+                          : "",
+                    }));
+                  }}
                 >
                   <SelectTrigger className="h-9 rounded-sm text-[12.5px]">
-                    <SelectValue />
+                    <SelectValue placeholder="Select source" />
                   </SelectTrigger>
                   <SelectContent>
-                    {STATUSES.map((s) => (
-                      <SelectItem key={s.value} value={s.value}>
+                    <SelectItem value="__unset">— None —</SelectItem>
+                    {sourceOptions.map((s) => (
+                      <SelectItem key={s.key} value={s.key}>
                         {s.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </Field>
+              {sourceNeedsDetail && (
+                <Field label={`${activeSource?.label ?? "Source"} details *`}>
+                  <Input
+                    value={form.source_other}
+                    onChange={(e) =>
+                      setForm({ ...form, source_other: e.target.value })
+                    }
+                    placeholder="Describe the source"
+                    className="h-9 rounded-sm text-[12.5px]"
+                  />
+                </Field>
+              )}
+              <Field label="Email">
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    className="h-9 flex-1 rounded-sm text-[12.5px]"
+                  />
+                  <TooltipProvider delayDuration={200}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="h-9 w-9 shrink-0 rounded-sm"
+                          disabled={!form.email.trim()}
+                          onClick={() => setTab("emails")}
+                          aria-label="Compose email"
+                        >
+                          <Mail className="size-3.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">Compose in Emails tab</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+              </Field>
+              <Field label="Phone">
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    value={form.phone}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                    className="h-9 flex-1 rounded-sm text-[12.5px]"
+                  />
+                  <TooltipProvider delayDuration={200}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <a
+                          href={form.phone ? `tel:${form.phone.replace(/\s+/g, "")}` : undefined}
+                          aria-disabled={!form.phone.trim()}
+                          className={cn(
+                            "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-sm border border-input bg-background text-foreground transition-colors hover:bg-muted",
+                            !form.phone.trim() && "pointer-events-none opacity-50",
+                          )}
+                          aria-label="Call this number"
+                        >
+                          <PhoneIcon className="size-3.5" />
+                        </a>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">Call</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <a
+                          href={
+                            form.phone
+                              ? `https://wa.me/${form.phone.replace(/[^\d]/g, "")}`
+                              : undefined
+                          }
+                          target="_blank"
+                          rel="noreferrer"
+                          aria-disabled={!form.phone.trim()}
+                          className={cn(
+                            "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-sm border border-input bg-background transition-colors hover:bg-muted",
+                            !form.phone.trim() && "pointer-events-none opacity-50",
+                          )}
+                          aria-label="Open in WhatsApp"
+                        >
+                          <WhatsAppIcon className="size-4" />
+                        </a>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">WhatsApp</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+              </Field>
+              <Field label="Status">
+                <Select
+                  value={form.status}
+                  onValueChange={(v) => setForm({ ...form, status: v })}
+                >
+                  <SelectTrigger className="h-9 rounded-sm text-[12.5px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {statusOptions.map((s) => (
+                      <SelectItem key={s.key} value={s.key}>
+                        <span className="inline-flex items-center gap-2">
+                          <span
+                            className="size-1.5 rounded-full"
+                            style={{ background: `var(${s.color_var ?? "--color-status-contacted"})` }}
+                          />
+                          {s.label}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              {statusChanged && (
+                <Field
+                  label={`Reason for status change → ${statusLabel(form.status, statusOptions)} (optional)`}
+                  className="col-span-2 md:col-span-3"
+                >
+                  <Textarea
+                    value={statusChangeNote}
+                    onChange={(e) => setStatusChangeNote(e.target.value)}
+                    placeholder={`Why is this lead moving to "${statusLabel(form.status, statusOptions)}"? (added to Activity Logs)`}
+                    className="min-h-[64px] rounded-sm text-[12.5px]"
+                  />
+                </Field>
+              )}
               <Field label="Owner">
                 <Select
                   value={form.owner_id || "none"}
@@ -429,7 +601,11 @@ export function LeadDetail({
               <Button
                 size="sm"
                 className="h-8 rounded-sm bg-primary text-[12px] text-primary-foreground hover:bg-brand-700"
-                disabled={saveM.isPending || !form.name.trim()}
+                disabled={
+                  saveM.isPending ||
+                  !form.name.trim() ||
+                  (sourceNeedsDetail && !form.source_other.trim())
+                }
                 onClick={() => saveM.mutate()}
               >
                 {saveM.isPending ? (

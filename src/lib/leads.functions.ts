@@ -5,13 +5,9 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
-export type LeadStatusDB =
-  | "new"
-  | "contacted"
-  | "viewed"
-  | "meeting"
-  | "converted"
-  | "lost";
+// Status keys are dynamic (managed via public.lead_status_options).
+// Kept as a string alias for backward-compat with existing imports.
+export type LeadStatusDB = string;
 
 export interface LeadRow {
   id: string;
@@ -24,6 +20,7 @@ export interface LeadRow {
   phone: string | null;
   status: LeadStatusDB;
   source: string | null;
+  source_other: string | null;
   owner_id: string | null;
   value_usd: number | null;
   currency: "BDT" | "USD";
@@ -64,22 +61,17 @@ export interface LeadActivityRow {
   actor_name?: string | null;
 }
 
-const StatusEnum = z.enum([
-  "new",
-  "contacted",
-  "viewed",
-  "meeting",
-  "converted",
-  "lost",
-]);
+// Status is a free-form key validated against lead_status_options in the UI.
+const StatusInput = z.string().trim().min(1).max(60);
 
 const CreateInput = z.object({
   name: z.string().trim().min(1).max(160),
   company: z.string().trim().max(160).optional().nullable(),
   email: z.string().trim().email().max(200).optional().nullable().or(z.literal("")),
   phone: z.string().trim().max(40).optional().nullable(),
-  status: StatusEnum.default("new"),
+  status: StatusInput.default("new"),
   source: z.string().trim().max(80).optional().nullable(),
+  source_other: z.string().trim().max(200).optional().nullable(),
   owner_id: z.string().uuid().optional().nullable(),
   value_usd: z.number().nonnegative().optional().nullable(),
   currency: z.enum(["BDT", "USD"]).optional(),
@@ -90,6 +82,7 @@ const CreateInput = z.object({
 const UpdateInput = z.object({
   id: z.string().uuid(),
   patch: CreateInput.partial(),
+  statusChangeNote: z.string().trim().max(1000).optional(),
 });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -219,6 +212,7 @@ export const createLead = createServerFn({ method: "POST" })
         phone: data.phone ?? null,
         status: data.status,
         source: data.source ?? null,
+        source_other: data.source_other ?? null,
         owner_id: data.owner_id ?? context.userId,
         value_usd: data.value_usd ?? null,
         currency: data.currency ?? "BDT",
@@ -283,12 +277,16 @@ export const updateLead = createServerFn({ method: "POST" })
     }
 
     if (patch.status && prior && prior.status !== patch.status) {
+      const note = data.statusChangeNote?.trim();
+      const body = note
+        ? `Status: ${prior.status} → ${String(patch.status)} — ${note}`
+        : `Status: ${prior.status} → ${String(patch.status)}`;
       await context.supabase.from("lead_activities").insert({
         lead_id: data.id,
         actor_id: context.userId,
         kind: "status_change",
-        body: `Status: ${prior.status} → ${String(patch.status)}`,
-        meta: { from: prior.status, to: String(patch.status) },
+        body,
+        meta: { from: prior.status, to: String(patch.status), note: note ?? null },
       });
     }
     const base = { ...(row as LeadRow), email: null };
