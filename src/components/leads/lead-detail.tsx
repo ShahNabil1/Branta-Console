@@ -670,11 +670,14 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
         },
       }),
     onSuccess: (r) => {
-      if (r.failed === 0) {
-        toast.success(`Sent to ${r.sent} recipient${r.sent === 1 ? "" : "s"}`);
-      } else {
-        toast.warning(`Sent ${r.sent}, failed ${r.failed}`);
-      }
+      const queued = r.queued - r.processing;
+      const parts: string[] = [];
+      if (r.sent > 0) parts.push(`${r.sent} sent`);
+      if (r.failed > 0) parts.push(`${r.failed} failed`);
+      if (queued > 0) parts.push(`${queued} in queue`);
+      const msg = parts.join(" · ") || `${r.queued} queued`;
+      if (r.failed > 0) toast.warning(msg);
+      else toast.success(msg);
       setSubject("");
       setBody(contentType === "html" ? DEFAULT_HTML_BODY : DEFAULT_TEXT_BODY);
       qc.invalidateQueries({ queryKey: ["lead-emails", lead.id] });
