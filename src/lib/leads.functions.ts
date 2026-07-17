@@ -82,6 +82,7 @@ const CreateInput = z.object({
   source: z.string().trim().max(80).optional().nullable(),
   owner_id: z.string().uuid().optional().nullable(),
   value_usd: z.number().nonnegative().optional().nullable(),
+  currency: z.enum(["BDT", "USD"]).optional(),
   next_action: z.string().trim().max(200).optional().nullable(),
   notes: z.string().trim().max(4000).optional().nullable(),
 });
