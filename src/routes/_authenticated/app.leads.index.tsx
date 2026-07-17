@@ -466,6 +466,7 @@ function CreateLeadDialog({
           phone: form.phone.trim() || null,
           status: form.status,
           source: form.source.trim() || null,
+          source_other: sourceNeedsDetail ? form.source_other.trim() || null : null,
           owner_id: form.owner_id || null,
           value_usd: form.value_usd ? Number(form.value_usd) : null,
           currency: form.currency,
