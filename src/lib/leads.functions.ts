@@ -212,6 +212,7 @@ export const createLead = createServerFn({ method: "POST" })
         phone: data.phone ?? null,
         status: data.status,
         source: data.source ?? null,
+        source_other: data.source_other ?? null,
         owner_id: data.owner_id ?? context.userId,
         value_usd: data.value_usd ?? null,
         currency: data.currency ?? "BDT",
