@@ -125,7 +125,7 @@ export const sendWelcomeEmail = async (input: WelcomeEmailInput): Promise<void> 
       "X-Connection-Api-Key": BREVO_KEY,
     },
     body: JSON.stringify({
-      sender: { name: "Branta Tech", email: "hello@brantatech.com" },
+      sender: { name: "Branta Tech", email: "noreply@brantatech.com" },
       to: [{ email: input.recipientEmail }],
       subject: "Welcome to Branta Tech — Console access",
       htmlContent: html,
