@@ -285,9 +285,17 @@ export function LeadDetail({
           id: lead.id,
           patch: {
             name: form.name.trim(),
+            role: form.role.trim() || null,
             company: form.company.trim() || null,
             email: form.email.trim() || null,
+            email_label: form.email_label.trim() || null,
+            alt_email: form.alt_email.trim() || null,
+            alt_email_label: form.alt_email_label.trim() || null,
             phone: form.phone.trim() || null,
+            phone_label: form.phone_label.trim() || null,
+            alt_phone: form.alt_phone.trim() || null,
+            alt_phone_label: form.alt_phone_label.trim() || null,
+            contact_preference: form.contact_preference.trim() || null,
             status: form.status,
             source: form.source.trim() || null,
             source_other: sourceNeedsDetail
@@ -305,6 +313,7 @@ export function LeadDetail({
               : undefined,
         },
       }),
+
     onSuccess: () => {
       toast.success("Lead updated");
       setStatusChangeNote("");
