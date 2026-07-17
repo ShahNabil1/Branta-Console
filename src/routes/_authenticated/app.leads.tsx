@@ -796,205 +796,242 @@ function LeadDetail({
         </div>
       </SheetHeader>
 
-      <div className="grid gap-4 p-5">
-        <section className="rounded-sm border border-border bg-card">
-          <div className="border-b border-border px-3 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+      <Tabs defaultValue="overview" className="flex min-h-0 flex-1 flex-col">
+        <TabsList className="mx-5 mt-3 grid h-9 grid-cols-4 rounded-sm bg-muted p-0.5">
+          <TabsTrigger value="overview" className="h-8 rounded-sm text-[12px]">
             Overview
-          </div>
-          <div className="grid grid-cols-2 gap-3 p-3">
-            <Field label="Name" className="col-span-2">
-              <Input
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className="h-9 rounded-sm text-[12.5px]"
-              />
-            </Field>
-            <Field label="Company">
-              <Input
-                value={form.company}
-                onChange={(e) => setForm({ ...form, company: e.target.value })}
-                className="h-9 rounded-sm text-[12.5px]"
-              />
-            </Field>
-            <Field label="Source">
-              <Input
-                value={form.source}
-                onChange={(e) => setForm({ ...form, source: e.target.value })}
-                className="h-9 rounded-sm text-[12.5px]"
-              />
-            </Field>
-            <Field label="Email">
-              <Input
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                className="h-9 rounded-sm text-[12.5px]"
-              />
-            </Field>
-            <Field label="Phone">
-              <Input
-                value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                className="h-9 rounded-sm text-[12.5px]"
-              />
-            </Field>
-            <Field label="Status">
-              <Select
-                value={form.status}
-                onValueChange={(v) =>
-                  setForm({ ...form, status: v as LeadStatusDB })
-                }
-              >
-                <SelectTrigger className="h-9 rounded-sm text-[12.5px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {STATUSES.map((s) => (
-                    <SelectItem key={s.value} value={s.value}>
-                      {s.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field label="Owner">
-              <Select
-                value={form.owner_id || "none"}
-                onValueChange={(v) =>
-                  setForm({ ...form, owner_id: v === "none" ? "" : v })
-                }
-              >
-                <SelectTrigger className="h-9 rounded-sm text-[12.5px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Unassigned</SelectItem>
-                  {users.map((u) => (
-                    <SelectItem key={u.user_id} value={u.user_id}>
-                      {u.full_name || u.user_id.slice(0, 8)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field label="Value (USD)">
-              <Input
-                inputMode="decimal"
-                value={form.value_usd}
-                onChange={(e) =>
-                  setForm({ ...form, value_usd: e.target.value })
-                }
-                className="h-9 rounded-sm font-mono text-[12.5px]"
-              />
-            </Field>
-            <Field label="Next action" className="col-span-2">
-              <Input
-                value={form.next_action}
-                onChange={(e) =>
-                  setForm({ ...form, next_action: e.target.value })
-                }
-                className="h-9 rounded-sm text-[12.5px]"
-              />
-            </Field>
-            <Field label="Notes" className="col-span-2">
-              <Textarea
-                value={form.notes}
-                onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                className="min-h-[80px] rounded-sm text-[12.5px]"
-              />
-            </Field>
-          </div>
-          <div className="flex items-center justify-between border-t border-border px-3 py-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 rounded-sm text-[12px] text-red-600 hover:bg-red-50 hover:text-red-700"
-              onClick={() => {
-                if (confirm(`Delete lead ${lead.lead_code}?`)) delM.mutate();
-              }}
-              disabled={delM.isPending}
-            >
-              {delM.isPending ? (
-                <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-              ) : (
-                <Trash2 className="mr-1.5 size-3.5" />
-              )}
-              Delete
-            </Button>
-            <Button
-              size="sm"
-              className="h-8 rounded-sm bg-primary text-[12px] text-primary-foreground hover:bg-brand-700"
-              disabled={saveM.isPending || !form.name.trim()}
-              onClick={() => saveM.mutate()}
-            >
-              {saveM.isPending ? (
-                <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-              ) : (
-                <Save className="mr-1.5 size-3.5" />
-              )}
-              Save changes
-            </Button>
-          </div>
-        </section>
+          </TabsTrigger>
+          <TabsTrigger value="emails" className="h-8 rounded-sm text-[12px]">
+            <Mail className="mr-1 size-3.5" /> Emails
+          </TabsTrigger>
+          <TabsTrigger value="meetings" className="h-8 rounded-sm text-[12px]">
+            <CalendarPlus className="mr-1 size-3.5" /> Meetings
+          </TabsTrigger>
+          <TabsTrigger value="docs" className="h-8 rounded-sm text-[12px]">
+            <FileText className="mr-1 size-3.5" /> Docs
+          </TabsTrigger>
+        </TabsList>
 
-        {/* Activity */}
-        <section className="rounded-sm border border-border bg-card">
-          <div className="border-b border-border px-3 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-            Activity
-          </div>
-          <div className="grid gap-2 p-3">
-            <Textarea
-              value={noteText}
-              onChange={(e) => setNoteText(e.target.value)}
-              placeholder="Add a note (call summary, next steps, blockers…)"
-              className="min-h-[70px] rounded-sm text-[12.5px]"
-            />
-            <div className="flex justify-end">
-              <Button
-                size="sm"
-                className="h-8 rounded-sm bg-primary text-[12px] text-primary-foreground hover:bg-brand-700"
-                disabled={noteM.isPending || !noteText.trim()}
-                onClick={() => noteM.mutate()}
-              >
-                {noteM.isPending ? (
-                  <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-                ) : (
-                  <MessageSquarePlus className="mr-1.5 size-3.5" />
-                )}
-                Add note
-              </Button>
-            </div>
-          </div>
-          <ul className="divide-y divide-border border-t border-border">
-            {activities.isLoading && (
-              <li className="p-3 text-[12px] text-muted-foreground">
-                Loading activity…
-              </li>
-            )}
-            {activities.data?.length === 0 && !activities.isLoading && (
-              <li className="p-3 text-[12px] text-muted-foreground">
-                No activity yet.
-              </li>
-            )}
-            {activities.data?.map((a) => (
-              <li key={a.id} className="grid gap-1 p-3">
-                <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                  <span className="rounded-sm bg-muted px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider">
-                    {a.kind}
-                  </span>
-                  <span>{a.actor_name ?? "System"}</span>
-                  <span>·</span>
-                  <span className="font-mono">{relTime(a.created_at)}</span>
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <TabsContent value="overview" className="m-0 grid gap-4 p-5">
+            <section className="rounded-sm border border-border bg-card">
+              <div className="border-b border-border px-3 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                Details
+              </div>
+              <div className="grid grid-cols-2 gap-3 p-3">
+                <Field label="Name" className="col-span-2">
+                  <Input
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    className="h-9 rounded-sm text-[12.5px]"
+                  />
+                </Field>
+                <Field label="Company">
+                  <Input
+                    value={form.company}
+                    onChange={(e) =>
+                      setForm({ ...form, company: e.target.value })
+                    }
+                    className="h-9 rounded-sm text-[12.5px]"
+                  />
+                </Field>
+                <Field label="Source">
+                  <Input
+                    value={form.source}
+                    onChange={(e) =>
+                      setForm({ ...form, source: e.target.value })
+                    }
+                    className="h-9 rounded-sm text-[12.5px]"
+                  />
+                </Field>
+                <Field label="Email">
+                  <Input
+                    value={form.email}
+                    onChange={(e) =>
+                      setForm({ ...form, email: e.target.value })
+                    }
+                    className="h-9 rounded-sm text-[12.5px]"
+                  />
+                </Field>
+                <Field label="Phone">
+                  <Input
+                    value={form.phone}
+                    onChange={(e) =>
+                      setForm({ ...form, phone: e.target.value })
+                    }
+                    className="h-9 rounded-sm text-[12.5px]"
+                  />
+                </Field>
+                <Field label="Status">
+                  <Select
+                    value={form.status}
+                    onValueChange={(v) =>
+                      setForm({ ...form, status: v as LeadStatusDB })
+                    }
+                  >
+                    <SelectTrigger className="h-9 rounded-sm text-[12.5px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {STATUSES.map((s) => (
+                        <SelectItem key={s.value} value={s.value}>
+                          {s.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field label="Owner">
+                  <Select
+                    value={form.owner_id || "none"}
+                    onValueChange={(v) =>
+                      setForm({ ...form, owner_id: v === "none" ? "" : v })
+                    }
+                  >
+                    <SelectTrigger className="h-9 rounded-sm text-[12.5px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Unassigned</SelectItem>
+                      {users.map((u) => (
+                        <SelectItem key={u.user_id} value={u.user_id}>
+                          {u.full_name || u.user_id.slice(0, 8)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field label="Value (USD)">
+                  <Input
+                    inputMode="decimal"
+                    value={form.value_usd}
+                    onChange={(e) =>
+                      setForm({ ...form, value_usd: e.target.value })
+                    }
+                    className="h-9 rounded-sm font-mono text-[12.5px]"
+                  />
+                </Field>
+                <Field label="Next action" className="col-span-2">
+                  <Input
+                    value={form.next_action}
+                    onChange={(e) =>
+                      setForm({ ...form, next_action: e.target.value })
+                    }
+                    className="h-9 rounded-sm text-[12.5px]"
+                  />
+                </Field>
+                <Field label="Notes" className="col-span-2">
+                  <Textarea
+                    value={form.notes}
+                    onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                    className="min-h-[80px] rounded-sm text-[12.5px]"
+                  />
+                </Field>
+              </div>
+              <div className="flex items-center justify-between border-t border-border px-3 py-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 rounded-sm text-[12px] text-red-600 hover:bg-red-50 hover:text-red-700"
+                  onClick={() => {
+                    if (confirm(`Delete lead ${lead.lead_code}?`)) delM.mutate();
+                  }}
+                  disabled={delM.isPending}
+                >
+                  {delM.isPending ? (
+                    <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                  ) : (
+                    <Trash2 className="mr-1.5 size-3.5" />
+                  )}
+                  Delete
+                </Button>
+                <Button
+                  size="sm"
+                  className="h-8 rounded-sm bg-primary text-[12px] text-primary-foreground hover:bg-brand-700"
+                  disabled={saveM.isPending || !form.name.trim()}
+                  onClick={() => saveM.mutate()}
+                >
+                  {saveM.isPending ? (
+                    <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                  ) : (
+                    <Save className="mr-1.5 size-3.5" />
+                  )}
+                  Save changes
+                </Button>
+              </div>
+            </section>
+
+            <section className="rounded-sm border border-border bg-card">
+              <div className="border-b border-border px-3 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                Activity
+              </div>
+              <div className="grid gap-2 p-3">
+                <Textarea
+                  value={noteText}
+                  onChange={(e) => setNoteText(e.target.value)}
+                  placeholder="Add a note (call summary, next steps, blockers…)"
+                  className="min-h-[70px] rounded-sm text-[12.5px]"
+                />
+                <div className="flex justify-end">
+                  <Button
+                    size="sm"
+                    className="h-8 rounded-sm bg-primary text-[12px] text-primary-foreground hover:bg-brand-700"
+                    disabled={noteM.isPending || !noteText.trim()}
+                    onClick={() => noteM.mutate()}
+                  >
+                    {noteM.isPending ? (
+                      <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                    ) : (
+                      <MessageSquarePlus className="mr-1.5 size-3.5" />
+                    )}
+                    Add note
+                  </Button>
                 </div>
-                {a.body && (
-                  <div className="whitespace-pre-wrap text-[12.5px] text-foreground">
-                    {a.body}
-                  </div>
+              </div>
+              <ul className="divide-y divide-border border-t border-border">
+                {activities.isLoading && (
+                  <li className="p-3 text-[12px] text-muted-foreground">
+                    Loading activity…
+                  </li>
                 )}
-              </li>
-            ))}
-          </ul>
-        </section>
-      </div>
+                {activities.data?.length === 0 && !activities.isLoading && (
+                  <li className="p-3 text-[12px] text-muted-foreground">
+                    No activity yet.
+                  </li>
+                )}
+                {activities.data?.map((a) => (
+                  <li key={a.id} className="grid gap-1 p-3">
+                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                      <span className="rounded-sm bg-muted px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider">
+                        {a.kind}
+                      </span>
+                      <span>{a.actor_name ?? "System"}</span>
+                      <span>·</span>
+                      <span className="font-mono">{relTime(a.created_at)}</span>
+                    </div>
+                    {a.body && (
+                      <div className="whitespace-pre-wrap text-[12.5px] text-foreground">
+                        {a.body}
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          </TabsContent>
+
+          <TabsContent value="emails" className="m-0 p-5">
+            <EmailsTab lead={lead} />
+          </TabsContent>
+          <TabsContent value="meetings" className="m-0 p-5">
+            <MeetingsTab lead={lead} />
+          </TabsContent>
+          <TabsContent value="docs" className="m-0 p-5">
+            <DocumentsTab lead={lead} />
+          </TabsContent>
+        </div>
+      </Tabs>
+
     </div>
   );
 }
