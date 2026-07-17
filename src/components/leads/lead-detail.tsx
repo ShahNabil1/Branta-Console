@@ -601,7 +601,11 @@ export function LeadDetail({
               <Button
                 size="sm"
                 className="h-8 rounded-sm bg-primary text-[12px] text-primary-foreground hover:bg-brand-700"
-                disabled={saveM.isPending || !form.name.trim()}
+                disabled={
+                  saveM.isPending ||
+                  !form.name.trim() ||
+                  (sourceNeedsDetail && !form.source_other.trim())
+                }
                 onClick={() => saveM.mutate()}
               >
                 {saveM.isPending ? (
