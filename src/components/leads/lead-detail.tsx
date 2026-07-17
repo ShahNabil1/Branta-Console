@@ -43,14 +43,19 @@ import {
 } from "@/components/ui/tooltip";
 import {
   addLeadActivity,
+  addLeadContact,
   deleteLead,
+  deleteLeadContact,
   listLeadActivities,
   listLeadContacts,
+  setPrimaryLeadContact,
   updateLead,
+  updateLeadContact,
   type LeadContactRow,
   type LeadRow,
   type LeadStatusDB,
 } from "@/lib/leads.functions";
+
 import {
   drainEmailQueue,
   getEmailUsageToday,
