@@ -412,8 +412,6 @@ export function LeadDetail({
     service: lead.service ?? "",
     service_other: lead.service_other ?? "",
     owner_id: lead.owner_id ?? "",
-    value_usd: lead.value_usd == null ? "" : String(lead.value_usd),
-    currency: (lead.currency ?? "BDT") as "BDT" | "USD",
     next_action: lead.next_action ?? "",
     notes: lead.notes ?? "",
   });
@@ -440,8 +438,6 @@ export function LeadDetail({
       service: lead.service ?? "",
       service_other: lead.service_other ?? "",
       owner_id: lead.owner_id ?? "",
-      value_usd: lead.value_usd == null ? "" : String(lead.value_usd),
-      currency: (lead.currency ?? "BDT") as "BDT" | "USD",
       next_action: lead.next_action ?? "",
       notes: lead.notes ?? "",
     });
@@ -489,8 +485,8 @@ export function LeadDetail({
               ? form.service_other.trim() || null
               : null,
             owner_id: form.owner_id || null,
-            value_usd: form.value_usd ? Number(form.value_usd) : null,
-            currency: form.currency,
+            value_usd: null,
+            currency: "BDT",
             next_action: form.next_action.trim() || null,
             notes: form.notes.trim() || null,
           },
@@ -539,7 +535,7 @@ export function LeadDetail({
   return (
     <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-4 p-6">
       {/* Header */}
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <Link
             to="/app/leads"
@@ -559,6 +555,69 @@ export function LeadDetail({
           <p className="text-[13px] text-muted-foreground">
             {lead.company ?? "No company"}
           </p>
+        </div>
+
+        {/* Top-right: Status + Owner quick controls */}
+        <div className="flex flex-col gap-2 sm:min-w-[360px]">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <div className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                Status
+              </div>
+              <Select
+                value={form.status}
+                onValueChange={(v) => setForm({ ...form, status: v })}
+              >
+                <SelectTrigger className="h-9 rounded-sm text-[12.5px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {statusOptions.map((s) => (
+                    <SelectItem key={s.key} value={s.key}>
+                      <span className="inline-flex items-center gap-2">
+                        <span
+                          className="size-1.5 rounded-full"
+                          style={{ background: `var(${s.color_var ?? "--color-status-contacted"})` }}
+                        />
+                        {s.label}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <div className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                Owner
+              </div>
+              <Select
+                value={form.owner_id || "none"}
+                onValueChange={(v) =>
+                  setForm({ ...form, owner_id: v === "none" ? "" : v })
+                }
+              >
+                <SelectTrigger className="h-9 rounded-sm text-[12.5px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Unassigned</SelectItem>
+                  {users.map((u) => (
+                    <SelectItem key={u.user_id} value={u.user_id}>
+                      {u.full_name || u.user_id.slice(0, 8)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          {statusChanged && (
+            <Textarea
+              value={statusChangeNote}
+              onChange={(e) => setStatusChangeNote(e.target.value)}
+              placeholder={`Why moving to "${statusLabel(form.status, statusOptions)}"? (added to Activity Logs)`}
+              className="min-h-[56px] rounded-sm text-[12px]"
+            />
+          )}
         </div>
       </div>
 
@@ -763,87 +822,6 @@ export function LeadDetail({
                 />
               </Field>
 
-              <Field label="Status">
-                <Select
-                  value={form.status}
-                  onValueChange={(v) => setForm({ ...form, status: v })}
-                >
-                  <SelectTrigger className="h-9 rounded-sm text-[12.5px]">
-                    <SelectValue />
-
-                  </SelectTrigger>
-                  <SelectContent>
-                    {statusOptions.map((s) => (
-                      <SelectItem key={s.key} value={s.key}>
-                        <span className="inline-flex items-center gap-2">
-                          <span
-                            className="size-1.5 rounded-full"
-                            style={{ background: `var(${s.color_var ?? "--color-status-contacted"})` }}
-                          />
-                          {s.label}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              {statusChanged && (
-                <Field
-                  label={`Reason for status change → ${statusLabel(form.status, statusOptions)} (optional)`}
-                  className="col-span-2 md:col-span-3"
-                >
-                  <Textarea
-                    value={statusChangeNote}
-                    onChange={(e) => setStatusChangeNote(e.target.value)}
-                    placeholder={`Why is this lead moving to "${statusLabel(form.status, statusOptions)}"? (added to Activity Logs)`}
-                    className="min-h-[64px] rounded-sm text-[12.5px]"
-                  />
-                </Field>
-              )}
-              <Field label="Owner">
-                <Select
-                  value={form.owner_id || "none"}
-                  onValueChange={(v) =>
-                    setForm({ ...form, owner_id: v === "none" ? "" : v })
-                  }
-                >
-                  <SelectTrigger className="h-9 rounded-sm text-[12.5px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Unassigned</SelectItem>
-                    {users.map((u) => (
-                      <SelectItem key={u.user_id} value={u.user_id}>
-                        {u.full_name || u.user_id.slice(0, 8)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field label="Currency">
-                <Select
-                  value={form.currency}
-                  onValueChange={(v) =>
-                    setForm({ ...form, currency: v as "BDT" | "USD" })
-                  }
-                >
-                  <SelectTrigger className="h-9 rounded-sm text-[12.5px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="BDT">BDT — Bangladeshi Taka</SelectItem>
-                    <SelectItem value="USD">USD — US Dollar</SelectItem>
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field label={`Value (${form.currency})`}>
-                <Input
-                  inputMode="decimal"
-                  value={form.value_usd}
-                  onChange={(e) => setForm({ ...form, value_usd: e.target.value })}
-                  className="h-9 rounded-sm font-mono text-[12.5px]"
-                />
-              </Field>
               <Field
                 label="Next action"
                 className="col-span-2 md:col-span-3"
