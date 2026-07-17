@@ -446,96 +446,12 @@ function ProfileForm({
             />
           </div>
         </Section>
-
-        {/* KYC / Didit */}
-        <Section
-          title="Identity Verification (KYC)"
-          right={<KycBadge status={form.kyc_status} />}
-        >
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-[1fr_auto]">
-            <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-[12px]">
-              <KycRow label="Document Type" value={form.kyc_document_type} />
-              <KycRow label="Document Number" value={form.kyc_document_number} mono />
-              <KycRow label="Document Expiry" value={form.kyc_document_expiry} mono />
-              <KycRow label="Extracted Name" value={form.kyc_extracted_full_name} />
-              <KycRow
-                label="Extracted Address"
-                value={form.kyc_extracted_address}
-                className="col-span-2"
-              />
-              <KycRow
-                label="Submitted"
-                value={form.kyc_submitted_at ? new Date(form.kyc_submitted_at).toLocaleString() : null}
-                mono
-              />
-              <KycRow
-                label="Verified"
-                value={form.kyc_verified_at ? new Date(form.kyc_verified_at).toLocaleString() : null}
-                mono
-              />
-              {form.kyc_rejection_reason && (
-                <KycRow
-                  label="Rejection reason"
-                  value={form.kyc_rejection_reason}
-                  className="col-span-2 text-red-700"
-                />
-              )}
-            </dl>
-            <div className="flex flex-col items-stretch justify-start gap-2 md:min-w-[220px]">
-              {form.kyc_status === "rejected" && (
-                <Button
-                  onClick={submitReupload}
-                  disabled={reuploading || (!form.nid_url && !form.cv_url)}
-                  variant="outline"
-                  className="h-9 rounded-sm border-primary/40 text-[12px] font-semibold text-primary hover:bg-primary/5"
-                >
-                  {reuploading ? (
-                    <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-                  ) : (
-                    <RefreshCw className="mr-1.5 size-3.5" />
-                  )}
-                  Request Re-upload
-                </Button>
-              )}
-              <p className="text-[11px] leading-relaxed text-muted-foreground">
-                KYC is reviewed manually by the Branta Tech admin team. Upload updated NID / CV in the Documents section, then request re-upload if previously rejected.
-              </p>
-            </div>
-          </div>
-        </Section>
       </div>
     </div>
   );
 }
 
-function KycRow({
-  label,
-  value,
-  mono,
-  className,
-}: {
-  label: string;
-  value: string | null;
-  mono?: boolean;
-  className?: string;
-}) {
-  return (
-    <div className={cn("flex flex-col", className)}>
-      <dt className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-        {label}
-      </dt>
-      <dd
-        className={cn(
-          "mt-0.5 text-[13px] text-foreground",
-          mono && "font-mono text-[12px]",
-          !value && "text-muted-foreground",
-        )}
-      >
-        {value ?? "—"}
-      </dd>
-    </div>
-  );
-}
+
 
 // ---------- Uploaders ----------
 function useR2Upload(
