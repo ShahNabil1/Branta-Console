@@ -52,7 +52,6 @@ import {
 import {
   drainEmailQueue,
   listLeadEmails,
-  pullGmailForLead,
   renderVariables,
   retryFailedEmail,
   sendLeadEmail,
@@ -638,7 +637,6 @@ function ResendStatusChip({ events }: { events: ResendEvent[] }) {
 function EmailsTab({ lead }: { lead: LeadRow }) {
   const listFn = useServerFn(listLeadEmails);
   const sendFn = useServerFn(sendLeadEmail);
-  const pullFn = useServerFn(pullGmailForLead);
   const drainFn = useServerFn(drainEmailQueue);
   const retryFn = useServerFn(retryFailedEmail);
   const listContactsFn = useServerFn(listLeadContacts);
@@ -814,15 +812,8 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Send failed"),
   });
 
-  const primaryEmail = lead.email ?? contacts.data?.[0]?.email ?? "";
-  const pullM = useMutation({
-    mutationFn: () => pullFn({ data: { leadId: lead.id, email: primaryEmail } }),
-    onSuccess: (r) => {
-      toast.success(`Pulled ${r.pulled} messages`);
-      qc.invalidateQueries({ queryKey: ["lead-emails", lead.id] });
-    },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Pull failed"),
-  });
+  
+
 
   const canSend =
     !sendM.isPending &&
@@ -976,21 +967,6 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
                   <Eye className="mr-1.5 size-3.5" /> Preview
                 </Button>
               )}
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 rounded-sm text-[12px]"
-                disabled={!primaryEmail || pullM.isPending}
-                onClick={() => pullM.mutate()}
-                title="Pull inbound Gmail for the primary contact"
-              >
-                {pullM.isPending ? (
-                  <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-                ) : (
-                  <RefreshCw className="mr-1.5 size-3.5" />
-                )}
-                Sync inbound
-              </Button>
               <Button
                 size="sm"
                 className="h-8 rounded-sm bg-primary text-[12px] text-primary-foreground hover:bg-brand-700"

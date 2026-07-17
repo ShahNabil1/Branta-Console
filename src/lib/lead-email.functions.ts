@@ -1,5 +1,5 @@
 // Lead email compose — Resend-only, branded, multi-recipient with variable substitution.
-// Gmail pull is retained for inbound sync only; outbound is 100% Resend.
+
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
@@ -446,73 +446,5 @@ export const retryAllFailed = createServerFn({ method: "POST" })
     return { retried: (rows ?? []).length };
   });
 
-interface GmailListItem {
-  id: string;
-  threadId: string;
-}
-interface GmailHeader {
-  name: string;
-  value: string;
-}
-interface GmailMessage {
-  id: string;
-  threadId: string;
-  internalDate: string;
-  payload?: { headers?: GmailHeader[]; parts?: unknown[]; body?: { data?: string } };
-  snippet?: string;
-}
+// Gmail pull removed in Phase 6 — outbound and inbound are Resend-only.
 
-export const pullGmailForLead = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d: { leadId: string; email: string }) =>
-    z
-      .object({ leadId: z.string().uuid(), email: z.string().email() })
-      .parse(d),
-  )
-  .handler(async ({ data, context }): Promise<{ pulled: number }> => {
-    const { callGateway } = await import("@/lib/connector-gateway.server");
-    const q = `(from:${data.email} OR to:${data.email})`;
-    const list = await callGateway<{ messages?: GmailListItem[] }>({
-      connector: "google_mail",
-      path: "/gmail/v1/users/me/messages",
-      query: { q, maxResults: 25 },
-    });
-    let pulled = 0;
-    for (const m of list.messages ?? []) {
-      const { data: existing } = await context.supabase
-        .from("lead_emails")
-        .select("id")
-        .eq("provider", "gmail")
-        .eq("message_id", m.id)
-        .maybeSingle();
-      if (existing) continue;
-      const msg = await callGateway<GmailMessage>({
-        connector: "google_mail",
-        path: `/gmail/v1/users/me/messages/${m.id}`,
-        query: { format: "metadata", metadataHeaders: "Subject,From,To,Cc,Date" },
-      });
-      const headers = new Map(
-        (msg.payload?.headers ?? []).map((h) => [h.name.toLowerCase(), h.value]),
-      );
-      const from = headers.get("from") ?? "";
-      const direction = from.toLowerCase().includes(data.email.toLowerCase())
-        ? "inbound"
-        : "outbound";
-      await context.supabase.from("lead_emails").insert({
-        lead_id: data.leadId,
-        direction,
-        provider: "gmail",
-        message_id: msg.id,
-        thread_id: msg.threadId,
-        subject: headers.get("subject") ?? null,
-        body_text: msg.snippet ?? null,
-        from_email: from,
-        to_emails: (headers.get("to") ?? "").split(",").map((s) => s.trim()).filter(Boolean),
-        cc_emails: (headers.get("cc") ?? "").split(",").map((s) => s.trim()).filter(Boolean),
-        status: direction === "inbound" ? "received" : "sent",
-        sent_at: new Date(Number(msg.internalDate)).toISOString(),
-      });
-      pulled += 1;
-    }
-    return { pulled };
-  });
