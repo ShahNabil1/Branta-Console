@@ -32,7 +32,11 @@ function templateContent(kind: TemplateKind, lead: LeadCtx): string {
   });
   const client = lead.company || lead.name;
   const value = lead.value_usd
-    ? `$${lead.value_usd.toLocaleString("en-US")}`
+    ? new Intl.NumberFormat(lead.currency === "BDT" ? "en-BD" : "en-US", {
+        style: "currency",
+        currency: lead.currency,
+        maximumFractionDigits: 0,
+      }).format(lead.value_usd)
     : "[TBD]";
 
   if (kind === "proposal") {
