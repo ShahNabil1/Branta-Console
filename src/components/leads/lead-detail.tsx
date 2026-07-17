@@ -640,8 +640,18 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
   const sendFn = useServerFn(sendLeadEmail);
   const pullFn = useServerFn(pullGmailForLead);
   const drainFn = useServerFn(drainEmailQueue);
+  const retryFn = useServerFn(retryFailedEmail);
   const listContactsFn = useServerFn(listLeadContacts);
   const qc = useQueryClient();
+
+  const retryM = useMutation({
+    mutationFn: (id: string) => retryFn({ data: { id } }),
+    onSuccess: () => {
+      toast.success("Requeued");
+      qc.invalidateQueries({ queryKey: ["lead-emails", lead.id] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Retry failed"),
+  });
 
   const emails = useQuery({
     queryKey: ["lead-emails", lead.id],
