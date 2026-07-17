@@ -165,6 +165,7 @@ export function LeadDetail({
     source: lead.source ?? "",
     owner_id: lead.owner_id ?? "",
     value_usd: lead.value_usd == null ? "" : String(lead.value_usd),
+    currency: (lead.currency ?? "BDT") as "BDT" | "USD",
     next_action: lead.next_action ?? "",
     notes: lead.notes ?? "",
   });
@@ -179,6 +180,7 @@ export function LeadDetail({
       source: lead.source ?? "",
       owner_id: lead.owner_id ?? "",
       value_usd: lead.value_usd == null ? "" : String(lead.value_usd),
+      currency: (lead.currency ?? "BDT") as "BDT" | "USD",
       next_action: lead.next_action ?? "",
       notes: lead.notes ?? "",
     });
@@ -204,6 +206,7 @@ export function LeadDetail({
             source: form.source.trim() || null,
             owner_id: form.owner_id || null,
             value_usd: form.value_usd ? Number(form.value_usd) : null,
+            currency: form.currency,
             next_action: form.next_action.trim() || null,
             notes: form.notes.trim() || null,
           },
@@ -364,7 +367,23 @@ export function LeadDetail({
                   </SelectContent>
                 </Select>
               </Field>
-              <Field label="Value (USD)">
+              <Field label="Currency">
+                <Select
+                  value={form.currency}
+                  onValueChange={(v) =>
+                    setForm({ ...form, currency: v as "BDT" | "USD" })
+                  }
+                >
+                  <SelectTrigger className="h-9 rounded-sm text-[12.5px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="BDT">BDT — Bangladeshi Taka</SelectItem>
+                    <SelectItem value="USD">USD — US Dollar</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label={`Value (${form.currency})`}>
                 <Input
                   inputMode="decimal"
                   value={form.value_usd}

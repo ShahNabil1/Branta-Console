@@ -413,6 +413,7 @@ export type Database = {
           company: string | null
           created_at: string
           created_by: string | null
+          currency: string
           id: string
           last_activity_at: string
           lead_code: string
@@ -433,6 +434,7 @@ export type Database = {
           company?: string | null
           created_at?: string
           created_by?: string | null
+          currency?: string
           id?: string
           last_activity_at?: string
           lead_code?: string
@@ -453,6 +455,7 @@ export type Database = {
           company?: string | null
           created_at?: string
           created_by?: string | null
+          currency?: string
           id?: string
           last_activity_at?: string
           lead_code?: string

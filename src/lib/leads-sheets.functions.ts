@@ -15,6 +15,7 @@ const HEADERS = [
   "status",
   "source",
   "value_usd",
+  "currency",
   "next_action",
   "notes",
   "last_activity_at",
@@ -136,7 +137,7 @@ export const pushLeadsToSheet = createServerFn({ method: "POST" })
     const { data: leads, error } = await context.supabase
       .from("leads")
       .select(
-        "id, slug, lead_code, name, company, phone, status, source, value_usd, next_action, notes, last_activity_at",
+        "id, slug, lead_code, name, company, phone, status, source, value_usd, currency, next_action, notes, last_activity_at",
       )
       .order("slug", { ascending: true })
       .limit(5000);
@@ -237,6 +238,10 @@ export const pullLeadsFromSheet = createServerFn({ method: "POST" })
             rec.value_usd && !Number.isNaN(Number(rec.value_usd))
               ? Number(rec.value_usd)
               : null,
+          currency:
+            rec.currency && ["BDT", "USD"].includes(rec.currency.toUpperCase())
+              ? (rec.currency.toUpperCase() as "BDT" | "USD")
+              : "BDT",
           next_action: rec.next_action || null,
           notes: rec.notes || null,
         };

@@ -21,6 +21,7 @@ interface LeadCtx {
   company: string | null;
   email: string | null;
   value_usd: number | null;
+  currency: "BDT" | "USD";
 }
 
 function templateContent(kind: TemplateKind, lead: LeadCtx): string {
@@ -31,7 +32,11 @@ function templateContent(kind: TemplateKind, lead: LeadCtx): string {
   });
   const client = lead.company || lead.name;
   const value = lead.value_usd
-    ? `$${lead.value_usd.toLocaleString("en-US")}`
+    ? new Intl.NumberFormat(lead.currency === "BDT" ? "en-BD" : "en-US", {
+        style: "currency",
+        currency: lead.currency,
+        maximumFractionDigits: 0,
+      }).format(lead.value_usd)
     : "[TBD]";
 
   if (kind === "proposal") {
@@ -122,7 +127,7 @@ export const generateLeadDoc = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<LeadDocumentRow> => {
     const { data: lead, error: lErr } = await context.supabase
       .from("leads")
-      .select("name, company, value_usd, lead_code, slug")
+      .select("name, company, value_usd, currency, lead_code, slug")
       .eq("id", data.leadId)
       .maybeSingle();
     if (lErr) throw new Error(lErr.message);
@@ -141,6 +146,7 @@ export const generateLeadDoc = createServerFn({ method: "POST" })
       company: lead.company,
       email: primary?.email ?? null,
       value_usd: lead.value_usd,
+      currency: (lead.currency ?? "BDT") as "BDT" | "USD",
     };
 
     const title =

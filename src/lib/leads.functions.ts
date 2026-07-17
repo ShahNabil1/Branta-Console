@@ -26,6 +26,7 @@ export interface LeadRow {
   source: string | null;
   owner_id: string | null;
   value_usd: number | null;
+  currency: "BDT" | "USD";
   next_action: string | null;
   notes: string | null;
   last_activity_at: string;
@@ -81,6 +82,7 @@ const CreateInput = z.object({
   source: z.string().trim().max(80).optional().nullable(),
   owner_id: z.string().uuid().optional().nullable(),
   value_usd: z.number().nonnegative().optional().nullable(),
+  currency: z.enum(["BDT", "USD"]).optional(),
   next_action: z.string().trim().max(200).optional().nullable(),
   notes: z.string().trim().max(4000).optional().nullable(),
 });
@@ -219,6 +221,7 @@ export const createLead = createServerFn({ method: "POST" })
         source: data.source ?? null,
         owner_id: data.owner_id ?? context.userId,
         value_usd: data.value_usd ?? null,
+        currency: data.currency ?? "BDT",
         next_action: data.next_action ?? null,
         notes: data.notes ?? null,
         created_by: context.userId,

@@ -113,12 +113,12 @@ function initialsOf(name?: string | null) {
     .slice(0, 2);
 }
 
-const money = (v: number | null | undefined) =>
+const money = (v: number | null | undefined, currency: string = "BDT") =>
   v == null
     ? "—"
-    : new Intl.NumberFormat("en-US", {
+    : new Intl.NumberFormat(currency === "BDT" ? "en-BD" : "en-US", {
         style: "currency",
-        currency: "USD",
+        currency: currency === "USD" ? "USD" : "BDT",
         maximumFractionDigits: 0,
       }).format(v);
 
@@ -336,7 +336,7 @@ function LeadsPage() {
                   </span>
                 </div>
                 <div className="text-right font-mono text-[12.5px] text-foreground">
-                  {money(row.value_usd)}
+                  {money(row.value_usd, row.currency)}
                 </div>
                 <div className="text-right font-mono text-[11.5px] text-muted-foreground">
                   {relTime(row.last_activity_at)}
@@ -386,6 +386,7 @@ type CreateForm = {
   source: string;
   owner_id: string;
   value_usd: string;
+  currency: "BDT" | "USD";
   next_action: string;
   notes: string;
 };
@@ -398,6 +399,7 @@ const emptyForm: CreateForm = {
   source: "",
   owner_id: "",
   value_usd: "",
+  currency: "BDT",
   next_action: "",
   notes: "",
 };
@@ -432,6 +434,7 @@ function CreateLeadDialog({
           source: form.source.trim() || null,
           owner_id: form.owner_id || null,
           value_usd: form.value_usd ? Number(form.value_usd) : null,
+          currency: form.currency,
           next_action: form.next_action.trim() || null,
           notes: form.notes.trim() || null,
         },
@@ -530,7 +533,21 @@ function CreateLeadDialog({
               </SelectContent>
             </Select>
           </FormRow>
-          <FormRow label="Value (USD)">
+          <FormRow label="Currency">
+            <Select
+              value={form.currency}
+              onValueChange={(v) => set("currency", v as "BDT" | "USD")}
+            >
+              <SelectTrigger className="h-9 rounded-sm text-[12.5px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="BDT">BDT — Bangladeshi Taka</SelectItem>
+                <SelectItem value="USD">USD — US Dollar</SelectItem>
+              </SelectContent>
+            </Select>
+          </FormRow>
+          <FormRow label={`Value (${form.currency})`}>
             <Input
               inputMode="decimal"
               value={form.value_usd}
