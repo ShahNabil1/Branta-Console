@@ -1,6 +1,6 @@
 import { useRouterState } from "@tanstack/react-router";
-import { Bell } from "lucide-react";
 import { ProfileMenu } from "@/components/branta/profile-menu";
+import { NotificationsBell } from "@/components/branta/notifications-bell";
 
 const CRUMB_LABELS: Record<string, string> = {
   app: "Workspace",
@@ -46,6 +46,7 @@ export function TopBar() {
       {/* Cmd-K + notifications */}
       <div className="flex items-center gap-3">
         <button
+          type="button"
           onClick={() => {
             const evt = new KeyboardEvent("keydown", {
               key: "k",
@@ -54,20 +55,14 @@ export function TopBar() {
             });
             window.dispatchEvent(evt);
           }}
-          className="hairline flex h-8 items-center gap-3 rounded-full border border-border bg-muted px-3 text-[12px] text-muted-foreground transition-colors hover:border-brand/30 hover:text-foreground"
+          className="hairline flex h-8 cursor-pointer items-center gap-3 rounded-full border border-border bg-muted px-3 text-[12px] text-muted-foreground transition-colors hover:border-brand/30 hover:text-foreground active:scale-[0.98]"
         >
           <span>Search…</span>
           <kbd className="rounded-sm border border-border bg-card px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
             ⌘K
           </kbd>
         </button>
-        <button
-          className="relative grid size-8 place-items-center rounded-full border border-border bg-card text-muted-foreground hover:text-foreground"
-          aria-label="Notifications"
-        >
-          <Bell className="size-3.5" strokeWidth={1.75} />
-          <span className="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-brand ring-2 ring-card" />
-        </button>
+        <NotificationsBell />
         <ProfileMenu />
       </div>
     </header>
