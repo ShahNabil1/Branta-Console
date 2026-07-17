@@ -910,9 +910,24 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
                     {e.provider}
                   </span>
                 )}
+                {e.status === "queued" && (
+                  <span className="rounded-sm bg-amber-50 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-amber-700">
+                    in queue
+                  </span>
+                )}
+                {e.status === "sending" && (
+                  <span className="rounded-sm bg-blue-50 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-blue-700">
+                    sending…
+                  </span>
+                )}
                 {e.status === "failed" && (
                   <span className="rounded-sm bg-red-50 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-red-700">
                     failed
+                  </span>
+                )}
+                {e.status === "sent" && (
+                  <span className="rounded-sm bg-emerald-50 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-emerald-700">
+                    sent
                   </span>
                 )}
                 <span>·</span>
