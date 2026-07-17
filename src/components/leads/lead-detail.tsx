@@ -144,15 +144,36 @@ function Field({
   label,
   children,
   className,
+  hint,
 }: {
   label: string;
   children: React.ReactNode;
   className?: string;
+  hint?: React.ReactNode;
 }) {
   return (
     <label className={cn("space-y-1", className)}>
-      <div className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-        {label}
+      <div className="flex items-center gap-1.5 text-[10.5px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+        <span>{label}</span>
+        {hint && (
+          <TooltipProvider delayDuration={150}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex size-3.5 items-center justify-center rounded-full text-muted-foreground/70 hover:text-foreground focus:outline-none"
+                  aria-label="What is this field?"
+                  onClick={(e) => e.preventDefault()}
+                >
+                  <Info className="size-3" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-[280px] text-[11.5px] leading-relaxed normal-case tracking-normal">
+                {hint}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
       </div>
       {children}
     </label>
