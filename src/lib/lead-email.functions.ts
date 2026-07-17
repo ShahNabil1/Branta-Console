@@ -76,6 +76,7 @@ export const MAX_CONCURRENT_SENDS = 10;
 type ProcessableRow = {
   id: string;
   lead_id: string;
+  provider: LeadEmailProvider;
   to_emails: string[];
   cc_emails: string[];
   subject: string | null;
@@ -84,13 +85,10 @@ type ProcessableRow = {
   sent_by: string | null;
 };
 
-/** Deliver a single queued row via Resend. Row must already be marked `sending`. */
-async function deliverQueuedRow(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  adminClient: any,
+async function deliverViaResend(
   row: ProcessableRow,
   leadSlug: string,
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: true; messageId: string } | { ok: false; error: string }> {
   const { callGateway } = await import("@/lib/connector-gateway.server");
   const recipient = row.to_emails[0];
   try {
@@ -112,11 +110,66 @@ async function deliverQueuedRow(
         ],
       },
     });
+    return { ok: true, messageId: resp.id };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+async function deliverViaBrevo(
+  row: ProcessableRow,
+  leadSlug: string,
+): Promise<{ ok: true; messageId: string } | { ok: false; error: string }> {
+  const { callGateway } = await import("@/lib/connector-gateway.server");
+  const recipient = row.to_emails[0];
+  try {
+    // Brevo returns { messageId: "<...@smtp-relay.mailin.fr>" }
+    const resp = await callGateway<{ messageId?: string }>({
+      connector: "brevo",
+      path: "/smtp/email",
+      method: "POST",
+      body: {
+        sender: { name: LEAD_FROM_NAME, email: LEAD_FROM_EMAIL },
+        to: [{ email: recipient }],
+        cc: row.cc_emails.length
+          ? row.cc_emails.map((e) => ({ email: e }))
+          : undefined,
+        subject: row.subject ?? "",
+        htmlContent: row.body_html ?? undefined,
+        ...(row.body_text && !row.body_html ? { textContent: row.body_text } : {}),
+        // Brevo tags are string[]; prefix-encoded so the webhook can decode them.
+        tags: [
+          `lead_id:${row.lead_id}`,
+          `lead_slug:${leadSlug}`,
+          `lead_email_id:${row.id}`,
+        ],
+      },
+    });
+    return { ok: true, messageId: resp.messageId ?? "" };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/** Deliver a single queued row via the row's provider. Row must be `sending`. */
+async function deliverQueuedRow(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  adminClient: any,
+  row: ProcessableRow,
+  leadSlug: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const recipient = row.to_emails[0];
+  const result =
+    row.provider === "brevo"
+      ? await deliverViaBrevo(row, leadSlug)
+      : await deliverViaResend(row, leadSlug);
+
+  if (result.ok) {
     await adminClient
       .from("lead_emails")
       .update({
         status: "sent",
-        message_id: resp.id,
+        message_id: result.messageId || null,
         sent_at: new Date().toISOString(),
         error_message: null,
       })
@@ -125,29 +178,38 @@ async function deliverQueuedRow(
       lead_id: row.lead_id,
       actor_id: row.sent_by,
       kind: "email",
-      body: `Sent to ${recipient}: ${row.subject ?? ""}`,
-      meta: { provider: "resend", to: recipient, status: "sent", email_id: row.id },
+      body: `Sent to ${recipient} via ${row.provider}: ${row.subject ?? ""}`,
+      meta: {
+        provider: row.provider,
+        to: recipient,
+        status: "sent",
+        email_id: row.id,
+      },
     });
     return { ok: true };
-  } catch (e) {
-    const errorMessage = e instanceof Error ? e.message : String(e);
-    await adminClient
-      .from("lead_emails")
-      .update({
-        status: "failed",
-        error_message: errorMessage,
-        sent_at: new Date().toISOString(),
-      })
-      .eq("id", row.id);
-    await adminClient.from("lead_activities").insert({
-      lead_id: row.lead_id,
-      actor_id: row.sent_by,
-      kind: "email",
-      body: `Failed to ${recipient}: ${errorMessage}`,
-      meta: { provider: "resend", to: recipient, status: "failed", email_id: row.id },
-    });
-    return { ok: false, error: errorMessage };
   }
+
+  await adminClient
+    .from("lead_emails")
+    .update({
+      status: "failed",
+      error_message: result.error,
+      sent_at: new Date().toISOString(),
+    })
+    .eq("id", row.id);
+  await adminClient.from("lead_activities").insert({
+    lead_id: row.lead_id,
+    actor_id: row.sent_by,
+    kind: "email",
+    body: `Failed to ${recipient} via ${row.provider}: ${result.error}`,
+    meta: {
+      provider: row.provider,
+      to: recipient,
+      status: "failed",
+      email_id: row.id,
+    },
+  });
+  return { ok: false, error: result.error };
 }
 
 /**
