@@ -144,6 +144,7 @@ export type Database = {
           country: string | null
           created_at: string
           cv_url: string | null
+          didit_session_id: string | null
           district: string | null
           full_name: string | null
           id: string
@@ -157,7 +158,6 @@ export type Database = {
           kyc_submitted_at: string | null
           kyc_verified_at: string | null
           legal_full_name: string | null
-          metamap_identity_id: string | null
           mfs_number: string | null
           mfs_provider: string | null
           nid_url: string | null
@@ -179,6 +179,7 @@ export type Database = {
           country?: string | null
           created_at?: string
           cv_url?: string | null
+          didit_session_id?: string | null
           district?: string | null
           full_name?: string | null
           id?: string
@@ -192,7 +193,6 @@ export type Database = {
           kyc_submitted_at?: string | null
           kyc_verified_at?: string | null
           legal_full_name?: string | null
-          metamap_identity_id?: string | null
           mfs_number?: string | null
           mfs_provider?: string | null
           nid_url?: string | null
@@ -214,6 +214,7 @@ export type Database = {
           country?: string | null
           created_at?: string
           cv_url?: string | null
+          didit_session_id?: string | null
           district?: string | null
           full_name?: string | null
           id?: string
@@ -227,7 +228,6 @@ export type Database = {
           kyc_submitted_at?: string | null
           kyc_verified_at?: string | null
           legal_full_name?: string | null
-          metamap_identity_id?: string | null
           mfs_number?: string | null
           mfs_provider?: string | null
           nid_url?: string | null
