@@ -646,7 +646,11 @@ function CreateLeadDialog({
           </Button>
           <Button
             className="h-9 rounded-sm bg-primary text-primary-foreground hover:bg-brand-700"
-            disabled={m.isPending || !form.name.trim()}
+            disabled={
+              m.isPending ||
+              !form.name.trim() ||
+              (sourceNeedsDetail && !form.source_other.trim())
+            }
             onClick={() => m.mutate()}
           >
             {m.isPending ? (
