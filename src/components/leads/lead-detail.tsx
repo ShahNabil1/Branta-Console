@@ -1771,6 +1771,7 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState(DEFAULT_HTML_BODY);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [viewMail, setViewMail] = useState<LeadEmailRow | null>(null);
 
   // Focus tracking so variable chips insert into the last-focused field.
   const subjectRef = React.useRef<HTMLInputElement>(null);
@@ -2156,147 +2157,173 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
           {emails.data?.length === 0 && !emails.isLoading && (
             <li className="p-3 text-[12px] text-muted-foreground">No emails yet.</li>
           )}
-          {emails.data?.map((e: LeadEmailRow) => (
-            <li key={e.id} className="grid gap-1 p-3">
-              <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                <span
-                  className={cn(
-                    "rounded-sm px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider",
-                    e.direction === "inbound" ? "bg-blue-50 text-blue-700" : "bg-muted",
+          {emails.data?.map((e: LeadEmailRow) => {
+            const ts = e.sent_at ?? e.created_at;
+            const dt = new Date(ts);
+            const dateStr = dt.toLocaleString(undefined, {
+              year: "numeric",
+              month: "short",
+              day: "2-digit",
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+            return (
+              <li
+                key={e.id}
+                className="grid gap-1.5 p-3 sm:grid-cols-[1fr_auto] sm:items-center"
+              >
+                <div className="min-w-0 space-y-1">
+                  <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                    <span className="font-mono text-foreground">{dateStr}</span>
+                    <span>·</span>
+                    <span>
+                      by{" "}
+                      <span className="font-medium text-foreground">
+                        {e.direction === "inbound"
+                          ? (e.from_email ?? "inbound")
+                          : (e.sent_by_name ?? "—")}
+                      </span>
+                    </span>
+                    <span>·</span>
+                    {e.provider === "resend" ? (
+                      <ResendChip />
+                    ) : e.provider === "brevo" ? (
+                      <BrevoChip />
+                    ) : (
+                      <span className="rounded-sm bg-muted px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider">
+                        {e.provider}
+                      </span>
+                    )}
+                    {e.status === "queued" && (
+                      <span className="rounded-sm bg-amber-50 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-amber-700">
+                        in queue
+                      </span>
+                    )}
+                    {e.status === "sending" && (
+                      <span className="rounded-sm bg-blue-50 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-blue-700">
+                        sending…
+                      </span>
+                    )}
+                    {e.status === "failed" && (
+                      <span className="rounded-sm bg-red-50 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-red-700">
+                        failed
+                      </span>
+                    )}
+                    {e.provider === "resend" && e.status === "sent" && (
+                      <ProviderStatusChip
+                        provider="resend"
+                        events={events.data?.[e.id] ?? []}
+                      />
+                    )}
+                    {e.provider === "brevo" && e.status === "sent" && (
+                      <ProviderStatusChip
+                        provider="brevo"
+                        events={brevoEvents.data?.[e.id] ?? []}
+                      />
+                    )}
+                    {e.provider !== "resend" &&
+                      e.provider !== "brevo" &&
+                      e.status === "sent" && (
+                        <span className="rounded-sm bg-emerald-50 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-emerald-700">
+                          sent
+                        </span>
+                      )}
+                  </div>
+                  <div className="truncate text-[12.5px] font-medium">
+                    {e.subject || "(no subject)"}
+                  </div>
+                  {e.error_message && (
+                    <div className="text-[11px] text-red-600">
+                      {e.error_message}
+                    </div>
                   )}
-                >
-                  {e.direction}
-                </span>
-                {e.provider === "resend" ? (
-                  <ResendChip />
-                ) : e.provider === "brevo" ? (
-                  <BrevoChip />
-                ) : (
-                  <span className="rounded-sm bg-muted px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider">
-                    {e.provider}
-                  </span>
-                )}
-                {e.status === "queued" && (
-                  <span className="rounded-sm bg-amber-50 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-amber-700">
-                    in queue
-                  </span>
-                )}
-                {e.status === "sending" && (
-                  <span className="rounded-sm bg-blue-50 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-blue-700">
-                    sending…
-                  </span>
-                )}
-                {e.status === "failed" && (
-                  <span className="rounded-sm bg-red-50 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-red-700">
-                    failed
-                  </span>
-                )}
-                {e.provider === "resend" && e.status === "sent" && (
-                  <ProviderStatusChip
-                    provider="resend"
-                    events={events.data?.[e.id] ?? []}
-                  />
-                )}
-                {e.provider === "brevo" && e.status === "sent" && (
-                  <ProviderStatusChip
-                    provider="brevo"
-                    events={brevoEvents.data?.[e.id] ?? []}
-                  />
-                )}
-                {e.provider !== "resend" && e.provider !== "brevo" && e.status === "sent" && (
-                  <span className="rounded-sm bg-emerald-50 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-emerald-700">
-                    sent
-                  </span>
-                )}
-                <span>·</span>
-                <span className="font-mono">{relTime(e.sent_at ?? e.created_at)}</span>
-              </div>
-              <div className="text-[12.5px] font-medium">{e.subject || "(no subject)"}</div>
-              <div className="text-[11.5px] text-muted-foreground">
-                {e.from_email} → {e.to_emails.join(", ")}
-              </div>
-              {e.body_text && (
-                <div className="mt-1 line-clamp-3 whitespace-pre-wrap text-[12px] text-foreground/80">
-                  {e.body_text}
                 </div>
-              )}
-              {e.error_message && (
-                <div className="text-[11px] text-red-600">{e.error_message}</div>
-              )}
-              {e.status === "failed" && (
-                <div className="mt-1 flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center justify-end gap-2">
                   <Button
                     size="sm"
                     variant="outline"
                     className="h-7 rounded-sm text-[11.5px]"
-                    disabled={
-                      retryM.isPending &&
-                      retryM.variables?.id === e.id &&
-                      !retryM.variables?.provider
-                    }
-                    onClick={() => retryM.mutate({ id: e.id })}
+                    onClick={() => setViewMail(e)}
                   >
-                    {retryM.isPending &&
-                    retryM.variables?.id === e.id &&
-                    !retryM.variables?.provider ? (
-                      <Loader2 className="mr-1.5 size-3 animate-spin" />
-                    ) : (
-                      <RefreshCw className="mr-1.5 size-3" />
-                    )}
-                    Retry send
+                    <Eye className="mr-1.5 size-3" />
+                    View mail
                   </Button>
-                  {e.provider === "resend" && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 rounded-sm text-[11.5px]"
-                      disabled={
-                        retryM.isPending &&
+                  {e.status === "failed" && (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 rounded-sm text-[11.5px]"
+                        disabled={
+                          retryM.isPending &&
+                          retryM.variables?.id === e.id &&
+                          !retryM.variables?.provider
+                        }
+                        onClick={() => retryM.mutate({ id: e.id })}
+                      >
+                        {retryM.isPending &&
                         retryM.variables?.id === e.id &&
-                        retryM.variables?.provider === "brevo"
-                      }
-                      onClick={() =>
-                        retryM.mutate({ id: e.id, provider: "brevo" })
-                      }
-                    >
-                      {retryM.isPending &&
-                      retryM.variables?.id === e.id &&
-                      retryM.variables?.provider === "brevo" ? (
-                        <Loader2 className="mr-1.5 size-3 animate-spin" />
-                      ) : (
-                        <BrevoLogo className="mr-1.5 size-3" />
+                        !retryM.variables?.provider ? (
+                          <Loader2 className="mr-1.5 size-3 animate-spin" />
+                        ) : (
+                          <RefreshCw className="mr-1.5 size-3" />
+                        )}
+                        Retry
+                      </Button>
+                      {e.provider === "resend" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 rounded-sm text-[11.5px]"
+                          disabled={
+                            retryM.isPending &&
+                            retryM.variables?.id === e.id &&
+                            retryM.variables?.provider === "brevo"
+                          }
+                          onClick={() =>
+                            retryM.mutate({ id: e.id, provider: "brevo" })
+                          }
+                        >
+                          {retryM.isPending &&
+                          retryM.variables?.id === e.id &&
+                          retryM.variables?.provider === "brevo" ? (
+                            <Loader2 className="mr-1.5 size-3 animate-spin" />
+                          ) : (
+                            <BrevoLogo className="mr-1.5 size-3" />
+                          )}
+                          Retry via Brevo
+                        </Button>
                       )}
-                      Retry via Brevo
-                    </Button>
-                  )}
-                  {e.provider === "brevo" && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 rounded-sm text-[11.5px]"
-                      disabled={
-                        retryM.isPending &&
-                        retryM.variables?.id === e.id &&
-                        retryM.variables?.provider === "resend"
-                      }
-                      onClick={() =>
-                        retryM.mutate({ id: e.id, provider: "resend" })
-                      }
-                    >
-                      {retryM.isPending &&
-                      retryM.variables?.id === e.id &&
-                      retryM.variables?.provider === "resend" ? (
-                        <Loader2 className="mr-1.5 size-3 animate-spin" />
-                      ) : (
-                        <ResendLogo className="mr-1.5 size-3" />
+                      {e.provider === "brevo" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 rounded-sm text-[11.5px]"
+                          disabled={
+                            retryM.isPending &&
+                            retryM.variables?.id === e.id &&
+                            retryM.variables?.provider === "resend"
+                          }
+                          onClick={() =>
+                            retryM.mutate({ id: e.id, provider: "resend" })
+                          }
+                        >
+                          {retryM.isPending &&
+                          retryM.variables?.id === e.id &&
+                          retryM.variables?.provider === "resend" ? (
+                            <Loader2 className="mr-1.5 size-3 animate-spin" />
+                          ) : (
+                            <ResendLogo className="mr-1.5 size-3" />
+                          )}
+                          Retry via Resend
+                        </Button>
                       )}
-                      Retry via Resend
-                    </Button>
+                    </>
                   )}
                 </div>
-              )}
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ul>
       </section>
 
@@ -2331,6 +2358,70 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
               srcDoc={`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0;padding:24px;font:14px/1.55 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#111}</style></head><body>${previewBodyRendered}</body></html>`}
             />
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!viewMail} onOpenChange={(o) => !o && setViewMail(null)}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-[14px]">
+              {viewMail?.subject || "(no subject)"}
+            </DialogTitle>
+          </DialogHeader>
+          {viewMail && (
+            <div className="grid gap-2">
+              <div className="grid gap-1 rounded-sm border border-border bg-muted/50 px-3 py-2 text-[11.5px]">
+                <div>
+                  <span className="text-muted-foreground">From</span>{" "}
+                  <span className="font-mono">
+                    {viewMail.sent_by_name
+                      ? `${viewMail.sent_by_name} <${viewMail.from_email ?? ""}>`
+                      : (viewMail.from_email ?? "—")}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">To</span>{" "}
+                  <span className="font-mono">
+                    {viewMail.to_emails.join(", ") || "—"}
+                  </span>
+                </div>
+                {viewMail.cc_emails.length > 0 && (
+                  <div>
+                    <span className="text-muted-foreground">Cc</span>{" "}
+                    <span className="font-mono">
+                      {viewMail.cc_emails.join(", ")}
+                    </span>
+                  </div>
+                )}
+                <div>
+                  <span className="text-muted-foreground">Sent</span>{" "}
+                  <span className="font-mono">
+                    {new Date(
+                      viewMail.sent_at ?? viewMail.created_at,
+                    ).toLocaleString()}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Provider</span>{" "}
+                  <span className="font-mono uppercase">
+                    {viewMail.provider}
+                  </span>
+                </div>
+              </div>
+              {viewMail.body_html ? (
+                <iframe
+                  title="mail-view"
+                  sandbox=""
+                  className="h-[60vh] w-full rounded-sm border border-border bg-white"
+                  srcDoc={`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0;padding:24px;font:14px/1.55 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#111}</style></head><body>${viewMail.body_html}</body></html>`}
+                />
+              ) : (
+                <pre className="max-h-[60vh] overflow-auto whitespace-pre-wrap rounded-sm border border-border bg-white p-3 text-[12.5px]">
+                  {viewMail.body_text ?? "(empty)"}
+                </pre>
+              )}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

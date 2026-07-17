@@ -31,6 +31,7 @@ export interface LeadEmailRow {
   error_message: string | null;
   sent_at: string | null;
   sent_by: string | null;
+  sent_by_name: string | null;
   created_at: string;
 }
 
@@ -427,7 +428,26 @@ export const listLeadEmails = createServerFn({ method: "GET" })
       .order("created_at", { ascending: false })
       .limit(200);
     if (error) throw new Error(error.message);
-    return (rows ?? []) as LeadEmailRow[];
+    const raw = (rows ?? []) as LeadEmailRow[];
+    const ids = Array.from(
+      new Set(raw.map((r) => r.sent_by).filter(Boolean)),
+    ) as string[];
+    const nameById = new Map<string, string | null>();
+    if (ids.length > 0) {
+      const { data: profs } = await context.supabase
+        .from("profiles")
+        .select("user_id, full_name")
+        .in("user_id", ids);
+      for (const p of profs ?? [])
+        nameById.set(
+          (p as { user_id: string }).user_id,
+          (p as { full_name: string | null }).full_name,
+        );
+    }
+    return raw.map((r) => ({
+      ...r,
+      sent_by_name: r.sent_by ? (nameById.get(r.sent_by) ?? null) : null,
+    }));
   });
 
 // ---------------- Failure management ----------------
