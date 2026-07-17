@@ -159,38 +159,74 @@ export const pullLeadsFromSheet = createServerFn({ method: "POST" })
       const values = resp.values ?? [];
       let updated = 0;
       let created = 0;
+      const UUID_RE =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const ALLOWED_STATUS = new Set([
+        "new",
+        "contacted",
+        "viewed",
+        "meeting",
+        "converted",
+        "lost",
+      ]);
       for (const row of values) {
         const rec: Record<string, string | null> = {};
-        HEADERS.forEach((h, i) => (rec[h] = row[i] ?? null));
+        HEADERS.forEach((h, i) => {
+          const v = row[i];
+          rec[h] = v == null ? null : String(v).trim() || null;
+        });
         if (!rec.name) continue;
+        const statusRaw = (rec.status ?? "new").toLowerCase();
+        const status = (ALLOWED_STATUS.has(statusRaw) ? statusRaw : "new") as
+          | "new"
+          | "contacted"
+          | "viewed"
+          | "meeting"
+          | "converted"
+          | "lost";
         const patch = {
           name: rec.name,
           company: rec.company || null,
           email: rec.email || null,
           phone: rec.phone || null,
-          status: (rec.status || "new") as
-            | "new"
-            | "contacted"
-            | "viewed"
-            | "meeting"
-            | "converted"
-            | "lost",
+          status,
           source: rec.source || null,
-          value_usd: rec.value_usd ? Number(rec.value_usd) : null,
+          value_usd:
+            rec.value_usd && !Number.isNaN(Number(rec.value_usd))
+              ? Number(rec.value_usd)
+              : null,
           next_action: rec.next_action || null,
           notes: rec.notes || null,
         };
-        if (rec.id) {
+
+        // Resolve existing row: prefer UUID id, then lead_code, then email.
+        let existingId: string | null = null;
+        if (rec.id && UUID_RE.test(rec.id)) {
+          existingId = rec.id;
+        } else if (rec.lead_code) {
+          const code = rec.lead_code.startsWith("L-")
+            ? rec.lead_code
+            : `L-${rec.lead_code.padStart(4, "0")}`;
+          const { data: found } = await context.supabase
+            .from("leads")
+            .select("id")
+            .eq("lead_code", code)
+            .maybeSingle();
+          if (found?.id) existingId = found.id;
+        }
+
+        if (existingId) {
           const { error, count } = await context.supabase
             .from("leads")
             .update(patch, { count: "exact" })
-            .eq("id", rec.id);
+            .eq("id", existingId);
           if (!error && (count ?? 0) > 0) updated += 1;
         } else {
           const { error } = await context.supabase
             .from("leads")
             .insert({ ...patch, created_by: context.userId });
           if (!error) created += 1;
+          else console.error("[sheet-pull] insert failed", error.message, patch);
         }
       }
       const now = new Date().toISOString();
