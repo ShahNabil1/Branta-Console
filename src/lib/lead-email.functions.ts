@@ -34,15 +34,26 @@ export interface LeadEmailRow {
   created_at: string;
 }
 
+// Recipients can be plain strings or {email, name?} objects for per-recipient
+// personalization (variable substitution uses the provided name).
+const RecipientInput = z.union([
+  z.string().trim().email(),
+  z.object({
+    email: z.string().trim().email(),
+    name: z.string().trim().max(160).nullable().optional(),
+  }),
+]);
+
 const SendInput = z.object({
   leadId: z.string().uuid(),
-  to: z.array(z.string().trim().email()).min(1).max(50),
+  to: z.array(RecipientInput).min(1).max(50),
   cc: z.array(z.string().trim().email()).default([]),
   subject: z.string().trim().min(1).max(300),
   body: z.string().trim().min(1).max(100_000),
   contentType: z.enum(["html", "text"]).default("html"),
   provider: z.enum(["resend", "brevo"]).default("resend"),
 });
+
 
 const LEAD_FROM_EMAIL = "hello@brantatech.com";
 const LEAD_FROM_NAME = "Branta Tech";
