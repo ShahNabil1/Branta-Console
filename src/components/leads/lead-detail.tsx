@@ -458,6 +458,8 @@ export function LeadDetail({
   const statusChanged = form.status !== lead.status;
   const activeSource = sourceOptions.find((s) => s.key === form.source);
   const sourceNeedsDetail = activeSource?.requires_detail ?? false;
+  const activeService = serviceOptions.find((s) => s.key === form.service);
+  const serviceNeedsDetail = activeService?.requires_detail ?? false;
 
   const saveM = useMutation({
     mutationFn: () =>
