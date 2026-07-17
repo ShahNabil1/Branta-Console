@@ -820,6 +820,7 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
 
 
   const [contentType, setContentType] = useState<"html" | "text">("html");
+  const [provider, setProvider] = useState<"resend" | "brevo">("resend");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState(DEFAULT_HTML_BODY);
