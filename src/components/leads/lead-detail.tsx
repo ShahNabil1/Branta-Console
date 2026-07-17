@@ -316,7 +316,7 @@ export function LeadDetail({
             <span className="rounded-sm bg-muted px-2 py-0.5 font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
               {lead.slug ?? lead.lead_code}
             </span>
-            <StatusBadge status={lead.status} />
+            <StatusBadge status={lead.status} options={statusOptions} />
           </div>
           <h1 className="mt-1 text-[22px] font-semibold tracking-tight text-foreground">
             {lead.name}
@@ -327,7 +327,11 @@ export function LeadDetail({
         </div>
       </div>
 
-      <Tabs defaultValue="overview" className="flex min-h-0 flex-1 flex-col">
+      <Tabs
+        value={tab}
+        onValueChange={(v) => setTab(v as typeof tab)}
+        className="flex min-h-0 flex-1 flex-col"
+      >
         <TabsList className="grid h-9 w-full max-w-md grid-cols-4 rounded-sm bg-muted p-0.5">
           <TabsTrigger value="overview" className="h-8 rounded-sm text-[12px]">
             Overview
