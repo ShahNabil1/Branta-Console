@@ -137,7 +137,7 @@ export const pushLeadsToSheet = createServerFn({ method: "POST" })
     const { data: leads, error } = await context.supabase
       .from("leads")
       .select(
-        "id, slug, lead_code, name, company, phone, status, source, value_usd, next_action, notes, last_activity_at",
+        "id, slug, lead_code, name, company, phone, status, source, value_usd, currency, next_action, notes, last_activity_at",
       )
       .order("slug", { ascending: true })
       .limit(5000);
