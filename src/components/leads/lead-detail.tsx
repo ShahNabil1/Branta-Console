@@ -401,10 +401,18 @@ export function LeadDetail({
               Details
             </div>
             <div className="grid grid-cols-2 gap-3 p-3 md:grid-cols-3">
-              <Field label="Name" className="col-span-2 md:col-span-3">
+              <Field label="Name">
                 <Input
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  className="h-9 rounded-sm text-[12.5px]"
+                />
+              </Field>
+              <Field label="Role">
+                <Input
+                  value={form.role}
+                  onChange={(e) => setForm({ ...form, role: e.target.value })}
+                  placeholder="e.g. CTO, Marketing Manager"
                   className="h-9 rounded-sm text-[12.5px]"
                 />
               </Field>
@@ -455,82 +463,67 @@ export function LeadDetail({
                   />
                 </Field>
               )}
-              <Field label="Email">
-                <div className="flex items-center gap-1.5">
-                  <Input
-                    value={form.email}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    className="h-9 flex-1 rounded-sm text-[12.5px]"
-                  />
-                  <TooltipProvider delayDuration={200}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          className="h-9 w-9 shrink-0 rounded-sm"
-                          disabled={!form.email.trim()}
-                          onClick={() => setTab("emails")}
-                          aria-label="Compose email"
-                        >
-                          <Mail className="size-3.5" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="top">Compose in Emails tab</TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
+
+              <EmailRow
+                label="Email"
+                value={form.email}
+                onChange={(v) => setForm({ ...form, email: v })}
+                tag={form.email_label}
+                onTagChange={(v) => setForm({ ...form, email_label: v })}
+                onCompose={() => setTab("emails")}
+                className="col-span-2 md:col-span-3"
+              />
+              <EmailRow
+                label="Alternative email"
+                value={form.alt_email}
+                onChange={(v) => setForm({ ...form, alt_email: v })}
+                tag={form.alt_email_label}
+                onTagChange={(v) => setForm({ ...form, alt_email_label: v })}
+                onCompose={() => setTab("emails")}
+                className="col-span-2 md:col-span-3"
+              />
+              <PhoneRow
+                label="Phone"
+                value={form.phone}
+                onChange={(v) => setForm({ ...form, phone: v })}
+                tag={form.phone_label}
+                onTagChange={(v) => setForm({ ...form, phone_label: v })}
+                className="col-span-2 md:col-span-3"
+              />
+              <PhoneRow
+                label="Alternative phone"
+                value={form.alt_phone}
+                onChange={(v) => setForm({ ...form, alt_phone: v })}
+                tag={form.alt_phone_label}
+                onTagChange={(v) => setForm({ ...form, alt_phone_label: v })}
+                className="col-span-2 md:col-span-3"
+              />
+
+              <Field
+                label="Contact preference & availability"
+                className="col-span-2 md:col-span-3"
+                hint={
+                  <>
+                    <b>Optional</b> — কীভাবে ও কখন contact করলে best।
+                    <br />
+                    <span className="text-muted-foreground">
+                      Example: "WhatsApp preferred", "Call after 6pm weekdays",
+                      "Message on Nov 20 at 12am, then he will reply", "Email
+                      only — no calls"
+                    </span>
+                  </>
+                }
+              >
+                <Textarea
+                  value={form.contact_preference}
+                  onChange={(e) =>
+                    setForm({ ...form, contact_preference: e.target.value })
+                  }
+                  placeholder="How & when does this person prefer to be contacted? Preferred channel, days, times, timezone…"
+                  className="min-h-[60px] rounded-sm text-[12.5px]"
+                />
               </Field>
-              <Field label="Phone">
-                <div className="flex items-center gap-1.5">
-                  <Input
-                    value={form.phone}
-                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                    className="h-9 flex-1 rounded-sm text-[12.5px]"
-                  />
-                  <TooltipProvider delayDuration={200}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <a
-                          href={form.phone ? `tel:${form.phone.replace(/\s+/g, "")}` : undefined}
-                          aria-disabled={!form.phone.trim()}
-                          className={cn(
-                            "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-sm border border-input bg-background text-foreground transition-colors hover:bg-muted",
-                            !form.phone.trim() && "pointer-events-none opacity-50",
-                          )}
-                          aria-label="Call this number"
-                        >
-                          <PhoneIcon className="size-3.5" />
-                        </a>
-                      </TooltipTrigger>
-                      <TooltipContent side="top">Call</TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <a
-                          href={
-                            form.phone
-                              ? `https://wa.me/${form.phone.replace(/[^\d]/g, "")}`
-                              : undefined
-                          }
-                          target="_blank"
-                          rel="noreferrer"
-                          aria-disabled={!form.phone.trim()}
-                          className={cn(
-                            "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-sm border border-input bg-background transition-colors hover:bg-muted",
-                            !form.phone.trim() && "pointer-events-none opacity-50",
-                          )}
-                          aria-label="Open in WhatsApp"
-                        >
-                          <WhatsAppIcon className="size-4" />
-                        </a>
-                      </TooltipTrigger>
-                      <TooltipContent side="top">WhatsApp</TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-              </Field>
+
               <Field label="Status">
                 <Select
                   value={form.status}
@@ -538,6 +531,7 @@ export function LeadDetail({
                 >
                   <SelectTrigger className="h-9 rounded-sm text-[12.5px]">
                     <SelectValue />
+
                   </SelectTrigger>
                   <SelectContent>
                     {statusOptions.map((s) => (
