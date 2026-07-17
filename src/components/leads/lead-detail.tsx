@@ -504,6 +504,7 @@ export function LeadDetail({
     onSuccess: () => {
       toast.success("Lead updated");
       setStatusChangeNote("");
+      setEditing(false);
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["leads", "activities", lead.id] });
     },
