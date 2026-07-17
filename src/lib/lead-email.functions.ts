@@ -81,12 +81,8 @@ type ProcessableRow = {
 
 /** Deliver a single queued row via Resend. Row must already be marked `sending`. */
 async function deliverQueuedRow(
-  adminClient: {
-    from: (t: string) => {
-      update: (v: Record<string, unknown>) => { eq: (c: string, v: unknown) => Promise<{ error: unknown }> };
-      insert: (v: Record<string, unknown>) => Promise<{ error: unknown }>;
-    };
-  },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  adminClient: any,
   row: ProcessableRow,
   leadSlug: string,
 ): Promise<{ ok: boolean; error?: string }> {
