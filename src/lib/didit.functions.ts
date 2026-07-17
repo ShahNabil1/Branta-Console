@@ -41,7 +41,19 @@ export const createDiditSession = createServerFn({ method: "POST" })
 
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(`Didit session create failed: ${res.status} ${text}`);
+      let detail = text;
+      try {
+        const parsed = JSON.parse(text) as { detail?: string };
+        if (parsed.detail) detail = parsed.detail;
+      } catch {
+        /* keep raw text */
+      }
+      if (res.status === 400 && /credit/i.test(detail)) {
+        throw new Error(
+          "Didit account has no credits left. Top up at https://business.didit.me and try again.",
+        );
+      }
+      throw new Error(`Didit session create failed (${res.status}): ${detail}`);
     }
 
     const json = (await res.json()) as {
