@@ -51,7 +51,7 @@ import {
   pullLeadsFromSheet,
 } from "@/lib/leads-sheets.functions";
 
-export const Route = createFileRoute("/_authenticated/app/leads")({
+export const Route = createFileRoute("/_authenticated/app/leads/")({
   component: LeadsPage,
   head: () => ({
     meta: [
