@@ -41,7 +41,7 @@ const SendInput = z.object({
   contentType: z.enum(["html", "text"]).default("html"),
 });
 
-const RESEND_FROM = "Branta Tech <noreply@brantatech.com>";
+const RESEND_FROM = "Branta Tech <hello@brantatech.com>";
 
 /** Public helper: substitute {{tokens}} against a value map. Unknown tokens are left intact. */
 export function renderVariables(
@@ -212,7 +212,7 @@ export const sendLeadEmail = createServerFn({ method: "POST" })
           subject: renderedSubject,
           body_html: html,
           body_text: text ?? renderedBody,
-          from_email: "noreply@brantatech.com",
+          from_email: "hello@brantatech.com",
           to_emails: [recipient],
           cc_emails: data.cc,
           status: "queued" as const,
