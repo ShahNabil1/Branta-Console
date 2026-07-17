@@ -294,17 +294,25 @@ export function SocialLinksSection({ leadId }: { leadId: string }) {
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8 rounded-sm"
-                      disabled={updateM.isPending || !editDraft.url.trim()}
-                      onClick={() =>
+                      disabled={
+                        updateM.isPending ||
+                        validateUrl(editDraft.platform, editDraft.url) !== null
+                      }
+                      onClick={() => {
+                        const err = validateUrl(editDraft.platform, editDraft.url);
+                        if (err) {
+                          toast.error(err);
+                          return;
+                        }
                         updateM.mutate({
                           id: row.id,
                           patch: {
                             platform: editDraft.platform,
-                            url: normalizeUrl(editDraft.url),
+                            url: normalizeUrl(editDraft.platform, editDraft.url),
                             label: editDraft.label || null,
                           },
-                        })
-                      }
+                        });
+                      }}
                       aria-label="Save"
                     >
                       {updateM.isPending ? (
@@ -313,6 +321,7 @@ export function SocialLinksSection({ leadId }: { leadId: string }) {
                         <Check className="size-3.5" />
                       )}
                     </Button>
+
                     <Button
                       type="button"
                       variant="ghost"
