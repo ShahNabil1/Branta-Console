@@ -57,10 +57,7 @@ import {
   sendLeadEmail,
   type LeadEmailRow,
 } from "@/lib/lead-email.functions";
-import {
-  listResendEventsForLead,
-  type ResendEvent,
-} from "@/lib/resend-events.functions";
+import { listResendEventsForLead } from "@/lib/resend-events.functions";
 import { listBrevoEventsForLead } from "@/lib/brevo-events.functions";
 import {
   cancelLeadMeeting,
