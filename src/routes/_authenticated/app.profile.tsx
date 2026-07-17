@@ -374,13 +374,6 @@ function ProfileForm({
                   readOnly
                 />
               </Field>
-              <Field label="Didit Session ID">
-                <Input
-                  className="h-9 rounded-sm bg-muted font-mono text-[12px]"
-                  value={form.didit_session_id ?? "—"}
-                  readOnly
-                />
-              </Field>
             </div>
           </div>
         </Section>
