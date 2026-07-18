@@ -7,10 +7,10 @@ import { z } from "zod";
 import { callGateway } from "@/lib/connector-gateway.server";
 
 const INBOX_ADDR = "hello@brantatech.com";
-// Only mail delivered TO hello@brantatech.com AND actually landing in the
-// Gmail inbox (skip drafts, sent, spam, trash). Cloudflare-routed messages
-// arrive with INBOX + UNREAD labels by default.
-const GMAIL_QUERY = `to:${INBOX_ADDR} -from:me in:inbox`;
+// Gmail connector tokens can be narrowed by Google to metadata-only behavior,
+// where the API rejects the search `q` parameter. We therefore list INBOX by
+// label and filter the lightweight headers locally.
+const GMAIL_SYNC_INSPECT_MULTIPLIER = 4;
 
 export interface InboxRow {
   gmail_message_id: string;
@@ -51,6 +51,13 @@ interface GmailMessage {
   internalDate?: string;
   payload?: GmailPart;
 }
+interface GmailListResponse {
+  messages?: Array<{ id: string; threadId: string }>;
+  nextPageToken?: string;
+}
+interface GmailProfile {
+  emailAddress?: string;
+}
 
 function headerValue(headers: GmailHeader[] | undefined, name: string): string | null {
   if (!headers) return null;
@@ -65,6 +72,26 @@ function parseAddress(raw: string | null): { email: string; name: string | null 
   if (!m) return { email: raw.trim().toLowerCase(), name: null };
   const name = (m[1] ?? "").trim();
   return { email: m[2].trim().toLowerCase(), name: name || null };
+}
+
+function headerContainsAddress(headers: GmailHeader[] | undefined, name: string): boolean {
+  const raw = headerValue(headers, name);
+  return raw ? raw.toLowerCase().includes(INBOX_ADDR) : false;
+}
+
+function isDeliveredToInboxAddress(headers: GmailHeader[] | undefined): boolean {
+  return (
+    headerContainsAddress(headers, "To") ||
+    headerContainsAddress(headers, "Cc") ||
+    headerContainsAddress(headers, "Delivered-To") ||
+    headerContainsAddress(headers, "X-Forwarded-To") ||
+    headerContainsAddress(headers, "X-Original-To")
+  );
+}
+
+function isFromConnectedMailbox(headers: GmailHeader[] | undefined, mailbox: string | null): boolean {
+  if (!mailbox) return false;
+  return parseAddress(headerValue(headers, "From")).email === mailbox.toLowerCase();
 }
 
 function base64UrlDecode(s: string): string {
@@ -113,7 +140,7 @@ async function fetchMessageMetadata(id: string): Promise<GmailMessage> {
     path: `/gmail/v1/users/me/messages/${encodeURIComponent(id)}`,
     query: {
       format: "metadata",
-      metadataHeaders: "Subject,From,To,Date",
+      metadataHeaders: "Subject,From,To,Cc,Date,Delivered-To,X-Forwarded-To,X-Original-To",
     },
   });
 }
@@ -218,27 +245,54 @@ export const syncInbox = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) =>
     z.object({ maxResults: z.number().min(1).max(100).default(50) }).parse(d ?? {}),
   )
-  .handler(async ({ data }): Promise<{ synced: number }> => {
+  .handler(async ({ data }): Promise<{ synced: number; inspected: number; warning?: string }> => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const list = await callGateway<{ messages?: Array<{ id: string; threadId: string }> }>(
-      {
+    const ownMailbox = await callGateway<GmailProfile>({
+      connector: "google_mail",
+      path: "/gmail/v1/users/me/profile",
+    })
+      .then((p) => p.emailAddress?.toLowerCase() ?? null)
+      .catch(() => null);
+
+    const wanted = data.maxResults;
+    const inspectLimit = Math.min(500, Math.max(wanted, wanted * GMAIL_SYNC_INSPECT_MULTIPLIER));
+    const items: Array<{ id: string; threadId: string }> = [];
+    let pageToken: string | undefined;
+    while (items.length < inspectLimit) {
+      const list = await callGateway<GmailListResponse>({
         connector: "google_mail",
         path: "/gmail/v1/users/me/messages",
-        query: { q: GMAIL_QUERY, maxResults: data.maxResults },
-      },
-    );
-    const items = list.messages ?? [];
-    if (items.length === 0) return { synced: 0 };
+        query: {
+          labelIds: "INBOX",
+          maxResults: Math.min(100, inspectLimit - items.length),
+          pageToken,
+        },
+      });
+      items.push(...(list.messages ?? []));
+      pageToken = list.nextPageToken;
+      if (!pageToken || !list.messages?.length) break;
+    }
+    if (items.length === 0) return { synced: 0, inspected: 0 };
     // Fetch metadata in small parallel batches.
     const BATCH = 8;
+    let synced = 0;
     for (let i = 0; i < items.length; i += BATCH) {
       const slice = items.slice(i, i + BATCH);
       const fetched = await Promise.all(
         slice.map((x) => fetchMessageMetadata(x.id).catch(() => null)),
       );
-      for (const m of fetched) if (m) await autolinkAndUpsert(supabaseAdmin, m);
+      for (const m of fetched) {
+        if (!m) continue;
+        const headers = m.payload?.headers;
+        if (!isDeliveredToInboxAddress(headers)) continue;
+        if (isFromConnectedMailbox(headers, ownMailbox)) continue;
+        await autolinkAndUpsert(supabaseAdmin, m);
+        synced += 1;
+        if (synced >= wanted) break;
+      }
+      if (synced >= wanted) break;
     }
-    return { synced: items.length };
+    return { synced, inspected: items.length };
   });
 
 /** List cached inbox rows (RLS: any authenticated employee). */
