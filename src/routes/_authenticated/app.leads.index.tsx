@@ -385,7 +385,7 @@ function LeadsPage() {
               Loading leads…
             </div>
           ) : filtered.length === 0 ? (
-            <EmptyState onCreate={() => setCreateOpen(true)} />
+            <EmptyState onCreate={onNewLead} busy={createDraftM.isPending} />
           ) : (
             paged.map((row) => (
               <button
