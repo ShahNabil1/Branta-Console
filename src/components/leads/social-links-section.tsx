@@ -243,6 +243,8 @@ export function SocialLinksSection({
 
   const rows = useMemo(() => q.data ?? [], [q.data]);
 
+  if (locked && rows.length === 0) return null;
+
   return (
     <section className="rounded-sm border border-border bg-card">
       <div className="flex items-center justify-between border-b border-border px-3 py-2">
