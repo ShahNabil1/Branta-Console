@@ -19,6 +19,7 @@ import { Route as AuthenticatedAppSettingsRouteImport } from './routes/_authenti
 import { Route as AuthenticatedAppProfileRouteImport } from './routes/_authenticated/app.profile'
 import { Route as AuthenticatedAppMailQueueRouteImport } from './routes/_authenticated/app.mail-queue'
 import { Route as AuthenticatedAppLeadsRouteImport } from './routes/_authenticated/app.leads'
+import { Route as AuthenticatedAppInboxRouteImport } from './routes/_authenticated/app.inbox'
 import { Route as AuthenticatedAppEmployeesRouteImport } from './routes/_authenticated/app.employees'
 import { Route as AuthenticatedAppLeadsIndexRouteImport } from './routes/_authenticated/app.leads.index'
 import { Route as ApiPublicResendWebhookRouteImport } from './routes/api/public/resend.webhook'
@@ -76,6 +77,11 @@ const AuthenticatedAppLeadsRoute = AuthenticatedAppLeadsRouteImport.update({
   path: '/leads',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
+const AuthenticatedAppInboxRoute = AuthenticatedAppInboxRouteImport.update({
+  id: '/inbox',
+  path: '/inbox',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
 const AuthenticatedAppEmployeesRoute =
   AuthenticatedAppEmployeesRouteImport.update({
     id: '/employees',
@@ -110,6 +116,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/app': typeof AuthenticatedAppRouteWithChildren
   '/app/employees': typeof AuthenticatedAppEmployeesRoute
+  '/app/inbox': typeof AuthenticatedAppInboxRoute
   '/app/leads': typeof AuthenticatedAppLeadsRouteWithChildren
   '/app/mail-queue': typeof AuthenticatedAppMailQueueRoute
   '/app/profile': typeof AuthenticatedAppProfileRoute
@@ -125,6 +132,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/app/employees': typeof AuthenticatedAppEmployeesRoute
+  '/app/inbox': typeof AuthenticatedAppInboxRoute
   '/app/mail-queue': typeof AuthenticatedAppMailQueueRoute
   '/app/profile': typeof AuthenticatedAppProfileRoute
   '/app/settings': typeof AuthenticatedAppSettingsRoute
@@ -142,6 +150,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_authenticated/app': typeof AuthenticatedAppRouteWithChildren
   '/_authenticated/app/employees': typeof AuthenticatedAppEmployeesRoute
+  '/_authenticated/app/inbox': typeof AuthenticatedAppInboxRoute
   '/_authenticated/app/leads': typeof AuthenticatedAppLeadsRouteWithChildren
   '/_authenticated/app/mail-queue': typeof AuthenticatedAppMailQueueRoute
   '/_authenticated/app/profile': typeof AuthenticatedAppProfileRoute
@@ -160,6 +169,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/app'
     | '/app/employees'
+    | '/app/inbox'
     | '/app/leads'
     | '/app/mail-queue'
     | '/app/profile'
@@ -175,6 +185,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/app/employees'
+    | '/app/inbox'
     | '/app/mail-queue'
     | '/app/profile'
     | '/app/settings'
@@ -191,6 +202,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/_authenticated/app'
     | '/_authenticated/app/employees'
+    | '/_authenticated/app/inbox'
     | '/_authenticated/app/leads'
     | '/_authenticated/app/mail-queue'
     | '/_authenticated/app/profile'
@@ -284,6 +296,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppLeadsRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
+    '/_authenticated/app/inbox': {
+      id: '/_authenticated/app/inbox'
+      path: '/inbox'
+      fullPath: '/app/inbox'
+      preLoaderRoute: typeof AuthenticatedAppInboxRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
     '/_authenticated/app/employees': {
       id: '/_authenticated/app/employees'
       path: '/employees'
@@ -339,6 +358,7 @@ const AuthenticatedAppLeadsRouteWithChildren =
 
 interface AuthenticatedAppRouteChildren {
   AuthenticatedAppEmployeesRoute: typeof AuthenticatedAppEmployeesRoute
+  AuthenticatedAppInboxRoute: typeof AuthenticatedAppInboxRoute
   AuthenticatedAppLeadsRoute: typeof AuthenticatedAppLeadsRouteWithChildren
   AuthenticatedAppMailQueueRoute: typeof AuthenticatedAppMailQueueRoute
   AuthenticatedAppProfileRoute: typeof AuthenticatedAppProfileRoute
@@ -348,6 +368,7 @@ interface AuthenticatedAppRouteChildren {
 
 const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
   AuthenticatedAppEmployeesRoute: AuthenticatedAppEmployeesRoute,
+  AuthenticatedAppInboxRoute: AuthenticatedAppInboxRoute,
   AuthenticatedAppLeadsRoute: AuthenticatedAppLeadsRouteWithChildren,
   AuthenticatedAppMailQueueRoute: AuthenticatedAppMailQueueRoute,
   AuthenticatedAppProfileRoute: AuthenticatedAppProfileRoute,
