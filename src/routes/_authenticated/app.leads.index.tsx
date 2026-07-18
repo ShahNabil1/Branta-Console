@@ -65,8 +65,15 @@ import {
   pullLeadsFromSheet,
 } from "@/lib/leads-sheets.functions";
 
+const PAGE_SIZE_OPTIONS = [50, 100, 150, 200] as const;
+const leadsSearchSchema = z.object({
+  page: fallback(z.number().int(), 1).default(1),
+  pageSize: fallback(z.number().int(), 50).default(50),
+});
+
 export const Route = createFileRoute("/_authenticated/app/leads/")({
   component: LeadsPage,
+  validateSearch: zodValidator(leadsSearchSchema),
   head: () => ({
     meta: [
       { title: "Leads · Branta Tech Console" },
