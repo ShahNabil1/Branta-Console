@@ -743,167 +743,179 @@ export function LeadDetail({
                 </Button>
               )}
             </div>
-            <fieldset disabled={!editing} className="contents">
-            <div className="grid grid-cols-2 gap-3 p-3 md:grid-cols-3">
+            {editing ? (
+              <fieldset disabled={!editing} className="contents">
+              <div className="grid grid-cols-2 gap-3 p-3 md:grid-cols-3">
 
-              <Field label="Name">
-                <Input
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="h-9 rounded-sm text-[12.5px]"
-                />
-              </Field>
-              <Field label="Role">
-                <Input
-                  value={form.role}
-                  onChange={(e) => setForm({ ...form, role: e.target.value })}
-                  placeholder="e.g. CTO, Marketing Manager"
-                  className="h-9 rounded-sm text-[12.5px]"
-                />
-              </Field>
-              <Field label="Company">
-                <Input
-                  value={form.company}
-                  onChange={(e) => setForm({ ...form, company: e.target.value })}
-                  className="h-9 rounded-sm text-[12.5px]"
-                />
-              </Field>
-              <Field label="Source">
-                <Select
-                  value={form.source || "__unset"}
-                  onValueChange={(v) => {
-                    const next = v === "__unset" ? "" : v;
-                    setForm((prev) => ({
-                      ...prev,
-                      source: next,
-                      source_other:
-                        next && sourceOptions.find((o) => o.key === next)?.requires_detail
-                          ? prev.source_other
-                          : "",
-                    }));
-                  }}
-                >
-                  <SelectTrigger className="h-9 rounded-sm text-[12.5px]">
-                    <SelectValue placeholder="Select source" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__unset">— None —</SelectItem>
-                    {sourceOptions.map((s) => (
-                      <SelectItem key={s.key} value={s.key}>
-                        {s.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              {sourceNeedsDetail && (
-                <Field label={`${activeSource?.label ?? "Source"} details *`}>
+                <Field label="Name">
                   <Input
-                    value={form.source_other}
-                    onChange={(e) =>
-                      setForm({ ...form, source_other: e.target.value })
-                    }
-                    placeholder="Describe the source"
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
                     className="h-9 rounded-sm text-[12.5px]"
                   />
                 </Field>
-              )}
+                <Field label="Role">
+                  <Input
+                    value={form.role}
+                    onChange={(e) => setForm({ ...form, role: e.target.value })}
+                    placeholder="e.g. CTO, Marketing Manager"
+                    className="h-9 rounded-sm text-[12.5px]"
+                  />
+                </Field>
+                <Field label="Company">
+                  <Input
+                    value={form.company}
+                    onChange={(e) => setForm({ ...form, company: e.target.value })}
+                    className="h-9 rounded-sm text-[12.5px]"
+                  />
+                </Field>
+                <Field label="Source">
+                  <Select
+                    value={form.source || "__unset"}
+                    onValueChange={(v) => {
+                      const next = v === "__unset" ? "" : v;
+                      setForm((prev) => ({
+                        ...prev,
+                        source: next,
+                        source_other:
+                          next && sourceOptions.find((o) => o.key === next)?.requires_detail
+                            ? prev.source_other
+                            : "",
+                      }));
+                    }}
+                  >
+                    <SelectTrigger className="h-9 rounded-sm text-[12.5px]">
+                      <SelectValue placeholder="Select source" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__unset">— None —</SelectItem>
+                      {sourceOptions.map((s) => (
+                        <SelectItem key={s.key} value={s.key}>
+                          {s.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                {sourceNeedsDetail && (
+                  <Field label={`${activeSource?.label ?? "Source"} details *`}>
+                    <Input
+                      value={form.source_other}
+                      onChange={(e) =>
+                        setForm({ ...form, source_other: e.target.value })
+                      }
+                      placeholder="Describe the source"
+                      className="h-9 rounded-sm text-[12.5px]"
+                    />
+                  </Field>
+                )}
 
-              <Field
-                label="Service interest"
-                hint={
-                  <>
-                    <b>Which service is this lead considering?</b>
-                    <br />
-                    <span className="text-muted-foreground">
-                      Pick the closest service; choose "Other" and describe it
-                      when nothing fits. Super admin will manage this list.
-                    </span>
-                  </>
-                }
-              >
-                <Select
-                  value={form.service || "__unset"}
-                  onValueChange={(v) => {
-                    const next = v === "__unset" ? "" : v;
-                    setForm((prev) => ({
-                      ...prev,
-                      service: next,
-                      service_other:
-                        next && serviceOptions.find((o) => o.key === next)?.requires_detail
-                          ? prev.service_other
-                          : "",
-                    }));
-                  }}
-                >
-                  <SelectTrigger className="h-9 rounded-sm text-[12.5px]">
-                    <SelectValue placeholder="Select service" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__unset">— None —</SelectItem>
-                    {serviceOptions.map((s) => (
-                      <SelectItem key={s.key} value={s.key}>
-                        {s.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              {serviceNeedsDetail && (
                 <Field
-                  label={`${activeService?.label ?? "Service"} details *`}
-                  className="col-span-2 md:col-span-2"
+                  label="Service interest"
+                  hint={
+                    <>
+                      <b>Which service is this lead considering?</b>
+                      <br />
+                      <span className="text-muted-foreground">
+                        Pick the closest service; choose "Other" and describe it
+                        when nothing fits. Super admin will manage this list.
+                      </span>
+                    </>
+                  }
                 >
-                  <Input
-                    value={form.service_other}
-                    onChange={(e) =>
-                      setForm({ ...form, service_other: e.target.value })
-                    }
-                    placeholder="Which service does this lead want?"
-                    className="h-9 rounded-sm text-[12.5px]"
-                  />
+                  <Select
+                    value={form.service || "__unset"}
+                    onValueChange={(v) => {
+                      const next = v === "__unset" ? "" : v;
+                      setForm((prev) => ({
+                        ...prev,
+                        service: next,
+                        service_other:
+                          next && serviceOptions.find((o) => o.key === next)?.requires_detail
+                            ? prev.service_other
+                            : "",
+                      }));
+                    }}
+                  >
+                    <SelectTrigger className="h-9 rounded-sm text-[12.5px]">
+                      <SelectValue placeholder="Select service" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__unset">— None —</SelectItem>
+                      {serviceOptions.map((s) => (
+                        <SelectItem key={s.key} value={s.key}>
+                          {s.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </Field>
-              )}
+                {serviceNeedsDetail && (
+                  <Field
+                    label={`${activeService?.label ?? "Service"} details *`}
+                    className="col-span-2 md:col-span-2"
+                  >
+                    <Input
+                      value={form.service_other}
+                      onChange={(e) =>
+                        setForm({ ...form, service_other: e.target.value })
+                      }
+                      placeholder="Which service does this lead want?"
+                      className="h-9 rounded-sm text-[12.5px]"
+                    />
+                  </Field>
+                )}
 
-              <EmailRow
-                label="Email"
-                value={form.email}
-                onChange={(v) => setForm({ ...form, email: v })}
-                tag={form.email_label}
-                onTagChange={(v) => setForm({ ...form, email_label: v })}
-                onCompose={() => setTab("emails")}
-              />
-              <EmailRow
-                label="Alternative email"
-                value={form.alt_email}
-                onChange={(v) => setForm({ ...form, alt_email: v })}
-                tag={form.alt_email_label}
-                onTagChange={(v) => setForm({ ...form, alt_email_label: v })}
-                onCompose={() => setTab("emails")}
-              />
-              <PhoneRow
-                label="Phone"
-                value={form.phone}
-                onChange={(v) => setForm({ ...form, phone: v })}
-                tag={form.phone_label}
-                onTagChange={(v) => setForm({ ...form, phone_label: v })}
-              />
-              <PhoneRow
-                label="Alternative phone"
-                value={form.alt_phone}
-                onChange={(v) => setForm({ ...form, alt_phone: v })}
-                tag={form.alt_phone_label}
-                onTagChange={(v) => setForm({ ...form, alt_phone_label: v })}
-              />
+                <EmailRow
+                  label="Email"
+                  value={form.email}
+                  onChange={(v) => setForm({ ...form, email: v })}
+                  tag={form.email_label}
+                  onTagChange={(v) => setForm({ ...form, email_label: v })}
+                  onCompose={() => setTab("emails")}
+                />
+                <EmailRow
+                  label="Alternative email"
+                  value={form.alt_email}
+                  onChange={(v) => setForm({ ...form, alt_email: v })}
+                  tag={form.alt_email_label}
+                  onTagChange={(v) => setForm({ ...form, alt_email_label: v })}
+                  onCompose={() => setTab("emails")}
+                />
+                <PhoneRow
+                  label="Phone"
+                  value={form.phone}
+                  onChange={(v) => setForm({ ...form, phone: v })}
+                  tag={form.phone_label}
+                  onTagChange={(v) => setForm({ ...form, phone_label: v })}
+                />
+                <PhoneRow
+                  label="Alternative phone"
+                  value={form.alt_phone}
+                  onChange={(v) => setForm({ ...form, alt_phone: v })}
+                  tag={form.alt_phone_label}
+                  onTagChange={(v) => setForm({ ...form, alt_phone_label: v })}
+                />
 
-              <div className="col-span-2 md:col-span-3">
-                <SocialLinksSection leadId={lead.id} />
+                <div className="col-span-2 md:col-span-3">
+                  <SocialLinksSection leadId={lead.id} locked={false} />
+                </div>
               </div>
+              </fieldset>
+            ) : (
+              <ReadOnlyDetails
+                form={form}
+                sourceOptions={sourceOptions}
+                serviceOptions={serviceOptions}
+                leadId={lead.id}
+                onCompose={() => setTab("emails")}
+              />
+            )}
 
+            {/* Next action + Notes — always editable, never locked */}
+            <div className="grid grid-cols-1 gap-3 border-t border-border p-3">
               <Field
-
                 label="Next action"
-                className="col-span-2 md:col-span-3"
                 hint={
                   <>
                     <b>একটি single reminder</b> — এই lead-এর জন্য পরের কাজ কী।
@@ -917,18 +929,34 @@ export function LeadDetail({
                   </>
                 }
               >
-                <Input
-                  value={form.next_action}
-                  onChange={(e) =>
-                    setForm({ ...form, next_action: e.target.value })
-                  }
-                  placeholder="What's the next step for this lead? (e.g. Call Monday 3pm, Send proposal)"
-                  className="h-9 rounded-sm text-[12.5px]"
-                />
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={form.next_action}
+                    onChange={(e) =>
+                      setForm({ ...form, next_action: e.target.value })
+                    }
+                    placeholder="What's the next step for this lead? (e.g. Call Monday 3pm, Send proposal)"
+                    className="h-9 flex-1 rounded-sm text-[12.5px]"
+                  />
+                  {(form.next_action ?? "") !== (lead.next_action ?? "") && (
+                    <Button
+                      size="sm"
+                      className="h-9 rounded-sm bg-primary text-[12px] text-primary-foreground hover:bg-brand-700"
+                      disabled={saveM.isPending}
+                      onClick={() => saveM.mutate()}
+                    >
+                      {saveM.isPending ? (
+                        <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                      ) : (
+                        <Save className="mr-1.5 size-3.5" />
+                      )}
+                      Save
+                    </Button>
+                  )}
+                </div>
               </Field>
               <Field
                 label="Notes (about this lead)"
-                className="col-span-2 md:col-span-3"
                 hint={
                   <>
                     <b>Permanent context</b> — এই lead সম্পর্কে সবসময় জানার
@@ -948,9 +976,25 @@ export function LeadDetail({
                   placeholder="Permanent context about this lead — preferences, budget, decision-makers, background. Always visible at the top."
                   className="min-h-[80px] rounded-sm text-[12.5px]"
                 />
+                {(form.notes ?? "") !== (lead.notes ?? "") && (
+                  <div className="mt-2 flex justify-end">
+                    <Button
+                      size="sm"
+                      className="h-8 rounded-sm bg-primary text-[12px] text-primary-foreground hover:bg-brand-700"
+                      disabled={saveM.isPending}
+                      onClick={() => saveM.mutate()}
+                    >
+                      {saveM.isPending ? (
+                        <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                      ) : (
+                        <Save className="mr-1.5 size-3.5" />
+                      )}
+                      Save notes
+                    </Button>
+                  </div>
+                )}
               </Field>
             </div>
-            </fieldset>
             <div className="flex items-center justify-between border-t border-border px-3 py-2">
               <Button
                 variant="ghost"
