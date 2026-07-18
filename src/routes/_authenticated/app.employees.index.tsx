@@ -38,7 +38,7 @@ import {
 } from "@/lib/employees.functions";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/_authenticated/app/employees")({
+export const Route = createFileRoute("/_authenticated/app/employees/")({
   head: () => ({ meta: [{ title: "Employees · Branta Tech" }] }),
   component: EmployeesPage,
 });
