@@ -412,7 +412,7 @@ export function SocialLinksSection({
         )}
 
         {/* Add new row */}
-        {(() => {
+        {!locked && (() => {
           const draftError = draftUrl.trim()
             ? validateUrl(draftPlatform, draftUrl)
             : null;
