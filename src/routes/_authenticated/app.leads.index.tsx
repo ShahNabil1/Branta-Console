@@ -3,6 +3,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { zodValidator, fallback } from "@tanstack/zod-adapter";
+import { z } from "zod";
 import {
   Search,
   Plus,
@@ -13,6 +15,8 @@ import {
   ArrowUpToLine,
   ArrowDownToLine,
   ExternalLink,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
