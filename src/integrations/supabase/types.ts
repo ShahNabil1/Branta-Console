@@ -14,6 +14,71 @@ export type Database = {
   }
   public: {
     Tables: {
+      customers: {
+        Row: {
+          company: string | null
+          converted_from_lead_id: string | null
+          created_at: string
+          created_by: string | null
+          currency: string
+          customer_code: string
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          owner_id: string | null
+          phone: string | null
+          role: string | null
+          service: string | null
+          source: string | null
+          updated_at: string
+        }
+        Insert: {
+          company?: string | null
+          converted_from_lead_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          customer_code?: string
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          owner_id?: string | null
+          phone?: string | null
+          role?: string | null
+          service?: string | null
+          source?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company?: string | null
+          converted_from_lead_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          customer_code?: string
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          owner_id?: string | null
+          phone?: string | null
+          role?: string | null
+          service?: string | null
+          source?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customers_converted_from_lead_id_fkey"
+            columns: ["converted_from_lead_id"]
+            isOneToOne: true
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_events: {
         Row: {
           created_at: string
