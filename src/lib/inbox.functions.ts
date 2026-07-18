@@ -59,6 +59,17 @@ interface GmailProfile {
   emailAddress?: string;
 }
 
+const THREAD_METADATA_HEADERS = [
+  "Subject",
+  "From",
+  "To",
+  "Cc",
+  "Date",
+  "Message-ID",
+  "In-Reply-To",
+  "References",
+];
+
 function headerValue(headers: GmailHeader[] | undefined, name: string): string | null {
   if (!headers) return null;
   const h = headers.find((x) => x.name.toLowerCase() === name.toLowerCase());
@@ -92,6 +103,13 @@ function isDeliveredToInboxAddress(headers: GmailHeader[] | undefined): boolean 
 function isFromConnectedMailbox(headers: GmailHeader[] | undefined, mailbox: string | null): boolean {
   if (!mailbox) return false;
   return parseAddress(headerValue(headers, "From")).email === mailbox.toLowerCase();
+}
+
+function isFullFormatScopeError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    /metadata scope.*format full|format full.*metadata scope/i.test(error.message)
+  );
 }
 
 function base64UrlDecode(s: string): string {
@@ -391,6 +409,8 @@ export interface InboxThread {
   lead_id: string | null;
   lead_slug: string | null;
   lead_name: string | null;
+  contentAvailable: boolean;
+  warning: string | null;
 }
 
 /** Full-format fetch of a Gmail thread (all messages, bodies, attachments). */
@@ -400,14 +420,32 @@ export const getInboxThread = createServerFn({ method: "GET" })
     z.object({ threadId: z.string().min(1) }).parse(d),
   )
   .handler(async ({ data, context }): Promise<InboxThread> => {
-    const thread = await callGateway<{
-      id: string;
-      messages?: GmailMessage[];
-    }>({
-      connector: "google_mail",
-      path: `/gmail/v1/users/me/threads/${encodeURIComponent(data.threadId)}`,
-      query: { format: "full" },
-    });
+    let contentAvailable = true;
+    let warning: string | null = null;
+    let thread: { id: string; messages?: GmailMessage[] };
+    try {
+      thread = await callGateway<{
+        id: string;
+        messages?: GmailMessage[];
+      }>({
+        connector: "google_mail",
+        path: `/gmail/v1/users/me/threads/${encodeURIComponent(data.threadId)}`,
+        query: { format: "full" },
+      });
+    } catch (error) {
+      if (!isFullFormatScopeError(error)) throw error;
+      contentAvailable = false;
+      warning =
+        "Gmail only allowed metadata for this connection, so message bodies are hidden until Gmail is reconnected with read access.";
+      thread = await callGateway<{
+        id: string;
+        messages?: GmailMessage[];
+      }>({
+        connector: "google_mail",
+        path: `/gmail/v1/users/me/threads/${encodeURIComponent(data.threadId)}`,
+        query: { format: "metadata", metadataHeaders: THREAD_METADATA_HEADERS },
+      });
+    }
     const messages = (thread.messages ?? []).map((m): InboxThreadMessage => {
       const headers = m.payload?.headers;
       const from = parseAddress(headerValue(headers, "From"));
@@ -467,6 +505,8 @@ export const getInboxThread = createServerFn({ method: "GET" })
       lead_id,
       lead_slug,
       lead_name,
+      contentAvailable,
+      warning,
     };
   });
 
