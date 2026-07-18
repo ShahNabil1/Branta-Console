@@ -79,10 +79,12 @@ import { listResendEventsForLead } from "@/lib/resend-events.functions";
 import { listBrevoEventsForLead } from "@/lib/brevo-events.functions";
 import {
   cancelLeadMeeting,
+  checkMeetingConflicts,
   listLeadMeetings,
   scheduleLeadMeeting,
   type LeadMeetingRow,
 } from "@/lib/lead-meetings.functions";
+
 import {
   deleteLeadDoc,
   generateLeadDoc,
@@ -2855,6 +2857,9 @@ function MeetingsTab({
 }) {
   const listFn = useServerFn(listLeadMeetings);
   const schedFn = useServerFn(scheduleLeadMeeting);
+  const conflictsFn = useServerFn(checkMeetingConflicts);
+  const [checkingConflicts, setCheckingConflicts] = React.useState(false);
+
   const cancelFn = useServerFn(cancelLeadMeeting);
   const listContactsFn = useServerFn(listLeadContacts);
   const qc = useQueryClient();
@@ -3051,23 +3056,61 @@ function MeetingsTab({
           <Button
             size="sm"
             className="h-8 rounded-sm bg-primary text-[12px] text-primary-foreground hover:bg-brand-700"
-            disabled={!canSchedule}
+            disabled={!canSchedule || checkingConflicts}
             onClick={async () => {
+              const startISO = new Date(startsAt).toISOString();
+              const endISO = new Date(endsAt).toISOString();
+              if (new Date(endISO) <= new Date(startISO)) {
+                toast.error("End time must be after start time.");
+                return;
+              }
+              setCheckingConflicts(true);
+              let conflicts: Awaited<ReturnType<typeof conflictsFn>> = [];
+              try {
+                conflicts = await conflictsFn({
+                  data: { startsAt: startISO, endsAt: endISO },
+                });
+              } finally {
+                setCheckingConflicts(false);
+              }
+              const fmt = (iso: string) =>
+                new Date(iso).toLocaleString(undefined, {
+                  weekday: "short",
+                  month: "short",
+                  day: "numeric",
+                  hour: "numeric",
+                  minute: "2-digit",
+                });
+              const conflictBlock =
+                conflicts.length > 0
+                  ? `\n\n⚠ Conflicts on your calendar (${conflicts.length}):\n${conflicts
+                      .slice(0, 5)
+                      .map(
+                        (c) =>
+                          `• ${c.summary} — ${fmt(c.startsAt)} → ${fmt(c.endsAt)}`,
+                      )
+                      .join("\n")}${conflicts.length > 5 ? `\n• +${conflicts.length - 5} more…` : ""}`
+                  : "";
               const ok = await confirm({
-                title: "Create Google Meet?",
-                description: `A calendar event "${title.trim()}" will be created and Google will email an invite (with the Meet link) to ${attendees.length} attendee${attendees.length > 1 ? "s" : ""}: ${attendees.join(", ")}.`,
-                confirmLabel: "Create meeting",
+                title:
+                  conflicts.length > 0
+                    ? `Time conflict — schedule anyway?`
+                    : "Create Google Meet?",
+                description: `A calendar event "${title.trim()}" will be created and Google will email an invite (with the Meet link) to ${attendees.length} attendee${attendees.length > 1 ? "s" : ""}: ${attendees.join(", ")}.${conflictBlock}`,
+                confirmLabel:
+                  conflicts.length > 0 ? "Schedule anyway" : "Create meeting",
                 cancelLabel: "Back",
-                tone: "info",
+                tone: conflicts.length > 0 ? "danger" : "info",
               });
               if (ok) schedM.mutate();
             }}
           >
-            {schedM.isPending ? (
+            {schedM.isPending || checkingConflicts ? (
               <Loader2 className="mr-1.5 size-3.5 animate-spin" />
             ) : (
               <CalendarPlus className="mr-1.5 size-3.5" />
             )}
+
             Create with Google Meet
           </Button>
         </div>

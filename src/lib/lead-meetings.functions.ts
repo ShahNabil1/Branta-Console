@@ -152,6 +152,70 @@ export const cancelLeadMeeting = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export interface MeetingConflict {
+  eventId: string;
+  summary: string;
+  startsAt: string;
+  endsAt: string;
+  htmlLink: string | null;
+}
+
+export const checkMeetingConflicts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        startsAt: z.string(),
+        endsAt: z.string(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data }): Promise<MeetingConflict[]> => {
+    const { callGateway } = await import("@/lib/connector-gateway.server");
+    try {
+      const res = await callGateway<{
+        items?: Array<{
+          id: string;
+          status?: string;
+          summary?: string;
+          htmlLink?: string;
+          transparency?: string;
+          start?: { dateTime?: string; date?: string };
+          end?: { dateTime?: string; date?: string };
+        }>;
+      }>({
+        connector: "google_calendar",
+        path: "/calendar/v3/calendars/primary/events",
+        method: "GET",
+        query: {
+          timeMin: data.startsAt,
+          timeMax: data.endsAt,
+          singleEvents: "true",
+          orderBy: "startTime",
+          maxResults: 20,
+        },
+      });
+      return (res.items ?? [])
+        .filter(
+          (ev) =>
+            ev.status !== "cancelled" &&
+            ev.transparency !== "transparent" &&
+            (ev.start?.dateTime || ev.start?.date),
+        )
+        .map((ev) => ({
+          eventId: ev.id,
+          summary: ev.summary ?? "(Untitled event)",
+          startsAt: ev.start?.dateTime ?? ev.start?.date ?? "",
+          endsAt: ev.end?.dateTime ?? ev.end?.date ?? "",
+          htmlLink: ev.htmlLink ?? null,
+        }));
+    } catch (e) {
+      console.warn("[calendar] conflict check failed:", e);
+      return [];
+    }
+  });
+
+
 export const listLeadMeetings = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { leadId: string }) =>
