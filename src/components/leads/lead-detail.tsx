@@ -3207,24 +3207,38 @@ function MeetingsTab({
                     </a>
                   )}
                   {m.status === "scheduled" && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 rounded-sm text-[11.5px] text-red-600 hover:bg-red-50"
-                      onClick={async () => {
-                        const ok = await confirm({
-                          title: "Cancel this meeting?",
-                          description: `"${m.title}" scheduled for ${new Date(m.starts_at).toLocaleString()} will be deleted from Google Calendar and all attendees will be notified.`,
-                          confirmLabel: "Cancel meeting",
-                          cancelLabel: "Keep it",
-                          tone: "danger",
-                        });
-                        if (ok) cancelM.mutate(m.id);
-                      }}
-                      disabled={cancelM.isPending}
-                    >
-                      Cancel
-                    </Button>
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 rounded-sm text-[11.5px]"
+                        onClick={() => {
+                          setRescheduleTarget(m);
+                          setReStart(toLocalInput(new Date(m.starts_at)));
+                          setReEnd(toLocalInput(new Date(m.ends_at)));
+                        }}
+                      >
+                        Reschedule
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 rounded-sm text-[11.5px] text-red-600 hover:bg-red-50"
+                        onClick={async () => {
+                          const ok = await confirm({
+                            title: "Cancel this meeting?",
+                            description: `"${m.title}" scheduled for ${new Date(m.starts_at).toLocaleString()} will be deleted from Google Calendar and all attendees will be notified.`,
+                            confirmLabel: "Cancel meeting",
+                            cancelLabel: "Keep it",
+                            tone: "danger",
+                          });
+                          if (ok) cancelM.mutate(m.id);
+                        }}
+                        disabled={cancelM.isPending}
+                      >
+                        Cancel
+                      </Button>
+                    </>
                   )}
                 </div>
               </li>
