@@ -3,6 +3,7 @@ import { AppSidebar } from "@/components/branta/app-sidebar";
 import { TopBar } from "@/components/branta/top-bar";
 import { CommandPalette } from "@/components/branta/command-palette";
 import { EmailFailureNotifier } from "@/components/branta/email-failure-notifier";
+import { InboxNotifier } from "@/components/branta/inbox-notifier";
 
 export const Route = createFileRoute("/_authenticated/app")({
   ssr: false,
@@ -21,6 +22,7 @@ function AppShell() {
       </div>
       <CommandPalette />
       <EmailFailureNotifier />
+      <InboxNotifier />
     </div>
   );
 }
