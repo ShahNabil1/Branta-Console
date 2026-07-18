@@ -790,6 +790,7 @@ export function LeadDetail({
   });
 
   const [noteText, setNoteText] = useState("");
+  const [visibleActivityCount, setVisibleActivityCount] = useState(5);
   const noteM = useMutation({
     mutationFn: () =>
       addAct({ data: { leadId: lead.id, kind: "note", body: noteText.trim() } }),
