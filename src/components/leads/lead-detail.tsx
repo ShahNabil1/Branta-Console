@@ -2858,6 +2858,7 @@ function MeetingsTab({
   const cancelFn = useServerFn(cancelLeadMeeting);
   const listContactsFn = useServerFn(listLeadContacts);
   const qc = useQueryClient();
+  const confirm = useConfirm();
 
   const meetings = useQuery({
     queryKey: ["lead-meetings", lead.id],
@@ -3047,7 +3048,16 @@ function MeetingsTab({
             size="sm"
             className="h-8 rounded-sm bg-primary text-[12px] text-primary-foreground hover:bg-brand-700"
             disabled={!canSchedule}
-            onClick={() => schedM.mutate()}
+            onClick={async () => {
+              const ok = await confirm({
+                title: "Create Google Meet?",
+                description: `A calendar event "${title.trim()}" will be created and Google will email an invite (with the Meet link) to ${attendees.length} attendee${attendees.length > 1 ? "s" : ""}: ${attendees.join(", ")}.`,
+                confirmLabel: "Create meeting",
+                cancelLabel: "Back",
+                tone: "info",
+              });
+              if (ok) schedM.mutate();
+            }}
           >
             {schedM.isPending ? (
               <Loader2 className="mr-1.5 size-3.5 animate-spin" />
@@ -3135,7 +3145,16 @@ function MeetingsTab({
                       variant="ghost"
                       size="sm"
                       className="h-7 rounded-sm text-[11.5px] text-red-600 hover:bg-red-50"
-                      onClick={() => cancelM.mutate(m.id)}
+                      onClick={async () => {
+                        const ok = await confirm({
+                          title: "Cancel this meeting?",
+                          description: `"${m.title}" scheduled for ${new Date(m.starts_at).toLocaleString()} will be deleted from Google Calendar and all attendees will be notified.`,
+                          confirmLabel: "Cancel meeting",
+                          cancelLabel: "Keep it",
+                          tone: "danger",
+                        });
+                        if (ok) cancelM.mutate(m.id);
+                      }}
                       disabled={cancelM.isPending}
                     >
                       Cancel
