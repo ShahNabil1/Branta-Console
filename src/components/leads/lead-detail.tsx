@@ -81,6 +81,7 @@ import {
   cancelLeadMeeting,
   checkMeetingConflicts,
   listLeadMeetings,
+  rescheduleLeadMeeting,
   scheduleLeadMeeting,
   type LeadMeetingRow,
 } from "@/lib/lead-meetings.functions";
