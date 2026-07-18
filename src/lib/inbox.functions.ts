@@ -169,6 +169,46 @@ async function fetchMessageMetadata(id: string): Promise<GmailMessage> {
 // hello@brantatech.com. Uses Gmail's `q` search (works with gmail.readonly)
 // so we don't have to fetch metadata for hundreds of unrelated messages.
 // ---------------------------------------------------------------------------
+
+// Common no-reply / transactional / alert sender patterns to exclude so
+// automated mail from other companies doesn't clutter the shared inbox.
+const NOISE_FROM_PATTERNS = [
+  "noreply",
+  "no-reply",
+  "no_reply",
+  "donotreply",
+  "do-not-reply",
+  "notifications",
+  "notification",
+  "alerts",
+  "alert",
+  "mailer-daemon",
+  "postmaster",
+  "bounce",
+  "bounces",
+  "support",
+  "updates",
+  "newsletter",
+  "news",
+  "billing",
+  "invoice",
+  "receipts",
+  "receipt",
+  "hello",
+  "team",
+  "info",
+  "account",
+  "security",
+];
+
+function buildInboxQuery(): string {
+  const to = `(to:${INBOX_ADDR} OR deliveredto:${INBOX_ADDR} OR cc:${INBOX_ADDR})`;
+  const noise = NOISE_FROM_PATTERNS.map((p) => `-from:${p}@`).join(" ");
+  // Also exclude Gmail's built-in Promotions/Updates/Forums/Social categories
+  // (transactional/marketing mail lands in these) and anything from ourselves.
+  return `in:inbox ${to} -from:me -category:promotions -category:updates -category:forums -category:social ${noise}`;
+}
+
 async function fetchInboxGmail(wanted: number): Promise<GmailMessage[]> {
   const ownMailboxPromise = callGateway<GmailProfile>({
     connector: "google_mail",
@@ -184,7 +224,7 @@ async function fetchInboxGmail(wanted: number): Promise<GmailMessage[]> {
     path: "/gmail/v1/users/me/messages",
     query: {
       maxResults: Math.min(100, wanted),
-      q: `in:inbox (to:${INBOX_ADDR} OR deliveredto:${INBOX_ADDR} OR cc:${INBOX_ADDR}) -from:me`,
+      q: buildInboxQuery(),
     },
   });
   const items = list.messages ?? [];
