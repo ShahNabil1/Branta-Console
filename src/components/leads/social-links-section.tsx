@@ -476,7 +476,7 @@ export function SocialLinksSection({
         })()}
 
 
-        {rows.length === 0 && !q.isLoading && (
+        {!locked && rows.length === 0 && !q.isLoading && (
           <p className="text-[11.5px] text-muted-foreground">
             No social links yet — add LinkedIn, Facebook, Instagram, YouTube, X,
             TikTok, or a website. You can add the same platform multiple times
