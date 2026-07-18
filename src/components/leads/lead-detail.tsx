@@ -83,7 +83,9 @@ import {
   listLeadMeetings,
   rescheduleLeadMeeting,
   scheduleLeadMeeting,
+  syncMeetingRsvp,
   type LeadMeetingRow,
+  type RsvpStatus,
 } from "@/lib/lead-meetings.functions";
 
 import {
