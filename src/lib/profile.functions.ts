@@ -65,6 +65,7 @@ export type ProfileRow = {
   mfs_number: string | null;
   nid_url: string | null;
   cv_url: string | null;
+  personal_gmail: string | null;
   kyc_status: string;
   kyc_document_type: string | null;
   kyc_document_number: string | null;
