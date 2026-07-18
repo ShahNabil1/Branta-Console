@@ -3048,7 +3048,16 @@ function MeetingsTab({
             size="sm"
             className="h-8 rounded-sm bg-primary text-[12px] text-primary-foreground hover:bg-brand-700"
             disabled={!canSchedule}
-            onClick={() => schedM.mutate()}
+            onClick={async () => {
+              const ok = await confirm({
+                title: "Create Google Meet?",
+                description: `A calendar event "${title.trim()}" will be created and Google will email an invite (with the Meet link) to ${attendees.length} attendee${attendees.length > 1 ? "s" : ""}: ${attendees.join(", ")}.`,
+                confirmText: "Create meeting",
+                cancelText: "Back",
+                tone: "primary",
+              });
+              if (ok) schedM.mutate();
+            }}
           >
             {schedM.isPending ? (
               <Loader2 className="mr-1.5 size-3.5 animate-spin" />
