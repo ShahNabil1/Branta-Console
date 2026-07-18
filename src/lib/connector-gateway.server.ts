@@ -24,7 +24,15 @@ export interface GatewayCallOptions {
   connector: ConnectorId;
   path: string; // must start with "/"
   method?: string;
-  query?: Record<string, string | number | boolean | undefined | null>;
+  query?: Record<
+    string,
+    | string
+    | number
+    | boolean
+    | Array<string | number | boolean>
+    | undefined
+    | null
+  >;
   body?: unknown;
   headers?: Record<string, string>;
 }
@@ -42,7 +50,11 @@ export async function callGateway<T = unknown>(
   if (opts.query) {
     for (const [k, v] of Object.entries(opts.query)) {
       if (v === undefined || v === null) continue;
-      url.searchParams.set(k, String(v));
+      if (Array.isArray(v)) {
+        for (const item of v) url.searchParams.append(k, String(item));
+      } else {
+        url.searchParams.set(k, String(v));
+      }
     }
   }
 
