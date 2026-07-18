@@ -3246,6 +3246,141 @@ function MeetingsTab({
           })}
         </ul>
       </section>
+
+      <Dialog
+        open={!!rescheduleTarget}
+        onOpenChange={(o) => !o && setRescheduleTarget(null)}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-[14px]">
+              Reschedule meeting
+            </DialogTitle>
+          </DialogHeader>
+          {rescheduleTarget && (
+            <div className="grid gap-3">
+              <div className="text-[12px] text-muted-foreground">
+                <span className="font-medium text-foreground">
+                  {rescheduleTarget.title}
+                </span>
+                <div className="mt-0.5 font-mono text-[11.5px]">
+                  Currently: {new Date(rescheduleTarget.starts_at).toLocaleString()}{" "}
+                  → {new Date(rescheduleTarget.ends_at).toLocaleTimeString()}
+                </div>
+              </div>
+              <Field label="New start">
+                <Input
+                  type="datetime-local"
+                  value={reStart}
+                  onChange={(e) => setReStart(e.target.value)}
+                  className="h-9 rounded-sm font-mono text-[12.5px]"
+                />
+              </Field>
+              <Field label="New end">
+                <Input
+                  type="datetime-local"
+                  value={reEnd}
+                  onChange={(e) => setReEnd(e.target.value)}
+                  className="h-9 rounded-sm font-mono text-[12.5px]"
+                />
+              </Field>
+              <div className="text-[11px] text-muted-foreground">
+                Google will email an updated invite to all{" "}
+                {rescheduleTarget.attendees?.length ?? 0} attendee(s).
+              </div>
+              <div className="flex items-center justify-end gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 rounded-sm text-[12px]"
+                  onClick={() => setRescheduleTarget(null)}
+                  disabled={rescheduleM.isPending || reChecking}
+                >
+                  Back
+                </Button>
+                <Button
+                  size="sm"
+                  className="h-8 rounded-sm bg-primary text-[12px] text-primary-foreground hover:bg-brand-700"
+                  disabled={
+                    !reStart || !reEnd || rescheduleM.isPending || reChecking
+                  }
+                  onClick={async () => {
+                    const startISO = new Date(reStart).toISOString();
+                    const endISO = new Date(reEnd).toISOString();
+                    if (new Date(endISO) <= new Date(startISO)) {
+                      toast.error("End time must be after start time.");
+                      return;
+                    }
+                    if (
+                      startISO === rescheduleTarget.starts_at &&
+                      endISO === rescheduleTarget.ends_at
+                    ) {
+                      toast.info("No changes to save.");
+                      return;
+                    }
+                    setReChecking(true);
+                    let conflicts: Awaited<
+                      ReturnType<typeof conflictsFn>
+                    > = [];
+                    try {
+                      conflicts = await conflictsFn({
+                        data: { startsAt: startISO, endsAt: endISO },
+                      });
+                    } finally {
+                      setReChecking(false);
+                    }
+                    conflicts = conflicts.filter(
+                      (c) => c.eventId !== rescheduleTarget.google_event_id,
+                    );
+                    const fmt = (iso: string) =>
+                      new Date(iso).toLocaleString(undefined, {
+                        weekday: "short",
+                        month: "short",
+                        day: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                      });
+                    const conflictBlock =
+                      conflicts.length > 0
+                        ? `\n\n⚠ Conflicts (${conflicts.length}):\n${conflicts
+                            .slice(0, 5)
+                            .map(
+                              (c) =>
+                                `• ${c.summary} — ${fmt(c.startsAt)} → ${fmt(c.endsAt)}`,
+                            )
+                            .join("\n")}`
+                        : "";
+                    const ok = await confirm({
+                      title:
+                        conflicts.length > 0
+                          ? "Time conflict — reschedule anyway?"
+                          : "Reschedule meeting?",
+                      description: `"${rescheduleTarget.title}" will be moved to ${fmt(startISO)} → ${fmt(endISO)}. Google will notify all attendees.${conflictBlock}`,
+                      confirmLabel:
+                        conflicts.length > 0
+                          ? "Reschedule anyway"
+                          : "Reschedule",
+                      cancelLabel: "Back",
+                      tone: conflicts.length > 0 ? "danger" : "info",
+                    });
+                    if (ok)
+                      rescheduleM.mutate({
+                        id: rescheduleTarget.id,
+                        startsAt: startISO,
+                        endsAt: endISO,
+                      });
+                  }}
+                >
+                  {rescheduleM.isPending || reChecking ? (
+                    <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                  ) : null}
+                  Update event
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
