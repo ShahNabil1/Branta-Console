@@ -2885,12 +2885,16 @@ function MeetingsTab({
       seen.add(e);
       list.push({ email: e, label });
     };
+    const leadWho = lead.name || "Lead";
+    push(lead.email, `${leadWho} · ${lead.email}`);
+    push((lead as any).alt_email, `${leadWho} (alt) · ${(lead as any).alt_email}`);
     for (const c of contactsQ.data ?? []) {
       const who = c.name || c.role || "Contact";
       push(c.email, `${who} · ${c.email}`);
       push(c.alt_email, `${who} (alt) · ${c.alt_email}`);
     }
     return list;
+
   }, [contactsQ.data]);
 
   const employeeEmailOptions = React.useMemo(() => {
