@@ -21,8 +21,8 @@ import { Route as AuthenticatedAppMailQueueRouteImport } from './routes/_authent
 import { Route as AuthenticatedAppLeadsRouteImport } from './routes/_authenticated/app.leads'
 import { Route as AuthenticatedAppInboxRouteImport } from './routes/_authenticated/app.inbox'
 import { Route as AuthenticatedAppEmployeesRouteImport } from './routes/_authenticated/app.employees'
-import { Route as AuthenticatedAppCustomersRouteImport } from './routes/_authenticated/app.customers'
 import { Route as AuthenticatedAppLeadsIndexRouteImport } from './routes/_authenticated/app.leads.index'
+import { Route as AuthenticatedAppCustomersIndexRouteImport } from './routes/_authenticated/app.customers.index'
 import { Route as ApiPublicResendWebhookRouteImport } from './routes/api/public/resend.webhook'
 import { Route as ApiPublicBrevoWebhookRouteImport } from './routes/api/public/brevo.webhook'
 import { Route as AuthenticatedAppLeadsSlugRouteImport } from './routes/_authenticated/app.leads.$slug'
@@ -90,17 +90,17 @@ const AuthenticatedAppEmployeesRoute =
     path: '/employees',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
-const AuthenticatedAppCustomersRoute =
-  AuthenticatedAppCustomersRouteImport.update({
-    id: '/customers',
-    path: '/customers',
-    getParentRoute: () => AuthenticatedAppRoute,
-  } as any)
 const AuthenticatedAppLeadsIndexRoute =
   AuthenticatedAppLeadsIndexRouteImport.update({
     id: '/',
     path: '/',
     getParentRoute: () => AuthenticatedAppLeadsRoute,
+  } as any)
+const AuthenticatedAppCustomersIndexRoute =
+  AuthenticatedAppCustomersIndexRouteImport.update({
+    id: '/customers/',
+    path: '/customers/',
+    getParentRoute: () => AuthenticatedAppRoute,
   } as any)
 const ApiPublicResendWebhookRoute = ApiPublicResendWebhookRouteImport.update({
   id: '/api/public/resend/webhook',
@@ -120,16 +120,15 @@ const AuthenticatedAppLeadsSlugRoute =
   } as any)
 const AuthenticatedAppCustomersCodeRoute =
   AuthenticatedAppCustomersCodeRouteImport.update({
-    id: '/$code',
-    path: '/$code',
-    getParentRoute: () => AuthenticatedAppCustomersRoute,
+    id: '/customers/$code',
+    path: '/customers/$code',
+    getParentRoute: () => AuthenticatedAppRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/app': typeof AuthenticatedAppRouteWithChildren
-  '/app/customers': typeof AuthenticatedAppCustomersRouteWithChildren
   '/app/employees': typeof AuthenticatedAppEmployeesRoute
   '/app/inbox': typeof AuthenticatedAppInboxRoute
   '/app/leads': typeof AuthenticatedAppLeadsRouteWithChildren
@@ -142,12 +141,12 @@ export interface FileRoutesByFullPath {
   '/app/leads/$slug': typeof AuthenticatedAppLeadsSlugRoute
   '/api/public/brevo/webhook': typeof ApiPublicBrevoWebhookRoute
   '/api/public/resend/webhook': typeof ApiPublicResendWebhookRoute
+  '/app/customers/': typeof AuthenticatedAppCustomersIndexRoute
   '/app/leads/': typeof AuthenticatedAppLeadsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/app/customers': typeof AuthenticatedAppCustomersRouteWithChildren
   '/app/employees': typeof AuthenticatedAppEmployeesRoute
   '/app/inbox': typeof AuthenticatedAppInboxRoute
   '/app/mail-queue': typeof AuthenticatedAppMailQueueRoute
@@ -159,6 +158,7 @@ export interface FileRoutesByTo {
   '/app/leads/$slug': typeof AuthenticatedAppLeadsSlugRoute
   '/api/public/brevo/webhook': typeof ApiPublicBrevoWebhookRoute
   '/api/public/resend/webhook': typeof ApiPublicResendWebhookRoute
+  '/app/customers': typeof AuthenticatedAppCustomersIndexRoute
   '/app/leads': typeof AuthenticatedAppLeadsIndexRoute
 }
 export interface FileRoutesById {
@@ -167,7 +167,6 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/login': typeof LoginRoute
   '/_authenticated/app': typeof AuthenticatedAppRouteWithChildren
-  '/_authenticated/app/customers': typeof AuthenticatedAppCustomersRouteWithChildren
   '/_authenticated/app/employees': typeof AuthenticatedAppEmployeesRoute
   '/_authenticated/app/inbox': typeof AuthenticatedAppInboxRoute
   '/_authenticated/app/leads': typeof AuthenticatedAppLeadsRouteWithChildren
@@ -180,6 +179,7 @@ export interface FileRoutesById {
   '/_authenticated/app/leads/$slug': typeof AuthenticatedAppLeadsSlugRoute
   '/api/public/brevo/webhook': typeof ApiPublicBrevoWebhookRoute
   '/api/public/resend/webhook': typeof ApiPublicResendWebhookRoute
+  '/_authenticated/app/customers/': typeof AuthenticatedAppCustomersIndexRoute
   '/_authenticated/app/leads/': typeof AuthenticatedAppLeadsIndexRoute
 }
 export interface FileRouteTypes {
@@ -188,7 +188,6 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/app'
-    | '/app/customers'
     | '/app/employees'
     | '/app/inbox'
     | '/app/leads'
@@ -201,12 +200,12 @@ export interface FileRouteTypes {
     | '/app/leads/$slug'
     | '/api/public/brevo/webhook'
     | '/api/public/resend/webhook'
+    | '/app/customers/'
     | '/app/leads/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
-    | '/app/customers'
     | '/app/employees'
     | '/app/inbox'
     | '/app/mail-queue'
@@ -218,6 +217,7 @@ export interface FileRouteTypes {
     | '/app/leads/$slug'
     | '/api/public/brevo/webhook'
     | '/api/public/resend/webhook'
+    | '/app/customers'
     | '/app/leads'
   id:
     | '__root__'
@@ -225,7 +225,6 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/login'
     | '/_authenticated/app'
-    | '/_authenticated/app/customers'
     | '/_authenticated/app/employees'
     | '/_authenticated/app/inbox'
     | '/_authenticated/app/leads'
@@ -238,6 +237,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/leads/$slug'
     | '/api/public/brevo/webhook'
     | '/api/public/resend/webhook'
+    | '/_authenticated/app/customers/'
     | '/_authenticated/app/leads/'
   fileRoutesById: FileRoutesById
 }
@@ -336,19 +336,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppEmployeesRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
-    '/_authenticated/app/customers': {
-      id: '/_authenticated/app/customers'
-      path: '/customers'
-      fullPath: '/app/customers'
-      preLoaderRoute: typeof AuthenticatedAppCustomersRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
     '/_authenticated/app/leads/': {
       id: '/_authenticated/app/leads/'
       path: '/'
       fullPath: '/app/leads/'
       preLoaderRoute: typeof AuthenticatedAppLeadsIndexRouteImport
       parentRoute: typeof AuthenticatedAppLeadsRoute
+    }
+    '/_authenticated/app/customers/': {
+      id: '/_authenticated/app/customers/'
+      path: '/customers'
+      fullPath: '/app/customers/'
+      preLoaderRoute: typeof AuthenticatedAppCustomersIndexRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
     }
     '/api/public/resend/webhook': {
       id: '/api/public/resend/webhook'
@@ -373,27 +373,13 @@ declare module '@tanstack/react-router' {
     }
     '/_authenticated/app/customers/$code': {
       id: '/_authenticated/app/customers/$code'
-      path: '/$code'
+      path: '/customers/$code'
       fullPath: '/app/customers/$code'
       preLoaderRoute: typeof AuthenticatedAppCustomersCodeRouteImport
-      parentRoute: typeof AuthenticatedAppCustomersRoute
+      parentRoute: typeof AuthenticatedAppRoute
     }
   }
 }
-
-interface AuthenticatedAppCustomersRouteChildren {
-  AuthenticatedAppCustomersCodeRoute: typeof AuthenticatedAppCustomersCodeRoute
-}
-
-const AuthenticatedAppCustomersRouteChildren: AuthenticatedAppCustomersRouteChildren =
-  {
-    AuthenticatedAppCustomersCodeRoute: AuthenticatedAppCustomersCodeRoute,
-  }
-
-const AuthenticatedAppCustomersRouteWithChildren =
-  AuthenticatedAppCustomersRoute._addFileChildren(
-    AuthenticatedAppCustomersRouteChildren,
-  )
 
 interface AuthenticatedAppLeadsRouteChildren {
   AuthenticatedAppLeadsSlugRoute: typeof AuthenticatedAppLeadsSlugRoute
@@ -411,7 +397,6 @@ const AuthenticatedAppLeadsRouteWithChildren =
   )
 
 interface AuthenticatedAppRouteChildren {
-  AuthenticatedAppCustomersRoute: typeof AuthenticatedAppCustomersRouteWithChildren
   AuthenticatedAppEmployeesRoute: typeof AuthenticatedAppEmployeesRoute
   AuthenticatedAppInboxRoute: typeof AuthenticatedAppInboxRoute
   AuthenticatedAppLeadsRoute: typeof AuthenticatedAppLeadsRouteWithChildren
@@ -419,10 +404,11 @@ interface AuthenticatedAppRouteChildren {
   AuthenticatedAppProfileRoute: typeof AuthenticatedAppProfileRoute
   AuthenticatedAppSettingsRoute: typeof AuthenticatedAppSettingsRoute
   AuthenticatedAppIndexRoute: typeof AuthenticatedAppIndexRoute
+  AuthenticatedAppCustomersCodeRoute: typeof AuthenticatedAppCustomersCodeRoute
+  AuthenticatedAppCustomersIndexRoute: typeof AuthenticatedAppCustomersIndexRoute
 }
 
 const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
-  AuthenticatedAppCustomersRoute: AuthenticatedAppCustomersRouteWithChildren,
   AuthenticatedAppEmployeesRoute: AuthenticatedAppEmployeesRoute,
   AuthenticatedAppInboxRoute: AuthenticatedAppInboxRoute,
   AuthenticatedAppLeadsRoute: AuthenticatedAppLeadsRouteWithChildren,
@@ -430,6 +416,8 @@ const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
   AuthenticatedAppProfileRoute: AuthenticatedAppProfileRoute,
   AuthenticatedAppSettingsRoute: AuthenticatedAppSettingsRoute,
   AuthenticatedAppIndexRoute: AuthenticatedAppIndexRoute,
+  AuthenticatedAppCustomersCodeRoute: AuthenticatedAppCustomersCodeRoute,
+  AuthenticatedAppCustomersIndexRoute: AuthenticatedAppCustomersIndexRoute,
 }
 
 const AuthenticatedAppRouteWithChildren =

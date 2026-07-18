@@ -29,7 +29,7 @@ import {
 } from "@/lib/customers.functions";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 
-export const Route = createFileRoute("/_authenticated/app/customers")({
+export const Route = createFileRoute("/_authenticated/app/customers/")({
   component: CustomersPage,
   head: () => ({
     meta: [
