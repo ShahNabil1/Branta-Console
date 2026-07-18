@@ -72,22 +72,23 @@ function InboxPage() {
 
   const listQ = useQuery({
     queryKey: ["inbox", "list", filter],
-    queryFn: () => listFn({ data: { filter, limit: 200 } }),
-    staleTime: 15_000,
+    queryFn: () => listFn({ data: { filter, limit: 50 } }),
+    staleTime: 30_000,
+    retry: 1,
   });
 
   const syncMut = useMutation({
     mutationFn: () => syncFn({ data: { maxResults: 50 } }),
     onSuccess: (r) => {
-      toast.success(`Synced ${r.synced} messages`);
+      if (r.newLinked > 0) toast.success(`${r.newLinked} new lead reply`);
       qc.invalidateQueries({ queryKey: ["inbox"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
-  // Auto-sync on mount, then every 60s.
+  // Background sync every 60s (list already fetches live from Gmail, so
+  // sync is only needed to write notifier ledger rows for new lead replies).
   useEffect(() => {
-    syncMut.mutate();
     const t = setInterval(() => syncMut.mutate(), 60_000);
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
