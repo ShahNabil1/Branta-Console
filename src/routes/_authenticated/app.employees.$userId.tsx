@@ -48,7 +48,7 @@ import {
   type EmployeeRole,
 } from "@/lib/employee-detail.functions";
 import { checkIsAdmin, deleteEmployee } from "@/lib/employees.functions";
-import { writeBackup } from "@/lib/impersonation";
+import { clearBackup, isImpersonating, readBackup, writeBackup } from "@/lib/impersonation";
 
 export const Route = createFileRoute("/_authenticated/app/employees/$userId")({
   head: () => ({ meta: [{ title: "Employee · Branta Tech" }] }),
