@@ -48,7 +48,7 @@ import {
   type EmployeeRole,
 } from "@/lib/employee-detail.functions";
 import { checkIsAdmin, deleteEmployee } from "@/lib/employees.functions";
-import { writeBackup } from "@/lib/impersonation";
+import { clearBackup, isImpersonating, readBackup, writeBackup } from "@/lib/impersonation";
 
 export const Route = createFileRoute("/_authenticated/app/employees/$userId")({
   head: () => ({ meta: [{ title: "Employee · Branta Tech" }] }),
@@ -203,8 +203,41 @@ function EmployeeDetailPage() {
   }
 
   if (!admin.data?.isAdmin) {
+    const impersonating = isImpersonating();
     return (
-      <div className="p-6 text-sm text-muted-foreground">Admin only.</div>
+      <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center text-sm text-muted-foreground">
+        <div className="font-semibold text-foreground">Admin access required</div>
+        <p className="max-w-md text-[12.5px]">
+          {impersonating
+            ? "You're currently impersonating another employee. Exit impersonation from the amber banner at the top to regain admin access."
+            : "Your account does not have admin privileges. Sign out and sign back in as an admin, or ask a super-admin to grant you access."}
+        </p>
+        <button
+          onClick={async () => {
+            const b = readBackup();
+            if (impersonating && b) {
+              const { error } = await supabase.auth.setSession({
+                access_token: b.access_token,
+                refresh_token: b.refresh_token,
+              });
+              clearBackup();
+              window.dispatchEvent(new Event("branta:impersonation-changed"));
+              if (error) {
+                await supabase.auth.signOut().catch(() => {});
+                window.location.assign("/login");
+                return;
+              }
+              window.location.assign("/app/employees");
+            } else {
+              await supabase.auth.signOut().catch(() => {});
+              window.location.assign("/login");
+            }
+          }}
+          className="inline-flex h-9 items-center gap-1.5 rounded-sm border border-brand bg-brand px-3 text-[12.5px] font-semibold text-white hover:bg-brand/90"
+        >
+          {impersonating ? "Exit impersonation" : "Sign out"}
+        </button>
+      </div>
     );
   }
 
@@ -219,7 +252,7 @@ function EmployeeDetailPage() {
   const e = detail.data;
   const p = e.profile;
   const isSelf = admin.data?.isAdmin && userId === admin.data && false; // placeholder
-  const canSuperAdmin = !!admin.data?.isSuperAdmin;
+  const canSuperAdmin = !!admin.data?.isSuperAdmin && !isImpersonating();
 
   const toggleRole = (r: EmployeeRole) => {
     const base = selectedRoles ?? [...e.roles];
