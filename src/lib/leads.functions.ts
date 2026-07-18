@@ -418,11 +418,12 @@ export const listAssignableUsers = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<AssignableUser[]> => {
     const { data, error } = await context.supabase
       .from("profiles")
-      .select("user_id, full_name, personal_gmail")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .select("user_id, full_name, personal_gmail" as any)
       .order("full_name", { ascending: true })
       .limit(500);
     if (error) throw new Error(error.message);
-    return (data ?? []) as AssignableUser[];
+    return (data ?? []) as unknown as AssignableUser[];
   });
 
 // -------- Lead contacts CRUD --------
