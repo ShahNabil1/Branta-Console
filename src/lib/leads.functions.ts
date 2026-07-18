@@ -280,6 +280,35 @@ export const createLead = createServerFn({ method: "POST" })
     return { ...(row as unknown as LeadRow), email };
   });
 
+// Draft lead — placeholder row created when clicking "New lead".
+// Slug (BT-XX) is assigned automatically by the assign_lead_slug trigger.
+export const DRAFT_LEAD_NAME = "Untitled lead";
+
+export const createDraftLead = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<LeadRow> => {
+    const { data: row, error } = await context.supabase
+      .from("leads")
+      .insert({
+        name: DRAFT_LEAD_NAME,
+        status: "new",
+        currency: "BDT",
+        owner_id: context.userId,
+        created_by: context.userId,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any)
+      .select("*")
+      .single();
+    if (error) throw new Error(error.message);
+    await context.supabase.from("lead_activities").insert({
+      lead_id: row.id,
+      actor_id: context.userId,
+      kind: "created",
+      body: "Lead created (draft)",
+    });
+    return { ...(row as unknown as LeadRow), email: null };
+  });
+
 
 export const updateLead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
