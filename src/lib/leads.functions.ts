@@ -410,6 +410,7 @@ export const addLeadActivity = createServerFn({ method: "POST" })
 export interface AssignableUser {
   user_id: string;
   full_name: string | null;
+  personal_gmail?: string | null;
 }
 
 export const listAssignableUsers = createServerFn({ method: "GET" })
@@ -417,11 +418,12 @@ export const listAssignableUsers = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<AssignableUser[]> => {
     const { data, error } = await context.supabase
       .from("profiles")
-      .select("user_id, full_name")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .select("user_id, full_name, personal_gmail" as any)
       .order("full_name", { ascending: true })
       .limit(500);
     if (error) throw new Error(error.message);
-    return (data ?? []) as AssignableUser[];
+    return (data ?? []) as unknown as AssignableUser[];
   });
 
 // -------- Lead contacts CRUD --------

@@ -17,7 +17,16 @@ export interface LeadMeetingRow {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  created_by_name?: string | null;
 }
+
+const gmailOnly = z
+  .string()
+  .trim()
+  .email()
+  .refine((v) => /^[^\s@]+@gmail\.com$/i.test(v), {
+    message: "Only @gmail.com addresses are allowed",
+  });
 
 const ScheduleInput = z.object({
   leadId: z.string().uuid(),
@@ -25,7 +34,7 @@ const ScheduleInput = z.object({
   description: z.string().trim().max(4000).optional().nullable(),
   startsAt: z.string(),
   endsAt: z.string(),
-  attendees: z.array(z.string().email()).default([]),
+  attendees: z.array(gmailOnly).min(1).max(50),
 });
 
 interface GCalEvent {
@@ -39,6 +48,11 @@ export const scheduleLeadMeeting = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => ScheduleInput.parse(d))
   .handler(async ({ data, context }): Promise<LeadMeetingRow> => {
+    // Deduplicate attendees case-insensitively
+    const uniqAttendees = Array.from(
+      new Map(data.attendees.map((e) => [e.toLowerCase(), e])).values(),
+    );
+
     const { callGateway } = await import("@/lib/connector-gateway.server");
     const requestId = crypto.randomUUID();
     const ev = await callGateway<GCalEvent>({
@@ -51,7 +65,7 @@ export const scheduleLeadMeeting = createServerFn({ method: "POST" })
         description: data.description ?? "",
         start: { dateTime: data.startsAt },
         end: { dateTime: data.endsAt },
-        attendees: data.attendees.map((email) => ({ email })),
+        attendees: uniqAttendees.map((email) => ({ email })),
         conferenceData: {
           createRequest: {
             requestId,
@@ -77,7 +91,7 @@ export const scheduleLeadMeeting = createServerFn({ method: "POST" })
         starts_at: data.startsAt,
         ends_at: data.endsAt,
         meeting_link: meetLink,
-        attendees: data.attendees,
+        attendees: uniqAttendees,
         status: "scheduled",
         created_by: context.userId,
       })
@@ -85,7 +99,6 @@ export const scheduleLeadMeeting = createServerFn({ method: "POST" })
       .single();
     if (error) throw new Error(error.message);
 
-    // Bump lead to meeting status + activity log
     await context.supabase
       .from("leads")
       .update({ status: "meeting" })
@@ -128,7 +141,7 @@ export const cancelLeadMeeting = createServerFn({ method: "POST" })
     }
     await context.supabase
       .from("lead_meetings")
-      .update({ status: "cancelled" })
+      .update({ status: "cancelled", meeting_link: null })
       .eq("id", data.id);
     await context.supabase.from("lead_activities").insert({
       lead_id: mtg.lead_id,
@@ -152,5 +165,23 @@ export const listLeadMeetings = createServerFn({ method: "GET" })
       .order("starts_at", { ascending: false })
       .limit(100);
     if (error) throw new Error(error.message);
-    return (rows ?? []) as LeadMeetingRow[];
+    const list = (rows ?? []) as LeadMeetingRow[];
+
+    // Resolve creator names in one query
+    const creatorIds = Array.from(
+      new Set(list.map((m) => m.created_by).filter(Boolean) as string[]),
+    );
+    if (creatorIds.length > 0) {
+      const { data: profs } = await context.supabase
+        .from("profiles")
+        .select("user_id, full_name")
+        .in("user_id", creatorIds);
+      const nameById = new Map(
+        (profs ?? []).map((p) => [p.user_id, p.full_name ?? null]),
+      );
+      for (const m of list) {
+        m.created_by_name = m.created_by ? nameById.get(m.created_by) ?? null : null;
+      }
+    }
+    return list;
   });

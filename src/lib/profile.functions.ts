@@ -33,6 +33,15 @@ const UpdateProfileInput = z.object({
   avatar_url: nullableString(500),
   nid_url: nullableString(500),
   cv_url: nullableString(500),
+  personal_gmail: z
+    .string()
+    .trim()
+    .max(200)
+    .nullish()
+    .transform((v) => (v && v.length > 0 ? v.toLowerCase() : null))
+    .refine((v) => v === null || /^[a-z0-9._%+-]+@gmail\.com$/i.test(v), {
+      message: "Must be a valid @gmail.com address",
+    }),
 });
 
 export type ProfileRow = {
@@ -56,6 +65,7 @@ export type ProfileRow = {
   mfs_number: string | null;
   nid_url: string | null;
   cv_url: string | null;
+  personal_gmail: string | null;
   kyc_status: string;
   kyc_document_type: string | null;
   kyc_document_number: string | null;

@@ -215,6 +215,7 @@ function ProfileForm({
           avatar_url: form.avatar_url,
           nid_url: form.nid_url,
           cv_url: form.cv_url,
+          personal_gmail: form.personal_gmail,
         },
       });
       toast.success("Profile updated");
@@ -296,6 +297,18 @@ function ProfileForm({
                   className="h-9 rounded-sm bg-muted font-mono text-[12px]"
                   value={email}
                   readOnly
+                />
+              </Field>
+              <Field
+                label="Personal Gmail"
+                hint="Used for Google Meet invites. Must be a @gmail.com address."
+              >
+                <Input
+                  className="h-9 rounded-sm font-mono text-[12px]"
+                  value={form.personal_gmail ?? ""}
+                  onChange={(e) => set("personal_gmail", e.target.value.trim().toLowerCase() || null)}
+                  placeholder="yourname@gmail.com"
+                  type="email"
                 />
               </Field>
             </div>
