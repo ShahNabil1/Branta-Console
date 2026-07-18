@@ -1377,54 +1377,85 @@ export function LeadDetail({
                 </div>
               )}
               {activities.data && activities.data.length > 0 && (
-                <ol className="relative px-3 py-3">
-                  <span
-                    className="pointer-events-none absolute bottom-3 left-[19px] top-3 w-px bg-border"
-                    aria-hidden
-                  />
-                  {activities.data.map((a) => {
-                    const d = new Date(a.created_at);
-                    const abs = d.toLocaleString(undefined, {
-                      year: "numeric",
-                      month: "short",
-                      day: "2-digit",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      second: "2-digit",
-                      hour12: true,
-                    });
-                    return (
-                      <li key={a.id} className="relative pb-4 pl-8 last:pb-0">
-                        <span
-                          className="absolute left-[15px] top-1.5 grid size-2 place-items-center rounded-full bg-brand ring-4 ring-card"
-                          aria-hidden
-                        />
-                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                          <span className="rounded-sm bg-muted px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-                            {a.kind}
-                          </span>
-                          <span className="text-[12px] font-medium text-foreground">
-                            {a.actor_name ?? "System"}
-                          </span>
-                        </div>
-                        {a.body && (
-                          <div className="mt-1 whitespace-pre-wrap text-[12.5px] text-foreground">
-                            {a.body}
+                <>
+                  <ol className="relative px-3 py-3">
+                    <span
+                      className="pointer-events-none absolute bottom-3 left-[19px] top-3 w-px bg-border"
+                      aria-hidden
+                    />
+                    {activities.data.slice(0, visibleActivityCount).map((a) => {
+                      const d = new Date(a.created_at);
+                      const abs = d.toLocaleString(undefined, {
+                        year: "numeric",
+                        month: "short",
+                        day: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        second: "2-digit",
+                        hour12: true,
+                      });
+                      return (
+                        <li key={a.id} className="relative pb-4 pl-8 last:pb-0">
+                          <span
+                            className="absolute left-[15px] top-1.5 grid size-2 place-items-center rounded-full bg-brand ring-4 ring-card"
+                            aria-hidden
+                          />
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                            <span className="rounded-sm bg-muted px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                              {a.kind}
+                            </span>
+                            <span className="text-[12px] font-medium text-foreground">
+                              {a.actor_name ?? "System"}
+                            </span>
                           </div>
-                        )}
-                        <div
-                          className="mt-1 font-mono text-[10.5px] text-muted-foreground"
-                          title={d.toISOString()}
+                          {a.body && (
+                            <div className="mt-1 whitespace-pre-wrap text-[12.5px] text-foreground">
+                              {a.body}
+                            </div>
+                          )}
+                          <div
+                            className="mt-1 font-mono text-[10.5px] text-muted-foreground"
+                            title={d.toISOString()}
+                          >
+                            {abs}
+                            <span className="ml-1.5 text-[10px] text-muted-foreground/70">
+                              · {relTime(a.created_at)}
+                            </span>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                  {activities.data.length > visibleActivityCount && (
+                    <div className="flex items-center justify-center gap-2 border-t border-border px-3 py-2.5">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 rounded-sm text-[11.5px]"
+                        onClick={() =>
+                          setVisibleActivityCount((c) => c + 5)
+                        }
+                      >
+                        See more
+                        <span className="ml-1.5 font-mono text-[10px] text-muted-foreground">
+                          {Math.min(5, activities.data.length - visibleActivityCount)} of {activities.data.length - visibleActivityCount} left
+                        </span>
+                      </Button>
+                      {visibleActivityCount > 5 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 rounded-sm text-[11.5px] text-muted-foreground"
+                          onClick={() => setVisibleActivityCount(5)}
                         >
-                          {abs}
-                          <span className="ml-1.5 text-[10px] text-muted-foreground/70">
-                            · {relTime(a.created_at)}
-                          </span>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ol>
+                          Collapse
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </section>
