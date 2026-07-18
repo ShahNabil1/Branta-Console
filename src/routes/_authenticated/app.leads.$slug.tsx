@@ -3,12 +3,23 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
+import { zodValidator, fallback } from "@tanstack/zod-adapter";
+import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
-import { getLeadBySlug, listAssignableUsers } from "@/lib/leads.functions";
+import {
+  getLeadBySlug,
+  listAssignableUsers,
+  DRAFT_LEAD_NAME,
+} from "@/lib/leads.functions";
 import { LeadDetail } from "@/components/leads/lead-detail";
+
+const searchSchema = z.object({
+  new: fallback(z.number().int(), 0).default(0),
+});
 
 export const Route = createFileRoute("/_authenticated/app/leads/$slug")({
   component: LeadDetailPage,
+  validateSearch: zodValidator(searchSchema),
   head: ({ params }) => ({
     meta: [
       { title: `Lead ${params.slug} · Branta Tech Console` },
@@ -19,6 +30,8 @@ export const Route = createFileRoute("/_authenticated/app/leads/$slug")({
 
 function LeadDetailPage() {
   const { slug } = Route.useParams();
+  const { new: isNewFlag } = Route.useSearch();
+  const isNew = isNewFlag === 1;
   const navigate = useNavigate();
   const getFn = useServerFn(getLeadBySlug);
   const listUsers = useServerFn(listAssignableUsers);
@@ -34,7 +47,6 @@ function LeadDetailPage() {
     staleTime: 60_000,
   });
 
-  // Realtime refresh when this lead's row or activities/contacts change.
   useEffect(() => {
     const leadId = leadQ.data?.id;
     if (!leadId) return;
@@ -85,10 +97,18 @@ function LeadDetailPage() {
     );
   }
 
+  // For a freshly created draft lead, render all fields as empty placeholders
+  // by masking the sentinel "Untitled lead" name to "".
+  const effectiveLead =
+    isNew && leadQ.data.name === DRAFT_LEAD_NAME
+      ? { ...leadQ.data, name: "" }
+      : leadQ.data;
+
   return (
     <LeadDetail
-      lead={leadQ.data}
+      lead={effectiveLead}
       users={usersQ.data ?? []}
+      initialEdit={isNew}
       onDeleted={() => navigate({ to: "/app/leads" })}
     />
   );
