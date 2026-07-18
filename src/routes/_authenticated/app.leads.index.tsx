@@ -76,23 +76,6 @@ export const Route = createFileRoute("/_authenticated/app/leads/")({
   }),
 });
 
-function StatusBadge({
-  status,
-  options,
-}: {
-  status: LeadStatusDB;
-  options: LeadStatusOption[];
-}) {
-  return (
-    <span className="inline-flex items-center gap-2 text-[12.5px] font-medium text-foreground">
-      <span
-        className="size-1.5 rounded-full"
-        style={{ background: `var(${statusColorVar(status, options)})` }}
-      />
-      {statusLabel(status, options)}
-    </span>
-  );
-}
 
 function relTime(iso: string) {
   const d = new Date(iso).getTime();
@@ -119,14 +102,6 @@ function initialsOf(name?: string | null) {
     .slice(0, 2);
 }
 
-const money = (v: number | null | undefined, currency: string = "BDT") =>
-  v == null
-    ? "—"
-    : new Intl.NumberFormat(currency === "BDT" ? "en-BD" : "en-US", {
-        style: "currency",
-        currency: currency === "USD" ? "USD" : "BDT",
-        maximumFractionDigits: 0,
-      }).format(v);
 
 function LeadsPage() {
   const qc = useQueryClient();
@@ -369,13 +344,13 @@ function LeadsPage() {
       </div>
 
       <div className="flex-1 overflow-hidden rounded-sm border border-border bg-card">
-        <div className="grid grid-cols-[110px_1.4fr_1.2fr_170px_180px_120px_130px] items-center border-b border-border bg-muted/40 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+        <div className="grid grid-cols-[110px_1.4fr_1.2fr_170px_180px_170px_130px] items-center border-b border-border bg-muted/40 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
           <div>Code</div>
           <div>Lead</div>
           <div>Company</div>
           <div>Status</div>
           <div>Owner</div>
-          <div className="text-right">Value</div>
+          <div>Service</div>
           <div className="text-right">Last activity</div>
         </div>
         <div className="max-h-[calc(100vh-260px)] overflow-y-auto">
@@ -387,52 +362,81 @@ function LeadsPage() {
           ) : filtered.length === 0 ? (
             <EmptyState onCreate={onNewLead} busy={createDraftM.isPending} />
           ) : (
-            paged.map((row) => (
-              <button
-                key={row.id}
-                onClick={() =>
-                  navigate({
-                    to: "/app/leads/$slug",
-                    params: { slug: row.slug ?? row.lead_code },
-                  })
-                }
-                className={cn(
-                  "grid w-full grid-cols-[110px_1.4fr_1.2fr_170px_180px_120px_130px] items-center border-b border-border/60 px-3 py-2.5 text-left text-[13px] transition-colors hover:bg-muted/50",
-                )}
-              >
-                <div className="font-mono text-[11.5px] text-primary">
-                  {row.slug ?? row.lead_code}
-                </div>
-                <div className="min-w-0">
-                  <div className="truncate font-medium text-foreground">
-                    {row.name}
-                  </div>
-                  {row.email && (
-                    <div className="truncate text-[11.5px] text-muted-foreground">
-                      {row.email}
-                    </div>
+            paged.map((row, idx) => {
+              const accent = `var(${statusColorVar(row.status, statusOptions)})`;
+              const service = row.service === "Other" ? row.service_other : row.service;
+              return (
+                <button
+                  key={row.id}
+                  onClick={() =>
+                    navigate({
+                      to: "/app/leads/$slug",
+                      params: { slug: row.slug ?? row.lead_code },
+                    })
+                  }
+                  style={{
+                    animationDelay: `${Math.min(idx, 12) * 24}ms`,
+                    // subtle accent stripe on the left, tinted hover background
+                    ["--row-accent" as string]: accent,
+                  }}
+                  className={cn(
+                    "group relative grid w-full animate-fade-in grid-cols-[110px_1.4fr_1.2fr_170px_180px_170px_130px] items-center border-b border-border/60 px-3 py-2.5 text-left text-[13px] transition-all duration-200",
+                    "hover:z-[1] hover:-translate-y-[1px] hover:bg-[linear-gradient(90deg,color-mix(in_oklab,var(--row-accent)_10%,transparent),transparent_55%)] hover:shadow-[0_4px_14px_-8px_color-mix(in_oklab,var(--row-accent)_60%,transparent)]",
+                    "before:absolute before:left-0 before:top-1/2 before:h-6 before:w-[3px] before:-translate-y-1/2 before:rounded-r-full before:bg-[var(--row-accent)] before:opacity-70 before:transition-all before:duration-200 hover:before:h-[80%] hover:before:opacity-100",
                   )}
-                </div>
-                <div className="truncate text-foreground">{row.company ?? "—"}</div>
-                <div>
-                  <StatusBadge status={row.status} options={statusOptions} />
-                </div>
-                <div className="flex min-w-0 items-center gap-2">
-                  <span className="grid size-6 shrink-0 place-items-center rounded-full bg-muted text-[10px] font-bold text-foreground">
-                    {initialsOf(row.owner_name)}
-                  </span>
-                  <span className="truncate text-[12.5px] text-foreground">
-                    {row.owner_name ?? "Unassigned"}
-                  </span>
-                </div>
-                <div className="text-right font-mono text-[12.5px] text-foreground">
-                  {money(row.value_usd, row.currency)}
-                </div>
-                <div className="text-right font-mono text-[11.5px] text-muted-foreground">
-                  {relTime(row.last_activity_at)}
-                </div>
-              </button>
-            ))
+                >
+                  <div className="font-mono text-[11.5px] font-semibold text-primary">
+                    {row.slug ?? row.lead_code}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="truncate font-medium text-foreground transition-colors group-hover:text-primary">
+                      {row.name}
+                    </div>
+                    {row.email && (
+                      <div className="truncate text-[11.5px] text-muted-foreground">
+                        {row.email}
+                      </div>
+                    )}
+                  </div>
+                  <div className="truncate text-foreground">{row.company ?? "—"}</div>
+                  <div>
+                    <span
+                      className="inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11.5px] font-medium transition-transform duration-200 group-hover:scale-[1.03]"
+                      style={{
+                        color: accent,
+                        borderColor: `color-mix(in oklab, ${accent} 45%, transparent)`,
+                        background: `color-mix(in oklab, ${accent} 12%, transparent)`,
+                      }}
+                    >
+                      <span
+                        className="size-1.5 rounded-full"
+                        style={{ background: accent }}
+                      />
+                      {statusLabel(row.status, statusOptions)}
+                    </span>
+                  </div>
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span
+                      className="grid size-6 shrink-0 place-items-center rounded-full text-[10px] font-bold text-primary-foreground shadow-sm transition-transform duration-200 group-hover:scale-110"
+                      style={{
+                        background: `linear-gradient(135deg, ${accent}, color-mix(in oklab, ${accent} 55%, #000))`,
+                      }}
+                    >
+                      {initialsOf(row.owner_name)}
+                    </span>
+                    <span className="truncate text-[12.5px] text-foreground">
+                      {row.owner_name ?? "Unassigned"}
+                    </span>
+                  </div>
+                  <div className="truncate text-[12.5px] text-muted-foreground">
+                    {service ?? "—"}
+                  </div>
+                  <div className="text-right font-mono text-[11.5px] text-muted-foreground">
+                    {relTime(row.last_activity_at)}
+                  </div>
+                </button>
+              );
+            })
           )}
         </div>
       </div>

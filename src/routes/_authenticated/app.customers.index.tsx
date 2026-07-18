@@ -28,6 +28,7 @@ import {
   type CustomerRow,
 } from "@/lib/customers.functions";
 import { useConfirm } from "@/components/ui/confirm-dialog";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/app/customers/")({
   component: CustomersPage,
@@ -155,7 +156,7 @@ function CustomersPage() {
         </Button>
       </header>
 
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto p-4">
         {query.isLoading ? (
           <div className="grid h-40 place-items-center text-muted-foreground">
             <Loader2 className="size-4 animate-spin" />
@@ -165,56 +166,59 @@ function CustomersPage() {
             No customers yet. Leads with status "Converted" appear here automatically.
           </div>
         ) : (
-          <table className="w-full text-[13px]">
-            <thead className="hairline-b sticky top-0 bg-card text-[11px] uppercase tracking-wide text-muted-foreground">
-              <tr>
-                <th className="px-4 py-2 text-left">Code</th>
-                <th className="px-4 py-2 text-left">Name</th>
-                <th className="px-4 py-2 text-left">Company</th>
-                <th className="px-4 py-2 text-left">Email</th>
-                <th className="px-4 py-2 text-left">Phone</th>
-                <th className="px-4 py-2 text-left">Source</th>
-                <th className="px-4 py-2 text-left">Origin</th>
-                <th className="px-4 py-2 text-left">Added</th>
-                <th className="px-4 py-2" />
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((r) => (
-                <tr key={r.id} className="hairline-b hover:bg-muted/40">
-                  <td className="px-4 py-2 font-mono text-[12px]">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {filtered.map((r, idx) => {
+              const fromLead = !!r.converted_from_lead_id;
+              // Alternate accent so the grid feels colorful without being noisy.
+              const palette = [
+                "#E56A17", // brand orange
+                "#2563EB", // blue
+                "#10B981", // emerald
+                "#8B5CF6", // violet
+                "#EC4899", // pink
+                "#F59E0B", // amber
+              ];
+              const accent = palette[(r.customer_code.charCodeAt(r.customer_code.length - 1) || idx) % palette.length];
+              return (
+                <div
+                  key={r.id}
+                  style={{
+                    animationDelay: `${Math.min(idx, 12) * 30}ms`,
+                    ["--card-accent" as string]: accent,
+                  }}
+                  className={cn(
+                    "group relative flex animate-fade-in flex-col overflow-hidden rounded-lg border border-border bg-card p-4 transition-all duration-300",
+                    "hover:-translate-y-1 hover:border-[color:var(--card-accent)]/50",
+                    "hover:shadow-[0_12px_32px_-16px_color-mix(in_oklab,var(--card-accent)_60%,transparent)]",
+                  )}
+                >
+                  {/* colored top accent bar */}
+                  <span
+                    aria-hidden
+                    className="absolute inset-x-0 top-0 h-1 transition-all duration-300 group-hover:h-1.5"
+                    style={{
+                      background: `linear-gradient(90deg, var(--card-accent), color-mix(in oklab, var(--card-accent) 40%, transparent))`,
+                    }}
+                  />
+                  {/* soft radial glow on hover */}
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute -right-8 -top-8 size-32 rounded-full opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-40"
+                    style={{ background: "var(--card-accent)" }}
+                  />
+
+                  <div className="flex items-start justify-between gap-2">
                     <Link
                       to="/app/customers/$code"
                       params={{ code: r.customer_code }}
-                      className="text-brand hover:underline"
+                      className="font-mono text-[11.5px] font-semibold text-[color:var(--card-accent)] hover:underline"
                     >
                       {r.customer_code}
                     </Link>
-                  </td>
-                  <td className="px-4 py-2 font-medium">
-                    <Link
-                      to="/app/customers/$code"
-                      params={{ code: r.customer_code }}
-                      className="hover:underline"
-                    >
-                      {r.name}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-2">{r.company ?? "—"}</td>
-                  <td className="px-4 py-2">{r.email ?? "—"}</td>
-                  <td className="px-4 py-2">{r.phone ?? "—"}</td>
-                  <td className="px-4 py-2">{r.source ?? "—"}</td>
-                  <td className="px-4 py-2 text-[12px] text-muted-foreground">
-                    {r.converted_from_lead_id ? "From lead" : "Manual"}
-                  </td>
-                  <td className="px-4 py-2 text-[12px] text-muted-foreground">
-                    {relTime(r.created_at)}
-                  </td>
-                  <td className="px-4 py-2 text-right">
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="size-7"
+                      className="size-7 opacity-0 transition-opacity group-hover:opacity-100"
                       onClick={async () => {
                         const ok = await confirm({
                           title: `Delete ${r.customer_code}?`,
@@ -227,11 +231,72 @@ function CustomersPage() {
                     >
                       <Trash2 className="size-3.5 text-muted-foreground" />
                     </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </div>
+
+                  <div className="mt-2 flex items-center gap-3">
+                    <span
+                      className="grid size-10 shrink-0 place-items-center rounded-full text-[13px] font-bold text-primary-foreground shadow-sm transition-transform duration-300 group-hover:scale-110"
+                      style={{
+                        background: `linear-gradient(135deg, var(--card-accent), color-mix(in oklab, var(--card-accent) 45%, #000))`,
+                      }}
+                    >
+                      {r.name
+                        .split(/\s+/)
+                        .map((p) => p[0]?.toUpperCase())
+                        .join("")
+                        .slice(0, 2) || "—"}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <Link
+                        to="/app/customers/$code"
+                        params={{ code: r.customer_code }}
+                        className="block truncate text-[14px] font-semibold text-foreground transition-colors group-hover:text-[color:var(--card-accent)]"
+                      >
+                        {r.name}
+                      </Link>
+                      {r.company && (
+                        <div className="truncate text-[12px] text-muted-foreground">
+                          {r.company}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mt-3 space-y-1 text-[12.5px]">
+                    {r.email && (
+                      <div className="truncate text-muted-foreground">
+                        <span className="text-foreground/70">✉</span> {r.email}
+                      </div>
+                    )}
+                    {r.phone && (
+                      <div className="truncate text-muted-foreground">
+                        <span className="text-foreground/70">☏</span> {r.phone}
+                      </div>
+                    )}
+                    {r.source && (
+                      <div className="truncate text-muted-foreground">
+                        <span className="text-foreground/70">◎</span> {r.source}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-auto flex items-center justify-between gap-2 pt-4 text-[11px] text-muted-foreground">
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-medium",
+                        fromLead
+                          ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-600"
+                          : "border-border bg-muted/60",
+                      )}
+                    >
+                      {fromLead ? "From lead" : "Manual"}
+                    </span>
+                    <span className="font-mono">{relTime(r.created_at)}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
 
