@@ -140,7 +140,16 @@ async function fetchMessageMetadata(id: string): Promise<GmailMessage> {
     path: `/gmail/v1/users/me/messages/${encodeURIComponent(id)}`,
     query: {
       format: "metadata",
-      metadataHeaders: "Subject,From,To,Cc,Date,Delivered-To,X-Forwarded-To,X-Original-To",
+      metadataHeaders: [
+        "Subject",
+        "From",
+        "To",
+        "Cc",
+        "Date",
+        "Delivered-To",
+        "X-Forwarded-To",
+        "X-Original-To",
+      ],
     },
   });
 }
