@@ -242,22 +242,23 @@ function LeadsPage() {
     if (rawSearch.page > totalPages) {
       navigate({
         to: "/app/leads",
-        search: (p) => ({ ...p, page: 1 }),
+        search: { page: 1, pageSize },
         replace: true,
       });
     }
-  }, [totalPages, rawSearch.page, navigate]);
+  }, [totalPages, rawSearch.page, navigate, pageSize]);
 
   const setPage = (n: number) =>
     navigate({
       to: "/app/leads",
-      search: (p) => ({ ...p, page: Math.min(Math.max(1, n), totalPages) }),
+      search: { page: Math.min(Math.max(1, n), totalPages), pageSize },
     });
   const setPageSize = (n: number) =>
     navigate({
       to: "/app/leads",
-      search: (p) => ({ ...p, pageSize: n, page: 1 }),
+      search: { page: 1, pageSize: n },
     });
+
 
 
   return (
