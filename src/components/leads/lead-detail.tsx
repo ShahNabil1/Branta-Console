@@ -664,7 +664,7 @@ export function LeadDetail({
   // Optional note captured when status changes; cleared after save.
   const [statusChangeNote, setStatusChangeNote] = useState("");
   // Details section lock — read-only by default, unlocks on Edit click.
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(initialEdit);
   const confirm = useConfirm();
 
   useEffect(() => {
