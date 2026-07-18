@@ -164,10 +164,12 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <DevToolsShield>
-        <Outlet />
-      </DevToolsShield>
-      <Toaster position="bottom-right" />
+      <ConfirmProvider>
+        <DevToolsShield>
+          <Outlet />
+        </DevToolsShield>
+        <Toaster position="bottom-right" />
+      </ConfirmProvider>
     </QueryClientProvider>
   );
 }
