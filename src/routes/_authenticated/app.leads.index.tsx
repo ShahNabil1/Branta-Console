@@ -521,7 +521,6 @@ function EmptyState({
     </div>
   );
 }
-}
 
 // ---------- Sheet sync ----------
 function SheetSyncButton() {
