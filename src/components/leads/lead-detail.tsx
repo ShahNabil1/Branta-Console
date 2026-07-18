@@ -22,6 +22,7 @@ import {
   Phone as PhoneIcon,
   Info,
   Pencil,
+  PenSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
