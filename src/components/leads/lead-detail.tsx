@@ -3054,7 +3054,7 @@ function MeetingsTab({
                 description: `A calendar event "${title.trim()}" will be created and Google will email an invite (with the Meet link) to ${attendees.length} attendee${attendees.length > 1 ? "s" : ""}: ${attendees.join(", ")}.`,
                 confirmText: "Create meeting",
                 cancelText: "Back",
-                tone: "primary",
+                tone: "info",
               });
               if (ok) schedM.mutate();
             }}
