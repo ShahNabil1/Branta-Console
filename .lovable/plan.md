@@ -1,166 +1,85 @@
-# Leads Email + Lead Page Overhaul
+# Inbox Page — Plan
 
-বড় কাজ, 6 ফেইজে ভাগ করলাম। প্রতিটা ফেইজ merge-ready state — আগেরটা শেষ না হলে পরেরটায় যাবো না।
+সব ইনকামিং মেইল ([hello@brantatech.com](mailto:hello@brantatech.com) → Cloudflare routing → [brantatech@gmail.com](mailto:brantatech@gmail.com)) সরাসরি Gmail connector দিয়ে fetch করা হবে, DB-তে full body store না করে হালকা metadata cache রাখা হবে, আর reply যাবে existing Resend/Brevo queue দিয়ে।
 
----
+## 1. Routing & Sidebar
 
-## Phase 1 — Lead slug + full page route
+- নতুন route: `src/routes/_authenticated/app.inbox.tsx` (list) এবং `app.inbox.$id.tsx` (thread view)।
+- `app-sidebar.tsx`-এ Inbox item-এর `to` `/app` থেকে `/app/inbox` করা।
 
-**DB migration**
+## 2. Gmail data flow (no heavy DB mirroring)
 
-- `leads` এ নতুন column `slug text unique` (format: `BT-01`, `BT-02`, ...)
-- Sequence `lead_slug_seq` (starts 1)
-- Trigger `before insert`: যদি slug null হয় → `'BT-' || lpad(nextval('lead_slug_seq')::text, 2, '0')` (2 digit min, 100+ হলে ন্যাচারালি 100, 1000)
-- Existing rows-এর জন্য backfill: `lead_code` অর্ডারে slug assign (BT-01, BT-02...)
-- `lead_code` field রেখেই দেবো (legacy display), কিন্তু route/UI-এ slug primary
-- `lead_contacts` new table: `id, lead_id, email citext, label text, is_primary bool, created_at` — এক leadে multiple recipient email support (তোমার multi-email requirement)
-- Migrate existing `leads.email` → `lead_contacts` row (is_primary=true)
+Gmail-ই source of truth। আমরা শুধু lightweight metadata cache রাখব যাতে lead-linking, notification, unread badge কাজ করে।
 
-**Route**
+Server functions (`src/lib/inbox.functions.ts`, gateway = `google_mail`):
 
-- নতুন file: `src/routes/_authenticated/app.leads.$slug.tsx`
-- `app.leads.tsx` toolbar থেকে row-click → `navigate({ to: '/app/leads/$slug', params: { slug } })`
-- Sheet drawer সম্পূর্ণ remove; list page শুধু grid + filters
-- Full page layout: left column (lead meta + contacts CRUD), right column tabs (Overview / Emails / Meetings / Docs / Activity)
-- URL হবে `/app/leads/bt-01` (case-insensitive lookup)
+- `listInbox({ pageToken, q })` → `users/me/messages?q=to:hello@brantatech.com -from:me` (+ user filter) → `messages.get(format=metadata)` batched → returns thread list (subject, from, snippet, date, unread, labelIds, lead link)।
+- `getThread(threadId)` → `users/me/threads/{id}?format=full` → parse MIME parts (text/plain + text/html), attachments metadata, headers (Message-ID, References, In-Reply-To)।
+- `markRead(threadId)` → `messages/{id}/modify` removing `UNREAD` (needs `gmail.modify` scope; reconnect flow if 403)।
+- `archiveThread`, `trashThread` — একই modify endpoint।
 
----
+Client: TanStack Query + Supabase Realtime channel (নিচের cache table)। Auto-poll প্রতি 60s ও tab focus-এ refetch।
 
-## Phase 2 — Resend-only compose (Gmail removed)
+## 3. Metadata cache + lead linking
 
-**UI (Emails tab, full page)**
-
-- Provider selector সরানো — শুধু Resend badge
-- **Recipient multi-select**: lead_contacts থেকে checkbox list, প্রতিটার পাশে email visible; selected যতগুলা, প্রত্যেকের কাছে আলাদা send (per-recipient email row → per-recipient webhook tracking)
-- **Format toggle**: Plain Text / HTML (radio)
-- **Personalization variable chips** — এক click-এ cursor position-এ insert:
-  - `{{lead.name}}`, `{{lead.company}}`, `{{lead.first_name}}`
-  - `{{contact.email}}`, `{{contact.label}}`
-  - `{{sender.name}}`, `{{sender.email}}` (logged-in employee)
-  - `{{date.today}}`, `{{date.tomorrow}}`
-  - `{{lead.value_usd}}`, `{{lead.next_action}}`
-  - Variables server-side render হবে send time-এ (client-side just preview)
-- **Preview button** (HTML mode-এ): modal opens with rendered HTML in sandboxed iframe, variables substituted with actual lead data, exact final email দেখাবে
-- Plain mode-এ Preview button hidden, textarea-ই enough
-
-**Server (`sendLeadEmail` refactor)**
-
-- Input: `{ leadId, contactIds[], format: 'html'|'text', subject, body }`
-- Loop over contactIds → 1 lead_email row per recipient (initial status: `queued`)
-- Variable interpolation server-side (never trust client-rendered body)
-- Resend call per row; response `id` (Resend email id) saved in `provider_message_id`
-
----
-
-## Phase 3 — Send queue (concurrency guard)
-
-**Concept**: burst-safe без Redis (Supabase-only)
-
-- `lead_emails.status` values: `queued | sending | sent | failed | ...webhook statuses`
-- `lead_email_queue` view: `count(*) where status='sending'`
-- Send flow (server fn `enqueueLeadEmails`):
-  1. Insert all recipient rows as `queued` (atomic)
-  2. Advisory lock via `pg_try_advisory_xact_lock(hashtext('resend_send_slot'))`
-  3. Count current `sending` rows
-  4. If total (sending + this batch) ≤ 10 → mark this batch `sending`, fire Resend calls in parallel
-  5. If > 10 → mark first (10 − sending) as `sending`, rest stay `queued`
-- **Drain worker**: `processQueue` server fn called after every send completion + on webhook receive; picks up `queued` rows FIFO in chunks of 10, respects same 10-concurrent cap
-- Client polls `/api/public/queue-status` OR uses Supabase realtime on `lead_emails` for status transitions
-- UI thread badge: `queued` → "In queue" chip; `sending` → spinner; `sent` → Resend chip with delivery events
-
-**Why not Sheets as source of truth (তোমার প্রশ্নের উত্তর)**:
-
-- Google Sheets API: 60 write/min per user, 300/min per project — 10 employee × burst webhooks সহজে quota trip করবে
-- Sheets-এ কোনো true realtime push নেই; polling দরকার = latency + quota burn
-- Row-level concurrent writes race condition prone
-- **Recommendation**: primary write Supabase-এ (fast, realtime built-in), Sheets-এ background mirror হিসেবে append (existing `pushLeadsToSheet`-এর মতো on-demand)। এতে DB load actually কম কারণ realtime subscription indexed table থেকে সরাসরি push করে, তোমার webhook-এর জন্য extra table scan নেই।
-
----
-
-## Phase 4 — Resend webhook + per-event tracking
-
-**Webhook URL (আগেই generate করে দিলাম, তুমি Resend-এ paste করবে)**:
+New table `public.inbox_messages` (Gmail message-id primary key):
 
 ```
-https://console.brantatech.com/api/public/resend/webhook
+gmail_message_id text pk, gmail_thread_id text, from_email citext,
+from_name text, subject text, snippet text, received_at timestamptz,
+is_unread bool, lead_id uuid null → leads(id), lead_contact_id uuid null,
+handled_by uuid null (auto = lead.owner_id), created_at, updated_at
 ```
 
-(secret optional — Resend Svix-signature verify করবো header থেকে; তুমি Resend dashboard-এ webhook create করার পর signing secret দাও, আমি form-এ যোগ করব)
+- GRANT authenticated select/update; service_role all; RLS: super_admin bypass + `handled_by = auth.uid()` OR lead-owner পড়তে/আপডেট করতে পারবে।
+- Realtime publication-এ যুক্ত।
 
-**DB**
+**Auto-linking logic** (server fn `syncInboxMessage`):
 
-- `lead_email_events` table: `id, lead_email_id fk, event_type, occurred_at, payload jsonb, created_at`
-- Event types (Resend থেকে যা আসে): `email.sent, email.delivered, email.delivery_delayed, email.bounced, email.complained, email.opened, email.clicked, email.failed, email.scheduled, email.suppressed`
-- Realtime enable
-- RLS: read authenticated, write service_role only
-- Unique index (`lead_email_id, event_type, occurred_at`) — idempotent replay
+1. `listInbox` যেকোনো message আগে না দেখলে upsert row।
+2. `from_email` দিয়ে `lead_contacts` + `leads.email/alt_email`-এ match খুঁজি → পেলে `lead_id`, `lead_contact_id`, `handled_by = lead.owner_id` সেট।
+3. Match পেলে:
+  - Gmail-এ label apply (`Lead/BT-XX`) — `users/me/labels` তে না থাকলে তৈরি → `messages.modify` addLabelIds।
+  - `lead_activities`-এ `type='inbound_email'` row।
+  - `leads.last_activity_at = received_at` (bumps to top)।
+  - Owner-এর জন্য notification: existing `notifications_store` pattern-এ push + Realtime toast (নতুন component `InboxReplyNotifier` `EmailFailureNotifier`-এর মতো)।
 
-**Webhook handler** (`src/routes/api/public/resend.webhook.ts`)
+Sync trigger:
 
-- Svix signature verify (svix package + `RESEND_WEBHOOK_SECRET`)
-- Payload-এ Resend email id → lookup `lead_emails.provider_message_id` → insert event row
-- **Burst protection**: webhook হ্যান্ডলার সরাসরি insert করে return (fast ack), heavy processing (queue drain, notification fanout) supabase trigger + separate `processWebhookQueue` fn দিয়ে batched
-- Insert `lead_emails.status` update trigger: latest event → status column sync
+- Inbox page open হলে ও প্রতি 60s এ background sync।
+- (Optional Phase 2) Gmail push notification/pub-sub — এখন বাদ, polling যথেষ্ট।
 
-**UI — Resend chip on each thread row**
+## 4. Thread viewer (Gmail-like UI)
 
-- Small pill with actual Resend logo (SVG from Resend brand kit) + colored dot based on latest event
-- Colors: sent gray, delivered green, opened blue, clicked purple, bounced/failed red, complained/suppressed dark red, delayed amber
-- Hover (Tooltip): full event history reverse-chronological with timestamps (`Delivered · 12 Nov 2026 03:42:11`, `Opened · 12 Nov 2026 03:45:02`)
-- Chip click → drawer with raw event JSON (debug)
+- Left: thread list (from, subject, snippet, time, unread bold, lead badge `BT-12` clickable → `/app/leads/$slug`)।
+- Right: selected thread — collapsible messages, sanitized HTML iframe (DOMPurify) with plaintext fallback, attachment chips (download via Gmail `attachments.get`)।
+- Filters: All / Unread / Linked to lead / Unlinked / by lead-owner (default = me)।
+- Search box → passes as Gmail `q`।
 
-**Thread row also shows**: sender employee name + avatar + "sent at" timestamp
+## 5. Reply — Resend/Brevo (existing infra reuse)
 
----
+Reply composer একই `lead-email` pipeline ব্যবহার করবে যাতে queue, chunking, plain+html dual, webhook tracking সব identical থাকে।
 
-## Phase 5 — Failure notifications + retry
+- `src/lib/inbox-reply.functions.ts` → internally reuse `sendLeadEmail` helper থেকে core send/enqueue logic (refactor করে `sendTrackedEmail({ leadId?, provider, to, subject, html, text, headers })` বানানো)।
+- Reply message-এ Gmail থেকে original headers pass করে RFC threading maintain: `In-Reply-To: <original-Message-ID>`, `References: ...` — Resend/Brevo দুই provider-ই custom headers accept করে।
+- Provider selector + fallback toggle Lead compose থেকেই clone।
+- Tags: `lead_id`, `lead_slug`, `lead_email_id`, `inbox_thread_id` — Resend/Brevo webhook-এ existing sheet routing কাজ করবে; inbox thread-এর পাশে delivery status timeline দেখাব।
+- Sent copy Gmail-এ দেখা যাবে না (SMTP নয়, API); তাই send success-এ Gmail `users/me/messages/send` না করে thread-এ আমাদের own record কার্ড দেখাব "Sent via Resend/Brevo · delivered/opened" — Gmail-এ mirroring optional Phase 2।
 
-**DB**
+## 6. Scopes & setup guide
 
-- `notifications` table: `id, user_id, type, title, body, link_url, read_at, created_at`
-- RLS: users read own only
+Gmail connector-এ প্রয়োজনীয় scopes: `gmail.readonly` (list/get), `gmail.modify` (mark read, apply Lead labels)। 403 `insufficient scopes` এলে `reconnect` prompt দেখাব।
 
-**Flow**
+## Technical Summary
 
-- Lead email failed OR bounced OR complained → trigger inserts notification for `leads.owner_id` (or sender if no owner)
-- Notification bar (top bar existing component) shows unread count + dropdown
-- Single failure click → `/app/leads/{slug}` (Emails tab, failed row highlighted, error reason visible)
-- Multiple pending failures (>1 unread failure) click → `/app/leads/failures` page
+- New files: `src/routes/_authenticated/app.inbox.tsx`, `app.inbox.$id.tsx`, `src/lib/inbox.functions.ts`, `src/lib/inbox-reply.functions.ts`, `src/components/inbox/*` (ThreadList, ThreadView, ReplyComposer, InboxReplyNotifier)।
+- Refactor: `src/lib/lead-email.functions.ts` — extract `sendTrackedEmail` core।
+- Migration: `inbox_messages` table + GRANTs + RLS + realtime publication।
+- Sidebar route fix।
+- No new secrets; uses existing `GOOGLE_MAIL_API_KEY`, `RESEND_API_KEY`, `BREVO_API_KEY`, webhook secrets।
 
-**Failures page** (`src/routes/_authenticated/app.leads.failures.tsx`)
+## Open questions (ধরে নিয়েছি, ভুল হলে বলো)
 
-- Server-side paginated list of failed/bounced emails
-- Page size selector: 20 (default) / 40 / 60 / 80 / 100 — persisted in `localStorage` key `failures_page_size` + URL search param (survives refresh)
-- Columns: lead slug, recipient, subject, failure reason, sender, failed_at, retry button
-- Manual **Retry** button per row → re-enqueues via Phase 3 queue with same subject/body/format/contact
-- Bulk select + bulk retry
-
----
-
-## Phase 6 — Polish
-
-- Remove all Gmail-related code paths (`pullGmailForLead`, gmail provider branch, GMAIL_FROM_HEADER)
-- Update `.lovable/plan.md` to reflect Resend-only
-- Route tree regen
-- Realtime subscriptions on: `lead_emails`, `lead_email_events`, `notifications`
-
----
-
-## Technical notes
-
-- Slug format: `BT-` + `lpad(seq, 2, '0')` — 1→BT-01, 99→BT-99, 100→BT-100, 1000→BT-1000, 10000→BT-10000 (natural growth, no truncation)
-- Advisory lock scope: transaction-level, so no leaked locks
-- Preview iframe: `sandbox="allow-same-origin"` only, no scripts, srcDoc-এ interpolated HTML
-- Variable interpolation: simple `{{path.to.value}}` regex, missing values → empty string, HTML-escape by default in HTML mode
-
----
-
-## Open questions (কাজ শুরুর আগে confirm করো)
-
-1. **Slug uniqueness cross-workspace**: single tenant assumption ঠিক তো? (এখন multi-tenant না, তাই sequence global — নাকি per-owner চাই?) - এটা কোনো মাল্টি টেনেন্ট SAAS না, এটা Branta Tech এর নিজস্ব সম্পূর্ণ Internal System এটা শূধু আমরা Branta Tech এর ইমপ্লয়ীরাই ইউজ করবো তাই ওয়ার্কস্পেস অনুযায়ী কোনো Slug Uniqueness কেন কিছুই থাকবেনা, সবাই সেইম সবকিছুই দেখবে। 
-2. **Contact primary email**: existing `leads.email` column রেখেই দেবো (backward compat, primary display), নাকি সম্পূর্ণ drop করে শুধু `lead_contacts` থেকে fetch? - এইটা যেই এ্যাপ্রোচ সবচেয়ে ভালো, ক্লিন আর ফিউচারপ্রুফ হয় সেইটাই করো যেহেতু ভবিষ্যতে Audit হবে এসকল কিছু তাই যেইটা বেস্ট প্র্যাক্টিস সেইভাবেই করবা। 
-3. **Failure notification threshold**: "একের বেশি failed" মানে exactly 2+? নাকি 5+ hit করলে aggregate page-এ redirect? 1+ হইলেই আলাদা পেইজ, সেই পেইজ থেকে একটার পর একটাতে ঢুকে ফিক্স করে আবার ব্যাক করলে আগের পেইজে যাবে, ফিক্স হইলে ওই পেইজ থেকে চলে যাবে আর ফিক্স না হইলে ওইটা ওইখানেই থাকবে। 
-4. **Retry limit**: manual retry কতবার পর্যন্ত allow? (unlimited নাকি max 3?) - একটা সিংগেল ইমেইলের ক্ষেত্রে একদিনে ম্যাক্সিমাম ৩বারই ঠিক আছে, মানে প্রতিদিন ৩বার করে করা যাবে আর কী। 
-5. **Queue chunk timing**: 10 concurrent limit hit করলে next batch immediately drain হবে (as slots free) — কোনো minimum delay লাগবে (Resend rate limit protection)? - যেইটা বেস্ট হ্যান্ডেল হবে, ফেইল/ড্রপ এর চান্স থাকবেনা, সিস্টেম ভাঙ্গবেনা সবকিছু স্মুথলি চলবে সেইভাবেই করো। 
-
-উত্তরগুলা confirm করলে Phase 1 থেকে শুরু করবো।
+1. Inbox filter: ধরে নিলাম শুধুই `to:hello@brantatech.com`-এর incoming (আমাদের নিজের পাঠানো মেইল বাদ)। Sent tab দরকার? - না, ইমেইল তো সেন্ড হবে আমাদের এ্যাক্সিস্টিং রিসেন্ড আর ব্রেভো দিয়ে আর লিড এর মতোই ওইটা ওইটার সব স্ট্যাটাস, ভিউ তে ক্লিক করলে ওইটার কী মেইল সব দেখা যাবে। 
+2. সব employee পুরো inbox দেখবে, নাকি default view "assigned to me" + super_admin সব? আমি ২য়টা ধরেছি। - [hello@brantatech.com](mailto:hello@brantatech.com) এর পুরো ইনবক্স ই দেখুক সব ইমপ্লয়ী 
+3. Notification: শুধু in-app bell/toast, নাকি email/push-ও? - in-app bell/toast আপাতত 
