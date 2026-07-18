@@ -27,6 +27,7 @@ import {
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -651,6 +652,7 @@ export function LeadDetail({
   const [statusChangeNote, setStatusChangeNote] = useState("");
   // Details section lock — read-only by default, unlocks on Edit click.
   const [editing, setEditing] = useState(false);
+  const confirm = useConfirm();
 
   useEffect(() => {
     setForm({
@@ -1231,9 +1233,17 @@ export function LeadDetail({
                 variant="ghost"
                 size="sm"
                 className="h-8 rounded-sm text-[12px] text-red-600 hover:bg-red-50 hover:text-red-700"
-                onClick={() => {
-                  if (confirm(`Delete lead ${lead.slug ?? lead.lead_code}?`))
-                    delM.mutate();
+                onClick={async () => {
+                  const label = lead.slug ?? lead.lead_code ?? "this lead";
+                  const ok = await confirm({
+                    tone: "danger",
+                    title: `Delete lead ${label}?`,
+                    description:
+                      "This permanently removes the lead and all its contacts, emails, meetings, notes, social links, and activity history. This action cannot be undone.",
+                    confirmLabel: "Delete lead",
+                    requireTypedText: label,
+                  });
+                  if (ok) delM.mutate();
                 }}
                 disabled={delM.isPending}
               >
