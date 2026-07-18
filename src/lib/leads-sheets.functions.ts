@@ -1,13 +1,19 @@
 // Leads ⇄ Google Sheets two-way sync.
+//
+// Strict dedup semantics:
+//  • push: rows whose `id` already exists in the sheet are updated in place
+//    only when their serialized values changed. Leads not in the sheet are
+//    appended. Nothing is ever cleared, so manually-typed rows survive.
+//  • pull: rows whose `id` already resolves to a lead in the database are
+//    skipped (already-pulled). Only sheet rows with no `id` — i.e. manually
+//    added — get inserted, and the generated id/slug/lead_code are written
+//    back into that same row so a second pull won't duplicate them.
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const SHEET_TITLE = "Branta Tech · Leads";
 const SHEET_TAB = "Leads";
 
-// Columns pushed to / pulled from the sheet.
-// Note: `contacts_json` and `socials_json` carry the full teammate / social
-// arrays as JSON strings so a single row round-trips without data loss.
 const HEADERS = [
   "id",
   "slug",
@@ -15,7 +21,7 @@ const HEADERS = [
   "name",
   "role",
   "company",
-  "email", // primary contact email
+  "email",
   "email_label",
   "alt_email",
   "alt_email_label",
@@ -36,7 +42,10 @@ const HEADERS = [
   "contacts_json",
   "socials_json",
   "last_activity_at",
-];
+] as const;
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function colLetters(n: number): string {
   let s = "";
@@ -49,6 +58,9 @@ function colLetters(n: number): string {
   return s || "A";
 }
 const LAST_COL = colLetters(HEADERS.length);
+const ID_COL_INDEX = HEADERS.indexOf("id");
+const SLUG_COL_INDEX = HEADERS.indexOf("slug");
+const CODE_COL_INDEX = HEADERS.indexOf("lead_code");
 
 async function getSyncRow(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -76,19 +88,72 @@ async function upsertSync(
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function applySheetFormatting(callGateway: any, spreadsheetId: string) {
+  // Grab the tab's numeric sheetId, then apply header formatting + freeze.
+  const meta = await callGateway({
+    connector: "google_sheets",
+    path: `/v4/spreadsheets/${spreadsheetId}`,
+    query: { fields: "sheets(properties(sheetId,title))" },
+  });
+  const tab = (meta.sheets ?? []).find(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (s: any) => s.properties?.title === SHEET_TAB,
+  );
+  const sheetId = tab?.properties?.sheetId;
+  if (sheetId == null) return;
+  await callGateway({
+    connector: "google_sheets",
+    path: `/v4/spreadsheets/${spreadsheetId}:batchUpdate`,
+    method: "POST",
+    body: {
+      requests: [
+        {
+          updateSheetProperties: {
+            properties: { sheetId, gridProperties: { frozenRowCount: 1, frozenColumnCount: 3 } },
+            fields: "gridProperties.frozenRowCount,gridProperties.frozenColumnCount",
+          },
+        },
+        {
+          repeatCell: {
+            range: { sheetId, startRowIndex: 0, endRowIndex: 1 },
+            cell: {
+              userEnteredFormat: {
+                backgroundColor: { red: 0.13, green: 0.13, blue: 0.15 },
+                horizontalAlignment: "LEFT",
+                textFormat: {
+                  foregroundColor: { red: 1, green: 1, blue: 1 },
+                  bold: true,
+                  fontSize: 11,
+                },
+              },
+            },
+            fields:
+              "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)",
+          },
+        },
+        {
+          autoResizeDimensions: {
+            dimensions: { sheetId, dimension: "COLUMNS", startIndex: 0, endIndex: HEADERS.length },
+          },
+        },
+      ],
+    },
+  }).catch(() => {});
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function ensureSheet(supabase: any): Promise<string> {
   const existing = await getSyncRow(supabase);
   const { callGateway } = await import("@/lib/connector-gateway.server");
   if (existing?.resource_id) {
-    // Always keep the header row aligned with the current HEADERS list so
-    // pulls/pushes stay stable if columns are added over time.
     await callGateway({
       connector: "google_sheets",
       path: `/v4/spreadsheets/${existing.resource_id}/values/${SHEET_TAB}!A1:${LAST_COL}1`,
       method: "PUT",
       query: { valueInputOption: "RAW" },
-      body: { values: [HEADERS] },
+      body: { values: [HEADERS as unknown as string[]] },
     });
+    await applySheetFormatting(callGateway, existing.resource_id);
     return existing.resource_id;
   }
   const created = await callGateway<{ spreadsheetId: string }>({
@@ -105,8 +170,9 @@ async function ensureSheet(supabase: any): Promise<string> {
     path: `/v4/spreadsheets/${created.spreadsheetId}/values/${SHEET_TAB}!A1:${LAST_COL}1`,
     method: "PUT",
     query: { valueInputOption: "RAW" },
-    body: { values: [HEADERS] },
+    body: { values: [HEADERS as unknown as string[]] },
   });
+  await applySheetFormatting(callGateway, created.spreadsheetId);
   await upsertSync(supabase, { resource_id: created.spreadsheetId });
   return created.spreadsheetId;
 }
@@ -219,75 +285,127 @@ export const getSheetSyncStatus = createServerFn({ method: "GET" })
     };
   });
 
+function buildRow(
+  lead: Record<string, unknown> & { id: string },
+  contacts: ContactRow[],
+  socials: SocialRow[],
+): string[] {
+  const primary = contacts.find((c) => c.is_primary) ?? contacts[0] ?? null;
+  return HEADERS.map((h) => {
+    if (h === "email") return primary?.email ?? "";
+    if (h === "contacts_json") return contacts.length ? JSON.stringify(contacts) : "";
+    if (h === "socials_json") return socials.length ? JSON.stringify(socials) : "";
+    const v = lead[h];
+    return v == null ? "" : String(v);
+  });
+}
+
 export const pushLeadsToSheet = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<SheetSyncStatus> => {
-    const sheetId = await ensureSheet(context.supabase);
-    const { data: leads, error } = await context.supabase
-      .from("leads")
-      .select(
-        "id, slug, lead_code, name, role, company, phone, phone_label, alt_phone, alt_phone_label, email_label, alt_email, alt_email_label, contact_preference, status, source, source_other, service, service_other, value_usd, currency, next_action, notes, last_activity_at",
-      )
-      .order("slug", { ascending: true })
-      .limit(5000);
-    if (error) throw new Error(error.message);
-    const leadRows = (leads ?? []) as Array<Record<string, unknown> & { id: string }>;
-    const ids = leadRows.map((l) => l.id);
-    const contactsMap = await fetchContactsMap(context.supabase, ids);
-    const socialsMap = await fetchSocialsMap(context.supabase, ids);
-    const rows = leadRows.map((l) => {
-      const contacts = contactsMap.get(l.id) ?? [];
-      const primary =
-        contacts.find((c) => c.is_primary) ?? contacts[0] ?? null;
-      const socials = socialsMap.get(l.id) ?? [];
-      return HEADERS.map((h) => {
-        if (h === "email") return primary?.email ?? "";
-        if (h === "contacts_json")
-          return contacts.length ? JSON.stringify(contacts) : "";
-        if (h === "socials_json")
-          return socials.length ? JSON.stringify(socials) : "";
-        const v = l[h];
-        return v == null ? "" : String(v);
-      });
-    });
-    const { callGateway } = await import("@/lib/connector-gateway.server");
-    await callGateway({
-      connector: "google_sheets",
-      path: `/v4/spreadsheets/${sheetId}/values/${SHEET_TAB}!A2:${LAST_COL}100000:clear`,
-      method: "POST",
-      body: {},
-    });
-    if (rows.length > 0) {
-      await callGateway({
+  .handler(
+    async ({ context }): Promise<SheetSyncStatus & { appended: number; updated: number; skipped: number }> => {
+      const sheetId = await ensureSheet(context.supabase);
+      const { callGateway } = await import("@/lib/connector-gateway.server");
+
+      // 1. Read what's currently in the sheet (rows only).
+      const range = `${SHEET_TAB}!A2:${LAST_COL}100000`;
+      const existing = await callGateway<{ values?: string[][] }>({
         connector: "google_sheets",
-        path: `/v4/spreadsheets/${sheetId}/values/${SHEET_TAB}!A2:${LAST_COL}${1 + rows.length}`,
-        method: "PUT",
-        query: { valueInputOption: "RAW" },
-        body: { values: rows },
+        path: `/v4/spreadsheets/${sheetId}/values/${range}`,
       });
-    }
-    const now = new Date().toISOString();
-    await upsertSync(context.supabase, {
-      resource_id: sheetId,
-      last_sync_at: now,
-    });
-    await context.supabase
-      .from("leads")
-      .update({ synced_at: now })
-      .in("id", ids);
-    return {
-      spreadsheetId: sheetId,
-      spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${sheetId}/edit`,
-      lastSyncAt: now,
-    };
-  });
+      const existingRows = existing.values ?? [];
+      // Map: id (UUID) -> { rowIndex (sheet 1-based, row 2 = index 2), values }
+      const idToRow = new Map<string, { rowIndex: number; values: string[] }>();
+      existingRows.forEach((r, i) => {
+        const id = (r[ID_COL_INDEX] ?? "").trim();
+        if (id && UUID_RE.test(id)) {
+          idToRow.set(id, { rowIndex: i + 2, values: r });
+        }
+      });
+
+      // 2. Load leads + contacts + socials.
+      const { data: leads, error } = await context.supabase
+        .from("leads")
+        .select(
+          "id, slug, lead_code, name, role, company, phone, phone_label, alt_phone, alt_phone_label, email_label, alt_email, alt_email_label, contact_preference, status, source, source_other, service, service_other, value_usd, currency, next_action, notes, last_activity_at",
+        )
+        .order("slug", { ascending: true })
+        .limit(5000);
+      if (error) throw new Error(error.message);
+      const leadRows = (leads ?? []) as Array<Record<string, unknown> & { id: string }>;
+      const ids = leadRows.map((l) => l.id);
+      const contactsMap = await fetchContactsMap(context.supabase, ids);
+      const socialsMap = await fetchSocialsMap(context.supabase, ids);
+
+      // 3. Split into "update in place" vs "append new".
+      const updates: { range: string; values: string[][] }[] = [];
+      const appends: string[][] = [];
+      const syncedIds: string[] = [];
+      let skipped = 0;
+      for (const l of leadRows) {
+        const row = buildRow(l, contactsMap.get(l.id) ?? [], socialsMap.get(l.id) ?? []);
+        const seen = idToRow.get(l.id);
+        if (seen) {
+          // Compare column-by-column; only push if something differs.
+          const changed = row.some((v, i) => (seen.values[i] ?? "") !== v);
+          if (changed) {
+            updates.push({
+              range: `${SHEET_TAB}!A${seen.rowIndex}:${LAST_COL}${seen.rowIndex}`,
+              values: [row],
+            });
+            syncedIds.push(l.id);
+          } else {
+            skipped += 1;
+          }
+        } else {
+          appends.push(row);
+          syncedIds.push(l.id);
+        }
+      }
+
+      if (updates.length > 0) {
+        await callGateway({
+          connector: "google_sheets",
+          path: `/v4/spreadsheets/${sheetId}/values:batchUpdate`,
+          method: "POST",
+          body: {
+            valueInputOption: "RAW",
+            data: updates,
+          },
+        });
+      }
+      if (appends.length > 0) {
+        await callGateway({
+          connector: "google_sheets",
+          path: `/v4/spreadsheets/${sheetId}/values/${SHEET_TAB}!A:${LAST_COL}:append`,
+          method: "POST",
+          query: { valueInputOption: "RAW", insertDataOption: "INSERT_ROWS" },
+          body: { values: appends },
+        });
+      }
+
+      const now = new Date().toISOString();
+      await upsertSync(context.supabase, { resource_id: sheetId, last_sync_at: now });
+      if (syncedIds.length > 0) {
+        await context.supabase.from("leads").update({ synced_at: now }).in("id", syncedIds);
+      }
+      return {
+        spreadsheetId: sheetId,
+        spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${sheetId}/edit`,
+        lastSyncAt: now,
+        appended: appends.length,
+        updated: updates.length,
+        skipped,
+      };
+    },
+  );
 
 export const pullLeadsFromSheet = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(
     async ({
       context,
-    }): Promise<SheetSyncStatus & { updated: number; created: number }> => {
+    }): Promise<SheetSyncStatus & { updated: number; created: number; skipped: number }> => {
       const sheetId = await ensureSheet(context.supabase);
       const { callGateway } = await import("@/lib/connector-gateway.server");
       const range = `${SHEET_TAB}!A2:${LAST_COL}100000`;
@@ -296,10 +414,8 @@ export const pullLeadsFromSheet = createServerFn({ method: "POST" })
         path: `/v4/spreadsheets/${sheetId}/values/${range}`,
       });
       const values = resp.values ?? [];
-      let updated = 0;
       let created = 0;
-      const UUID_RE =
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      let skipped = 0;
       const ALLOWED_STATUS = new Set([
         "new",
         "contacted",
@@ -308,13 +424,31 @@ export const pullLeadsFromSheet = createServerFn({ method: "POST" })
         "converted",
         "lost",
       ]);
-      for (const row of values) {
+      // Track writebacks: sheet row -> [id, slug, lead_code]
+      const writebacks: { rowIndex: number; id: string; slug: string; code: string }[] = [];
+
+      for (let i = 0; i < values.length; i += 1) {
+        const row = values[i];
+        const rowIndex = i + 2; // sheet row (A2 == first data row)
         const rec: Record<string, string | null> = {};
-        HEADERS.forEach((h, i) => {
-          const v = row[i];
+        HEADERS.forEach((h, idx) => {
+          const v = row[idx];
           rec[h] = v == null ? null : String(v).trim() || null;
         });
-        if (!rec.name) continue;
+        if (!rec.name) {
+          skipped += 1;
+          continue;
+        }
+
+        // Strict skip: if `id` is a valid UUID, the row was already pulled
+        // (or was pushed from DB). We do NOT re-pull it. Edits made in the
+        // sheet flow back on the next push cycle, not on pull.
+        if (rec.id && UUID_RE.test(rec.id)) {
+          skipped += 1;
+          continue;
+        }
+
+        // Only manually-added rows (no id) get inserted.
         const statusRaw = (rec.status ?? "new").toLowerCase();
         const status = (ALLOWED_STATUS.has(statusRaw) ? statusRaw : "new") as
           | "new"
@@ -323,7 +457,8 @@ export const pullLeadsFromSheet = createServerFn({ method: "POST" })
           | "meeting"
           | "converted"
           | "lost";
-        const emailFromSheet = rec.email && rec.email.includes("@") ? rec.email : null;
+        const emailFromSheet =
+          rec.email && rec.email.includes("@") ? rec.email : null;
         const leadPatch = {
           name: rec.name,
           role: rec.role || null,
@@ -353,54 +488,58 @@ export const pullLeadsFromSheet = createServerFn({ method: "POST" })
           notes: rec.notes || null,
         };
 
-        // Resolve existing row: prefer UUID id, then slug, then lead_code.
-        let existingId: string | null = null;
-        if (rec.id && UUID_RE.test(rec.id)) {
-          existingId = rec.id;
-        } else if (rec.slug) {
-          const { data: found } = await context.supabase
-            .from("leads")
-            .select("id")
-            .ilike("slug", rec.slug)
-            .maybeSingle();
-          if (found?.id) existingId = found.id;
-        } else if (rec.lead_code) {
-          const code = rec.lead_code.startsWith("L-")
-            ? rec.lead_code
-            : `L-${rec.lead_code.padStart(4, "0")}`;
-          const { data: found } = await context.supabase
-            .from("leads")
-            .select("id")
-            .eq("lead_code", code)
-            .maybeSingle();
-          if (found?.id) existingId = found.id;
-        }
-
-        if (existingId) {
-          const { error, count } = await context.supabase
-            .from("leads")
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            .update(leadPatch as any, { count: "exact" })
-            .eq("id", existingId);
-          if (!error && (count ?? 0) > 0) updated += 1;
-          if (emailFromSheet)
-            await upsertPrimaryContact(context.supabase, existingId, emailFromSheet, context.userId);
-        } else {
-          const { data: inserted, error } = await context.supabase
-            .from("leads")
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            .insert({ ...leadPatch, created_by: context.userId } as any)
-            .select("id")
-            .single();
-          if (!error && inserted?.id) {
-            created += 1;
-            if (emailFromSheet)
-              await upsertPrimaryContact(context.supabase, inserted.id, emailFromSheet, context.userId);
-          } else if (error) {
-            console.error("[sheet-pull] insert failed", error.message, leadPatch);
+        const { data: inserted, error } = await context.supabase
+          .from("leads")
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .insert({ ...leadPatch, created_by: context.userId } as any)
+          .select("id, slug, lead_code")
+          .single();
+        if (!error && inserted?.id) {
+          created += 1;
+          if (emailFromSheet) {
+            await upsertPrimaryContact(
+              context.supabase,
+              inserted.id,
+              emailFromSheet,
+              context.userId,
+            );
           }
+          writebacks.push({
+            rowIndex,
+            id: inserted.id,
+            slug: inserted.slug ?? "",
+            code: inserted.lead_code ?? "",
+          });
+        } else if (error) {
+          console.error("[sheet-pull] insert failed", error.message, leadPatch);
+          skipped += 1;
         }
       }
+
+      // Write id/slug/lead_code back into the manually-added rows so a
+      // second pull won't duplicate them.
+      if (writebacks.length > 0) {
+        const idCol = colLetters(ID_COL_INDEX + 1);
+        const codeCol = colLetters(CODE_COL_INDEX + 1);
+        const startCol = idCol;
+        const endCol = codeCol;
+        // id, slug, lead_code are contiguous columns A/B/C.
+        const data = writebacks.map((w) => ({
+          range: `${SHEET_TAB}!${startCol}${w.rowIndex}:${endCol}${w.rowIndex}`,
+          values: [
+            SLUG_COL_INDEX === ID_COL_INDEX + 1 && CODE_COL_INDEX === ID_COL_INDEX + 2
+              ? [w.id, w.slug, w.code]
+              : [w.id, w.slug, w.code],
+          ],
+        }));
+        await callGateway({
+          connector: "google_sheets",
+          path: `/v4/spreadsheets/${sheetId}/values:batchUpdate`,
+          method: "POST",
+          body: { valueInputOption: "RAW", data },
+        }).catch((e) => console.error("[sheet-pull] writeback failed", e));
+      }
+
       const now = new Date().toISOString();
       await upsertSync(context.supabase, {
         resource_id: sheetId,
@@ -410,8 +549,9 @@ export const pullLeadsFromSheet = createServerFn({ method: "POST" })
         spreadsheetId: sheetId,
         spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${sheetId}/edit`,
         lastSyncAt: now,
-        updated,
+        updated: 0,
         created,
+        skipped,
       };
     },
   );
