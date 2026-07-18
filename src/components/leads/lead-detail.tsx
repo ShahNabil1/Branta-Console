@@ -587,7 +587,7 @@ export function LeadDetail({
   onDeleted,
 }: {
   lead: LeadRow;
-  users: { user_id: string; full_name: string | null }[];
+  users: { user_id: string; full_name: string | null; personal_gmail?: string | null }[];
   onDeleted?: () => void;
 }) {
   const qc = useQueryClient();
