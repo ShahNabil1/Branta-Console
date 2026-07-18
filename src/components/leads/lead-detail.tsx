@@ -1423,7 +1423,7 @@ export function LeadDetail({
           <EmailsTab lead={lead} />
         </TabsContent>
         <TabsContent value="meetings" className="m-0 mt-4">
-          <MeetingsTab lead={lead} />
+          <MeetingsTab lead={lead} users={users} />
         </TabsContent>
         <TabsContent value="docs" className="m-0 mt-4">
           <DocumentsTab lead={lead} />
