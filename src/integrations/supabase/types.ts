@@ -384,6 +384,7 @@ export type Database = {
       }
       lead_meetings: {
         Row: {
+          attendee_responses: Json
           attendees: string[]
           created_at: string
           created_by: string | null
@@ -393,12 +394,15 @@ export type Database = {
           id: string
           lead_id: string
           meeting_link: string | null
+          reminder_minutes: number
+          rsvp_synced_at: string | null
           starts_at: string
           status: string
           title: string
           updated_at: string
         }
         Insert: {
+          attendee_responses?: Json
           attendees?: string[]
           created_at?: string
           created_by?: string | null
@@ -408,12 +412,15 @@ export type Database = {
           id?: string
           lead_id: string
           meeting_link?: string | null
+          reminder_minutes?: number
+          rsvp_synced_at?: string | null
           starts_at: string
           status?: string
           title: string
           updated_at?: string
         }
         Update: {
+          attendee_responses?: Json
           attendees?: string[]
           created_at?: string
           created_by?: string | null
@@ -423,6 +430,8 @@ export type Database = {
           id?: string
           lead_id?: string
           meeting_link?: string | null
+          reminder_minutes?: number
+          rsvp_synced_at?: string | null
           starts_at?: string
           status?: string
           title?: string
