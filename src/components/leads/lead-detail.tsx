@@ -1159,28 +1159,28 @@ export function LeadDetail({
                   </>
                 }
               >
-                <div className="flex items-center gap-2">
+                <div className="relative">
                   <Input
                     value={form.next_action}
                     onChange={(e) =>
                       setForm({ ...form, next_action: e.target.value })
                     }
                     placeholder="What's the next step for this lead? (e.g. Call Monday 3pm, Send proposal)"
-                    className="h-9 flex-1 rounded-sm text-[12.5px]"
+                    className="h-9 w-full rounded-sm pr-24 text-[12.5px]"
                   />
                   {(form.next_action ?? "") !== (lead.next_action ?? "") && (
                     <Button
                       size="sm"
-                      className="h-9 rounded-sm bg-primary text-[12px] text-primary-foreground hover:bg-brand-700"
+                      className="absolute right-1 top-1/2 h-7 -translate-y-1/2 rounded-sm bg-primary px-2.5 text-[11.5px] font-semibold text-primary-foreground hover:bg-brand-700"
                       disabled={saveM.isPending}
                       onClick={() => saveM.mutate()}
                     >
                       {saveM.isPending ? (
-                        <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                        <Loader2 className="mr-1 size-3 animate-spin" />
                       ) : (
-                        <Save className="mr-1.5 size-3.5" />
+                        <Save className="mr-1 size-3" />
                       )}
-                      Save
+                      Update
                     </Button>
                   )}
                 </div>
@@ -1200,30 +1200,31 @@ export function LeadDetail({
                   </>
                 }
               >
-                <Textarea
-                  value={form.notes}
-                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                  placeholder="Permanent context about this lead — preferences, budget, decision-makers, background. Always visible at the top."
-                  className="min-h-[80px] rounded-sm text-[12.5px]"
-                />
-                {(form.notes ?? "") !== (lead.notes ?? "") && (
-                  <div className="mt-2 flex justify-end">
+                <div className="relative">
+                  <Textarea
+                    value={form.notes}
+                    onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                    placeholder="Permanent context about this lead — preferences, budget, decision-makers, background. Always visible at the top."
+                    className="min-h-[80px] rounded-sm pb-10 text-[12.5px]"
+                  />
+                  {(form.notes ?? "") !== (lead.notes ?? "") && (
                     <Button
                       size="sm"
-                      className="h-8 rounded-sm bg-primary text-[12px] text-primary-foreground hover:bg-brand-700"
+                      className="absolute bottom-2 right-2 h-7 rounded-sm bg-primary px-2.5 text-[11.5px] font-semibold text-primary-foreground hover:bg-brand-700"
                       disabled={saveM.isPending}
                       onClick={() => saveM.mutate()}
                     >
                       {saveM.isPending ? (
-                        <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                        <Loader2 className="mr-1 size-3 animate-spin" />
                       ) : (
-                        <Save className="mr-1.5 size-3.5" />
+                        <Save className="mr-1 size-3" />
                       )}
-                      Save notes
+                      Update
                     </Button>
-                  </div>
-                )}
+                  )}
+                </div>
               </Field>
+
             </div>
             <div className="flex items-center justify-between border-t border-border px-3 py-2">
               <Button
