@@ -2846,10 +2846,84 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
 
 
 // ---------- Meetings tab ----------
-function toLocalInput(d: Date) {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+const BD_TZ = "Asia/Dhaka";
+
+// Get YYYY-MM-DDTHH:mm as viewed in Asia/Dhaka regardless of the browser's TZ.
+function toBDInput(d: Date | string) {
+  const date = typeof d === "string" ? new Date(d) : d;
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: BD_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+  const g = (t: string) => parts.find((p) => p.type === t)?.value ?? "00";
+  return `${g("year")}-${g("month")}-${g("day")}T${g("hour")}:${g("minute")}`;
 }
+
+// Interpret a naive "YYYY-MM-DDTHH:mm" as BDT local time → full ISO with +06:00.
+function bdInputToISO(local: string) {
+  if (!local) return "";
+  return `${local}:00+06:00`;
+}
+
+// Always display in Bangladesh time, 12-hour format.
+function formatBDDateTime(iso: string) {
+  return new Date(iso).toLocaleString("en-GB", {
+    timeZone: BD_TZ,
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+function formatBDTime(iso: string) {
+  return new Date(iso).toLocaleString("en-GB", {
+    timeZone: BD_TZ,
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
+const REMINDER_OPTIONS: { value: number; label: string }[] = [
+  { value: 0, label: "At time of event" },
+  { value: 5, label: "5 minutes before" },
+  { value: 10, label: "10 minutes before" },
+  { value: 15, label: "15 minutes before" },
+  { value: 30, label: "30 minutes before" },
+  { value: 60, label: "1 hour before" },
+  { value: 120, label: "2 hours before" },
+  { value: 1440, label: "1 day before" },
+];
+
+const RSVP_META: Record<
+  RsvpStatus,
+  { label: string; className: string }
+> = {
+  accepted: {
+    label: "Accepted",
+    className: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  },
+  declined: {
+    label: "Declined",
+    className: "bg-red-50 text-red-700 border-red-200",
+  },
+  tentative: {
+    label: "Maybe",
+    className: "bg-amber-50 text-amber-700 border-amber-200",
+  },
+  needsAction: {
+    label: "No reply",
+    className: "bg-muted text-muted-foreground border-border",
+  },
+};
 
 function MeetingsTab({
   lead,
@@ -2861,6 +2935,7 @@ function MeetingsTab({
   const listFn = useServerFn(listLeadMeetings);
   const schedFn = useServerFn(scheduleLeadMeeting);
   const conflictsFn = useServerFn(checkMeetingConflicts);
+  const syncFn = useServerFn(syncMeetingRsvp);
   const [checkingConflicts, setCheckingConflicts] = React.useState(false);
 
   const cancelFn = useServerFn(cancelLeadMeeting);
@@ -2869,6 +2944,7 @@ function MeetingsTab({
     React.useState<LeadMeetingRow | null>(null);
   const [reStart, setReStart] = React.useState("");
   const [reEnd, setReEnd] = React.useState("");
+  const [reReminder, setReReminder] = React.useState<number>(30);
   const [reChecking, setReChecking] = React.useState(false);
   const listContactsFn = useServerFn(listLeadContacts);
   const qc = useQueryClient();
@@ -2885,7 +2961,38 @@ function MeetingsTab({
     staleTime: 30_000,
   });
 
-  // Build gmail-only option lists
+  const rsvpSyncM = useMutation({
+    mutationFn: () => syncFn({ data: { leadId: lead.id } }),
+    onSuccess: (r) => {
+      if (r.updated > 0)
+        toast.success(`Updated RSVPs on ${r.updated} meeting${r.updated > 1 ? "s" : ""}`);
+      qc.invalidateQueries({ queryKey: ["lead-meetings", lead.id] });
+    },
+    onError: (e) =>
+      toast.error(e instanceof Error ? e.message : "RSVP sync failed"),
+  });
+
+  // Live RSVP sync — on mount, on visibility change, and every 60s.
+  React.useEffect(() => {
+    let cancelled = false;
+    const tick = () => {
+      if (cancelled || document.hidden) return;
+      rsvpSyncM.mutate();
+    };
+    tick();
+    const iv = window.setInterval(tick, 60_000);
+    const onVis = () => {
+      if (!document.hidden) tick();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      cancelled = true;
+      window.clearInterval(iv);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lead.id]);
+
   const isGmail = (v?: string | null) =>
     !!v && /^[^\s@]+@gmail\.com$/i.test(v.trim());
 
@@ -2908,7 +3015,6 @@ function MeetingsTab({
       push(c.alt_email, `${who} (alt) · ${c.alt_email}`);
     }
     return list;
-
   }, [contactsQ.data, lead.email, lead.name, (lead as any).alt_email]);
 
   const employeeEmailOptions = React.useMemo(() => {
@@ -2928,8 +3034,9 @@ function MeetingsTab({
   const in1h = new Date(now.getTime() + 60 * 60 * 1000);
   const in1h30 = new Date(now.getTime() + 90 * 60 * 1000);
   const [title, setTitle] = useState(`Intro call — ${lead.company || lead.name}`);
-  const [startsAt, setStartsAt] = useState(toLocalInput(in1h));
-  const [endsAt, setEndsAt] = useState(toLocalInput(in1h30));
+  const [startsAt, setStartsAt] = useState(toBDInput(in1h));
+  const [endsAt, setEndsAt] = useState(toBDInput(in1h30));
+  const [reminderMinutes, setReminderMinutes] = useState<number>(30);
   const [selectedLeadEmails, setSelectedLeadEmails] = useState<string[]>([]);
   const [selectedEmpEmails, setSelectedEmpEmails] = useState<string[]>([]);
   const [description, setDescription] = useState("");
@@ -2938,7 +3045,6 @@ function MeetingsTab({
     setTitle(`Intro call — ${lead.company || lead.name}`);
   }, [lead.id, lead.name, lead.company]);
 
-  // Pre-select the lead's primary email if it's gmail
   useEffect(() => {
     if (leadEmailOptions.length > 0 && selectedLeadEmails.length === 0) {
       setSelectedLeadEmails([leadEmailOptions[0].email]);
@@ -2961,9 +3067,10 @@ function MeetingsTab({
           leadId: lead.id,
           title: title.trim(),
           description: description.trim() || null,
-          startsAt: new Date(startsAt).toISOString(),
-          endsAt: new Date(endsAt).toISOString(),
+          startsAt: bdInputToISO(startsAt),
+          endsAt: bdInputToISO(endsAt),
           attendees,
+          reminderMinutes,
         },
       }),
     onSuccess: () => {
@@ -2987,8 +3094,12 @@ function MeetingsTab({
       toast.error(e instanceof Error ? e.message : "Cancel failed"),
   });
   const rescheduleM = useMutation({
-    mutationFn: (input: { id: string; startsAt: string; endsAt: string }) =>
-      rescheduleFn({ data: input }),
+    mutationFn: (input: {
+      id: string;
+      startsAt: string;
+      endsAt: string;
+      reminderMinutes: number;
+    }) => rescheduleFn({ data: input }),
     onSuccess: () => {
       toast.success("Meeting rescheduled — attendees notified");
       qc.invalidateQueries({ queryKey: ["lead-meetings", lead.id] });
@@ -3005,8 +3116,13 @@ function MeetingsTab({
   return (
     <div className="grid gap-4">
       <section className="rounded-sm border border-border bg-card">
-        <div className="border-b border-border px-3 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-          Schedule meeting
+        <div className="flex items-center justify-between border-b border-border px-3 py-2">
+          <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+            Schedule meeting
+          </div>
+          <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+            Timezone · Asia/Dhaka (BDT) · 12-hour
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-3 p-3">
           <Field label="Title" className="col-span-2">
@@ -3016,7 +3132,7 @@ function MeetingsTab({
               className="h-9 rounded-sm text-[12.5px]"
             />
           </Field>
-          <Field label="Starts">
+          <Field label="Starts (BDT)">
             <Input
               type="datetime-local"
               value={startsAt}
@@ -3024,13 +3140,27 @@ function MeetingsTab({
               className="h-9 rounded-sm font-mono text-[12.5px]"
             />
           </Field>
-          <Field label="Ends">
+          <Field label="Ends (BDT)">
             <Input
               type="datetime-local"
               value={endsAt}
               onChange={(e) => setEndsAt(e.target.value)}
               className="h-9 rounded-sm font-mono text-[12.5px]"
             />
+          </Field>
+
+          <Field label="Reminder" className="col-span-2">
+            <select
+              value={reminderMinutes}
+              onChange={(e) => setReminderMinutes(Number(e.target.value))}
+              className="h-9 w-full rounded-sm border border-input bg-background px-2 text-[12.5px]"
+            >
+              {REMINDER_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
           </Field>
 
           <Field label="Lead attendees (Gmail only)">
@@ -3079,8 +3209,8 @@ function MeetingsTab({
             className="h-8 rounded-sm bg-primary text-[12px] text-primary-foreground hover:bg-brand-700"
             disabled={!canSchedule || checkingConflicts}
             onClick={async () => {
-              const startISO = new Date(startsAt).toISOString();
-              const endISO = new Date(endsAt).toISOString();
+              const startISO = bdInputToISO(startsAt);
+              const endISO = bdInputToISO(endsAt);
               if (new Date(endISO) <= new Date(startISO)) {
                 toast.error("End time must be after start time.");
                 return;
@@ -3094,30 +3224,25 @@ function MeetingsTab({
               } finally {
                 setCheckingConflicts(false);
               }
-              const fmt = (iso: string) =>
-                new Date(iso).toLocaleString(undefined, {
-                  weekday: "short",
-                  month: "short",
-                  day: "numeric",
-                  hour: "numeric",
-                  minute: "2-digit",
-                });
               const conflictBlock =
                 conflicts.length > 0
                   ? `\n\n⚠ Conflicts on your calendar (${conflicts.length}):\n${conflicts
                       .slice(0, 5)
                       .map(
                         (c) =>
-                          `• ${c.summary} — ${fmt(c.startsAt)} → ${fmt(c.endsAt)}`,
+                          `• ${c.summary} — ${formatBDDateTime(c.startsAt)} → ${formatBDTime(c.endsAt)}`,
                       )
                       .join("\n")}${conflicts.length > 5 ? `\n• +${conflicts.length - 5} more…` : ""}`
                   : "";
+              const reminderLabel =
+                REMINDER_OPTIONS.find((r) => r.value === reminderMinutes)?.label ??
+                `${reminderMinutes}m before`;
               const ok = await confirm({
                 title:
                   conflicts.length > 0
                     ? `Time conflict — schedule anyway?`
                     : "Create Google Meet?",
-                description: `A calendar event "${title.trim()}" will be created and Google will email an invite (with the Meet link) to ${attendees.length} attendee${attendees.length > 1 ? "s" : ""}: ${attendees.join(", ")}.${conflictBlock}`,
+                description: `A calendar event "${title.trim()}" will be created (${formatBDDateTime(startISO)} → ${formatBDTime(endISO)} BDT) with a "${reminderLabel}" reminder. Google will email an invite with the Meet link to ${attendees.length} attendee${attendees.length > 1 ? "s" : ""}: ${attendees.join(", ")}.${conflictBlock}`,
                 confirmLabel:
                   conflicts.length > 0 ? "Schedule anyway" : "Create meeting",
                 cancelLabel: "Back",
@@ -3131,15 +3256,28 @@ function MeetingsTab({
             ) : (
               <CalendarPlus className="mr-1.5 size-3.5" />
             )}
-
             Create with Google Meet
           </Button>
         </div>
       </section>
 
       <section className="rounded-sm border border-border bg-card">
-        <div className="border-b border-border px-3 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-          Scheduled ({meetings.data?.length ?? 0})
+        <div className="flex items-center justify-between border-b border-border px-3 py-2">
+          <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+            Scheduled ({meetings.data?.length ?? 0})
+          </div>
+          <button
+            type="button"
+            onClick={() => rsvpSyncM.mutate()}
+            disabled={rsvpSyncM.isPending}
+            className="inline-flex items-center gap-1 rounded-sm border border-border bg-background px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground hover:bg-muted disabled:opacity-60"
+            title="Pull the latest RSVP status from Google Calendar"
+          >
+            {rsvpSyncM.isPending ? (
+              <Loader2 className="size-3 animate-spin" />
+            ) : null}
+            Sync RSVPs
+          </button>
         </div>
         <ul className="divide-y divide-border">
           {meetings.isLoading && (
@@ -3150,6 +3288,13 @@ function MeetingsTab({
           )}
           {meetings.data?.map((m: LeadMeetingRow) => {
             const isCancelled = m.status === "cancelled";
+            const responses = m.attendee_responses ?? {};
+            const reminderLabel =
+              REMINDER_OPTIONS.find((r) => r.value === m.reminder_minutes)
+                ?.label ??
+              (typeof m.reminder_minutes === "number"
+                ? `${m.reminder_minutes} min before`
+                : "Default reminder");
             return (
               <li key={m.id} className="grid gap-1.5 p-3">
                 <div className="flex items-center justify-between gap-2">
@@ -3175,26 +3320,44 @@ function MeetingsTab({
                   </span>
                 </div>
                 <div className="font-mono text-[11.5px] text-muted-foreground">
-                  {new Date(m.starts_at).toLocaleString()} →{" "}
-                  {new Date(m.ends_at).toLocaleTimeString()}
+                  {formatBDDateTime(m.starts_at)} → {formatBDTime(m.ends_at)} · BDT
                 </div>
                 <div className="text-[11.5px] text-muted-foreground">
                   Created by{" "}
                   <span className="font-medium text-foreground">
                     {m.created_by_name || "—"}
                   </span>{" "}
-                  · {new Date(m.created_at).toLocaleString()}
+                  · {formatBDDateTime(m.created_at)} · Reminder:{" "}
+                  <span className="text-foreground">{reminderLabel}</span>
                 </div>
                 {m.attendees && m.attendees.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {m.attendees.map((a) => (
-                      <span
-                        key={a}
-                        className="rounded-sm border border-border bg-muted/40 px-1.5 py-0.5 font-mono text-[10.5px] text-muted-foreground"
-                      >
-                        {a}
-                      </span>
-                    ))}
+                  <div className="flex flex-wrap gap-1.5">
+                    {m.attendees.map((a) => {
+                      const key = a.toLowerCase();
+                      const rs = (responses[key] ?? "needsAction") as RsvpStatus;
+                      const meta = RSVP_META[rs];
+                      return (
+                        <span
+                          key={a}
+                          className={cn(
+                            "inline-flex items-center gap-1.5 rounded-sm border px-1.5 py-0.5 font-mono text-[10.5px]",
+                            meta.className,
+                          )}
+                          title={`${a} — ${meta.label}`}
+                        >
+                          <span className="truncate max-w-[220px]">{a}</span>
+                          <span className="opacity-70">·</span>
+                          <span className="uppercase tracking-wider">
+                            {meta.label}
+                          </span>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+                {m.rsvp_synced_at && !isCancelled && (
+                  <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                    RSVPs synced {formatBDTime(m.rsvp_synced_at)}
                   </div>
                 )}
                 <div className="mt-1 flex items-center gap-2">
@@ -3216,8 +3379,13 @@ function MeetingsTab({
                         className="h-7 rounded-sm text-[11.5px]"
                         onClick={() => {
                           setRescheduleTarget(m);
-                          setReStart(toLocalInput(new Date(m.starts_at)));
-                          setReEnd(toLocalInput(new Date(m.ends_at)));
+                          setReStart(toBDInput(m.starts_at));
+                          setReEnd(toBDInput(m.ends_at));
+                          setReReminder(
+                            typeof m.reminder_minutes === "number"
+                              ? m.reminder_minutes
+                              : 30,
+                          );
                         }}
                       >
                         Reschedule
@@ -3229,7 +3397,7 @@ function MeetingsTab({
                         onClick={async () => {
                           const ok = await confirm({
                             title: "Cancel this meeting?",
-                            description: `"${m.title}" scheduled for ${new Date(m.starts_at).toLocaleString()} will be deleted from Google Calendar and all attendees will be notified.`,
+                            description: `"${m.title}" scheduled for ${formatBDDateTime(m.starts_at)} (BDT) will be deleted from Google Calendar and all attendees will be notified.`,
                             confirmLabel: "Cancel meeting",
                             cancelLabel: "Keep it",
                             tone: "danger",
@@ -3266,11 +3434,11 @@ function MeetingsTab({
                   {rescheduleTarget.title}
                 </span>
                 <div className="mt-0.5 font-mono text-[11.5px]">
-                  Currently: {new Date(rescheduleTarget.starts_at).toLocaleString()}{" "}
-                  → {new Date(rescheduleTarget.ends_at).toLocaleTimeString()}
+                  Currently: {formatBDDateTime(rescheduleTarget.starts_at)} →{" "}
+                  {formatBDTime(rescheduleTarget.ends_at)} · BDT
                 </div>
               </div>
-              <Field label="New start">
+              <Field label="New start (BDT)">
                 <Input
                   type="datetime-local"
                   value={reStart}
@@ -3278,13 +3446,26 @@ function MeetingsTab({
                   className="h-9 rounded-sm font-mono text-[12.5px]"
                 />
               </Field>
-              <Field label="New end">
+              <Field label="New end (BDT)">
                 <Input
                   type="datetime-local"
                   value={reEnd}
                   onChange={(e) => setReEnd(e.target.value)}
                   className="h-9 rounded-sm font-mono text-[12.5px]"
                 />
+              </Field>
+              <Field label="Reminder">
+                <select
+                  value={reReminder}
+                  onChange={(e) => setReReminder(Number(e.target.value))}
+                  className="h-9 w-full rounded-sm border border-input bg-background px-2 text-[12.5px]"
+                >
+                  {REMINDER_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
               </Field>
               <div className="text-[11px] text-muted-foreground">
                 Google will email an updated invite to all{" "}
@@ -3307,16 +3488,19 @@ function MeetingsTab({
                     !reStart || !reEnd || rescheduleM.isPending || reChecking
                   }
                   onClick={async () => {
-                    const startISO = new Date(reStart).toISOString();
-                    const endISO = new Date(reEnd).toISOString();
+                    const startISO = bdInputToISO(reStart);
+                    const endISO = bdInputToISO(reEnd);
                     if (new Date(endISO) <= new Date(startISO)) {
                       toast.error("End time must be after start time.");
                       return;
                     }
-                    if (
-                      startISO === rescheduleTarget.starts_at &&
-                      endISO === rescheduleTarget.ends_at
-                    ) {
+                    const unchanged =
+                      new Date(startISO).getTime() ===
+                        new Date(rescheduleTarget.starts_at).getTime() &&
+                      new Date(endISO).getTime() ===
+                        new Date(rescheduleTarget.ends_at).getTime() &&
+                      reReminder === rescheduleTarget.reminder_minutes;
+                    if (unchanged) {
                       toast.info("No changes to save.");
                       return;
                     }
@@ -3334,30 +3518,25 @@ function MeetingsTab({
                     conflicts = conflicts.filter(
                       (c) => c.eventId !== rescheduleTarget.google_event_id,
                     );
-                    const fmt = (iso: string) =>
-                      new Date(iso).toLocaleString(undefined, {
-                        weekday: "short",
-                        month: "short",
-                        day: "numeric",
-                        hour: "numeric",
-                        minute: "2-digit",
-                      });
                     const conflictBlock =
                       conflicts.length > 0
                         ? `\n\n⚠ Conflicts (${conflicts.length}):\n${conflicts
                             .slice(0, 5)
                             .map(
                               (c) =>
-                                `• ${c.summary} — ${fmt(c.startsAt)} → ${fmt(c.endsAt)}`,
+                                `• ${c.summary} — ${formatBDDateTime(c.startsAt)} → ${formatBDTime(c.endsAt)}`,
                             )
                             .join("\n")}`
                         : "";
+                    const reminderLabel =
+                      REMINDER_OPTIONS.find((r) => r.value === reReminder)?.label ??
+                      `${reReminder}m before`;
                     const ok = await confirm({
                       title:
                         conflicts.length > 0
                           ? "Time conflict — reschedule anyway?"
                           : "Reschedule meeting?",
-                      description: `"${rescheduleTarget.title}" will be moved to ${fmt(startISO)} → ${fmt(endISO)}. Google will notify all attendees.${conflictBlock}`,
+                      description: `"${rescheduleTarget.title}" will be moved to ${formatBDDateTime(startISO)} → ${formatBDTime(endISO)} BDT with a "${reminderLabel}" reminder. Google will notify all attendees.${conflictBlock}`,
                       confirmLabel:
                         conflicts.length > 0
                           ? "Reschedule anyway"
@@ -3370,6 +3549,7 @@ function MeetingsTab({
                         id: rescheduleTarget.id,
                         startsAt: startISO,
                         endsAt: endISO,
+                        reminderMinutes: reReminder,
                       });
                   }}
                 >
@@ -3386,6 +3566,7 @@ function MeetingsTab({
     </div>
   );
 }
+
 
 // Reusable multi-select popover for gmail attendees
 function EmailMultiSelect({
