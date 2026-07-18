@@ -22,6 +22,7 @@ import {
   Phone as PhoneIcon,
   Info,
   Pencil,
+  PenSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -465,10 +466,11 @@ function ReadOnlyDetails({
         <button
           type="button"
           onClick={onCompose}
-          className="shrink-0 rounded-sm border border-border px-1.5 py-0.5 text-[10.5px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+          className="inline-flex size-6 shrink-0 items-center justify-center rounded-sm border border-border bg-background text-foreground hover:bg-muted"
           title="Compose in Emails tab"
+          aria-label="Compose email"
         >
-          Compose
+          <PenSquare className="size-3" />
         </button>
       </div>
     );
