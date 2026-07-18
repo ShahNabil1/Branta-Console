@@ -370,36 +370,40 @@ export function SocialLinksSection({
                         <span className="text-muted-foreground">{row.url}</span>
                       </TooltipContent>
                     </Tooltip>
-                    <button
-                      type="button"
-                      className="inline-flex size-6 items-center justify-center rounded-sm text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100"
-                      onClick={() => {
-                        setEditingId(row.id);
-                        setEditDraft({
-                          platform: (SOCIAL_PLATFORMS as readonly string[]).includes(
-                            row.platform,
-                          )
-                            ? (row.platform as SocialPlatform)
-                            : "website",
-                          url: row.url,
-                          label: row.label ?? "",
-                        });
-                      }}
-                      aria-label="Edit"
-                    >
-                      <Pencil className="size-3" />
-                    </button>
-                    <button
-                      type="button"
-                      className="inline-flex size-6 items-center justify-center rounded-sm text-muted-foreground opacity-0 transition-opacity hover:bg-red-50 hover:text-red-600 group-hover:opacity-100"
-                      onClick={() => {
-                        if (confirm(`Remove this ${displayName} link?`))
-                          deleteM.mutate(row.id);
-                      }}
-                      aria-label="Delete"
-                    >
-                      <Trash2 className="size-3" />
-                    </button>
+                    {!locked && (
+                      <>
+                        <button
+                          type="button"
+                          className="inline-flex size-6 items-center justify-center rounded-sm text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100"
+                          onClick={() => {
+                            setEditingId(row.id);
+                            setEditDraft({
+                              platform: (SOCIAL_PLATFORMS as readonly string[]).includes(
+                                row.platform,
+                              )
+                                ? (row.platform as SocialPlatform)
+                                : "website",
+                              url: row.url,
+                              label: row.label ?? "",
+                            });
+                          }}
+                          aria-label="Edit"
+                        >
+                          <Pencil className="size-3" />
+                        </button>
+                        <button
+                          type="button"
+                          className="inline-flex size-6 items-center justify-center rounded-sm text-muted-foreground opacity-0 transition-opacity hover:bg-red-50 hover:text-red-600 group-hover:opacity-100"
+                          onClick={() => {
+                            if (confirm(`Remove this ${displayName} link?`))
+                              deleteM.mutate(row.id);
+                          }}
+                          aria-label="Delete"
+                        >
+                          <Trash2 className="size-3" />
+                        </button>
+                      </>
+                    )}
                   </div>
                 </TooltipProvider>
               );
