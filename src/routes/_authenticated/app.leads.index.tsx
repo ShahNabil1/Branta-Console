@@ -76,23 +76,6 @@ export const Route = createFileRoute("/_authenticated/app/leads/")({
   }),
 });
 
-function StatusBadge({
-  status,
-  options,
-}: {
-  status: LeadStatusDB;
-  options: LeadStatusOption[];
-}) {
-  return (
-    <span className="inline-flex items-center gap-2 text-[12.5px] font-medium text-foreground">
-      <span
-        className="size-1.5 rounded-full"
-        style={{ background: `var(${statusColorVar(status, options)})` }}
-      />
-      {statusLabel(status, options)}
-    </span>
-  );
-}
 
 function relTime(iso: string) {
   const d = new Date(iso).getTime();
