@@ -3,6 +3,10 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
+export const BD_TIMEZONE = "Asia/Dhaka";
+
+export type RsvpStatus = "needsAction" | "accepted" | "declined" | "tentative";
+
 export interface LeadMeetingRow {
   id: string;
   lead_id: string;
@@ -18,6 +22,9 @@ export interface LeadMeetingRow {
   created_at: string;
   updated_at: string;
   created_by_name?: string | null;
+  reminder_minutes: number;
+  attendee_responses: Record<string, RsvpStatus>;
+  rsvp_synced_at: string | null;
 }
 
 const gmailOnly = z
@@ -28,6 +35,13 @@ const gmailOnly = z
     message: "Only @gmail.com addresses are allowed",
   });
 
+const ReminderMinutes = z
+  .number()
+  .int()
+  .min(0)
+  .max(40320) // Google's max = 4 weeks
+  .default(30);
+
 const ScheduleInput = z.object({
   leadId: z.string().uuid(),
   title: z.string().trim().min(1).max(200),
@@ -35,20 +49,44 @@ const ScheduleInput = z.object({
   startsAt: z.string(),
   endsAt: z.string(),
   attendees: z.array(gmailOnly).min(1).max(50),
+  reminderMinutes: ReminderMinutes,
 });
 
+interface GCalAttendee {
+  email?: string;
+  responseStatus?: RsvpStatus;
+}
 interface GCalEvent {
   id: string;
   hangoutLink?: string;
   htmlLink?: string;
+  attendees?: GCalAttendee[];
   conferenceData?: { entryPoints?: { uri?: string; entryPointType?: string }[] };
+}
+
+function reminderOverrides(minutes: number) {
+  if (minutes <= 0) return { useDefault: false, overrides: [] };
+  return {
+    useDefault: false,
+    overrides: [
+      { method: "popup", minutes },
+      { method: "email", minutes },
+    ],
+  };
+}
+
+function extractResponses(ev: GCalEvent): Record<string, RsvpStatus> {
+  const out: Record<string, RsvpStatus> = {};
+  for (const a of ev.attendees ?? []) {
+    if (a.email) out[a.email.toLowerCase()] = a.responseStatus ?? "needsAction";
+  }
+  return out;
 }
 
 export const scheduleLeadMeeting = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => ScheduleInput.parse(d))
   .handler(async ({ data, context }): Promise<LeadMeetingRow> => {
-    // Deduplicate attendees case-insensitively
     const uniqAttendees = Array.from(
       new Map(data.attendees.map((e) => [e.toLowerCase(), e])).values(),
     );
@@ -63,9 +101,10 @@ export const scheduleLeadMeeting = createServerFn({ method: "POST" })
       body: {
         summary: data.title,
         description: data.description ?? "",
-        start: { dateTime: data.startsAt },
-        end: { dateTime: data.endsAt },
+        start: { dateTime: data.startsAt, timeZone: BD_TIMEZONE },
+        end: { dateTime: data.endsAt, timeZone: BD_TIMEZONE },
         attendees: uniqAttendees.map((email) => ({ email })),
+        reminders: reminderOverrides(data.reminderMinutes),
         conferenceData: {
           createRequest: {
             requestId,
@@ -81,6 +120,8 @@ export const scheduleLeadMeeting = createServerFn({ method: "POST" })
       ev.htmlLink ??
       null;
 
+    const responses = extractResponses(ev);
+
     const { data: row, error } = await context.supabase
       .from("lead_meetings")
       .insert({
@@ -94,7 +135,10 @@ export const scheduleLeadMeeting = createServerFn({ method: "POST" })
         attendees: uniqAttendees,
         status: "scheduled",
         created_by: context.userId,
-      })
+        reminder_minutes: data.reminderMinutes,
+        attendee_responses: responses,
+        rsvp_synced_at: new Date().toISOString(),
+      } as never)
       .select("*")
       .single();
     if (error) throw new Error(error.message);
@@ -107,8 +151,12 @@ export const scheduleLeadMeeting = createServerFn({ method: "POST" })
       lead_id: data.leadId,
       actor_id: context.userId,
       kind: "meeting",
-      body: `Scheduled: ${data.title} · ${new Date(data.startsAt).toLocaleString()}`,
-      meta: { event_id: ev.id, meet_link: meetLink },
+      body: `Scheduled: ${data.title} · ${data.startsAt} (BDT)`,
+      meta: {
+        event_id: ev.id,
+        meet_link: meetLink,
+        reminder_minutes: data.reminderMinutes,
+      },
     });
     return row as LeadMeetingRow;
   });
@@ -156,6 +204,7 @@ const RescheduleInput = z.object({
   id: z.string().uuid(),
   startsAt: z.string(),
   endsAt: z.string(),
+  reminderMinutes: ReminderMinutes.optional(),
 });
 
 export const rescheduleLeadMeeting = createServerFn({ method: "POST" })
@@ -175,6 +224,11 @@ export const rescheduleLeadMeeting = createServerFn({ method: "POST" })
     if (mtg.status === "cancelled")
       throw new Error("Cannot reschedule a cancelled meeting");
 
+    const newReminder =
+      typeof data.reminderMinutes === "number"
+        ? data.reminderMinutes
+        : ((mtg as { reminder_minutes?: number }).reminder_minutes ?? 30);
+
     if (mtg.google_event_id) {
       const { callGateway } = await import("@/lib/connector-gateway.server");
       await callGateway({
@@ -183,15 +237,20 @@ export const rescheduleLeadMeeting = createServerFn({ method: "POST" })
         method: "PATCH",
         query: { sendUpdates: "all" },
         body: {
-          start: { dateTime: data.startsAt },
-          end: { dateTime: data.endsAt },
+          start: { dateTime: data.startsAt, timeZone: BD_TIMEZONE },
+          end: { dateTime: data.endsAt, timeZone: BD_TIMEZONE },
+          reminders: reminderOverrides(newReminder),
         },
       });
     }
 
     const { data: row, error } = await context.supabase
       .from("lead_meetings")
-      .update({ starts_at: data.startsAt, ends_at: data.endsAt })
+      .update({
+        starts_at: data.startsAt,
+        ends_at: data.endsAt,
+        reminder_minutes: newReminder,
+      } as never)
       .eq("id", data.id)
       .select("*")
       .single();
@@ -201,8 +260,8 @@ export const rescheduleLeadMeeting = createServerFn({ method: "POST" })
       lead_id: mtg.lead_id,
       actor_id: context.userId,
       kind: "meeting",
-      body: `Rescheduled: ${mtg.title} · ${new Date(data.startsAt).toLocaleString()}`,
-      meta: { event_id: mtg.google_event_id },
+      body: `Rescheduled: ${mtg.title} · ${data.startsAt} (BDT)`,
+      meta: { event_id: mtg.google_event_id, reminder_minutes: newReminder },
     });
     return row as LeadMeetingRow;
   });
@@ -248,6 +307,7 @@ export const checkMeetingConflicts = createServerFn({ method: "POST" })
           singleEvents: "true",
           orderBy: "startTime",
           maxResults: 20,
+          timeZone: BD_TIMEZONE,
         },
       });
       return (res.items ?? [])
@@ -270,6 +330,65 @@ export const checkMeetingConflicts = createServerFn({ method: "POST" })
     }
   });
 
+// Pull the latest attendee responseStatus from Google Calendar
+// and mirror it into lead_meetings.attendee_responses so the UI shows live RSVPs.
+export const syncMeetingRsvp = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ leadId: z.string().uuid() }).parse(d),
+  )
+  .handler(
+    async ({
+      data,
+      context,
+    }): Promise<{ updated: number; syncedAt: string }> => {
+      const { data: rows, error } = await context.supabase
+        .from("lead_meetings")
+        .select("id, google_event_id, attendee_responses, status")
+        .eq("lead_id", data.leadId)
+        .neq("status", "cancelled");
+      if (error) throw new Error(error.message);
+      const targets = (rows ?? []).filter(
+        (r): r is typeof r & { google_event_id: string } =>
+          !!r.google_event_id,
+      );
+      if (targets.length === 0)
+        return { updated: 0, syncedAt: new Date().toISOString() };
+
+      const { callGateway } = await import("@/lib/connector-gateway.server");
+      const now = new Date().toISOString();
+      let updated = 0;
+
+      await Promise.all(
+        targets.map(async (r) => {
+          try {
+            const ev = await callGateway<GCalEvent>({
+              connector: "google_calendar",
+              path: `/calendar/v3/calendars/primary/events/${r.google_event_id}`,
+              method: "GET",
+            });
+            const next = extractResponses(ev);
+            const prev = (r as { attendee_responses?: Record<string, RsvpStatus> })
+              .attendee_responses ?? {};
+            const changed =
+              JSON.stringify(next) !== JSON.stringify(prev);
+            await context.supabase
+              .from("lead_meetings")
+              .update({
+                attendee_responses: next,
+                rsvp_synced_at: now,
+              } as never)
+              .eq("id", r.id);
+            if (changed) updated += 1;
+          } catch (e) {
+            console.warn("[calendar] rsvp sync failed:", r.id, e);
+          }
+        }),
+      );
+
+      return { updated, syncedAt: now };
+    },
+  );
 
 export const listLeadMeetings = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -284,9 +403,8 @@ export const listLeadMeetings = createServerFn({ method: "GET" })
       .order("starts_at", { ascending: false })
       .limit(100);
     if (error) throw new Error(error.message);
-    const list = (rows ?? []) as LeadMeetingRow[];
+    const list = (rows ?? []) as unknown as LeadMeetingRow[];
 
-    // Resolve creator names in one query
     const creatorIds = Array.from(
       new Set(list.map((m) => m.created_by).filter(Boolean) as string[]),
     );
