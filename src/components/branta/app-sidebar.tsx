@@ -36,25 +36,20 @@ const NAV: NavGroup[] = [
     label: "CRM",
     items: [
       { label: "Leads", to: "/app/leads", icon: Users },
+      { label: "Customers", to: "/app/customers", icon: Building2 },
       { label: "Inbox", to: "/app/inbox", icon: Inbox },
-    ],
-  },
-  {
-    label: "Comms",
-    items: [
-      { label: "Email", to: "/app", icon: Mail },
-      { label: "Mail queue", to: "/app/mail-queue", icon: Send },
-      { label: "Calendar", to: "/app", icon: Calendar },
     ],
   },
   {
     label: "Admin",
     items: [
       { label: "Employees", to: "/app/employees", icon: UserPlus },
+      { label: "Mail queue", to: "/app/mail-queue", icon: Send },
       { label: "Settings", to: "/app/settings", icon: Settings },
       { label: "Security", to: "/app/settings", icon: Shield },
     ],
   },
+
 ];
 
 const COLLAPSE_KEY = "branta.sidebar.collapsed";
