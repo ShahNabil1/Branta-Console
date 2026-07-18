@@ -187,6 +187,7 @@ export const listLeads = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("leads")
       .select("*")
+      .neq("status", "converted")
       .order("last_activity_at", { ascending: false })
       .limit(500);
     if (error) throw new Error(error.message);
