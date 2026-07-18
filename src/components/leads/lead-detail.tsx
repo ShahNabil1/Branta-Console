@@ -2858,6 +2858,7 @@ function MeetingsTab({
   const cancelFn = useServerFn(cancelLeadMeeting);
   const listContactsFn = useServerFn(listLeadContacts);
   const qc = useQueryClient();
+  const confirm = useConfirm();
 
   const meetings = useQuery({
     queryKey: ["lead-meetings", lead.id],
