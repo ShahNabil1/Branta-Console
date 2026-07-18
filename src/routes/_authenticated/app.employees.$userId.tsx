@@ -234,7 +234,7 @@ function EmployeeDetailPage() {
       title: "Impersonate this employee?",
       description:
         `You will be signed in as ${e.email}. All actions will be logged. Use the amber banner to exit.`,
-      confirmText: "Impersonate",
+      confirmLabel: "Impersonate",
       tone: "warning",
     });
     if (!ok) return;
@@ -247,7 +247,7 @@ function EmployeeDetailPage() {
       description: e.isBanned
         ? "The employee will be able to sign in again."
         : "The employee will be signed out and blocked from signing in.",
-      confirmText: e.isBanned ? "Unban" : "Ban",
+      confirmLabel: e.isBanned ? "Unban" : "Ban",
       tone: e.isBanned ? "default" : "warning",
     });
     if (!ok) return;
@@ -258,7 +258,7 @@ function EmployeeDetailPage() {
     const ok = await confirm({
       title: "Reset password?",
       description: `A new temporary password will be emailed to ${e.email}. Their current password will stop working.`,
-      confirmText: "Reset password",
+      confirmLabel: "Reset password",
     });
     if (!ok) return;
     resetMut.mutate();
@@ -268,9 +268,9 @@ function EmployeeDetailPage() {
     const ok = await confirm({
       title: "Delete this employee?",
       description: `Type ${e.brantaId} to confirm. This removes their account, roles and profile.`,
-      confirmText: "Delete",
+      confirmLabel: "Delete",
       tone: "danger",
-      requireText: e.brantaId,
+      requireTypedText: e.brantaId,
     });
     if (!ok) return;
     delMut.mutate();
