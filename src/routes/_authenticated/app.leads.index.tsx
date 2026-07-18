@@ -156,14 +156,6 @@ function LeadsPage() {
     staleTime: 5 * 60_000,
     initialData: STATUS_FALLBACK,
   });
-  // Pre-warm source options for the detail page.
-  useQuery({
-    queryKey: ["lead-source-options"],
-    queryFn: () => useServerFn(listLeadSourceOptions)(),
-    staleTime: 5 * 60_000,
-    initialData: SOURCE_FALLBACK,
-    enabled: false,
-  });
   const statusOptions: LeadStatusOption[] =
     statusOptsQ.data ?? STATUS_FALLBACK;
 
