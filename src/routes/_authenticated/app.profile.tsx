@@ -215,6 +215,7 @@ function ProfileForm({
           avatar_url: form.avatar_url,
           nid_url: form.nid_url,
           cv_url: form.cv_url,
+          personal_gmail: form.personal_gmail,
         },
       });
       toast.success("Profile updated");
