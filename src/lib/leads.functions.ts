@@ -410,6 +410,7 @@ export const addLeadActivity = createServerFn({ method: "POST" })
 export interface AssignableUser {
   user_id: string;
   full_name: string | null;
+  personal_gmail?: string | null;
 }
 
 export const listAssignableUsers = createServerFn({ method: "GET" })
@@ -417,7 +418,7 @@ export const listAssignableUsers = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<AssignableUser[]> => {
     const { data, error } = await context.supabase
       .from("profiles")
-      .select("user_id, full_name")
+      .select("user_id, full_name, personal_gmail")
       .order("full_name", { ascending: true })
       .limit(500);
     if (error) throw new Error(error.message);
