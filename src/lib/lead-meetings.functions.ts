@@ -152,6 +152,61 @@ export const cancelLeadMeeting = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+const RescheduleInput = z.object({
+  id: z.string().uuid(),
+  startsAt: z.string(),
+  endsAt: z.string(),
+});
+
+export const rescheduleLeadMeeting = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => RescheduleInput.parse(d))
+  .handler(async ({ data, context }): Promise<LeadMeetingRow> => {
+    if (new Date(data.endsAt) <= new Date(data.startsAt)) {
+      throw new Error("End time must be after start time.");
+    }
+    const { data: mtg, error: fErr } = await context.supabase
+      .from("lead_meetings")
+      .select("*")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (fErr) throw new Error(fErr.message);
+    if (!mtg) throw new Error("Meeting not found");
+    if (mtg.status === "cancelled")
+      throw new Error("Cannot reschedule a cancelled meeting");
+
+    if (mtg.google_event_id) {
+      const { callGateway } = await import("@/lib/connector-gateway.server");
+      await callGateway({
+        connector: "google_calendar",
+        path: `/calendar/v3/calendars/primary/events/${mtg.google_event_id}`,
+        method: "PATCH",
+        query: { sendUpdates: "all" },
+        body: {
+          start: { dateTime: data.startsAt },
+          end: { dateTime: data.endsAt },
+        },
+      });
+    }
+
+    const { data: row, error } = await context.supabase
+      .from("lead_meetings")
+      .update({ starts_at: data.startsAt, ends_at: data.endsAt })
+      .eq("id", data.id)
+      .select("*")
+      .single();
+    if (error) throw new Error(error.message);
+
+    await context.supabase.from("lead_activities").insert({
+      lead_id: mtg.lead_id,
+      actor_id: context.userId,
+      kind: "meeting",
+      body: `Rescheduled: ${mtg.title} · ${new Date(data.startsAt).toLocaleString()}`,
+      meta: { event_id: mtg.google_event_id },
+    });
+    return row as LeadMeetingRow;
+  });
+
 export interface MeetingConflict {
   eventId: string;
   summary: string;
