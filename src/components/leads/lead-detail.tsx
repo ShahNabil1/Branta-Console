@@ -596,10 +596,12 @@ export function LeadDetail({
   lead,
   users,
   onDeleted,
+  initialEdit = false,
 }: {
   lead: LeadRow;
   users: { user_id: string; full_name: string | null; personal_gmail?: string | null }[];
   onDeleted?: () => void;
+  initialEdit?: boolean;
 }) {
   const qc = useQueryClient();
   const update = useServerFn(updateLead);
@@ -662,7 +664,7 @@ export function LeadDetail({
   // Optional note captured when status changes; cleared after save.
   const [statusChangeNote, setStatusChangeNote] = useState("");
   // Details section lock — read-only by default, unlocks on Edit click.
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(initialEdit);
   const confirm = useConfirm();
 
   useEffect(() => {

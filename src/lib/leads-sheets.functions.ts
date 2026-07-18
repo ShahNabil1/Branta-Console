@@ -4,22 +4,51 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const SHEET_TITLE = "Branta Tech · Leads";
 const SHEET_TAB = "Leads";
+
+// Columns pushed to / pulled from the sheet.
+// Note: `contacts_json` and `socials_json` carry the full teammate / social
+// arrays as JSON strings so a single row round-trips without data loss.
 const HEADERS = [
   "id",
   "slug",
   "lead_code",
   "name",
+  "role",
   "company",
-  "email", // primary contact email (derived)
+  "email", // primary contact email
+  "email_label",
+  "alt_email",
+  "alt_email_label",
   "phone",
+  "phone_label",
+  "alt_phone",
+  "alt_phone_label",
+  "contact_preference",
   "status",
   "source",
+  "source_other",
+  "service",
+  "service_other",
   "value_usd",
   "currency",
   "next_action",
   "notes",
+  "contacts_json",
+  "socials_json",
   "last_activity_at",
 ];
+
+function colLetters(n: number): string {
+  let s = "";
+  let x = n;
+  while (x > 0) {
+    const r = (x - 1) % 26;
+    s = String.fromCharCode(65 + r) + s;
+    x = Math.floor((x - 1) / 26);
+  }
+  return s || "A";
+}
+const LAST_COL = colLetters(HEADERS.length);
 
 async function getSyncRow(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -49,8 +78,19 @@ async function upsertSync(
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function ensureSheet(supabase: any): Promise<string> {
   const existing = await getSyncRow(supabase);
-  if (existing?.resource_id) return existing.resource_id;
   const { callGateway } = await import("@/lib/connector-gateway.server");
+  if (existing?.resource_id) {
+    // Always keep the header row aligned with the current HEADERS list so
+    // pulls/pushes stay stable if columns are added over time.
+    await callGateway({
+      connector: "google_sheets",
+      path: `/v4/spreadsheets/${existing.resource_id}/values/${SHEET_TAB}!A1:${LAST_COL}1`,
+      method: "PUT",
+      query: { valueInputOption: "RAW" },
+      body: { values: [HEADERS] },
+    });
+    return existing.resource_id;
+  }
   const created = await callGateway<{ spreadsheetId: string }>({
     connector: "google_sheets",
     path: "/v4/spreadsheets",
@@ -62,7 +102,7 @@ async function ensureSheet(supabase: any): Promise<string> {
   });
   await callGateway({
     connector: "google_sheets",
-    path: `/v4/spreadsheets/${created.spreadsheetId}/values/${SHEET_TAB}!A1:${String.fromCharCode(64 + HEADERS.length)}1`,
+    path: `/v4/spreadsheets/${created.spreadsheetId}/values/${SHEET_TAB}!A1:${LAST_COL}1`,
     method: "PUT",
     query: { valueInputOption: "RAW" },
     body: { values: [HEADERS] },
@@ -71,23 +111,72 @@ async function ensureSheet(supabase: any): Promise<string> {
   return created.spreadsheetId;
 }
 
-async function fetchPrimaryEmailMap(
+type ContactRow = {
+  id: string;
+  lead_id: string;
+  name: string | null;
+  role: string | null;
+  email: string;
+  email_label: string | null;
+  alt_email: string | null;
+  alt_email_label: string | null;
+  phone: string | null;
+  phone_label: string | null;
+  alt_phone: string | null;
+  alt_phone_label: string | null;
+  contact_preference: string | null;
+  label: string | null;
+  is_primary: boolean;
+};
+
+type SocialRow = {
+  lead_id: string;
+  platform: string;
+  url: string;
+  label: string | null;
+  sort_order: number | null;
+};
+
+async function fetchContactsMap(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
   leadIds: string[],
-): Promise<Map<string, string>> {
-  const map = new Map<string, string>();
+): Promise<Map<string, ContactRow[]>> {
+  const map = new Map<string, ContactRow[]>();
   if (leadIds.length === 0) return map;
   const { data } = await supabase
     .from("lead_contacts")
-    .select("lead_id, email, is_primary")
-    .in("lead_id", leadIds);
-  const anyBy = new Map<string, string>();
-  (data ?? []).forEach((c: { lead_id: string; email: string; is_primary: boolean }) => {
-    if (c.is_primary) map.set(c.lead_id, c.email);
-    if (!anyBy.has(c.lead_id)) anyBy.set(c.lead_id, c.email);
+    .select(
+      "id, lead_id, name, role, email, email_label, alt_email, alt_email_label, phone, phone_label, alt_phone, alt_phone_label, contact_preference, label, is_primary",
+    )
+    .in("lead_id", leadIds)
+    .order("is_primary", { ascending: false })
+    .order("created_at", { ascending: true });
+  (data ?? []).forEach((c: ContactRow) => {
+    const arr = map.get(c.lead_id) ?? [];
+    arr.push(c);
+    map.set(c.lead_id, arr);
   });
-  for (const [lid, e] of anyBy.entries()) if (!map.has(lid)) map.set(lid, e);
+  return map;
+}
+
+async function fetchSocialsMap(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  leadIds: string[],
+): Promise<Map<string, SocialRow[]>> {
+  const map = new Map<string, SocialRow[]>();
+  if (leadIds.length === 0) return map;
+  const { data } = await supabase
+    .from("lead_social_links")
+    .select("lead_id, platform, url, label, sort_order")
+    .in("lead_id", leadIds)
+    .order("sort_order", { ascending: true });
+  (data ?? []).forEach((s: SocialRow) => {
+    const arr = map.get(s.lead_id) ?? [];
+    arr.push(s);
+    map.set(s.lead_id, arr);
+  });
   return map;
 }
 
@@ -137,34 +226,41 @@ export const pushLeadsToSheet = createServerFn({ method: "POST" })
     const { data: leads, error } = await context.supabase
       .from("leads")
       .select(
-        "id, slug, lead_code, name, company, phone, status, source, value_usd, currency, next_action, notes, last_activity_at",
+        "id, slug, lead_code, name, role, company, phone, phone_label, alt_phone, alt_phone_label, email_label, alt_email, alt_email_label, contact_preference, status, source, source_other, service, service_other, value_usd, currency, next_action, notes, last_activity_at",
       )
       .order("slug", { ascending: true })
       .limit(5000);
     if (error) throw new Error(error.message);
     const leadRows = (leads ?? []) as Array<Record<string, unknown> & { id: string }>;
-    const emailMap = await fetchPrimaryEmailMap(
-      context.supabase,
-      leadRows.map((l) => l.id),
-    );
-    const rows = leadRows.map((l) =>
-      HEADERS.map((h) => {
-        if (h === "email") return emailMap.get(l.id) ?? "";
+    const ids = leadRows.map((l) => l.id);
+    const contactsMap = await fetchContactsMap(context.supabase, ids);
+    const socialsMap = await fetchSocialsMap(context.supabase, ids);
+    const rows = leadRows.map((l) => {
+      const contacts = contactsMap.get(l.id) ?? [];
+      const primary =
+        contacts.find((c) => c.is_primary) ?? contacts[0] ?? null;
+      const socials = socialsMap.get(l.id) ?? [];
+      return HEADERS.map((h) => {
+        if (h === "email") return primary?.email ?? "";
+        if (h === "contacts_json")
+          return contacts.length ? JSON.stringify(contacts) : "";
+        if (h === "socials_json")
+          return socials.length ? JSON.stringify(socials) : "";
         const v = l[h];
         return v == null ? "" : String(v);
-      }),
-    );
+      });
+    });
     const { callGateway } = await import("@/lib/connector-gateway.server");
     await callGateway({
       connector: "google_sheets",
-      path: `/v4/spreadsheets/${sheetId}/values/${SHEET_TAB}!A2:Z100000:clear`,
+      path: `/v4/spreadsheets/${sheetId}/values/${SHEET_TAB}!A2:${LAST_COL}100000:clear`,
       method: "POST",
       body: {},
     });
     if (rows.length > 0) {
       await callGateway({
         connector: "google_sheets",
-        path: `/v4/spreadsheets/${sheetId}/values/${SHEET_TAB}!A2`,
+        path: `/v4/spreadsheets/${sheetId}/values/${SHEET_TAB}!A2:${LAST_COL}${1 + rows.length}`,
         method: "PUT",
         query: { valueInputOption: "RAW" },
         body: { values: rows },
@@ -178,7 +274,7 @@ export const pushLeadsToSheet = createServerFn({ method: "POST" })
     await context.supabase
       .from("leads")
       .update({ synced_at: now })
-      .in("id", leadRows.map((l) => l.id));
+      .in("id", ids);
     return {
       spreadsheetId: sheetId,
       spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${sheetId}/edit`,
@@ -194,7 +290,7 @@ export const pullLeadsFromSheet = createServerFn({ method: "POST" })
     }): Promise<SheetSyncStatus & { updated: number; created: number }> => {
       const sheetId = await ensureSheet(context.supabase);
       const { callGateway } = await import("@/lib/connector-gateway.server");
-      const range = `${SHEET_TAB}!A2:${String.fromCharCode(64 + HEADERS.length)}100000`;
+      const range = `${SHEET_TAB}!A2:${LAST_COL}100000`;
       const resp = await callGateway<{ values?: string[][] }>({
         connector: "google_sheets",
         path: `/v4/spreadsheets/${sheetId}/values/${range}`,
@@ -230,10 +326,21 @@ export const pullLeadsFromSheet = createServerFn({ method: "POST" })
         const emailFromSheet = rec.email && rec.email.includes("@") ? rec.email : null;
         const leadPatch = {
           name: rec.name,
+          role: rec.role || null,
           company: rec.company || null,
           phone: rec.phone || null,
+          phone_label: rec.phone_label || null,
+          alt_phone: rec.alt_phone || null,
+          alt_phone_label: rec.alt_phone_label || null,
+          email_label: rec.email_label || null,
+          alt_email: rec.alt_email || null,
+          alt_email_label: rec.alt_email_label || null,
+          contact_preference: rec.contact_preference || null,
           status,
           source: rec.source || null,
+          source_other: rec.source_other || null,
+          service: rec.service || null,
+          service_other: rec.service_other || null,
           value_usd:
             rec.value_usd && !Number.isNaN(Number(rec.value_usd))
               ? Number(rec.value_usd)

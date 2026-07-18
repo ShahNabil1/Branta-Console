@@ -22,14 +22,6 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -44,19 +36,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  createLead,
+  createDraftLead,
   listAssignableUsers,
   listLeads,
   type LeadStatusDB,
 } from "@/lib/leads.functions";
 import {
-  listLeadSourceOptions,
   listLeadStatusOptions,
-  SOURCE_FALLBACK,
   STATUS_FALLBACK,
   statusColorVar,
   statusLabel,
-  type LeadSourceOption,
   type LeadStatusOption,
 } from "@/lib/lead-options.functions";
 import {
@@ -70,6 +59,7 @@ const leadsSearchSchema = z.object({
   page: fallback(z.number().int(), 1).default(1),
   pageSize: fallback(z.number().int(), 50).default(50),
 });
+
 
 export const Route = createFileRoute("/_authenticated/app/leads/")({
   component: LeadsPage,
@@ -144,7 +134,7 @@ function LeadsPage() {
   const list = useServerFn(listLeads);
   const listUsers = useServerFn(listAssignableUsers);
   const listStatusOpts = useServerFn(listLeadStatusOptions);
-  const listSourceOpts = useServerFn(listLeadSourceOptions);
+  const createDraft = useServerFn(createDraftLead);
 
   const leadsQuery = useQuery({
     queryKey: ["leads", "list"],
@@ -164,16 +154,8 @@ function LeadsPage() {
     staleTime: 5 * 60_000,
     initialData: STATUS_FALLBACK,
   });
-  const sourceOptsQ = useQuery({
-    queryKey: ["lead-source-options"],
-    queryFn: () => listSourceOpts(),
-    staleTime: 5 * 60_000,
-    initialData: SOURCE_FALLBACK,
-  });
   const statusOptions: LeadStatusOption[] =
     statusOptsQ.data ?? STATUS_FALLBACK;
-  const sourceOptions: LeadSourceOption[] =
-    sourceOptsQ.data ?? SOURCE_FALLBACK;
 
   useEffect(() => {
     const ch = supabase
@@ -202,7 +184,22 @@ function LeadsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | LeadStatusDB>("all");
   const [ownerFilter, setOwnerFilter] = useState<string>("all");
-  const [createOpen, setCreateOpen] = useState(false);
+
+  const createDraftM = useMutation({
+    mutationFn: () => createDraft(),
+    onSuccess: (row) => {
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      navigate({
+        to: "/app/leads/$slug",
+        params: { slug: row.slug ?? row.lead_code },
+        search: { new: 1 },
+      });
+    },
+    onError: (e: unknown) =>
+      toast.error(e instanceof Error ? e.message : "Failed to create lead"),
+  });
+  const onNewLead = () => createDraftM.mutate();
+
 
   const filtered = useMemo(() => {
     const rows = leadsQuery.data ?? [];
@@ -292,9 +289,15 @@ function LeadsPage() {
           <Button
             size="sm"
             className="h-9 rounded-sm bg-primary text-[12.5px] text-primary-foreground hover:bg-brand-700"
-            onClick={() => setCreateOpen(true)}
+            disabled={createDraftM.isPending}
+            onClick={onNewLead}
           >
-            <Plus className="mr-1.5 size-3.5" /> New lead
+            {createDraftM.isPending ? (
+              <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+            ) : (
+              <Plus className="mr-1.5 size-3.5" />
+            )}
+            New lead
           </Button>
         </div>
       </div>
@@ -372,7 +375,7 @@ function LeadsPage() {
               Loading leads…
             </div>
           ) : filtered.length === 0 ? (
-            <EmptyState onCreate={() => setCreateOpen(true)} />
+            <EmptyState onCreate={onNewLead} busy={createDraftM.isPending} />
           ) : (
             paged.map((row) => (
               <button
@@ -473,18 +476,17 @@ function LeadsPage() {
       )}
 
 
-      <CreateLeadDialog
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        users={usersQuery.data ?? []}
-        statusOptions={statusOptions}
-        sourceOptions={sourceOptions}
-      />
     </div>
   );
 }
 
-function EmptyState({ onCreate }: { onCreate: () => void }) {
+function EmptyState({
+  onCreate,
+  busy,
+}: {
+  onCreate: () => void;
+  busy?: boolean;
+}) {
   return (
     <div className="grid place-items-center p-16 text-center">
       <div className="text-[14px] font-semibold text-foreground">
@@ -496,294 +498,17 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
       <Button
         size="sm"
         className="mt-4 h-9 rounded-sm bg-primary text-[12.5px] text-primary-foreground hover:bg-brand-700"
+        disabled={busy}
         onClick={onCreate}
       >
-        <Plus className="mr-1.5 size-3.5" /> New lead
+        {busy ? (
+          <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+        ) : (
+          <Plus className="mr-1.5 size-3.5" />
+        )}
+        New lead
       </Button>
     </div>
-  );
-}
-
-// ---------- Create dialog ----------
-type CreateForm = {
-  name: string;
-  company: string;
-  email: string;
-  phone: string;
-  status: LeadStatusDB;
-  source: string;
-  source_other: string;
-  owner_id: string;
-  value_usd: string;
-  currency: "BDT" | "USD";
-  next_action: string;
-  notes: string;
-};
-const emptyForm: CreateForm = {
-  name: "",
-  company: "",
-  email: "",
-  phone: "",
-  status: "new",
-  source: "",
-  source_other: "",
-  owner_id: "",
-  value_usd: "",
-  currency: "BDT",
-  next_action: "",
-  notes: "",
-};
-
-function CreateLeadDialog({
-  open,
-  onOpenChange,
-  users,
-  statusOptions,
-  sourceOptions,
-}: {
-  open: boolean;
-  onOpenChange: (o: boolean) => void;
-  users: { user_id: string; full_name: string | null }[];
-  statusOptions: LeadStatusOption[];
-  sourceOptions: LeadSourceOption[];
-}) {
-  const qc = useQueryClient();
-  const navigate = useNavigate();
-  const create = useServerFn(createLead);
-  const [form, setForm] = useState<CreateForm>(emptyForm);
-  const activeSource = sourceOptions.find((s) => s.key === form.source);
-  const sourceNeedsDetail = activeSource?.requires_detail ?? false;
-
-  useEffect(() => {
-    if (open) setForm(emptyForm);
-  }, [open]);
-
-  const m = useMutation({
-    mutationFn: () =>
-      create({
-        data: {
-          name: form.name.trim(),
-          company: form.company.trim() || null,
-          email: form.email.trim() || null,
-          phone: form.phone.trim() || null,
-          status: form.status,
-          source: form.source.trim() || null,
-          source_other: sourceNeedsDetail ? form.source_other.trim() || null : null,
-          owner_id: form.owner_id || null,
-          value_usd: form.value_usd ? Number(form.value_usd) : null,
-          currency: form.currency,
-          next_action: form.next_action.trim() || null,
-          notes: form.notes.trim() || null,
-        },
-      }),
-    onSuccess: (row) => {
-      toast.success("Lead created");
-      qc.invalidateQueries({ queryKey: ["leads"] });
-      onOpenChange(false);
-      navigate({
-        to: "/app/leads/$slug",
-        params: { slug: row.slug ?? row.lead_code },
-      });
-    },
-    onError: (e: unknown) =>
-      toast.error(e instanceof Error ? e.message : "Failed to create lead"),
-  });
-
-  const set = <K extends keyof CreateForm>(k: K, v: CreateForm[K]) =>
-    setForm((p) => ({ ...p, [k]: v }));
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg rounded-sm">
-        <DialogHeader>
-          <DialogTitle className="text-[15px]">New lead</DialogTitle>
-        </DialogHeader>
-        <div className="grid grid-cols-2 gap-3">
-          <FormRow label="Name *" className="col-span-2">
-            <Input
-              value={form.name}
-              onChange={(e) => set("name", e.target.value)}
-              className="h-9 rounded-sm text-[12.5px]"
-            />
-          </FormRow>
-          <FormRow label="Company">
-            <Input
-              value={form.company}
-              onChange={(e) => set("company", e.target.value)}
-              className="h-9 rounded-sm text-[12.5px]"
-            />
-          </FormRow>
-          <FormRow label="Source">
-            <Select
-              value={form.source || "__unset"}
-              onValueChange={(v) => {
-                const next = v === "__unset" ? "" : v;
-                setForm((p) => ({
-                  ...p,
-                  source: next,
-                  source_other:
-                    next && sourceOptions.find((o) => o.key === next)?.requires_detail
-                      ? p.source_other
-                      : "",
-                }));
-              }}
-            >
-              <SelectTrigger className="h-9 rounded-sm text-[12.5px]">
-                <SelectValue placeholder="Select source" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__unset">— None —</SelectItem>
-                {sourceOptions.map((s) => (
-                  <SelectItem key={s.key} value={s.key}>
-                    {s.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </FormRow>
-          {sourceNeedsDetail && (
-            <FormRow label={`${activeSource?.label ?? "Source"} details *`}>
-              <Input
-                value={form.source_other}
-                onChange={(e) => set("source_other", e.target.value)}
-                placeholder="Describe the source"
-                className="h-9 rounded-sm text-[12.5px]"
-              />
-            </FormRow>
-          )}
-          <FormRow label="Email">
-            <Input
-              value={form.email}
-              onChange={(e) => set("email", e.target.value)}
-              className="h-9 rounded-sm text-[12.5px]"
-            />
-          </FormRow>
-          <FormRow label="Phone">
-            <Input
-              value={form.phone}
-              onChange={(e) => set("phone", e.target.value)}
-              className="h-9 rounded-sm text-[12.5px]"
-            />
-          </FormRow>
-          <FormRow label="Status">
-            <Select
-              value={form.status}
-              onValueChange={(v) => set("status", v as LeadStatusDB)}
-            >
-              <SelectTrigger className="h-9 rounded-sm text-[12.5px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {statusOptions.map((s) => (
-                  <SelectItem key={s.key} value={s.key}>
-                    {s.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </FormRow>
-          <FormRow label="Owner">
-            <Select
-              value={form.owner_id || "self"}
-              onValueChange={(v) => set("owner_id", v === "self" ? "" : v)}
-            >
-              <SelectTrigger className="h-9 rounded-sm text-[12.5px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="self">Me</SelectItem>
-                {users.map((u) => (
-                  <SelectItem key={u.user_id} value={u.user_id}>
-                    {u.full_name || u.user_id.slice(0, 8)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </FormRow>
-          <FormRow label="Currency">
-            <Select
-              value={form.currency}
-              onValueChange={(v) => set("currency", v as "BDT" | "USD")}
-            >
-              <SelectTrigger className="h-9 rounded-sm text-[12.5px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="BDT">BDT — Bangladeshi Taka</SelectItem>
-                <SelectItem value="USD">USD — US Dollar</SelectItem>
-              </SelectContent>
-            </Select>
-          </FormRow>
-          <FormRow label={`Value (${form.currency})`}>
-            <Input
-              inputMode="decimal"
-              value={form.value_usd}
-              onChange={(e) => set("value_usd", e.target.value)}
-              className="h-9 rounded-sm font-mono text-[12.5px]"
-            />
-          </FormRow>
-          <FormRow label="Next action" className="col-span-2">
-            <Input
-              value={form.next_action}
-              onChange={(e) => set("next_action", e.target.value)}
-              placeholder="Call · Send deck · Follow up"
-              className="h-9 rounded-sm text-[12.5px]"
-            />
-          </FormRow>
-          <FormRow label="Notes" className="col-span-2">
-            <Textarea
-              value={form.notes}
-              onChange={(e) => set("notes", e.target.value)}
-              className="min-h-[90px] rounded-sm text-[12.5px]"
-            />
-          </FormRow>
-        </div>
-        <DialogFooter>
-          <Button
-            variant="outline"
-            className="h-9 rounded-sm"
-            onClick={() => onOpenChange(false)}
-          >
-            Cancel
-          </Button>
-          <Button
-            className="h-9 rounded-sm bg-primary text-primary-foreground hover:bg-brand-700"
-            disabled={
-              m.isPending ||
-              !form.name.trim() ||
-              (sourceNeedsDetail && !form.source_other.trim())
-            }
-            onClick={() => m.mutate()}
-          >
-            {m.isPending ? (
-              <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-            ) : (
-              <Plus className="mr-1.5 size-3.5" />
-            )}
-            Create
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function FormRow({
-  label,
-  children,
-  className,
-}: {
-  label: string;
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <label className={cn("space-y-1", className)}>
-      <div className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-        {label}
-      </div>
-      {children}
-    </label>
   );
 }
 
