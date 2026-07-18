@@ -1,16 +1,14 @@
-// Inbox — fetch hello@brantatech.com mail from the connected Gmail account,
-// mirror lightweight metadata into public.inbox_messages, auto-link to leads,
-// and expose read/mark/reply helpers to the UI.
+// Inbox — Gmail-first. List and thread reads go directly to the connected
+// Gmail account (hello@brantatech.com forwarded to brantatech@gmail.com);
+// public.inbox_messages is used ONLY as a lightweight dedupe/notifier ledger
+// for NEW lead-linked messages so the realtime notifier fires exactly once
+// per inbound reply. Everything shown in the UI is fetched live from Gmail.
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { callGateway } from "@/lib/connector-gateway.server";
 
 const INBOX_ADDR = "hello@brantatech.com";
-// Gmail connector tokens can be narrowed by Google to metadata-only behavior,
-// where the API rejects the search `q` parameter. We therefore list INBOX by
-// label and filter the lightweight headers locally.
-const GMAIL_SYNC_INSPECT_MULTIPLIER = 4;
 
 export interface InboxRow {
   gmail_message_id: string;
@@ -70,6 +68,17 @@ const THREAD_METADATA_HEADERS = [
   "References",
 ];
 
+const LIST_METADATA_HEADERS = [
+  "Subject",
+  "From",
+  "To",
+  "Cc",
+  "Date",
+  "Delivered-To",
+  "X-Forwarded-To",
+  "X-Original-To",
+];
+
 function headerValue(headers: GmailHeader[] | undefined, name: string): string | null {
   if (!headers) return null;
   const h = headers.find((x) => x.name.toLowerCase() === name.toLowerCase());
@@ -78,7 +87,6 @@ function headerValue(headers: GmailHeader[] | undefined, name: string): string |
 
 function parseAddress(raw: string | null): { email: string; name: string | null } {
   if (!raw) return { email: "", name: null };
-  // Formats: "Name <email@x>" or "email@x"
   const m = raw.match(/^\s*(?:"?([^"<]*)"?\s*)?<?([^<>\s]+@[^<>\s]+)>?\s*$/);
   if (!m) return { email: raw.trim().toLowerCase(), name: null };
   const name = (m[1] ?? "").trim();
@@ -103,13 +111,6 @@ function isDeliveredToInboxAddress(headers: GmailHeader[] | undefined): boolean 
 function isFromConnectedMailbox(headers: GmailHeader[] | undefined, mailbox: string | null): boolean {
   if (!mailbox) return false;
   return parseAddress(headerValue(headers, "From")).email === mailbox.toLowerCase();
-}
-
-function isFullFormatScopeError(error: unknown): boolean {
-  return (
-    error instanceof Error &&
-    /metadata scope.*format full|format full.*metadata scope/i.test(error.message)
-  );
 }
 
 function base64UrlDecode(s: string): string {
@@ -158,225 +159,295 @@ async function fetchMessageMetadata(id: string): Promise<GmailMessage> {
     path: `/gmail/v1/users/me/messages/${encodeURIComponent(id)}`,
     query: {
       format: "metadata",
-      metadataHeaders: [
-        "Subject",
-        "From",
-        "To",
-        "Cc",
-        "Date",
-        "Delivered-To",
-        "X-Forwarded-To",
-        "X-Original-To",
-      ],
+      metadataHeaders: LIST_METADATA_HEADERS,
     },
   });
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function autolinkAndUpsert(adminClient: any, m: GmailMessage): Promise<void> {
-  const headers = m.payload?.headers;
-  const fromRaw = headerValue(headers, "From");
-  const toRaw = headerValue(headers, "To");
-  const subject = headerValue(headers, "Subject");
-  const from = parseAddress(fromRaw);
-  const to = parseAddress(toRaw);
-  const received = m.internalDate
-    ? new Date(Number(m.internalDate)).toISOString()
-    : new Date().toISOString();
-  const labelIds = m.labelIds ?? [];
-  const isUnread = labelIds.includes("UNREAD");
+// ---------------------------------------------------------------------------
+// Shared helper: list Gmail INBOX metadata for messages delivered to
+// hello@brantatech.com, filtering out things sent by the mailbox owner.
+// ---------------------------------------------------------------------------
+async function fetchInboxGmail(wanted: number): Promise<GmailMessage[]> {
+  const ownMailbox = await callGateway<GmailProfile>({
+    connector: "google_mail",
+    path: "/gmail/v1/users/me/profile",
+  })
+    .then((p) => p.emailAddress?.toLowerCase() ?? null)
+    .catch(() => null);
 
-  // Lookup lead by contact email (primary/alt) OR direct lead alt_email.
-  let leadId: string | null = null;
-  let leadContactId: string | null = null;
-  let ownerId: string | null = null;
-
-  if (from.email) {
-    const { data: contact } = await adminClient
-      .from("lead_contacts")
-      .select("id, lead_id")
-      .or(`email.eq.${from.email},alt_email.eq.${from.email}`)
-      .limit(1)
-      .maybeSingle();
-    if (contact) {
-      leadId = contact.lead_id as string;
-      leadContactId = contact.id as string;
-    }
-    if (leadId) {
-      const { data: lead } = await adminClient
-        .from("leads")
-        .select("owner_id")
-        .eq("id", leadId)
-        .maybeSingle();
-      ownerId = (lead?.owner_id as string | null) ?? null;
-    }
-  }
-
-  // Check whether this is a first-time insert (needed for notification + activity).
-  const { data: existing } = await adminClient
-    .from("inbox_messages")
-    .select("gmail_message_id, notified")
-    .eq("gmail_message_id", m.id)
-    .maybeSingle();
-  const isNew = !existing;
-
-  await adminClient.from("inbox_messages").upsert(
-    {
-      gmail_message_id: m.id,
-      gmail_thread_id: m.threadId,
-      from_email: from.email,
-      from_name: from.name,
-      to_email: to.email || INBOX_ADDR,
-      subject: subject ?? null,
-      snippet: m.snippet ?? null,
-      received_at: received,
-      is_unread: isUnread,
-      label_ids: labelIds,
-      lead_id: leadId,
-      lead_contact_id: leadContactId,
-      handled_by: ownerId,
-    },
-    { onConflict: "gmail_message_id" },
-  );
-
-  // First-time seen + linked to a lead → log activity + bump last_activity_at.
-  if (isNew && leadId) {
-    await adminClient.from("lead_activities").insert({
-      lead_id: leadId,
-      actor_id: null,
-      kind: "inbound_email",
-      body: `Reply from ${from.email}${subject ? `: ${subject}` : ""}`,
-      meta: {
-        provider: "gmail",
-        from: from.email,
-        subject: subject ?? "",
-        gmail_message_id: m.id,
-        gmail_thread_id: m.threadId,
+  const inspectLimit = Math.min(500, Math.max(wanted, wanted * 4));
+  const items: Array<{ id: string; threadId: string }> = [];
+  let pageToken: string | undefined;
+  while (items.length < inspectLimit) {
+    const list = await callGateway<GmailListResponse>({
+      connector: "google_mail",
+      path: "/gmail/v1/users/me/messages",
+      query: {
+        labelIds: "INBOX",
+        maxResults: Math.min(100, inspectLimit - items.length),
+        pageToken,
       },
     });
-    await adminClient
-      .from("leads")
-      .update({ last_activity_at: received })
-      .eq("id", leadId);
-    // Mark row so the realtime notifier only fires once.
-    await adminClient
-      .from("inbox_messages")
-      .update({ notified: true })
-      .eq("gmail_message_id", m.id);
+    items.push(...(list.messages ?? []));
+    pageToken = list.nextPageToken;
+    if (!pageToken || !list.messages?.length) break;
   }
+
+  const kept: GmailMessage[] = [];
+  const BATCH = 8;
+  for (let i = 0; i < items.length && kept.length < wanted; i += BATCH) {
+    const slice = items.slice(i, i + BATCH);
+    const fetched = await Promise.all(
+      slice.map((x) => fetchMessageMetadata(x.id).catch(() => null)),
+    );
+    for (const m of fetched) {
+      if (!m) continue;
+      const headers = m.payload?.headers;
+      if (!isDeliveredToInboxAddress(headers)) continue;
+      if (isFromConnectedMailbox(headers, ownMailbox)) continue;
+      kept.push(m);
+      if (kept.length >= wanted) break;
+    }
+  }
+  return kept;
 }
 
-/** Pull latest messages from Gmail and upsert metadata + autolink. */
+// ---------------------------------------------------------------------------
+// syncInbox: notifier-only path. Detects NEW lead-linked messages and writes
+// (a) lead_activities row, (b) leads.last_activity_at bump, (c) minimal
+// inbox_messages ledger row (for realtime notifier dedupe). Non-lead-linked
+// messages are NOT written to the database.
+// ---------------------------------------------------------------------------
 export const syncInbox = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
     z.object({ maxResults: z.number().min(1).max(100).default(50) }).parse(d ?? {}),
   )
-  .handler(async ({ data }): Promise<{ synced: number; inspected: number; warning?: string }> => {
+  .handler(async ({ data }): Promise<{ synced: number; newLinked: number }> => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const ownMailbox = await callGateway<GmailProfile>({
-      connector: "google_mail",
-      path: "/gmail/v1/users/me/profile",
-    })
-      .then((p) => p.emailAddress?.toLowerCase() ?? null)
-      .catch(() => null);
+    const messages = await fetchInboxGmail(data.maxResults);
+    if (messages.length === 0) return { synced: 0, newLinked: 0 };
 
-    const wanted = data.maxResults;
-    const inspectLimit = Math.min(500, Math.max(wanted, wanted * GMAIL_SYNC_INSPECT_MULTIPLIER));
-    const items: Array<{ id: string; threadId: string }> = [];
-    let pageToken: string | undefined;
-    while (items.length < inspectLimit) {
-      const list = await callGateway<GmailListResponse>({
-        connector: "google_mail",
-        path: "/gmail/v1/users/me/messages",
-        query: {
-          labelIds: "INBOX",
-          maxResults: Math.min(100, inspectLimit - items.length),
-          pageToken,
+    // Batch: find lead links for all unique from_emails at once.
+    const fromEmails = Array.from(
+      new Set(
+        messages
+          .map((m) => parseAddress(headerValue(m.payload?.headers, "From")).email)
+          .filter(Boolean),
+      ),
+    );
+    if (fromEmails.length === 0) return { synced: messages.length, newLinked: 0 };
+
+    const orExpr = fromEmails
+      .flatMap((e) => [`email.eq.${e}`, `alt_email.eq.${e}`])
+      .join(",");
+    const { data: contacts } = await supabaseAdmin
+      .from("lead_contacts")
+      .select("id, lead_id, email, alt_email");
+    // Filter locally (Supabase or() has length limits with many emails).
+    const byEmail = new Map<string, { leadId: string; contactId: string }>();
+    for (const c of contacts ?? []) {
+      const emails = [c.email as string | null, c.alt_email as string | null]
+        .filter(Boolean)
+        .map((x) => (x as string).toLowerCase());
+      for (const e of emails) {
+        if (fromEmails.includes(e) && !byEmail.has(e))
+          byEmail.set(e, { leadId: c.lead_id as string, contactId: c.id as string });
+      }
+    }
+    void orExpr;
+
+    // Filter to only lead-linked messages that we haven't already logged.
+    const linkedMsgs = messages
+      .map((m) => {
+        const from = parseAddress(headerValue(m.payload?.headers, "From"));
+        const link = byEmail.get(from.email);
+        return link ? { m, from, ...link } : null;
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null);
+
+    if (linkedMsgs.length === 0) return { synced: messages.length, newLinked: 0 };
+
+    // Check which ones are already in the ledger.
+    const ids = linkedMsgs.map((x) => x.m.id);
+    const { data: existing } = await supabaseAdmin
+      .from("inbox_messages")
+      .select("gmail_message_id")
+      .in("gmail_message_id", ids);
+    const seen = new Set((existing ?? []).map((r) => r.gmail_message_id as string));
+    const fresh = linkedMsgs.filter((x) => !seen.has(x.m.id));
+
+    let newLinked = 0;
+    for (const { m, from, leadId, contactId } of fresh) {
+      const headers = m.payload?.headers;
+      const subject = headerValue(headers, "Subject");
+      const received = m.internalDate
+        ? new Date(Number(m.internalDate)).toISOString()
+        : new Date().toISOString();
+
+      // Owner lookup for handled_by.
+      const { data: lead } = await supabaseAdmin
+        .from("leads")
+        .select("owner_id")
+        .eq("id", leadId)
+        .maybeSingle();
+      const ownerId = (lead?.owner_id as string | null) ?? null;
+
+      // Minimal ledger row — used only for dedupe + realtime notifier.
+      await supabaseAdmin.from("inbox_messages").insert({
+        gmail_message_id: m.id,
+        gmail_thread_id: m.threadId,
+        from_email: from.email,
+        from_name: from.name,
+        to_email: INBOX_ADDR,
+        subject: subject ?? null,
+        snippet: m.snippet ?? null,
+        received_at: received,
+        is_unread: (m.labelIds ?? []).includes("UNREAD"),
+        label_ids: m.labelIds ?? [],
+        lead_id: leadId,
+        lead_contact_id: contactId,
+        handled_by: ownerId,
+        notified: true,
+      });
+
+      await supabaseAdmin.from("lead_activities").insert({
+        lead_id: leadId,
+        actor_id: null,
+        kind: "inbound_email",
+        body: `Reply from ${from.email}${subject ? `: ${subject}` : ""}`,
+        meta: {
+          provider: "gmail",
+          from: from.email,
+          subject: subject ?? "",
+          gmail_message_id: m.id,
+          gmail_thread_id: m.threadId,
         },
       });
-      items.push(...(list.messages ?? []));
-      pageToken = list.nextPageToken;
-      if (!pageToken || !list.messages?.length) break;
+
+      await supabaseAdmin
+        .from("leads")
+        .update({ last_activity_at: received })
+        .eq("id", leadId);
+
+      newLinked += 1;
     }
-    if (items.length === 0) return { synced: 0, inspected: 0 };
-    // Fetch metadata in small parallel batches.
-    const BATCH = 8;
-    let synced = 0;
-    for (let i = 0; i < items.length; i += BATCH) {
-      const slice = items.slice(i, i + BATCH);
-      const fetched = await Promise.all(
-        slice.map((x) => fetchMessageMetadata(x.id).catch(() => null)),
-      );
-      for (const m of fetched) {
-        if (!m) continue;
-        const headers = m.payload?.headers;
-        if (!isDeliveredToInboxAddress(headers)) continue;
-        if (isFromConnectedMailbox(headers, ownMailbox)) continue;
-        await autolinkAndUpsert(supabaseAdmin, m);
-        synced += 1;
-        if (synced >= wanted) break;
-      }
-      if (synced >= wanted) break;
-    }
-    return { synced, inspected: items.length };
+
+    return { synced: messages.length, newLinked };
   });
 
-/** List cached inbox rows (RLS: any authenticated employee). */
+// ---------------------------------------------------------------------------
+// listInbox: fetches directly from Gmail (no DB reads for message data).
+// Cross-references from_emails against lead_contacts in one query to
+// annotate lead linkage.
+// ---------------------------------------------------------------------------
 export const listInbox = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
     z
       .object({
         filter: z.enum(["all", "unread", "mine", "linked", "unlinked"]).default("all"),
-        limit: z.number().min(1).max(500).default(200),
+        limit: z.number().min(1).max(200).default(100),
       })
       .parse(d ?? {}),
   )
   .handler(async ({ data, context }): Promise<InboxRow[]> => {
-    let q = context.supabase
-      .from("inbox_messages")
-      .select("*")
-      .order("received_at", { ascending: false })
-      .limit(data.limit);
-    if (data.filter === "unread") q = q.eq("is_unread", true);
-    if (data.filter === "mine") q = q.eq("handled_by", context.userId);
-    if (data.filter === "linked") q = q.not("lead_id", "is", null);
-    if (data.filter === "unlinked") q = q.is("lead_id", null);
-    const { data: rows, error } = await q;
-    if (error) throw new Error(error.message);
-    const raw = (rows ?? []) as InboxRow[];
+    const messages = await fetchInboxGmail(data.limit);
+    if (messages.length === 0) return [];
 
-    // Enrich with lead slug/name + handler name.
-    const leadIds = Array.from(new Set(raw.map((r) => r.lead_id).filter(Boolean))) as string[];
-    const userIds = Array.from(new Set(raw.map((r) => r.handled_by).filter(Boolean))) as string[];
-    const leadById = new Map<string, { slug: string | null; name: string | null }>();
-    const nameByUser = new Map<string, string | null>();
-    if (leadIds.length > 0) {
+    // Build lead-link map from lead_contacts (single query).
+    const fromEmails = Array.from(
+      new Set(
+        messages
+          .map((m) => parseAddress(headerValue(m.payload?.headers, "From")).email)
+          .filter(Boolean),
+      ),
+    );
+    const linkByEmail = new Map<string, { leadId: string; contactId: string }>();
+    if (fromEmails.length > 0) {
+      const { data: contacts } = await context.supabase
+        .from("lead_contacts")
+        .select("id, lead_id, email, alt_email");
+      for (const c of contacts ?? []) {
+        const emails = [c.email as string | null, c.alt_email as string | null]
+          .filter(Boolean)
+          .map((x) => (x as string).toLowerCase());
+        for (const e of emails) {
+          if (fromEmails.includes(e) && !linkByEmail.has(e))
+            linkByEmail.set(e, {
+              leadId: c.lead_id as string,
+              contactId: c.id as string,
+            });
+        }
+      }
+    }
+
+    const linkedLeadIds = Array.from(new Set(Array.from(linkByEmail.values()).map((v) => v.leadId)));
+    const leadMeta = new Map<
+      string,
+      { slug: string | null; name: string | null; owner_id: string | null }
+    >();
+    if (linkedLeadIds.length > 0) {
       const { data: leads } = await context.supabase
         .from("leads")
-        .select("id, slug, lead_code, name")
-        .in("id", leadIds);
+        .select("id, slug, lead_code, name, owner_id")
+        .in("id", linkedLeadIds);
       for (const l of leads ?? [])
-        leadById.set(l.id as string, {
+        leadMeta.set(l.id as string, {
           slug: (l.slug as string) ?? (l.lead_code as string) ?? null,
           name: (l.name as string) ?? null,
+          owner_id: (l.owner_id as string | null) ?? null,
         });
     }
-    if (userIds.length > 0) {
+    const ownerIds = Array.from(
+      new Set(Array.from(leadMeta.values()).map((v) => v.owner_id).filter(Boolean)),
+    ) as string[];
+    const ownerNames = new Map<string, string | null>();
+    if (ownerIds.length > 0) {
       const { data: profs } = await context.supabase
         .from("profiles")
         .select("user_id, full_name")
-        .in("user_id", userIds);
+        .in("user_id", ownerIds);
       for (const p of profs ?? [])
-        nameByUser.set(p.user_id as string, (p.full_name as string) ?? null);
+        ownerNames.set(p.user_id as string, (p.full_name as string) ?? null);
     }
-    return raw.map((r) => ({
-      ...r,
-      lead_slug: r.lead_id ? leadById.get(r.lead_id)?.slug ?? null : null,
-      lead_name: r.lead_id ? leadById.get(r.lead_id)?.name ?? null : null,
-      handled_by_name: r.handled_by ? nameByUser.get(r.handled_by) ?? null : null,
-    }));
+
+    const rows: InboxRow[] = messages.map((m) => {
+      const headers = m.payload?.headers;
+      const from = parseAddress(headerValue(headers, "From"));
+      const to = parseAddress(headerValue(headers, "To"));
+      const link = linkByEmail.get(from.email) ?? null;
+      const meta = link ? leadMeta.get(link.leadId) ?? null : null;
+      return {
+        gmail_message_id: m.id,
+        gmail_thread_id: m.threadId,
+        from_email: from.email,
+        from_name: from.name,
+        to_email: to.email || INBOX_ADDR,
+        subject: headerValue(headers, "Subject"),
+        snippet: m.snippet ?? null,
+        received_at: m.internalDate
+          ? new Date(Number(m.internalDate)).toISOString()
+          : new Date().toISOString(),
+        is_unread: (m.labelIds ?? []).includes("UNREAD"),
+        label_ids: m.labelIds ?? [],
+        lead_id: link?.leadId ?? null,
+        lead_contact_id: link?.contactId ?? null,
+        handled_by: meta?.owner_id ?? null,
+        handled_by_name: meta?.owner_id ? ownerNames.get(meta.owner_id) ?? null : null,
+        lead_slug: meta?.slug ?? null,
+        lead_name: meta?.name ?? null,
+      };
+    });
+
+    // Apply filter client-side (already fetched from Gmail).
+    let filtered = rows;
+    if (data.filter === "unread") filtered = rows.filter((r) => r.is_unread);
+    else if (data.filter === "mine") filtered = rows.filter((r) => r.handled_by === context.userId);
+    else if (data.filter === "linked") filtered = rows.filter((r) => r.lead_id !== null);
+    else if (data.filter === "unlinked") filtered = rows.filter((r) => r.lead_id === null);
+    return filtered;
   });
 
 export interface InboxThreadMessage {
@@ -413,39 +484,30 @@ export interface InboxThread {
   warning: string | null;
 }
 
-/** Full-format fetch of a Gmail thread (all messages, bodies, attachments). */
+/** Full-format fetch of a Gmail thread. */
 export const getInboxThread = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) =>
-    z.object({ threadId: z.string().min(1) }).parse(d),
-  )
+  .inputValidator((d: unknown) => z.object({ threadId: z.string().min(1) }).parse(d))
   .handler(async ({ data, context }): Promise<InboxThread> => {
-    let contentAvailable = true;
-    let warning: string | null = null;
-    let thread: { id: string; messages?: GmailMessage[] };
-    try {
-      thread = await callGateway<{
-        id: string;
-        messages?: GmailMessage[];
-      }>({
-        connector: "google_mail",
-        path: `/gmail/v1/users/me/threads/${encodeURIComponent(data.threadId)}`,
-        query: { format: "full" },
-      });
-    } catch (error) {
-      if (!isFullFormatScopeError(error)) throw error;
-      contentAvailable = false;
-      warning =
-        "Gmail only allowed metadata for this connection, so message bodies are hidden until Gmail is reconnected with read access.";
-      thread = await callGateway<{
-        id: string;
-        messages?: GmailMessage[];
-      }>({
-        connector: "google_mail",
-        path: `/gmail/v1/users/me/threads/${encodeURIComponent(data.threadId)}`,
-        query: { format: "metadata", metadataHeaders: THREAD_METADATA_HEADERS },
-      });
-    }
+    const thread = await callGateway<{ id: string; messages?: GmailMessage[] }>({
+      connector: "google_mail",
+      path: `/gmail/v1/users/me/threads/${encodeURIComponent(data.threadId)}`,
+      query: { format: "full" },
+    }).catch(async (error) => {
+      // Fallback if the token is still metadata-scoped.
+      if (
+        error instanceof Error &&
+        /metadata scope.*format full|format full.*metadata scope/i.test(error.message)
+      ) {
+        return callGateway<{ id: string; messages?: GmailMessage[] }>({
+          connector: "google_mail",
+          path: `/gmail/v1/users/me/threads/${encodeURIComponent(data.threadId)}`,
+          query: { format: "metadata", metadataHeaders: THREAD_METADATA_HEADERS },
+        });
+      }
+      throw error;
+    });
+
     const messages = (thread.messages ?? []).map((m): InboxThreadMessage => {
       const headers = m.payload?.headers;
       const from = parseAddress(headerValue(headers, "From"));
@@ -471,21 +533,20 @@ export const getInboxThread = createServerFn({ method: "GET" })
       };
     });
 
-    // Pull cached lead link from the row (first message of the thread suffices).
-    const firstId = messages[0]?.id;
+    // Live lead lookup from the first message's from_email — no DB cache read.
     let lead_id: string | null = null;
     let lead_slug: string | null = null;
     let lead_name: string | null = null;
-    if (firstId) {
-      const { data: row } = await context.supabase
-        .from("inbox_messages")
+    const firstFrom = messages[0]?.from_email;
+    if (firstFrom) {
+      const { data: contact } = await context.supabase
+        .from("lead_contacts")
         .select("lead_id")
-        .eq("gmail_thread_id", data.threadId)
-        .not("lead_id", "is", null)
+        .or(`email.eq.${firstFrom},alt_email.eq.${firstFrom}`)
         .limit(1)
         .maybeSingle();
-      lead_id = (row?.lead_id as string | null) ?? null;
-      if (lead_id) {
+      if (contact?.lead_id) {
+        lead_id = contact.lead_id as string;
         const { data: lead } = await context.supabase
           .from("leads")
           .select("slug, lead_code, name")
@@ -505,25 +566,23 @@ export const getInboxThread = createServerFn({ method: "GET" })
       lead_id,
       lead_slug,
       lead_name,
-      contentAvailable,
-      warning,
+      contentAvailable: true,
+      warning: null,
     };
   });
 
-/** Mark an entire Gmail thread as read + reflect in cache. */
+/** Mark an entire Gmail thread as read directly in Gmail (no DB write). */
 export const markThreadRead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) =>
-    z.object({ threadId: z.string().min(1) }).parse(d),
-  )
-  .handler(async ({ data, context }): Promise<{ ok: true }> => {
-    // Get all message ids in the thread from cache first.
-    const { data: rows } = await context.supabase
-      .from("inbox_messages")
-      .select("gmail_message_id")
-      .eq("gmail_thread_id", data.threadId);
-    const ids = (rows ?? []).map((r) => r.gmail_message_id as string);
-    // Fire modify calls in parallel (Gmail has no batch modify endpoint via v1 without special formatting).
+  .inputValidator((d: unknown) => z.object({ threadId: z.string().min(1) }).parse(d))
+  .handler(async ({ data }): Promise<{ ok: true }> => {
+    // Fetch message IDs for the thread from Gmail.
+    const thread = await callGateway<{ messages?: Array<{ id: string }> }>({
+      connector: "google_mail",
+      path: `/gmail/v1/users/me/threads/${encodeURIComponent(data.threadId)}`,
+      query: { format: "minimal" },
+    }).catch(() => ({ messages: [] as Array<{ id: string }> }));
+    const ids = (thread.messages ?? []).map((m) => m.id);
     await Promise.all(
       ids.map((id) =>
         callGateway({
@@ -534,37 +593,5 @@ export const markThreadRead = createServerFn({ method: "POST" })
         }).catch(() => null),
       ),
     );
-    await context.supabase
-      .from("inbox_messages")
-      .update({ is_unread: false })
-      .eq("gmail_thread_id", data.threadId);
-    return { ok: true };
-  });
-
-/** Manually assign a thread's messages to a lead (for unlinked or mislinked mail). */
-export const linkThreadToLead = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) =>
-    z
-      .object({
-        threadId: z.string().min(1),
-        leadId: z.string().uuid().nullable(),
-      })
-      .parse(d),
-  )
-  .handler(async ({ data, context }): Promise<{ ok: true }> => {
-    let ownerId: string | null = null;
-    if (data.leadId) {
-      const { data: lead } = await context.supabase
-        .from("leads")
-        .select("owner_id")
-        .eq("id", data.leadId)
-        .maybeSingle();
-      ownerId = (lead?.owner_id as string | null) ?? null;
-    }
-    await context.supabase
-      .from("inbox_messages")
-      .update({ lead_id: data.leadId, handled_by: ownerId })
-      .eq("gmail_thread_id", data.threadId);
     return { ok: true };
   });
