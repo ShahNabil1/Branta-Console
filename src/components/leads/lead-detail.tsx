@@ -2857,6 +2857,9 @@ function MeetingsTab({
 }) {
   const listFn = useServerFn(listLeadMeetings);
   const schedFn = useServerFn(scheduleLeadMeeting);
+  const conflictsFn = useServerFn(checkMeetingConflicts);
+  const [checkingConflicts, setCheckingConflicts] = React.useState(false);
+
   const cancelFn = useServerFn(cancelLeadMeeting);
   const listContactsFn = useServerFn(listLeadContacts);
   const qc = useQueryClient();
