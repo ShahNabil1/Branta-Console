@@ -184,7 +184,7 @@ async function fetchInboxGmail(wanted: number): Promise<GmailMessage[]> {
     path: "/gmail/v1/users/me/messages",
     query: {
       maxResults: Math.min(100, wanted),
-      q: `in:inbox (to:${INBOX_ADDR} OR deliveredto:${INBOX_ADDR} OR cc:${INBOX_ADDR}) -from:me`,
+      q: buildInboxQuery(),
     },
   });
   const items = list.messages ?? [];
