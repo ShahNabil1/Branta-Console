@@ -42,9 +42,7 @@ import {
   type LeadStatusDB,
 } from "@/lib/leads.functions";
 import {
-  listLeadSourceOptions,
   listLeadStatusOptions,
-  SOURCE_FALLBACK,
   STATUS_FALLBACK,
   statusColorVar,
   statusLabel,
