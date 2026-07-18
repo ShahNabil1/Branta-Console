@@ -596,10 +596,12 @@ export function LeadDetail({
   lead,
   users,
   onDeleted,
+  initialEdit = false,
 }: {
   lead: LeadRow;
   users: { user_id: string; full_name: string | null; personal_gmail?: string | null }[];
   onDeleted?: () => void;
+  initialEdit?: boolean;
 }) {
   const qc = useQueryClient();
   const update = useServerFn(updateLead);
