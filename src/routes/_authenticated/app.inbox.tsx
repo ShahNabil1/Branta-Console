@@ -196,7 +196,22 @@ function InboxPage() {
               Loading…
             </div>
           )}
-          {!listQ.isLoading && threads.length === 0 && (
+          {listQ.isError && (
+            <div className="grid place-items-center p-8 text-center text-[12px] text-brand">
+              <AlertTriangle className="mb-2 size-4" />
+              <div className="font-medium">Failed to load inbox</div>
+              <div className="mt-1 max-w-[300px] text-[11px] text-muted-foreground">
+                {listQ.error instanceof Error ? listQ.error.message : "Unknown error"}
+              </div>
+              <button
+                onClick={() => listQ.refetch()}
+                className="mt-3 rounded-sm bg-brand px-2.5 py-1 text-[11px] font-semibold text-white"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+          {!listQ.isLoading && !listQ.isError && threads.length === 0 && (
             <div className="grid place-items-center p-10 text-center text-[12px] text-muted-foreground">
               <Mail className="mb-2 size-6 opacity-50" />
               No messages yet. Click refresh to sync from Gmail.
