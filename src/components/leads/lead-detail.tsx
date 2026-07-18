@@ -2862,6 +2862,12 @@ function MeetingsTab({
   const [checkingConflicts, setCheckingConflicts] = React.useState(false);
 
   const cancelFn = useServerFn(cancelLeadMeeting);
+  const rescheduleFn = useServerFn(rescheduleLeadMeeting);
+  const [rescheduleTarget, setRescheduleTarget] =
+    React.useState<LeadMeetingRow | null>(null);
+  const [reStart, setReStart] = React.useState("");
+  const [reEnd, setReEnd] = React.useState("");
+  const [reChecking, setReChecking] = React.useState(false);
   const listContactsFn = useServerFn(listLeadContacts);
   const qc = useQueryClient();
   const confirm = useConfirm();
