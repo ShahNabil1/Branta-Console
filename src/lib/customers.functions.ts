@@ -71,13 +71,17 @@ export const createCustomer = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => CreateInput.parse(data))
   .handler(async ({ data, context }): Promise<CustomerRow> => {
     const email = data.email === "" ? null : data.email ?? null;
-    const { data: row, error } = await context.supabase
-      .from("customers")
+
+    // Every customer is backed by a lead so email/meeting/docs/activity all
+    // reuse the same LeadDetail pipeline. Insert lead first with default
+    // status, add a primary contact if we have one, then flip status to
+    // 'converted' — the DB trigger creates the linked customer row.
+    const { data: leadRow, error: leadErr } = await context.supabase
+      .from("leads")
       .insert({
         name: data.name,
         role: data.role ?? null,
         company: data.company ?? null,
-        email,
         phone: data.phone ?? null,
         source: data.source ?? null,
         service: data.service ?? null,
@@ -87,11 +91,72 @@ export const createCustomer = createServerFn({ method: "POST" })
         created_by: context.userId,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any)
-      .select("*")
+      .select("id")
       .single();
-    if (error) throw new Error(error.message);
-    return row as unknown as CustomerRow;
+    if (leadErr || !leadRow) throw new Error(leadErr?.message ?? "Failed to create lead");
+    const leadId = (leadRow as { id: string }).id;
+
+    if (email || data.phone) {
+      await context.supabase.from("lead_contacts").insert({
+        lead_id: leadId,
+        name: data.name,
+        role: data.role ?? null,
+        email: email ?? null,
+        phone: data.phone ?? null,
+        is_primary: true,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
+    }
+
+    const { error: updErr } = await context.supabase
+      .from("leads")
+      .update({ status: "converted" })
+      .eq("id", leadId);
+    if (updErr) throw new Error(updErr.message);
+
+    // Trigger inserted the customer; fetch and return it.
+    const { data: cust, error: custErr } = await context.supabase
+      .from("customers")
+      .select("*")
+      .eq("converted_from_lead_id", leadId)
+      .maybeSingle();
+    if (custErr) throw new Error(custErr.message);
+    if (!cust) throw new Error("Customer row was not created");
+    return cust as unknown as CustomerRow;
   });
+
+export const getCustomerByCode = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { code: string }) =>
+    z.object({ code: z.string().trim().min(1) }).parse(data),
+  )
+  .handler(
+    async ({
+      data,
+      context,
+    }): Promise<{ customer: CustomerRow; leadSlug: string | null }> => {
+      const { data: cust, error } = await context.supabase
+        .from("customers")
+        .select("*")
+        .eq("customer_code", data.code)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      if (!cust) throw new Error("Customer not found");
+      const customer = cust as unknown as CustomerRow;
+
+      let leadSlug: string | null = null;
+      if (customer.converted_from_lead_id) {
+        const { data: l } = await context.supabase
+          .from("leads")
+          .select("slug")
+          .eq("id", customer.converted_from_lead_id)
+          .maybeSingle();
+        leadSlug = (l as { slug: string } | null)?.slug ?? null;
+      }
+      return { customer, leadSlug };
+    },
+  );
+
 
 export const deleteCustomer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
