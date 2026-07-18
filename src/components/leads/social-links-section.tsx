@@ -171,7 +171,13 @@ function PlatformSelect({
   );
 }
 
-export function SocialLinksSection({ leadId }: { leadId: string }) {
+export function SocialLinksSection({
+  leadId,
+  locked = false,
+}: {
+  leadId: string;
+  locked?: boolean;
+}) {
   const qc = useQueryClient();
   const listFn = useServerFn(listLeadSocialLinks);
   const addFn = useServerFn(addLeadSocialLink);
