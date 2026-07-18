@@ -27,7 +27,7 @@ import {
   listCustomers,
   type CustomerRow,
 } from "@/lib/customers.functions";
-import { useConfirm } from "@/components/branta/confirm-provider";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 export const Route = createFileRoute("/_authenticated/app/customers")({
   component: CustomersPage,
