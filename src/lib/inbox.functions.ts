@@ -166,52 +166,44 @@ async function fetchMessageMetadata(id: string): Promise<GmailMessage> {
 
 // ---------------------------------------------------------------------------
 // Shared helper: list Gmail INBOX metadata for messages delivered to
-// hello@brantatech.com, filtering out things sent by the mailbox owner.
+// hello@brantatech.com. Uses Gmail's `q` search (works with gmail.readonly)
+// so we don't have to fetch metadata for hundreds of unrelated messages.
 // ---------------------------------------------------------------------------
 async function fetchInboxGmail(wanted: number): Promise<GmailMessage[]> {
-  const ownMailbox = await callGateway<GmailProfile>({
+  const ownMailboxPromise = callGateway<GmailProfile>({
     connector: "google_mail",
     path: "/gmail/v1/users/me/profile",
   })
     .then((p) => p.emailAddress?.toLowerCase() ?? null)
     .catch(() => null);
 
-  const inspectLimit = Math.min(500, Math.max(wanted, wanted * 4));
-  const items: Array<{ id: string; threadId: string }> = [];
-  let pageToken: string | undefined;
-  while (items.length < inspectLimit) {
-    const list = await callGateway<GmailListResponse>({
-      connector: "google_mail",
-      path: "/gmail/v1/users/me/messages",
-      query: {
-        labelIds: "INBOX",
-        maxResults: Math.min(100, inspectLimit - items.length),
-        pageToken,
-      },
-    });
-    items.push(...(list.messages ?? []));
-    pageToken = list.nextPageToken;
-    if (!pageToken || !list.messages?.length) break;
-  }
+  // Server-side filter: only messages in INBOX addressed to our alias, and
+  // NOT sent by the connected mailbox itself.
+  const list = await callGateway<GmailListResponse>({
+    connector: "google_mail",
+    path: "/gmail/v1/users/me/messages",
+    query: {
+      maxResults: Math.min(100, wanted),
+      q: `in:inbox (to:${INBOX_ADDR} OR deliveredto:${INBOX_ADDR} OR cc:${INBOX_ADDR}) -from:me`,
+    },
+  });
+  const items = list.messages ?? [];
+  if (items.length === 0) return [];
 
-  const kept: GmailMessage[] = [];
-  const BATCH = 8;
-  for (let i = 0; i < items.length && kept.length < wanted; i += BATCH) {
-    const slice = items.slice(i, i + BATCH);
-    const fetched = await Promise.all(
-      slice.map((x) => fetchMessageMetadata(x.id).catch(() => null)),
-    );
-    for (const m of fetched) {
-      if (!m) continue;
-      const headers = m.payload?.headers;
-      if (!isDeliveredToInboxAddress(headers)) continue;
-      if (isFromConnectedMailbox(headers, ownMailbox)) continue;
-      kept.push(m);
-      if (kept.length >= wanted) break;
-    }
-  }
-  return kept;
+  // Parallel metadata fetch — Gmail already filtered, so this is a small set.
+  const fetched = await Promise.all(
+    items.slice(0, wanted).map((x) => fetchMessageMetadata(x.id).catch(() => null)),
+  );
+  const ownMailbox = await ownMailboxPromise;
+  return fetched.filter((m): m is GmailMessage => {
+    if (!m) return false;
+    if (isFromConnectedMailbox(m.payload?.headers, ownMailbox)) return false;
+    return true;
+  });
 }
+
+// Kept for backwards-compat; no longer used after the q-based rewrite.
+void isDeliveredToInboxAddress;
 
 // ---------------------------------------------------------------------------
 // syncInbox: notifier-only path. Detects NEW lead-linked messages and writes
