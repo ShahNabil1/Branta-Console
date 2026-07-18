@@ -374,7 +374,7 @@ function LeadsPage() {
           ) : filtered.length === 0 ? (
             <EmptyState onCreate={() => setCreateOpen(true)} />
           ) : (
-            filtered.map((row) => (
+            paged.map((row) => (
               <button
                 key={row.id}
                 onClick={() =>
@@ -423,6 +423,55 @@ function LeadsPage() {
           )}
         </div>
       </div>
+
+      {filtered.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-sm border border-border bg-card px-3 py-2 text-[12.5px]">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <span>Rows per page</span>
+            <Select
+              value={String(pageSize)}
+              onValueChange={(v) => setPageSize(Number(v))}
+            >
+              <SelectTrigger className="h-8 w-[84px] rounded-sm text-[12.5px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PAGE_SIZE_OPTIONS.map((n) => (
+                  <SelectItem key={n} value={String(n)}>
+                    {n}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="font-mono text-muted-foreground">
+              Page {page} of {totalPages}
+            </span>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 rounded-sm text-[12.5px]"
+                disabled={page <= 1}
+                onClick={() => setPage(page - 1)}
+              >
+                <ChevronLeft className="mr-1 size-3.5" /> Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 rounded-sm text-[12.5px]"
+                disabled={page >= totalPages}
+                onClick={() => setPage(page + 1)}
+              >
+                Next <ChevronRight className="ml-1 size-3.5" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
 
       <CreateLeadDialog
         open={createOpen}
