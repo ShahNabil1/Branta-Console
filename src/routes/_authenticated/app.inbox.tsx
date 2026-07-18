@@ -10,6 +10,7 @@ import {
   Loader2,
   ExternalLink,
   Link as LinkIcon,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 import DOMPurify from "isomorphic-dompurify";
@@ -356,7 +357,13 @@ function ThreadView({ threadId }: { threadId: string }) {
   if (q.isError || !q.data)
     return (
       <div className="p-10 text-center text-[12.5px] text-muted-foreground">
+        <AlertTriangle className="mx-auto mb-2 size-5 text-brand" />
         Failed to load thread.
+        {q.error instanceof Error && (
+          <div className="mx-auto mt-2 max-w-xl text-[11.5px] text-muted-foreground">
+            {q.error.message}
+          </div>
+        )}
       </div>
     );
 
@@ -395,6 +402,12 @@ function ThreadView({ threadId }: { threadId: string }) {
           {thread.messages.length} message
           {thread.messages.length !== 1 && "s"}
         </div>
+        {thread.warning && (
+          <div className="mt-3 flex items-start gap-2 rounded-sm border border-brand/20 bg-brand-50 px-3 py-2 text-[11.5px] font-medium text-brand">
+            <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
+            <span>{thread.warning}</span>
+          </div>
+        )}
       </div>
 
       <div className="space-y-3">
