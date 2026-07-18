@@ -182,8 +182,24 @@ function CustomersPage() {
             <tbody>
               {filtered.map((r) => (
                 <tr key={r.id} className="hairline-b hover:bg-muted/40">
-                  <td className="px-4 py-2 font-mono text-[12px]">{r.customer_code}</td>
-                  <td className="px-4 py-2 font-medium">{r.name}</td>
+                  <td className="px-4 py-2 font-mono text-[12px]">
+                    <Link
+                      to="/app/customers/$code"
+                      params={{ code: r.customer_code }}
+                      className="text-brand hover:underline"
+                    >
+                      {r.customer_code}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-2 font-medium">
+                    <Link
+                      to="/app/customers/$code"
+                      params={{ code: r.customer_code }}
+                      className="hover:underline"
+                    >
+                      {r.name}
+                    </Link>
+                  </td>
                   <td className="px-4 py-2">{r.company ?? "—"}</td>
                   <td className="px-4 py-2">{r.email ?? "—"}</td>
                   <td className="px-4 py-2">{r.phone ?? "—"}</td>
