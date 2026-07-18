@@ -2840,16 +2840,64 @@ function toLocalInput(d: Date) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-function MeetingsTab({ lead }: { lead: LeadRow }) {
+function MeetingsTab({
+  lead,
+  users,
+}: {
+  lead: LeadRow;
+  users: { user_id: string; full_name: string | null; personal_gmail?: string | null }[];
+}) {
   const listFn = useServerFn(listLeadMeetings);
   const schedFn = useServerFn(scheduleLeadMeeting);
   const cancelFn = useServerFn(cancelLeadMeeting);
+  const listContactsFn = useServerFn(listLeadContacts);
   const qc = useQueryClient();
+
   const meetings = useQuery({
     queryKey: ["lead-meetings", lead.id],
     queryFn: () => listFn({ data: { leadId: lead.id } }),
     staleTime: 10_000,
   });
+  const contactsQ = useQuery({
+    queryKey: ["lead-contacts", lead.id],
+    queryFn: () => listContactsFn({ data: { leadId: lead.id } }),
+    staleTime: 30_000,
+  });
+
+  // Build gmail-only option lists
+  const isGmail = (v?: string | null) =>
+    !!v && /^[^\s@]+@gmail\.com$/i.test(v.trim());
+
+  const leadEmailOptions = React.useMemo(() => {
+    const list: { email: string; label: string }[] = [];
+    const seen = new Set<string>();
+    const push = (email: string | null | undefined, label: string) => {
+      if (!isGmail(email)) return;
+      const e = email!.trim().toLowerCase();
+      if (seen.has(e)) return;
+      seen.add(e);
+      list.push({ email: e, label });
+    };
+    for (const c of contactsQ.data ?? []) {
+      const who = c.name || c.role || "Contact";
+      push(c.email, `${who} · ${c.email}`);
+      push(c.alt_email, `${who} (alt) · ${c.alt_email}`);
+    }
+    return list;
+  }, [contactsQ.data]);
+
+  const employeeEmailOptions = React.useMemo(() => {
+    const list: { email: string; label: string }[] = [];
+    const seen = new Set<string>();
+    for (const u of users) {
+      if (!isGmail(u.personal_gmail)) continue;
+      const e = u.personal_gmail!.trim().toLowerCase();
+      if (seen.has(e)) continue;
+      seen.add(e);
+      list.push({ email: e, label: u.full_name || e });
+    }
+    return list.sort((a, b) => a.label.localeCompare(b.label));
+  }, [users]);
 
   const now = new Date();
   const in1h = new Date(now.getTime() + 60 * 60 * 1000);
@@ -2857,13 +2905,29 @@ function MeetingsTab({ lead }: { lead: LeadRow }) {
   const [title, setTitle] = useState(`Intro call — ${lead.company || lead.name}`);
   const [startsAt, setStartsAt] = useState(toLocalInput(in1h));
   const [endsAt, setEndsAt] = useState(toLocalInput(in1h30));
-  const [attendees, setAttendees] = useState(lead.email ?? "");
+  const [selectedLeadEmails, setSelectedLeadEmails] = useState<string[]>([]);
+  const [selectedEmpEmails, setSelectedEmpEmails] = useState<string[]>([]);
   const [description, setDescription] = useState("");
 
   useEffect(() => {
     setTitle(`Intro call — ${lead.company || lead.name}`);
-    setAttendees(lead.email ?? "");
-  }, [lead.id, lead.name, lead.company, lead.email]);
+  }, [lead.id, lead.name, lead.company]);
+
+  // Pre-select the lead's primary email if it's gmail
+  useEffect(() => {
+    if (leadEmailOptions.length > 0 && selectedLeadEmails.length === 0) {
+      setSelectedLeadEmails([leadEmailOptions[0].email]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leadEmailOptions.length]);
+
+  const attendees = React.useMemo(
+    () =>
+      Array.from(
+        new Set([...selectedLeadEmails, ...selectedEmpEmails].map((e) => e.toLowerCase())),
+      ),
+    [selectedLeadEmails, selectedEmpEmails],
+  );
 
   const schedM = useMutation({
     mutationFn: () =>
@@ -2874,10 +2938,7 @@ function MeetingsTab({ lead }: { lead: LeadRow }) {
           description: description.trim() || null,
           startsAt: new Date(startsAt).toISOString(),
           endsAt: new Date(endsAt).toISOString(),
-          attendees: attendees
-            .split(",")
-            .map((s) => s.trim())
-            .filter(Boolean),
+          attendees,
         },
       }),
     onSuccess: () => {
@@ -2885,6 +2946,8 @@ function MeetingsTab({ lead }: { lead: LeadRow }) {
       qc.invalidateQueries({ queryKey: ["lead-meetings", lead.id] });
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["leads", "activities", lead.id] });
+      setSelectedEmpEmails([]);
+      setDescription("");
     },
     onError: (e) =>
       toast.error(e instanceof Error ? e.message : "Schedule failed"),
@@ -2898,6 +2961,9 @@ function MeetingsTab({ lead }: { lead: LeadRow }) {
     onError: (e) =>
       toast.error(e instanceof Error ? e.message : "Cancel failed"),
   });
+
+  const canSchedule =
+    !!title.trim() && attendees.length > 0 && !schedM.isPending;
 
   return (
     <div className="grid gap-4">
@@ -2929,13 +2995,34 @@ function MeetingsTab({ lead }: { lead: LeadRow }) {
               className="h-9 rounded-sm font-mono text-[12.5px]"
             />
           </Field>
-          <Field label="Attendees (comma-separated)" className="col-span-2">
-            <Input
-              value={attendees}
-              onChange={(e) => setAttendees(e.target.value)}
-              className="h-9 rounded-sm text-[12.5px]"
+
+          <Field label="Lead attendees (Gmail only)">
+            <EmailMultiSelect
+              options={leadEmailOptions}
+              value={selectedLeadEmails}
+              onChange={setSelectedLeadEmails}
+              placeholder={
+                leadEmailOptions.length === 0
+                  ? "No Gmail addresses on this lead"
+                  : "Select lead / contact Gmail…"
+              }
+              emptyText="No Gmail contacts. Add one under Contacts."
             />
           </Field>
+          <Field label="Employee attendees (Gmail only)">
+            <EmailMultiSelect
+              options={employeeEmailOptions}
+              value={selectedEmpEmails}
+              onChange={setSelectedEmpEmails}
+              placeholder={
+                employeeEmailOptions.length === 0
+                  ? "No employees have added a personal Gmail"
+                  : "Select employees…"
+              }
+              emptyText="Employees can add their Gmail under Profile → Identity."
+            />
+          </Field>
+
           <Field label="Description" className="col-span-2">
             <Textarea
               value={description}
@@ -2944,11 +3031,16 @@ function MeetingsTab({ lead }: { lead: LeadRow }) {
             />
           </Field>
         </div>
-        <div className="flex justify-end border-t border-border px-3 py-2">
+        <div className="flex items-center justify-between gap-3 border-t border-border px-3 py-2">
+          <div className="text-[11.5px] text-muted-foreground">
+            {attendees.length === 0
+              ? "Select at least one @gmail.com attendee."
+              : `${attendees.length} attendee${attendees.length > 1 ? "s" : ""} will receive a Google invite.`}
+          </div>
           <Button
             size="sm"
             className="h-8 rounded-sm bg-primary text-[12px] text-primary-foreground hover:bg-brand-700"
-            disabled={schedM.isPending || !title.trim()}
+            disabled={!canSchedule}
             onClick={() => schedM.mutate()}
           >
             {schedM.isPending ? (
@@ -2972,57 +3064,182 @@ function MeetingsTab({ lead }: { lead: LeadRow }) {
           {meetings.data?.length === 0 && !meetings.isLoading && (
             <li className="p-3 text-[12px] text-muted-foreground">No meetings.</li>
           )}
-          {meetings.data?.map((m: LeadMeetingRow) => (
-            <li key={m.id} className="grid gap-1 p-3">
-              <div className="flex items-center justify-between gap-2">
-                <div className="text-[12.5px] font-medium">{m.title}</div>
-                <span
-                  className={cn(
-                    "rounded-sm px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider",
-                    m.status === "scheduled"
-                      ? "bg-brand-50 text-brand-700"
-                      : m.status === "cancelled"
-                        ? "bg-muted text-muted-foreground line-through"
-                        : "bg-emerald-50 text-emerald-700",
+          {meetings.data?.map((m: LeadMeetingRow) => {
+            const isCancelled = m.status === "cancelled";
+            return (
+              <li key={m.id} className="grid gap-1.5 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div
+                    className={cn(
+                      "text-[12.5px] font-medium",
+                      isCancelled && "text-muted-foreground line-through",
+                    )}
+                  >
+                    {m.title}
+                  </div>
+                  <span
+                    className={cn(
+                      "rounded-sm px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider",
+                      m.status === "scheduled"
+                        ? "bg-brand-50 text-brand-700"
+                        : isCancelled
+                          ? "bg-muted text-muted-foreground"
+                          : "bg-emerald-50 text-emerald-700",
+                    )}
+                  >
+                    {m.status}
+                  </span>
+                </div>
+                <div className="font-mono text-[11.5px] text-muted-foreground">
+                  {new Date(m.starts_at).toLocaleString()} →{" "}
+                  {new Date(m.ends_at).toLocaleTimeString()}
+                </div>
+                <div className="text-[11.5px] text-muted-foreground">
+                  Created by{" "}
+                  <span className="font-medium text-foreground">
+                    {m.created_by_name || "—"}
+                  </span>{" "}
+                  · {new Date(m.created_at).toLocaleString()}
+                </div>
+                {m.attendees && m.attendees.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {m.attendees.map((a) => (
+                      <span
+                        key={a}
+                        className="rounded-sm border border-border bg-muted/40 px-1.5 py-0.5 font-mono text-[10.5px] text-muted-foreground"
+                      >
+                        {a}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div className="mt-1 flex items-center gap-2">
+                  {m.meeting_link && !isCancelled && (
+                    <a
+                      href={m.meeting_link}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-[12px] text-primary hover:underline"
+                    >
+                      <Video className="size-3.5" /> Join Meet
+                    </a>
                   )}
-                >
-                  {m.status}
-                </span>
-              </div>
-              <div className="font-mono text-[11.5px] text-muted-foreground">
-                {new Date(m.starts_at).toLocaleString()} →{" "}
-                {new Date(m.ends_at).toLocaleTimeString()}
-              </div>
-              <div className="flex items-center gap-2">
-                {m.meeting_link && (
-                  <a
-                    href={m.meeting_link}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 text-[12px] text-primary hover:underline"
-                  >
-                    <Video className="size-3.5" /> Join Meet
-                  </a>
-                )}
-                {m.status === "scheduled" && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 rounded-sm text-[11.5px] text-red-600 hover:bg-red-50"
-                    onClick={() => cancelM.mutate(m.id)}
-                    disabled={cancelM.isPending}
-                  >
-                    Cancel
-                  </Button>
-                )}
-              </div>
-            </li>
-          ))}
+                  {m.status === "scheduled" && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 rounded-sm text-[11.5px] text-red-600 hover:bg-red-50"
+                      onClick={() => cancelM.mutate(m.id)}
+                      disabled={cancelM.isPending}
+                    >
+                      Cancel
+                    </Button>
+                  )}
+                </div>
+              </li>
+            );
+          })}
         </ul>
       </section>
     </div>
   );
 }
+
+// Reusable multi-select popover for gmail attendees
+function EmailMultiSelect({
+  options,
+  value,
+  onChange,
+  placeholder,
+  emptyText,
+}: {
+  options: { email: string; label: string }[];
+  value: string[];
+  onChange: (v: string[]) => void;
+  placeholder: string;
+  emptyText: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const toggle = (email: string) => {
+    if (value.includes(email)) onChange(value.filter((e) => e !== email));
+    else onChange([...value, email]);
+  };
+  const label =
+    value.length === 0
+      ? placeholder
+      : value.length === 1
+        ? value[0]
+        : `${value.length} selected`;
+  return (
+    <div className="grid gap-1.5">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className="flex h-9 w-full items-center justify-between rounded-sm border border-border bg-background px-2.5 text-left text-[12.5px] hover:bg-muted/40"
+          >
+            <span className={cn(value.length === 0 && "text-muted-foreground")}>
+              {label}
+            </span>
+            <ChevronDown className="size-3.5 text-muted-foreground" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[320px] p-0" align="start">
+          <div className="max-h-64 overflow-auto">
+            {options.length === 0 ? (
+              <div className="p-3 text-[12px] text-muted-foreground">
+                {emptyText}
+              </div>
+            ) : (
+              options.map((o) => {
+                const checked = value.includes(o.email);
+                return (
+                  <button
+                    key={o.email}
+                    type="button"
+                    onClick={() => toggle(o.email)}
+                    className="flex w-full items-start gap-2 border-b border-border px-2.5 py-2 text-left text-[12px] hover:bg-muted/40 last:border-b-0"
+                  >
+                    <Checkbox checked={checked} className="mt-0.5" />
+                    <div className="grid">
+                      <span className="font-medium text-foreground">
+                        {o.label}
+                      </span>
+                      <span className="font-mono text-[11px] text-muted-foreground">
+                        {o.email}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </PopoverContent>
+      </Popover>
+      {value.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {value.map((e) => (
+            <span
+              key={e}
+              className="inline-flex items-center gap-1 rounded-sm border border-border bg-muted/40 px-1.5 py-0.5 font-mono text-[10.5px] text-muted-foreground"
+            >
+              {e}
+              <button
+                type="button"
+                onClick={() => onChange(value.filter((x) => x !== e))}
+                className="text-muted-foreground/70 hover:text-red-600"
+                aria-label={`Remove ${e}`}
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 // ---------- Documents tab ----------
 function DocumentsTab({ lead }: { lead: LeadRow }) {
