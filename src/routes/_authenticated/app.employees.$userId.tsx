@@ -35,7 +35,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { useConfirm } from "@/components/branta/confirm-provider";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
   assignLeadOwner,
   getEmployeeDetail,
