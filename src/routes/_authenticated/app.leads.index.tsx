@@ -3,6 +3,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { zodValidator, fallback } from "@tanstack/zod-adapter";
+import { z } from "zod";
 import {
   Search,
   Plus,
@@ -13,6 +15,8 @@ import {
   ArrowUpToLine,
   ArrowDownToLine,
   ExternalLink,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -61,8 +65,15 @@ import {
   pullLeadsFromSheet,
 } from "@/lib/leads-sheets.functions";
 
+const PAGE_SIZE_OPTIONS = [50, 100, 150, 200] as const;
+const leadsSearchSchema = z.object({
+  page: fallback(z.number().int(), 1).default(1),
+  pageSize: fallback(z.number().int(), 50).default(50),
+});
+
 export const Route = createFileRoute("/_authenticated/app/leads/")({
   component: LeadsPage,
+  validateSearch: zodValidator(leadsSearchSchema),
   head: () => ({
     meta: [
       { title: "Leads · Branta Tech Console" },
@@ -215,6 +226,41 @@ function LeadsPage() {
   const activeFilterCount =
     (statusFilter !== "all" ? 1 : 0) + (ownerFilter !== "all" ? 1 : 0);
 
+  const rawSearch = Route.useSearch();
+  const pageSize = PAGE_SIZE_OPTIONS.includes(
+    rawSearch.pageSize as (typeof PAGE_SIZE_OPTIONS)[number],
+  )
+    ? rawSearch.pageSize
+    : 50;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const page = Math.min(Math.max(1, rawSearch.page), totalPages);
+  const pageStart = (page - 1) * pageSize;
+  const paged = filtered.slice(pageStart, pageStart + pageSize);
+
+  // Reset to page 1 when filters/search change the result set below current page
+  useEffect(() => {
+    if (rawSearch.page > totalPages) {
+      navigate({
+        to: "/app/leads",
+        search: { page: 1, pageSize },
+        replace: true,
+      });
+    }
+  }, [totalPages, rawSearch.page, navigate, pageSize]);
+
+  const setPage = (n: number) =>
+    navigate({
+      to: "/app/leads",
+      search: { page: Math.min(Math.max(1, n), totalPages), pageSize },
+    });
+  const setPageSize = (n: number) =>
+    navigate({
+      to: "/app/leads",
+      search: { page: 1, pageSize: n },
+    });
+
+
+
   return (
     <div className="mx-auto flex h-full max-w-[1400px] flex-col gap-4 p-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -224,6 +270,13 @@ function LeadsPage() {
           </h1>
           <p className="mt-0.5 text-[13px] text-muted-foreground">
             {leadsQuery.data?.length ?? 0} total · {filtered.length} shown
+            {filtered.length > 0 && (
+              <>
+                {" "}
+                · showing {pageStart + 1}–
+                {Math.min(pageStart + pageSize, filtered.length)}
+              </>
+            )}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -321,7 +374,7 @@ function LeadsPage() {
           ) : filtered.length === 0 ? (
             <EmptyState onCreate={() => setCreateOpen(true)} />
           ) : (
-            filtered.map((row) => (
+            paged.map((row) => (
               <button
                 key={row.id}
                 onClick={() =>
@@ -370,6 +423,55 @@ function LeadsPage() {
           )}
         </div>
       </div>
+
+      {filtered.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-sm border border-border bg-card px-3 py-2 text-[12.5px]">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <span>Rows per page</span>
+            <Select
+              value={String(pageSize)}
+              onValueChange={(v) => setPageSize(Number(v))}
+            >
+              <SelectTrigger className="h-8 w-[84px] rounded-sm text-[12.5px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PAGE_SIZE_OPTIONS.map((n) => (
+                  <SelectItem key={n} value={String(n)}>
+                    {n}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="font-mono text-muted-foreground">
+              Page {page} of {totalPages}
+            </span>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 rounded-sm text-[12.5px]"
+                disabled={page <= 1}
+                onClick={() => setPage(page - 1)}
+              >
+                <ChevronLeft className="mr-1 size-3.5" /> Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 rounded-sm text-[12.5px]"
+                disabled={page >= totalPages}
+                onClick={() => setPage(page + 1)}
+              >
+                Next <ChevronRight className="ml-1 size-3.5" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
 
       <CreateLeadDialog
         open={createOpen}
