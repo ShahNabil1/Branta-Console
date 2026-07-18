@@ -282,9 +282,19 @@ function LeadsPage() {
             variant="outline"
             size="sm"
             className="h-9 rounded-sm border-border text-[12.5px]"
-            onClick={() => qc.invalidateQueries({ queryKey: ["leads"] })}
+            disabled={leadsQuery.isFetching}
+            onClick={() => {
+              leadsQuery.refetch();
+              usersQuery.refetch();
+              qc.invalidateQueries({ queryKey: ["lead-status-options"] });
+            }}
           >
-            <RefreshCw className="mr-1.5 size-3.5" /> Refresh
+            {leadsQuery.isFetching ? (
+              <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+            ) : (
+              <RefreshCw className="mr-1.5 size-3.5" />
+            )}
+            Refresh
           </Button>
           <Button
             size="sm"
