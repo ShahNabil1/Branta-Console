@@ -226,6 +226,40 @@ function LeadsPage() {
   const activeFilterCount =
     (statusFilter !== "all" ? 1 : 0) + (ownerFilter !== "all" ? 1 : 0);
 
+  const rawSearch = Route.useSearch();
+  const pageSize = PAGE_SIZE_OPTIONS.includes(
+    rawSearch.pageSize as (typeof PAGE_SIZE_OPTIONS)[number],
+  )
+    ? rawSearch.pageSize
+    : 50;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const page = Math.min(Math.max(1, rawSearch.page), totalPages);
+  const pageStart = (page - 1) * pageSize;
+  const paged = filtered.slice(pageStart, pageStart + pageSize);
+
+  // Reset to page 1 when filters/search change the result set below current page
+  useEffect(() => {
+    if (rawSearch.page > totalPages) {
+      navigate({
+        to: "/app/leads",
+        search: (p) => ({ ...p, page: 1 }),
+        replace: true,
+      });
+    }
+  }, [totalPages, rawSearch.page, navigate]);
+
+  const setPage = (n: number) =>
+    navigate({
+      to: "/app/leads",
+      search: (p) => ({ ...p, page: Math.min(Math.max(1, n), totalPages) }),
+    });
+  const setPageSize = (n: number) =>
+    navigate({
+      to: "/app/leads",
+      search: (p) => ({ ...p, pageSize: n, page: 1 }),
+    });
+
+
   return (
     <div className="mx-auto flex h-full max-w-[1400px] flex-col gap-4 p-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
