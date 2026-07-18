@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -6,7 +6,6 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   AlertCircle,
   Check,
-  ChevronDown,
   Copy,
   Eye,
   EyeOff,
@@ -16,7 +15,6 @@ import {
   Plus,
   RefreshCw,
   ShieldCheck,
-  Trash2,
   UserPlus,
   X,
 } from "lucide-react";
@@ -199,9 +197,7 @@ function EmployeesPage() {
   });
 
   const [open, setOpen] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [webhookOpen, setWebhookOpen] = useState(false);
-  const [expandedEmail, setExpandedEmail] = useState<string | null>(null);
 
   const { byEmail: emailEvents } = useEmailEvents(
     !!admin.data?.isAdmin,
