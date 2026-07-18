@@ -79,10 +79,12 @@ import { listResendEventsForLead } from "@/lib/resend-events.functions";
 import { listBrevoEventsForLead } from "@/lib/brevo-events.functions";
 import {
   cancelLeadMeeting,
+  checkMeetingConflicts,
   listLeadMeetings,
   scheduleLeadMeeting,
   type LeadMeetingRow,
 } from "@/lib/lead-meetings.functions";
+
 import {
   deleteLeadDoc,
   generateLeadDoc,
