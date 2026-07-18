@@ -2984,6 +2984,18 @@ function MeetingsTab({
     onError: (e) =>
       toast.error(e instanceof Error ? e.message : "Cancel failed"),
   });
+  const rescheduleM = useMutation({
+    mutationFn: (input: { id: string; startsAt: string; endsAt: string }) =>
+      rescheduleFn({ data: input }),
+    onSuccess: () => {
+      toast.success("Meeting rescheduled — attendees notified");
+      qc.invalidateQueries({ queryKey: ["lead-meetings", lead.id] });
+      qc.invalidateQueries({ queryKey: ["leads", "activities", lead.id] });
+      setRescheduleTarget(null);
+    },
+    onError: (e) =>
+      toast.error(e instanceof Error ? e.message : "Reschedule failed"),
+  });
 
   const canSchedule =
     !!title.trim() && attendees.length > 0 && !schedM.isPending;
