@@ -299,9 +299,15 @@ function LeadsPage() {
           <Button
             size="sm"
             className="h-9 rounded-sm bg-primary text-[12.5px] text-primary-foreground hover:bg-brand-700"
-            onClick={() => setCreateOpen(true)}
+            disabled={createDraftM.isPending}
+            onClick={onNewLead}
           >
-            <Plus className="mr-1.5 size-3.5" /> New lead
+            {createDraftM.isPending ? (
+              <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+            ) : (
+              <Plus className="mr-1.5 size-3.5" />
+            )}
+            New lead
           </Button>
         </div>
       </div>
