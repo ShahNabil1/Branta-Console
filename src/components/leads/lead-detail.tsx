@@ -923,7 +923,7 @@ export function LeadDetail({
           <section className="rounded-sm border border-border bg-card">
             <div className="flex items-center justify-between border-b border-border px-3 py-2">
               <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                Details {!editing && <span className="ml-1 font-normal normal-case tracking-normal text-muted-foreground/70">· locked</span>}
+                Details
               </div>
               {!editing ? (
                 <Button
