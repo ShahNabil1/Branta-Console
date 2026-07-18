@@ -248,7 +248,7 @@ function EmployeeDetailPage() {
         ? "The employee will be able to sign in again."
         : "The employee will be signed out and blocked from signing in.",
       confirmLabel: e.isBanned ? "Unban" : "Ban",
-      tone: e.isBanned ? "default" : "warning",
+      tone: e.isBanned ? "info" : "warning",
     });
     if (!ok) return;
     banMut.mutate(!e.isBanned);
