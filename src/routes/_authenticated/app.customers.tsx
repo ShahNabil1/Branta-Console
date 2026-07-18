@@ -203,8 +203,8 @@ function CustomersPage() {
                         const ok = await confirm({
                           title: `Delete ${r.customer_code}?`,
                           description: `${r.name} will be removed from customers. This cannot be undone.`,
-                          confirmText: "Delete",
-                          destructive: true,
+                          confirmLabel: "Delete",
+                          tone: "danger",
                         });
                         if (ok) deleteMut.mutate(r.id);
                       }}
