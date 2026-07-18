@@ -270,6 +270,13 @@ function LeadsPage() {
           </h1>
           <p className="mt-0.5 text-[13px] text-muted-foreground">
             {leadsQuery.data?.length ?? 0} total · {filtered.length} shown
+            {filtered.length > 0 && (
+              <>
+                {" "}
+                · showing {pageStart + 1}–
+                {Math.min(pageStart + pageSize, filtered.length)}
+              </>
+            )}
           </p>
         </div>
         <div className="flex items-center gap-2">
