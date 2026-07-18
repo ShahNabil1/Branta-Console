@@ -171,7 +171,13 @@ function PlatformSelect({
   );
 }
 
-export function SocialLinksSection({ leadId }: { leadId: string }) {
+export function SocialLinksSection({
+  leadId,
+  locked = false,
+}: {
+  leadId: string;
+  locked?: boolean;
+}) {
   const qc = useQueryClient();
   const listFn = useServerFn(listLeadSocialLinks);
   const addFn = useServerFn(addLeadSocialLink);
@@ -236,6 +242,8 @@ export function SocialLinksSection({ leadId }: { leadId: string }) {
   });
 
   const rows = useMemo(() => q.data ?? [], [q.data]);
+
+  if (locked && rows.length === 0) return null;
 
   return (
     <section className="rounded-sm border border-border bg-card">
@@ -362,36 +370,40 @@ export function SocialLinksSection({ leadId }: { leadId: string }) {
                         <span className="text-muted-foreground">{row.url}</span>
                       </TooltipContent>
                     </Tooltip>
-                    <button
-                      type="button"
-                      className="inline-flex size-6 items-center justify-center rounded-sm text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100"
-                      onClick={() => {
-                        setEditingId(row.id);
-                        setEditDraft({
-                          platform: (SOCIAL_PLATFORMS as readonly string[]).includes(
-                            row.platform,
-                          )
-                            ? (row.platform as SocialPlatform)
-                            : "website",
-                          url: row.url,
-                          label: row.label ?? "",
-                        });
-                      }}
-                      aria-label="Edit"
-                    >
-                      <Pencil className="size-3" />
-                    </button>
-                    <button
-                      type="button"
-                      className="inline-flex size-6 items-center justify-center rounded-sm text-muted-foreground opacity-0 transition-opacity hover:bg-red-50 hover:text-red-600 group-hover:opacity-100"
-                      onClick={() => {
-                        if (confirm(`Remove this ${displayName} link?`))
-                          deleteM.mutate(row.id);
-                      }}
-                      aria-label="Delete"
-                    >
-                      <Trash2 className="size-3" />
-                    </button>
+                    {!locked && (
+                      <>
+                        <button
+                          type="button"
+                          className="inline-flex size-6 items-center justify-center rounded-sm text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100"
+                          onClick={() => {
+                            setEditingId(row.id);
+                            setEditDraft({
+                              platform: (SOCIAL_PLATFORMS as readonly string[]).includes(
+                                row.platform,
+                              )
+                                ? (row.platform as SocialPlatform)
+                                : "website",
+                              url: row.url,
+                              label: row.label ?? "",
+                            });
+                          }}
+                          aria-label="Edit"
+                        >
+                          <Pencil className="size-3" />
+                        </button>
+                        <button
+                          type="button"
+                          className="inline-flex size-6 items-center justify-center rounded-sm text-muted-foreground opacity-0 transition-opacity hover:bg-red-50 hover:text-red-600 group-hover:opacity-100"
+                          onClick={() => {
+                            if (confirm(`Remove this ${displayName} link?`))
+                              deleteM.mutate(row.id);
+                          }}
+                          aria-label="Delete"
+                        >
+                          <Trash2 className="size-3" />
+                        </button>
+                      </>
+                    )}
                   </div>
                 </TooltipProvider>
               );
@@ -400,7 +412,7 @@ export function SocialLinksSection({ leadId }: { leadId: string }) {
         )}
 
         {/* Add new row */}
-        {(() => {
+        {!locked && (() => {
           const draftError = draftUrl.trim()
             ? validateUrl(draftPlatform, draftUrl)
             : null;
@@ -464,7 +476,7 @@ export function SocialLinksSection({ leadId }: { leadId: string }) {
         })()}
 
 
-        {rows.length === 0 && !q.isLoading && (
+        {!locked && rows.length === 0 && !q.isLoading && (
           <p className="text-[11.5px] text-muted-foreground">
             No social links yet — add LinkedIn, Facebook, Instagram, YouTube, X,
             TikTok, or a website. You can add the same platform multiple times
