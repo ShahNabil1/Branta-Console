@@ -3052,8 +3052,8 @@ function MeetingsTab({
               const ok = await confirm({
                 title: "Create Google Meet?",
                 description: `A calendar event "${title.trim()}" will be created and Google will email an invite (with the Meet link) to ${attendees.length} attendee${attendees.length > 1 ? "s" : ""}: ${attendees.join(", ")}.`,
-                confirmText: "Create meeting",
-                cancelText: "Back",
+                confirmLabel: "Create meeting",
+                cancelLabel: "Back",
                 tone: "info",
               });
               if (ok) schedM.mutate();
