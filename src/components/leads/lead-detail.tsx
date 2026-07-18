@@ -2895,7 +2895,7 @@ function MeetingsTab({
     }
     return list;
 
-  }, [contactsQ.data]);
+  }, [contactsQ.data, lead.email, lead.name, (lead as any).alt_email]);
 
   const employeeEmailOptions = React.useMemo(() => {
     const list: { email: string; label: string }[] = [];
