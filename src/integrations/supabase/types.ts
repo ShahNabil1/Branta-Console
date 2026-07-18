@@ -59,6 +59,78 @@ export type Database = {
         }
         Relationships: []
       }
+      inbox_messages: {
+        Row: {
+          created_at: string
+          from_email: string
+          from_name: string | null
+          gmail_message_id: string
+          gmail_thread_id: string
+          handled_by: string | null
+          is_unread: boolean
+          label_ids: string[]
+          lead_contact_id: string | null
+          lead_id: string | null
+          notified: boolean
+          received_at: string
+          snippet: string | null
+          subject: string | null
+          to_email: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          from_email: string
+          from_name?: string | null
+          gmail_message_id: string
+          gmail_thread_id: string
+          handled_by?: string | null
+          is_unread?: boolean
+          label_ids?: string[]
+          lead_contact_id?: string | null
+          lead_id?: string | null
+          notified?: boolean
+          received_at: string
+          snippet?: string | null
+          subject?: string | null
+          to_email?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          from_email?: string
+          from_name?: string | null
+          gmail_message_id?: string
+          gmail_thread_id?: string
+          handled_by?: string | null
+          is_unread?: boolean
+          label_ids?: string[]
+          lead_contact_id?: string | null
+          lead_id?: string | null
+          notified?: boolean
+          received_at?: string
+          snippet?: string | null
+          subject?: string | null
+          to_email?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inbox_messages_lead_contact_id_fkey"
+            columns: ["lead_contact_id"]
+            isOneToOne: false
+            referencedRelation: "lead_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inbox_messages_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       integration_sync_state: {
         Row: {
           created_at: string
