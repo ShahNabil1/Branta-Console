@@ -349,6 +349,234 @@ function PhoneRow({
 
 
 
+/** Compact, bold read-only display for the Details grid when the section is locked. */
+function CopyableText({
+  value,
+  className,
+  title,
+}: {
+  value: string;
+  className?: string;
+  title?: string;
+}) {
+  return (
+    <button
+      type="button"
+      title={title ?? "Click to copy"}
+      onClick={(e) => {
+        e.preventDefault();
+        void navigator.clipboard
+          .writeText(value)
+          .then(() => toast.success("Copied"))
+          .catch(() => toast.error("Copy failed"));
+      }}
+      className={cn(
+        "block max-w-full truncate text-left text-[13.5px] font-semibold text-foreground hover:text-primary",
+        className,
+      )}
+    >
+      {value}
+    </button>
+  );
+}
+
+function ReadField({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="min-w-0 space-y-1">
+      <div className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+        {label}
+      </div>
+      <div className="min-h-[24px]">{children}</div>
+    </div>
+  );
+}
+
+function ReadOnlyDetails({
+  form,
+  sourceOptions,
+  serviceOptions,
+  leadId,
+  onCompose,
+}: {
+  form: {
+    name: string;
+    role: string;
+    company: string;
+    email: string;
+    email_label: string;
+    alt_email: string;
+    alt_email_label: string;
+    phone: string;
+    phone_label: string;
+    alt_phone: string;
+    alt_phone_label: string;
+    source: string;
+    source_other: string;
+    service: string;
+    service_other: string;
+  };
+  sourceOptions: LeadSourceOption[];
+  serviceOptions: LeadServiceOption[];
+  leadId: string;
+  onCompose: () => void;
+}) {
+  const emptyDash = (
+    <span className="text-[12.5px] text-muted-foreground/60">—</span>
+  );
+  const src = sourceOptions.find((s) => s.key === form.source);
+  const svc = serviceOptions.find((s) => s.key === form.service);
+  const sourceText = src
+    ? src.requires_detail && form.source_other
+      ? `${src.label} · ${form.source_other}`
+      : src.label
+    : "";
+  const serviceText = svc
+    ? svc.requires_detail && form.service_other
+      ? `${svc.label} · ${form.service_other}`
+      : svc.label
+    : "";
+
+  const emailBlock = (value: string, label: string) => {
+    if (!value.trim()) return emptyDash;
+    return (
+      <div className="flex min-w-0 items-center gap-2">
+        <a
+          href={`mailto:${value}`}
+          className="inline-flex size-6 shrink-0 items-center justify-center rounded-sm border border-border bg-background text-foreground hover:bg-muted"
+          title="Send email"
+          aria-label="Send email"
+        >
+          <Mail className="size-3" />
+        </a>
+        <div className="min-w-0 flex-1">
+          <CopyableText value={value} />
+          {label && (
+            <div className="text-[10.5px] uppercase tracking-wide text-muted-foreground">
+              {label}
+            </div>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={onCompose}
+          className="shrink-0 rounded-sm border border-border px-1.5 py-0.5 text-[10.5px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+          title="Compose in Emails tab"
+        >
+          Compose
+        </button>
+      </div>
+    );
+  };
+
+  const phoneBlock = (value: string, label: string) => {
+    if (!value.trim()) return emptyDash;
+    const digits = value.replace(/[^\d]/g, "");
+    return (
+      <div className="flex min-w-0 items-center gap-2">
+        <a
+          href={`tel:${value.replace(/\s+/g, "")}`}
+          className="inline-flex size-6 shrink-0 items-center justify-center rounded-sm border border-border bg-background text-foreground hover:bg-muted"
+          title="Call"
+          aria-label="Call"
+        >
+          <PhoneIcon className="size-3" />
+        </a>
+        {digits && (
+          <a
+            href={`https://wa.me/${digits}`}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex size-6 shrink-0 items-center justify-center rounded-sm border border-border bg-background hover:bg-muted"
+            title="WhatsApp"
+            aria-label="WhatsApp"
+          >
+            <WhatsAppIcon className="size-3.5" />
+          </a>
+        )}
+        <div className="min-w-0 flex-1">
+          <CopyableText value={value} />
+          {label && (
+            <div className="text-[10.5px] uppercase tracking-wide text-muted-foreground">
+              {label}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const hasAltEmail = !!form.alt_email.trim();
+  const hasAltPhone = !!form.alt_phone.trim();
+
+  return (
+    <div className="space-y-3 p-3">
+      <div className="grid grid-cols-2 gap-x-4 gap-y-3 md:grid-cols-3">
+        <ReadField label="Name">
+          {form.name.trim() ? (
+            <CopyableText value={form.name} />
+          ) : (
+            emptyDash
+          )}
+        </ReadField>
+        <ReadField label="Role">
+          {form.role.trim() ? <CopyableText value={form.role} /> : emptyDash}
+        </ReadField>
+        <ReadField label="Company">
+          {form.company.trim() ? (
+            <CopyableText value={form.company} />
+          ) : (
+            emptyDash
+          )}
+        </ReadField>
+        <ReadField label="Source">
+          {sourceText ? (
+            <span className="text-[13.5px] font-semibold text-foreground">
+              {sourceText}
+            </span>
+          ) : (
+            emptyDash
+          )}
+        </ReadField>
+        <ReadField label="Service interest">
+          {serviceText ? (
+            <span className="text-[13.5px] font-semibold text-foreground">
+              {serviceText}
+            </span>
+          ) : (
+            emptyDash
+          )}
+        </ReadField>
+        <div className="hidden md:block" />
+
+        <ReadField label="Email">
+          {emailBlock(form.email, form.email_label)}
+        </ReadField>
+        {hasAltEmail && (
+          <ReadField label="Alternative email">
+            {emailBlock(form.alt_email, form.alt_email_label)}
+          </ReadField>
+        )}
+        <ReadField label="Phone">
+          {phoneBlock(form.phone, form.phone_label)}
+        </ReadField>
+        {hasAltPhone && (
+          <ReadField label="Alternative phone">
+            {phoneBlock(form.alt_phone, form.alt_phone_label)}
+          </ReadField>
+        )}
+      </div>
+
+      <SocialLinksSection leadId={leadId} locked />
+    </div>
+  );
+}
+
 
 export function LeadDetail({
   lead,
