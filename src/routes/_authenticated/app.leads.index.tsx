@@ -22,14 +22,6 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -44,7 +36,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  createLead,
+  createDraftLead,
   listAssignableUsers,
   listLeads,
   type LeadStatusDB,
@@ -56,7 +48,6 @@ import {
   STATUS_FALLBACK,
   statusColorVar,
   statusLabel,
-  type LeadSourceOption,
   type LeadStatusOption,
 } from "@/lib/lead-options.functions";
 import {
@@ -70,6 +61,7 @@ const leadsSearchSchema = z.object({
   page: fallback(z.number().int(), 1).default(1),
   pageSize: fallback(z.number().int(), 50).default(50),
 });
+
 
 export const Route = createFileRoute("/_authenticated/app/leads/")({
   component: LeadsPage,
