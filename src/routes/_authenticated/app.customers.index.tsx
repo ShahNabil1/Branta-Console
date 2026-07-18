@@ -28,6 +28,7 @@ import {
   type CustomerRow,
 } from "@/lib/customers.functions";
 import { useConfirm } from "@/components/ui/confirm-dialog";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/app/customers/")({
   component: CustomersPage,
