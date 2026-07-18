@@ -136,7 +136,7 @@ function LeadsPage() {
   const list = useServerFn(listLeads);
   const listUsers = useServerFn(listAssignableUsers);
   const listStatusOpts = useServerFn(listLeadStatusOptions);
-  const listSourceOpts = useServerFn(listLeadSourceOptions);
+  const createDraft = useServerFn(createDraftLead);
 
   const leadsQuery = useQuery({
     queryKey: ["leads", "list"],
@@ -156,16 +156,16 @@ function LeadsPage() {
     staleTime: 5 * 60_000,
     initialData: STATUS_FALLBACK,
   });
-  const sourceOptsQ = useQuery({
+  // Pre-warm source options for the detail page.
+  useQuery({
     queryKey: ["lead-source-options"],
-    queryFn: () => listSourceOpts(),
+    queryFn: () => useServerFn(listLeadSourceOptions)(),
     staleTime: 5 * 60_000,
     initialData: SOURCE_FALLBACK,
+    enabled: false,
   });
   const statusOptions: LeadStatusOption[] =
     statusOptsQ.data ?? STATUS_FALLBACK;
-  const sourceOptions: LeadSourceOption[] =
-    sourceOptsQ.data ?? SOURCE_FALLBACK;
 
   useEffect(() => {
     const ch = supabase
@@ -194,7 +194,22 @@ function LeadsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | LeadStatusDB>("all");
   const [ownerFilter, setOwnerFilter] = useState<string>("all");
-  const [createOpen, setCreateOpen] = useState(false);
+
+  const createDraftM = useMutation({
+    mutationFn: () => createDraft(),
+    onSuccess: (row) => {
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      navigate({
+        to: "/app/leads/$slug",
+        params: { slug: row.slug ?? row.lead_code },
+        search: { new: 1 },
+      });
+    },
+    onError: (e: unknown) =>
+      toast.error(e instanceof Error ? e.message : "Failed to create lead"),
+  });
+  const onNewLead = () => createDraftM.mutate();
+
 
   const filtered = useMemo(() => {
     const rows = leadsQuery.data ?? [];
