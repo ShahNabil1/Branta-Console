@@ -945,9 +945,11 @@ export type Database = {
           didit_session_id: string | null
           district: string | null
           division: string | null
+          employee_code: string | null
           full_name: string | null
           id: string
           identity_doc_type: string | null
+          job_role: string | null
           kyc_document_expiry: string | null
           kyc_document_number: string | null
           kyc_document_type: string | null
@@ -991,9 +993,11 @@ export type Database = {
           didit_session_id?: string | null
           district?: string | null
           division?: string | null
+          employee_code?: string | null
           full_name?: string | null
           id?: string
           identity_doc_type?: string | null
+          job_role?: string | null
           kyc_document_expiry?: string | null
           kyc_document_number?: string | null
           kyc_document_type?: string | null
@@ -1037,9 +1041,11 @@ export type Database = {
           didit_session_id?: string | null
           district?: string | null
           division?: string | null
+          employee_code?: string | null
           full_name?: string | null
           id?: string
           identity_doc_type?: string | null
+          job_role?: string | null
           kyc_document_expiry?: string | null
           kyc_document_number?: string | null
           kyc_document_type?: string | null
@@ -1198,6 +1204,7 @@ export type Database = {
         Args: { _schema: string; _table: string }
         Returns: undefined
       }
+      generate_employee_code: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
