@@ -33,6 +33,22 @@ const UpdateProfileInput = z.object({
   bank_routing: nullableString(40),
   mfs_provider: nullableString(40),
   mfs_number: nullableString(40),
+  payment_methods: z
+    .array(
+      z.object({
+        id: z.string(),
+        kind: z.enum(["bank", "mfs"]),
+        is_primary: z.boolean().default(false),
+        bank_name: z.string().nullish(),
+        account_holder: z.string().nullish(),
+        account_number: z.string().nullish(),
+        branch: z.string().nullish(),
+        mfs_provider: z.string().nullish(),
+        mfs_number: z.string().nullish(),
+      }),
+    )
+    .max(20)
+    .nullish(),
   avatar_url: nullableString(500),
   nid_url: nullableString(500),
   cv_url: nullableString(500),
