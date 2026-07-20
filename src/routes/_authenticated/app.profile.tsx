@@ -443,11 +443,12 @@ function ProfileForm({
               scope="document"
             />
             <DocumentSlot
-              label="CV / Résumé"
+              label="CV / Résumé (PDF only)"
               url={form.cv_url}
               onChange={(u) => set("cv_url", u)}
               presign={presign}
               scope="document"
+              accept="application/pdf"
             />
           </div>
         </Section>
@@ -549,12 +550,14 @@ function DocumentSlot({
   onChange,
   presign,
   scope,
+  accept = "image/*,application/pdf",
 }: {
   label: string;
   url: string | null;
   onChange: (u: string) => void;
   presign: ReturnType<typeof useServerFn<typeof requestR2Upload>>;
   scope: "avatar" | "document";
+  accept?: string;
 }) {
   const upload = useR2Upload(presign, scope);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -593,10 +596,15 @@ function DocumentSlot({
         ref={inputRef}
         type="file"
         className="hidden"
-        accept="image/*,application/pdf"
+        accept={accept}
         onChange={(e) => {
           const f = e.target.files?.[0];
           if (!f) return;
+          if (accept === "application/pdf" && f.type !== "application/pdf") {
+            toast.error("Only PDF files are allowed");
+            e.target.value = "";
+            return;
+          }
           upload.mutate(f, {
             onSuccess: (u) => {
               onChange(u);
