@@ -447,6 +447,19 @@ export const updateLead = createServerFn({ method: "POST" })
     const emailPatch = patch.email;
     delete patch.email;
 
+    // Duplicate guard — block reusing an email/phone that another lead owns.
+    await throwIfDuplicate(
+      context.supabase,
+      {
+        email: typeof emailPatch === "string" ? emailPatch : null,
+        alt_email: (patch.alt_email as string | null | undefined) ?? null,
+        phone: (patch.phone as string | null | undefined) ?? null,
+        alt_phone: (patch.alt_phone as string | null | undefined) ?? null,
+      },
+      data.id,
+    );
+
+
     const { data: prior } = await context.supabase
       .from("leads")
       .select("status")
