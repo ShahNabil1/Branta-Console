@@ -649,17 +649,12 @@ function SheetSyncButton() {
           <DropdownMenuItem onClick={() => pullM.mutate()} disabled={busy}>
             <ArrowDownToLine className="mr-2 size-3.5" /> Pull from Sheet
           </DropdownMenuItem>
-          {status.data?.spreadsheetUrl && (
-            <DropdownMenuItem
-              onClick={() =>
-                window.open(status.data.spreadsheetUrl!, "_blank")
-              }
-            >
-              <ExternalLink className="mr-2 size-3.5" /> Open Sheet
-            </DropdownMenuItem>
-          )}
+          <DropdownMenuItem onClick={() => openM.mutate()} disabled={busy}>
+            <ExternalLink className="mr-2 size-3.5" /> Open Sheet
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-2xl rounded-sm">
