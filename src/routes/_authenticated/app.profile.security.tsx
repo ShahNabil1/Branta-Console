@@ -128,7 +128,7 @@ function TwoFactorSection() {
       description:
         "You will be signed out of every device immediately. On your next sign-in, you must set up 2FA again with a fresh QR code.",
       confirmLabel: "Reset & sign out",
-      variant: "destructive",
+      tone: "danger",
     });
     if (!ok) return;
     setResetting(true);
@@ -238,7 +238,7 @@ function PasskeysSection() {
       title: "Delete this passkey?",
       description: `"${label}" will no longer work for signing in. You can add another at any time.`,
       confirmLabel: "Delete",
-      variant: "destructive",
+      tone: "danger",
     });
     if (!ok) return;
     try {
@@ -483,7 +483,7 @@ function SessionsSection() {
         ? "You'll be signed out immediately and returned to the login page."
         : `${label} will lose access within a minute.`,
       confirmLabel: "Sign out",
-      variant: "destructive",
+      tone: "danger",
     });
     if (!ok) return;
     setBusy(id);
@@ -511,7 +511,7 @@ function SessionsSection() {
       description:
         "Every other browser and device will lose access within a minute. This device stays signed in.",
       confirmLabel: "Sign out others",
-      variant: "destructive",
+      tone: "danger",
     });
     if (!ok) return;
     setBusyAll(true);
