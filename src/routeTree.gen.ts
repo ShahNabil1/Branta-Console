@@ -27,7 +27,9 @@ import { Route as AuthenticatedAppEmployeesIndexRouteImport } from './routes/_au
 import { Route as AuthenticatedAppCustomersIndexRouteImport } from './routes/_authenticated/app.customers.index'
 import { Route as ApiPublicResendWebhookRouteImport } from './routes/api/public/resend.webhook'
 import { Route as ApiPublicBrevoWebhookRouteImport } from './routes/api/public/brevo.webhook'
+import { Route as AuthenticatedAppProfileSecurityRouteImport } from './routes/_authenticated/app.profile.security'
 import { Route as AuthenticatedAppProfilePersonalRouteImport } from './routes/_authenticated/app.profile.personal'
+import { Route as AuthenticatedAppProfileFinanceRouteImport } from './routes/_authenticated/app.profile.finance'
 import { Route as AuthenticatedAppProfileActivityRouteImport } from './routes/_authenticated/app.profile.activity'
 import { Route as AuthenticatedAppLeadsSlugRouteImport } from './routes/_authenticated/app.leads.$slug'
 import { Route as AuthenticatedAppEmployeesUserIdRouteImport } from './routes/_authenticated/app.employees.$userId'
@@ -129,10 +131,22 @@ const ApiPublicBrevoWebhookRoute = ApiPublicBrevoWebhookRouteImport.update({
   path: '/api/public/brevo/webhook',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedAppProfileSecurityRoute =
+  AuthenticatedAppProfileSecurityRouteImport.update({
+    id: '/security',
+    path: '/security',
+    getParentRoute: () => AuthenticatedAppProfileRoute,
+  } as any)
 const AuthenticatedAppProfilePersonalRoute =
   AuthenticatedAppProfilePersonalRouteImport.update({
     id: '/personal',
     path: '/personal',
+    getParentRoute: () => AuthenticatedAppProfileRoute,
+  } as any)
+const AuthenticatedAppProfileFinanceRoute =
+  AuthenticatedAppProfileFinanceRouteImport.update({
+    id: '/finance',
+    path: '/finance',
     getParentRoute: () => AuthenticatedAppProfileRoute,
   } as any)
 const AuthenticatedAppProfileActivityRoute =
@@ -176,7 +190,9 @@ export interface FileRoutesByFullPath {
   '/app/employees/$userId': typeof AuthenticatedAppEmployeesUserIdRoute
   '/app/leads/$slug': typeof AuthenticatedAppLeadsSlugRoute
   '/app/profile/activity': typeof AuthenticatedAppProfileActivityRoute
+  '/app/profile/finance': typeof AuthenticatedAppProfileFinanceRoute
   '/app/profile/personal': typeof AuthenticatedAppProfilePersonalRoute
+  '/app/profile/security': typeof AuthenticatedAppProfileSecurityRoute
   '/api/public/brevo/webhook': typeof ApiPublicBrevoWebhookRoute
   '/api/public/resend/webhook': typeof ApiPublicResendWebhookRoute
   '/app/customers/': typeof AuthenticatedAppCustomersIndexRoute
@@ -196,7 +212,9 @@ export interface FileRoutesByTo {
   '/app/employees/$userId': typeof AuthenticatedAppEmployeesUserIdRoute
   '/app/leads/$slug': typeof AuthenticatedAppLeadsSlugRoute
   '/app/profile/activity': typeof AuthenticatedAppProfileActivityRoute
+  '/app/profile/finance': typeof AuthenticatedAppProfileFinanceRoute
   '/app/profile/personal': typeof AuthenticatedAppProfilePersonalRoute
+  '/app/profile/security': typeof AuthenticatedAppProfileSecurityRoute
   '/api/public/brevo/webhook': typeof ApiPublicBrevoWebhookRoute
   '/api/public/resend/webhook': typeof ApiPublicResendWebhookRoute
   '/app/customers': typeof AuthenticatedAppCustomersIndexRoute
@@ -222,7 +240,9 @@ export interface FileRoutesById {
   '/_authenticated/app/employees/$userId': typeof AuthenticatedAppEmployeesUserIdRoute
   '/_authenticated/app/leads/$slug': typeof AuthenticatedAppLeadsSlugRoute
   '/_authenticated/app/profile/activity': typeof AuthenticatedAppProfileActivityRoute
+  '/_authenticated/app/profile/finance': typeof AuthenticatedAppProfileFinanceRoute
   '/_authenticated/app/profile/personal': typeof AuthenticatedAppProfilePersonalRoute
+  '/_authenticated/app/profile/security': typeof AuthenticatedAppProfileSecurityRoute
   '/api/public/brevo/webhook': typeof ApiPublicBrevoWebhookRoute
   '/api/public/resend/webhook': typeof ApiPublicResendWebhookRoute
   '/_authenticated/app/customers/': typeof AuthenticatedAppCustomersIndexRoute
@@ -248,7 +268,9 @@ export interface FileRouteTypes {
     | '/app/employees/$userId'
     | '/app/leads/$slug'
     | '/app/profile/activity'
+    | '/app/profile/finance'
     | '/app/profile/personal'
+    | '/app/profile/security'
     | '/api/public/brevo/webhook'
     | '/api/public/resend/webhook'
     | '/app/customers/'
@@ -268,7 +290,9 @@ export interface FileRouteTypes {
     | '/app/employees/$userId'
     | '/app/leads/$slug'
     | '/app/profile/activity'
+    | '/app/profile/finance'
     | '/app/profile/personal'
+    | '/app/profile/security'
     | '/api/public/brevo/webhook'
     | '/api/public/resend/webhook'
     | '/app/customers'
@@ -293,7 +317,9 @@ export interface FileRouteTypes {
     | '/_authenticated/app/employees/$userId'
     | '/_authenticated/app/leads/$slug'
     | '/_authenticated/app/profile/activity'
+    | '/_authenticated/app/profile/finance'
     | '/_authenticated/app/profile/personal'
+    | '/_authenticated/app/profile/security'
     | '/api/public/brevo/webhook'
     | '/api/public/resend/webhook'
     | '/_authenticated/app/customers/'
@@ -439,11 +465,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicBrevoWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/app/profile/security': {
+      id: '/_authenticated/app/profile/security'
+      path: '/security'
+      fullPath: '/app/profile/security'
+      preLoaderRoute: typeof AuthenticatedAppProfileSecurityRouteImport
+      parentRoute: typeof AuthenticatedAppProfileRoute
+    }
     '/_authenticated/app/profile/personal': {
       id: '/_authenticated/app/profile/personal'
       path: '/personal'
       fullPath: '/app/profile/personal'
       preLoaderRoute: typeof AuthenticatedAppProfilePersonalRouteImport
+      parentRoute: typeof AuthenticatedAppProfileRoute
+    }
+    '/_authenticated/app/profile/finance': {
+      id: '/_authenticated/app/profile/finance'
+      path: '/finance'
+      fullPath: '/app/profile/finance'
+      preLoaderRoute: typeof AuthenticatedAppProfileFinanceRouteImport
       parentRoute: typeof AuthenticatedAppProfileRoute
     }
     '/_authenticated/app/profile/activity': {
@@ -510,14 +550,18 @@ const AuthenticatedAppLeadsRouteWithChildren =
 
 interface AuthenticatedAppProfileRouteChildren {
   AuthenticatedAppProfileActivityRoute: typeof AuthenticatedAppProfileActivityRoute
+  AuthenticatedAppProfileFinanceRoute: typeof AuthenticatedAppProfileFinanceRoute
   AuthenticatedAppProfilePersonalRoute: typeof AuthenticatedAppProfilePersonalRoute
+  AuthenticatedAppProfileSecurityRoute: typeof AuthenticatedAppProfileSecurityRoute
   AuthenticatedAppProfileIndexRoute: typeof AuthenticatedAppProfileIndexRoute
 }
 
 const AuthenticatedAppProfileRouteChildren: AuthenticatedAppProfileRouteChildren =
   {
     AuthenticatedAppProfileActivityRoute: AuthenticatedAppProfileActivityRoute,
+    AuthenticatedAppProfileFinanceRoute: AuthenticatedAppProfileFinanceRoute,
     AuthenticatedAppProfilePersonalRoute: AuthenticatedAppProfilePersonalRoute,
+    AuthenticatedAppProfileSecurityRoute: AuthenticatedAppProfileSecurityRoute,
     AuthenticatedAppProfileIndexRoute: AuthenticatedAppProfileIndexRoute,
   }
 
