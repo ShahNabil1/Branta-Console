@@ -262,6 +262,12 @@ function ProfileForm({
           avatar_url: form.avatar_url,
           nid_url: form.nid_url,
           cv_url: form.cv_url,
+          identity_doc_type: form.identity_doc_type,
+          nid_front_url: form.nid_front_url,
+          nid_back_url: form.nid_back_url,
+          passport_photo_url: form.passport_photo_url,
+          passport_address_url: form.passport_address_url,
+          birth_certificate_url: form.birth_certificate_url,
           personal_gmail: form.personal_gmail,
         },
       });
