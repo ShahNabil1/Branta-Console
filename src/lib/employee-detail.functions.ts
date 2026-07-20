@@ -100,7 +100,7 @@ export const getEmployeeDetail = createServerFn({ method: "GET" })
       supabaseAdmin
         .from("profiles")
         .select(
-          "full_name, legal_full_name, avatar_url, phone_primary, phone_alt, address_line1, address_line2, city, district, postcode, country, bank_name, bank_account_name, bank_account_number, bank_routing, mfs_provider, mfs_number, nid_url, cv_url, personal_gmail, kyc_status",
+          "full_name, legal_full_name, avatar_url, employee_code, job_role, phone_primary, phone_alt, address_line1, address_line2, city, district, postcode, country, bank_name, bank_account_name, bank_account_number, bank_routing, mfs_provider, mfs_number, nid_url, cv_url, personal_gmail, kyc_status",
         )
         .eq("user_id", data.userId)
         .maybeSingle(),
@@ -129,6 +129,8 @@ export const getEmployeeDetail = createServerFn({ method: "GET" })
         full_name: null,
         legal_full_name: null,
         avatar_url: null,
+        employee_code: null,
+        job_role: null,
         phone_primary: null,
         phone_alt: null,
         address_line1: null,
@@ -151,6 +153,35 @@ export const getEmployeeDetail = createServerFn({ method: "GET" })
       }) as any,
     };
   });
+
+// Super-admin-only: set an employee's Job Role. Employees cannot edit their own.
+export const setEmployeeJobRole = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        userId: uuid,
+        jobRole: z.string().trim().max(120).nullable(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { isSuperAdmin } = await assertAdmin(context.supabase, context.userId);
+    if (!isSuperAdmin)
+      throw new Error("Only a super_admin can assign job roles.");
+    const { supabaseAdmin } = await import(
+      "@/integrations/supabase/client.server"
+    );
+    const value = data.jobRole && data.jobRole.length > 0 ? data.jobRole : null;
+    const { error } = await supabaseAdmin
+      .from("profiles")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .update({ job_role: value } as any)
+      .eq("user_id", data.userId);
+    if (error) throw new Error(error.message);
+    return { ok: true as const, jobRole: value };
+  });
+
 
 // Replace the target user's roles atomically. Only super_admin can grant
 // super_admin. A super_admin cannot demote themselves (avoid lockout).
