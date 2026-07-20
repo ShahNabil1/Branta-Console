@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
-import { AlertCircle, Check, Copy, Eye, EyeOff, Info, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { AlertCircle, Check, Copy, Eye, EyeOff, Fingerprint, Info, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
 import { z } from "zod";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import QRCode from "qrcode";
@@ -8,6 +9,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { cn } from "@/lib/utils";
 import brandLogo from "@/assets/brand-logo.png.asset.json";
+import { registerSession } from "@/lib/user-sessions.functions";
+import { beginPasskeyLogin, finishPasskeyLogin } from "@/lib/passkeys.functions";
+import { ensureSessionKey } from "@/hooks/use-session-watcher";
+
+export const PASSKEY_SESSION_FLAG = "branta.passkey_session";
 
 const TURNSTILE_SITE_KEY = "0x4AAAAAACNbiRh7P7qtgkXG";
 
