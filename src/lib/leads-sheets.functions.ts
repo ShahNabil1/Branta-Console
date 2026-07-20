@@ -479,6 +479,43 @@ export const getSheetSyncStatus = createServerFn({ method: "GET" })
     };
   });
 
+// Repair the sheet template (re-write headers + validations) and clear any
+// data rows that were written under an older column layout. Returns the URL
+// so the button can open a guaranteed-current sheet.
+export const openLeadSheet = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<{ url: string }> => {
+    const { callGateway } = await import("@/lib/connector-gateway.server");
+    const existing = await getSyncRow(context.supabase);
+    if (existing?.resource_id) {
+      // Check row 1 — if it doesn't match the current HEADERS, the data rows
+      // below are laid out against the OLD template and are misaligned.
+      try {
+        const row1 = await callGateway<{ values?: string[][] }>({
+          connector: "google_sheets",
+          path: `/v4/spreadsheets/${existing.resource_id}/values/${SHEET_TAB}!A1:${LAST_COL}1`,
+        });
+        const current = row1.values?.[0] ?? [];
+        const matches =
+          current.length === HEADERS.length &&
+          HEADERS.every((h, i) => (current[i] ?? "") === h);
+        if (!matches) {
+          await callGateway({
+            connector: "google_sheets",
+            path: `/v4/spreadsheets/${existing.resource_id}/values/${SHEET_TAB}!A2:${LAST_COL}100000:clear`,
+            method: "POST",
+            body: {},
+          }).catch(() => {});
+        }
+      } catch {
+        /* ignore probe failure — ensureSheet will overwrite headers anyway */
+      }
+    }
+    const id = await ensureSheet(context.supabase);
+    return { url: `https://docs.google.com/spreadsheets/d/${id}/edit` };
+  });
+
+
 // ---------- Row builders ----------
 
 function buildRow(
