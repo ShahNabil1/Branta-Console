@@ -850,7 +850,7 @@ function BdAddressBlock({
             }}
             options={postOffices}
             placeholder="Select post office"
-            disabled={!form.upazila}
+            disabled={postOffices.length === 0}
           />
         </Field>
 
