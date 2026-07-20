@@ -306,12 +306,12 @@ function ProfileForm({
                   placeholder="As it appears on your NID / passport"
                 />
               </Field>
-              <Field label="Legal Full Name">
+              <Field label="Display Name" hint="Shown across the app">
                 <Input
                   className="h-9 rounded-sm"
-                  value={form.legal_full_name ?? ""}
-                  onChange={(e) => set("legal_full_name", e.target.value)}
-                  placeholder="As it appears on your NID / passport"
+                  value={form.full_name ?? ""}
+                  onChange={(e) => set("full_name", e.target.value)}
+                  placeholder="How your name appears in Branta Tech"
                 />
               </Field>
               <Field label="Official Email" hint="Assigned by Branta Tech · read only">
