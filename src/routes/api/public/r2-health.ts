@@ -1,10 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { checkR2Health, createPresignedPutUrl, createPresignedGetUrl, deleteObject, getR2Client, getR2Config } from "@/lib/r2.server";
 
 export const Route = createFileRoute("/api/public/r2-health")({
   server: {
     handlers: {
       GET: async () => {
+        const {
+          checkR2Health,
+          createPresignedPutUrl,
+          createPresignedGetUrl,
+          deleteObject,
+          getR2Client,
+          getR2Config,
+        } = await import("@/lib/r2.server");
         const steps: Array<{ step: string; ok: boolean; detail?: unknown }> = [];
         const health = await checkR2Health();
         steps.push({ step: "HeadBucket", ok: health.ok, detail: health });
