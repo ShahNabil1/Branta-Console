@@ -270,7 +270,7 @@ function ProfileForm({
 
           <Button
             onClick={save}
-            disabled={!dirty || saving}
+            disabled={!canSave || saving}
             className="h-9 rounded-sm bg-primary text-primary-foreground hover:bg-brand-700"
           >
             {saving ? (
