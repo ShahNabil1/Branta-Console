@@ -740,7 +740,7 @@ function CropDialog({
             onCropChange={setCrop}
             onZoomChange={setZoom}
             onRotationChange={setRotation}
-            onCropComplete={(_a, area) => setPixels(area)}
+            onCropComplete={(_a: Area, area: Area) => setPixels(area)}
             showGrid
             objectFit="contain"
           />
