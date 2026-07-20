@@ -6,14 +6,17 @@ import {
   Settings,
   Shield,
   BarChart3,
-
   Inbox,
   ChevronsLeft,
   LogOut,
   UserPlus,
   Send,
   Building2,
-
+  Wallet,
+  FileText,
+  Banknote,
+  Receipt,
+  PiggyBank,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,6 +43,16 @@ const NAV: NavGroup[] = [
     ],
   },
   {
+    label: "Finance",
+    items: [
+      { label: "Dashboard", to: "/app/finance", icon: PiggyBank },
+      { label: "Invoices", to: "/app/finance/invoices", icon: FileText },
+      { label: "Wallet", to: "/app/finance/wallet", icon: Wallet },
+      { label: "Withdrawals", to: "/app/finance/withdrawals", icon: Banknote },
+      { label: "Expenses", to: "/app/finance/expenses", icon: Receipt },
+    ],
+  },
+  {
     label: "Admin",
     items: [
       { label: "Employees", to: "/app/employees", icon: UserPlus },
@@ -48,7 +61,6 @@ const NAV: NavGroup[] = [
       { label: "Security", to: "/app/settings", icon: Shield },
     ],
   },
-
 ];
 
 const COLLAPSE_KEY = "branta.sidebar.collapsed";

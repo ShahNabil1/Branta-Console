@@ -20,9 +20,11 @@ import { Route as AuthenticatedAppProfileRouteImport } from './routes/_authentic
 import { Route as AuthenticatedAppMailQueueRouteImport } from './routes/_authenticated/app.mail-queue'
 import { Route as AuthenticatedAppLeadsRouteImport } from './routes/_authenticated/app.leads'
 import { Route as AuthenticatedAppInboxRouteImport } from './routes/_authenticated/app.inbox'
+import { Route as AuthenticatedAppFinanceRouteImport } from './routes/_authenticated/app.finance'
 import { Route as AuthenticatedAppCustomersRouteImport } from './routes/_authenticated/app.customers'
 import { Route as AuthenticatedAppProfileIndexRouteImport } from './routes/_authenticated/app.profile.index'
 import { Route as AuthenticatedAppLeadsIndexRouteImport } from './routes/_authenticated/app.leads.index'
+import { Route as AuthenticatedAppFinanceIndexRouteImport } from './routes/_authenticated/app.finance.index'
 import { Route as AuthenticatedAppEmployeesIndexRouteImport } from './routes/_authenticated/app.employees.index'
 import { Route as AuthenticatedAppCustomersIndexRouteImport } from './routes/_authenticated/app.customers.index'
 import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram.webhook'
@@ -33,8 +35,13 @@ import { Route as AuthenticatedAppProfilePersonalRouteImport } from './routes/_a
 import { Route as AuthenticatedAppProfileFinanceRouteImport } from './routes/_authenticated/app.profile.finance'
 import { Route as AuthenticatedAppProfileActivityRouteImport } from './routes/_authenticated/app.profile.activity'
 import { Route as AuthenticatedAppLeadsSlugRouteImport } from './routes/_authenticated/app.leads.$slug'
+import { Route as AuthenticatedAppFinanceWithdrawalsRouteImport } from './routes/_authenticated/app.finance.withdrawals'
+import { Route as AuthenticatedAppFinanceWalletRouteImport } from './routes/_authenticated/app.finance.wallet'
+import { Route as AuthenticatedAppFinanceExpensesRouteImport } from './routes/_authenticated/app.finance.expenses'
 import { Route as AuthenticatedAppEmployeesUserIdRouteImport } from './routes/_authenticated/app.employees.$userId'
 import { Route as AuthenticatedAppCustomersCodeRouteImport } from './routes/_authenticated/app.customers.$code'
+import { Route as AuthenticatedAppFinanceInvoicesIndexRouteImport } from './routes/_authenticated/app.finance.invoices.index'
+import { Route as AuthenticatedAppFinanceInvoicesSlugRouteImport } from './routes/_authenticated/app.finance.invoices.$slug'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -92,6 +99,11 @@ const AuthenticatedAppInboxRoute = AuthenticatedAppInboxRouteImport.update({
   path: '/inbox',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
+const AuthenticatedAppFinanceRoute = AuthenticatedAppFinanceRouteImport.update({
+  id: '/finance',
+  path: '/finance',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
 const AuthenticatedAppCustomersRoute =
   AuthenticatedAppCustomersRouteImport.update({
     id: '/customers',
@@ -109,6 +121,12 @@ const AuthenticatedAppLeadsIndexRoute =
     id: '/',
     path: '/',
     getParentRoute: () => AuthenticatedAppLeadsRoute,
+  } as any)
+const AuthenticatedAppFinanceIndexRoute =
+  AuthenticatedAppFinanceIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedAppFinanceRoute,
   } as any)
 const AuthenticatedAppEmployeesIndexRoute =
   AuthenticatedAppEmployeesIndexRouteImport.update({
@@ -168,6 +186,24 @@ const AuthenticatedAppLeadsSlugRoute =
     path: '/$slug',
     getParentRoute: () => AuthenticatedAppLeadsRoute,
   } as any)
+const AuthenticatedAppFinanceWithdrawalsRoute =
+  AuthenticatedAppFinanceWithdrawalsRouteImport.update({
+    id: '/withdrawals',
+    path: '/withdrawals',
+    getParentRoute: () => AuthenticatedAppFinanceRoute,
+  } as any)
+const AuthenticatedAppFinanceWalletRoute =
+  AuthenticatedAppFinanceWalletRouteImport.update({
+    id: '/wallet',
+    path: '/wallet',
+    getParentRoute: () => AuthenticatedAppFinanceRoute,
+  } as any)
+const AuthenticatedAppFinanceExpensesRoute =
+  AuthenticatedAppFinanceExpensesRouteImport.update({
+    id: '/expenses',
+    path: '/expenses',
+    getParentRoute: () => AuthenticatedAppFinanceRoute,
+  } as any)
 const AuthenticatedAppEmployeesUserIdRoute =
   AuthenticatedAppEmployeesUserIdRouteImport.update({
     id: '/employees/$userId',
@@ -180,12 +216,25 @@ const AuthenticatedAppCustomersCodeRoute =
     path: '/$code',
     getParentRoute: () => AuthenticatedAppCustomersRoute,
   } as any)
+const AuthenticatedAppFinanceInvoicesIndexRoute =
+  AuthenticatedAppFinanceInvoicesIndexRouteImport.update({
+    id: '/invoices/',
+    path: '/invoices/',
+    getParentRoute: () => AuthenticatedAppFinanceRoute,
+  } as any)
+const AuthenticatedAppFinanceInvoicesSlugRoute =
+  AuthenticatedAppFinanceInvoicesSlugRouteImport.update({
+    id: '/invoices/$slug',
+    path: '/invoices/$slug',
+    getParentRoute: () => AuthenticatedAppFinanceRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/app': typeof AuthenticatedAppRouteWithChildren
   '/app/customers': typeof AuthenticatedAppCustomersRouteWithChildren
+  '/app/finance': typeof AuthenticatedAppFinanceRouteWithChildren
   '/app/inbox': typeof AuthenticatedAppInboxRoute
   '/app/leads': typeof AuthenticatedAppLeadsRouteWithChildren
   '/app/mail-queue': typeof AuthenticatedAppMailQueueRoute
@@ -195,6 +244,9 @@ export interface FileRoutesByFullPath {
   '/app/': typeof AuthenticatedAppIndexRoute
   '/app/customers/$code': typeof AuthenticatedAppCustomersCodeRoute
   '/app/employees/$userId': typeof AuthenticatedAppEmployeesUserIdRoute
+  '/app/finance/expenses': typeof AuthenticatedAppFinanceExpensesRoute
+  '/app/finance/wallet': typeof AuthenticatedAppFinanceWalletRoute
+  '/app/finance/withdrawals': typeof AuthenticatedAppFinanceWithdrawalsRoute
   '/app/leads/$slug': typeof AuthenticatedAppLeadsSlugRoute
   '/app/profile/activity': typeof AuthenticatedAppProfileActivityRoute
   '/app/profile/finance': typeof AuthenticatedAppProfileFinanceRoute
@@ -205,8 +257,11 @@ export interface FileRoutesByFullPath {
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
   '/app/customers/': typeof AuthenticatedAppCustomersIndexRoute
   '/app/employees/': typeof AuthenticatedAppEmployeesIndexRoute
+  '/app/finance/': typeof AuthenticatedAppFinanceIndexRoute
   '/app/leads/': typeof AuthenticatedAppLeadsIndexRoute
   '/app/profile/': typeof AuthenticatedAppProfileIndexRoute
+  '/app/finance/invoices/$slug': typeof AuthenticatedAppFinanceInvoicesSlugRoute
+  '/app/finance/invoices/': typeof AuthenticatedAppFinanceInvoicesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -218,6 +273,9 @@ export interface FileRoutesByTo {
   '/app': typeof AuthenticatedAppIndexRoute
   '/app/customers/$code': typeof AuthenticatedAppCustomersCodeRoute
   '/app/employees/$userId': typeof AuthenticatedAppEmployeesUserIdRoute
+  '/app/finance/expenses': typeof AuthenticatedAppFinanceExpensesRoute
+  '/app/finance/wallet': typeof AuthenticatedAppFinanceWalletRoute
+  '/app/finance/withdrawals': typeof AuthenticatedAppFinanceWithdrawalsRoute
   '/app/leads/$slug': typeof AuthenticatedAppLeadsSlugRoute
   '/app/profile/activity': typeof AuthenticatedAppProfileActivityRoute
   '/app/profile/finance': typeof AuthenticatedAppProfileFinanceRoute
@@ -228,8 +286,11 @@ export interface FileRoutesByTo {
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
   '/app/customers': typeof AuthenticatedAppCustomersIndexRoute
   '/app/employees': typeof AuthenticatedAppEmployeesIndexRoute
+  '/app/finance': typeof AuthenticatedAppFinanceIndexRoute
   '/app/leads': typeof AuthenticatedAppLeadsIndexRoute
   '/app/profile': typeof AuthenticatedAppProfileIndexRoute
+  '/app/finance/invoices/$slug': typeof AuthenticatedAppFinanceInvoicesSlugRoute
+  '/app/finance/invoices': typeof AuthenticatedAppFinanceInvoicesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -238,6 +299,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_authenticated/app': typeof AuthenticatedAppRouteWithChildren
   '/_authenticated/app/customers': typeof AuthenticatedAppCustomersRouteWithChildren
+  '/_authenticated/app/finance': typeof AuthenticatedAppFinanceRouteWithChildren
   '/_authenticated/app/inbox': typeof AuthenticatedAppInboxRoute
   '/_authenticated/app/leads': typeof AuthenticatedAppLeadsRouteWithChildren
   '/_authenticated/app/mail-queue': typeof AuthenticatedAppMailQueueRoute
@@ -247,6 +309,9 @@ export interface FileRoutesById {
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
   '/_authenticated/app/customers/$code': typeof AuthenticatedAppCustomersCodeRoute
   '/_authenticated/app/employees/$userId': typeof AuthenticatedAppEmployeesUserIdRoute
+  '/_authenticated/app/finance/expenses': typeof AuthenticatedAppFinanceExpensesRoute
+  '/_authenticated/app/finance/wallet': typeof AuthenticatedAppFinanceWalletRoute
+  '/_authenticated/app/finance/withdrawals': typeof AuthenticatedAppFinanceWithdrawalsRoute
   '/_authenticated/app/leads/$slug': typeof AuthenticatedAppLeadsSlugRoute
   '/_authenticated/app/profile/activity': typeof AuthenticatedAppProfileActivityRoute
   '/_authenticated/app/profile/finance': typeof AuthenticatedAppProfileFinanceRoute
@@ -257,8 +322,11 @@ export interface FileRoutesById {
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
   '/_authenticated/app/customers/': typeof AuthenticatedAppCustomersIndexRoute
   '/_authenticated/app/employees/': typeof AuthenticatedAppEmployeesIndexRoute
+  '/_authenticated/app/finance/': typeof AuthenticatedAppFinanceIndexRoute
   '/_authenticated/app/leads/': typeof AuthenticatedAppLeadsIndexRoute
   '/_authenticated/app/profile/': typeof AuthenticatedAppProfileIndexRoute
+  '/_authenticated/app/finance/invoices/$slug': typeof AuthenticatedAppFinanceInvoicesSlugRoute
+  '/_authenticated/app/finance/invoices/': typeof AuthenticatedAppFinanceInvoicesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -267,6 +335,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/app'
     | '/app/customers'
+    | '/app/finance'
     | '/app/inbox'
     | '/app/leads'
     | '/app/mail-queue'
@@ -276,6 +345,9 @@ export interface FileRouteTypes {
     | '/app/'
     | '/app/customers/$code'
     | '/app/employees/$userId'
+    | '/app/finance/expenses'
+    | '/app/finance/wallet'
+    | '/app/finance/withdrawals'
     | '/app/leads/$slug'
     | '/app/profile/activity'
     | '/app/profile/finance'
@@ -286,8 +358,11 @@ export interface FileRouteTypes {
     | '/api/public/telegram/webhook'
     | '/app/customers/'
     | '/app/employees/'
+    | '/app/finance/'
     | '/app/leads/'
     | '/app/profile/'
+    | '/app/finance/invoices/$slug'
+    | '/app/finance/invoices/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -299,6 +374,9 @@ export interface FileRouteTypes {
     | '/app'
     | '/app/customers/$code'
     | '/app/employees/$userId'
+    | '/app/finance/expenses'
+    | '/app/finance/wallet'
+    | '/app/finance/withdrawals'
     | '/app/leads/$slug'
     | '/app/profile/activity'
     | '/app/profile/finance'
@@ -309,8 +387,11 @@ export interface FileRouteTypes {
     | '/api/public/telegram/webhook'
     | '/app/customers'
     | '/app/employees'
+    | '/app/finance'
     | '/app/leads'
     | '/app/profile'
+    | '/app/finance/invoices/$slug'
+    | '/app/finance/invoices'
   id:
     | '__root__'
     | '/'
@@ -318,6 +399,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/_authenticated/app'
     | '/_authenticated/app/customers'
+    | '/_authenticated/app/finance'
     | '/_authenticated/app/inbox'
     | '/_authenticated/app/leads'
     | '/_authenticated/app/mail-queue'
@@ -327,6 +409,9 @@ export interface FileRouteTypes {
     | '/_authenticated/app/'
     | '/_authenticated/app/customers/$code'
     | '/_authenticated/app/employees/$userId'
+    | '/_authenticated/app/finance/expenses'
+    | '/_authenticated/app/finance/wallet'
+    | '/_authenticated/app/finance/withdrawals'
     | '/_authenticated/app/leads/$slug'
     | '/_authenticated/app/profile/activity'
     | '/_authenticated/app/profile/finance'
@@ -337,8 +422,11 @@ export interface FileRouteTypes {
     | '/api/public/telegram/webhook'
     | '/_authenticated/app/customers/'
     | '/_authenticated/app/employees/'
+    | '/_authenticated/app/finance/'
     | '/_authenticated/app/leads/'
     | '/_authenticated/app/profile/'
+    | '/_authenticated/app/finance/invoices/$slug'
+    | '/_authenticated/app/finance/invoices/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -430,6 +518,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppInboxRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
+    '/_authenticated/app/finance': {
+      id: '/_authenticated/app/finance'
+      path: '/finance'
+      fullPath: '/app/finance'
+      preLoaderRoute: typeof AuthenticatedAppFinanceRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
     '/_authenticated/app/customers': {
       id: '/_authenticated/app/customers'
       path: '/customers'
@@ -450,6 +545,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/leads/'
       preLoaderRoute: typeof AuthenticatedAppLeadsIndexRouteImport
       parentRoute: typeof AuthenticatedAppLeadsRoute
+    }
+    '/_authenticated/app/finance/': {
+      id: '/_authenticated/app/finance/'
+      path: '/'
+      fullPath: '/app/finance/'
+      preLoaderRoute: typeof AuthenticatedAppFinanceIndexRouteImport
+      parentRoute: typeof AuthenticatedAppFinanceRoute
     }
     '/_authenticated/app/employees/': {
       id: '/_authenticated/app/employees/'
@@ -521,6 +623,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppLeadsSlugRouteImport
       parentRoute: typeof AuthenticatedAppLeadsRoute
     }
+    '/_authenticated/app/finance/withdrawals': {
+      id: '/_authenticated/app/finance/withdrawals'
+      path: '/withdrawals'
+      fullPath: '/app/finance/withdrawals'
+      preLoaderRoute: typeof AuthenticatedAppFinanceWithdrawalsRouteImport
+      parentRoute: typeof AuthenticatedAppFinanceRoute
+    }
+    '/_authenticated/app/finance/wallet': {
+      id: '/_authenticated/app/finance/wallet'
+      path: '/wallet'
+      fullPath: '/app/finance/wallet'
+      preLoaderRoute: typeof AuthenticatedAppFinanceWalletRouteImport
+      parentRoute: typeof AuthenticatedAppFinanceRoute
+    }
+    '/_authenticated/app/finance/expenses': {
+      id: '/_authenticated/app/finance/expenses'
+      path: '/expenses'
+      fullPath: '/app/finance/expenses'
+      preLoaderRoute: typeof AuthenticatedAppFinanceExpensesRouteImport
+      parentRoute: typeof AuthenticatedAppFinanceRoute
+    }
     '/_authenticated/app/employees/$userId': {
       id: '/_authenticated/app/employees/$userId'
       path: '/employees/$userId'
@@ -534,6 +657,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/customers/$code'
       preLoaderRoute: typeof AuthenticatedAppCustomersCodeRouteImport
       parentRoute: typeof AuthenticatedAppCustomersRoute
+    }
+    '/_authenticated/app/finance/invoices/': {
+      id: '/_authenticated/app/finance/invoices/'
+      path: '/invoices'
+      fullPath: '/app/finance/invoices/'
+      preLoaderRoute: typeof AuthenticatedAppFinanceInvoicesIndexRouteImport
+      parentRoute: typeof AuthenticatedAppFinanceRoute
+    }
+    '/_authenticated/app/finance/invoices/$slug': {
+      id: '/_authenticated/app/finance/invoices/$slug'
+      path: '/invoices/$slug'
+      fullPath: '/app/finance/invoices/$slug'
+      preLoaderRoute: typeof AuthenticatedAppFinanceInvoicesSlugRouteImport
+      parentRoute: typeof AuthenticatedAppFinanceRoute
     }
   }
 }
@@ -552,6 +689,33 @@ const AuthenticatedAppCustomersRouteChildren: AuthenticatedAppCustomersRouteChil
 const AuthenticatedAppCustomersRouteWithChildren =
   AuthenticatedAppCustomersRoute._addFileChildren(
     AuthenticatedAppCustomersRouteChildren,
+  )
+
+interface AuthenticatedAppFinanceRouteChildren {
+  AuthenticatedAppFinanceExpensesRoute: typeof AuthenticatedAppFinanceExpensesRoute
+  AuthenticatedAppFinanceWalletRoute: typeof AuthenticatedAppFinanceWalletRoute
+  AuthenticatedAppFinanceWithdrawalsRoute: typeof AuthenticatedAppFinanceWithdrawalsRoute
+  AuthenticatedAppFinanceIndexRoute: typeof AuthenticatedAppFinanceIndexRoute
+  AuthenticatedAppFinanceInvoicesSlugRoute: typeof AuthenticatedAppFinanceInvoicesSlugRoute
+  AuthenticatedAppFinanceInvoicesIndexRoute: typeof AuthenticatedAppFinanceInvoicesIndexRoute
+}
+
+const AuthenticatedAppFinanceRouteChildren: AuthenticatedAppFinanceRouteChildren =
+  {
+    AuthenticatedAppFinanceExpensesRoute: AuthenticatedAppFinanceExpensesRoute,
+    AuthenticatedAppFinanceWalletRoute: AuthenticatedAppFinanceWalletRoute,
+    AuthenticatedAppFinanceWithdrawalsRoute:
+      AuthenticatedAppFinanceWithdrawalsRoute,
+    AuthenticatedAppFinanceIndexRoute: AuthenticatedAppFinanceIndexRoute,
+    AuthenticatedAppFinanceInvoicesSlugRoute:
+      AuthenticatedAppFinanceInvoicesSlugRoute,
+    AuthenticatedAppFinanceInvoicesIndexRoute:
+      AuthenticatedAppFinanceInvoicesIndexRoute,
+  }
+
+const AuthenticatedAppFinanceRouteWithChildren =
+  AuthenticatedAppFinanceRoute._addFileChildren(
+    AuthenticatedAppFinanceRouteChildren,
   )
 
 interface AuthenticatedAppLeadsRouteChildren {
@@ -593,6 +757,7 @@ const AuthenticatedAppProfileRouteWithChildren =
 
 interface AuthenticatedAppRouteChildren {
   AuthenticatedAppCustomersRoute: typeof AuthenticatedAppCustomersRouteWithChildren
+  AuthenticatedAppFinanceRoute: typeof AuthenticatedAppFinanceRouteWithChildren
   AuthenticatedAppInboxRoute: typeof AuthenticatedAppInboxRoute
   AuthenticatedAppLeadsRoute: typeof AuthenticatedAppLeadsRouteWithChildren
   AuthenticatedAppMailQueueRoute: typeof AuthenticatedAppMailQueueRoute
@@ -605,6 +770,7 @@ interface AuthenticatedAppRouteChildren {
 
 const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
   AuthenticatedAppCustomersRoute: AuthenticatedAppCustomersRouteWithChildren,
+  AuthenticatedAppFinanceRoute: AuthenticatedAppFinanceRouteWithChildren,
   AuthenticatedAppInboxRoute: AuthenticatedAppInboxRoute,
   AuthenticatedAppLeadsRoute: AuthenticatedAppLeadsRouteWithChildren,
   AuthenticatedAppMailQueueRoute: AuthenticatedAppMailQueueRoute,
