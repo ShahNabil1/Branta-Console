@@ -648,6 +648,16 @@ export const addLeadContact = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => ContactInput.parse(d))
   .handler(async ({ data, context }): Promise<LeadContactRow> => {
+    await throwIfDuplicate(
+      context.supabase,
+      {
+        email: data.email,
+        alt_email: data.alt_email ?? null,
+        phone: data.phone ?? null,
+        alt_phone: data.alt_phone ?? null,
+      },
+      data.leadId,
+    );
     if (data.isPrimary) {
       await context.supabase
         .from("lead_contacts")
