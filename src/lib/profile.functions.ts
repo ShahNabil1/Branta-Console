@@ -58,6 +58,9 @@ export type ProfileRow = {
   address_line2: string | null;
   city: string | null;
   district: string | null;
+  division: string | null;
+  upazila: string | null;
+  post_office: string | null;
   postcode: string | null;
   country: string | null;
   bank_name: string | null;
