@@ -596,10 +596,15 @@ function DocumentSlot({
         ref={inputRef}
         type="file"
         className="hidden"
-        accept="image/*,application/pdf"
+        accept={accept}
         onChange={(e) => {
           const f = e.target.files?.[0];
           if (!f) return;
+          if (accept === "application/pdf" && f.type !== "application/pdf") {
+            toast.error("Only PDF files are allowed");
+            e.target.value = "";
+            return;
+          }
           upload.mutate(f, {
             onSuccess: (u) => {
               onChange(u);
