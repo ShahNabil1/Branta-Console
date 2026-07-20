@@ -79,6 +79,54 @@ type Phase = "credentials" | "enroll" | "challenge";
 function LoginPage() {
   const navigate = useNavigate();
   const { reason, redirect: redirectParam } = useSearch({ from: "/login" });
+  const registerSessionFn = useServerFn(registerSession);
+  const beginPasskey = useServerFn(beginPasskeyLogin);
+  const finishPasskey = useServerFn(finishPasskeyLogin);
+  const [passkeyBusy, setPasskeyBusy] = useState(false);
+  const [passkeyError, setPasskeyError] = useState<string | null>(null);
+
+  const finalizeAndGo = async (opts?: { viaPasskey?: boolean }) => {
+    try {
+      if (opts?.viaPasskey && typeof window !== "undefined") {
+        window.sessionStorage.setItem(PASSKEY_SESSION_FLAG, "1");
+      }
+      const key = ensureSessionKey();
+      await registerSessionFn({ data: { session_key: key } }).catch(() => {});
+    } catch {
+      /* non-fatal */
+    }
+    navigate({ to: sanitizeRedirect(redirectParam) });
+  };
+
+  const onPasskeySignIn = async () => {
+    setPasskeyError(null);
+    const r = localSchema.safeParse(local);
+    if (!r.success) {
+      setLocalError(r.error.issues[0]?.message ?? "Enter your Branta ID first.");
+      return;
+    }
+    setPasskeyBusy(true);
+    try {
+      const { startAuthentication } = await import("@simplewebauthn/browser");
+      const options = await beginPasskey({ data: { branta_local: r.data } });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const assertion = await startAuthentication({ optionsJSON: options as any });
+      const res = await finishPasskey({ data: { assertion_response: assertion } });
+      const { error } = await supabase.auth.verifyOtp({
+        type: "magiclink",
+        email: res.email,
+        token_hash: res.token_hash,
+      });
+      if (error) throw error;
+      await finalizeAndGo({ viaPasskey: true });
+    } catch (err) {
+      const msg = (err as Error).message || "Passkey sign-in failed.";
+      setPasskeyError(msg.includes("NotAllowed") ? "Cancelled." : msg);
+    } finally {
+      setPasskeyBusy(false);
+    }
+  };
+
 
   // Phase state
   const [phase, setPhase] = useState<Phase>("credentials");
