@@ -875,6 +875,7 @@ export type Database = {
           mfs_number: string | null
           mfs_provider: string | null
           nid_url: string | null
+          payment_methods: Json
           personal_gmail: string | null
           phone_alt: string | null
           phone_primary: string | null
@@ -914,6 +915,7 @@ export type Database = {
           mfs_number?: string | null
           mfs_provider?: string | null
           nid_url?: string | null
+          payment_methods?: Json
           personal_gmail?: string | null
           phone_alt?: string | null
           phone_primary?: string | null
@@ -953,6 +955,7 @@ export type Database = {
           mfs_number?: string | null
           mfs_provider?: string | null
           nid_url?: string | null
+          payment_methods?: Json
           personal_gmail?: string | null
           phone_alt?: string | null
           phone_primary?: string | null
