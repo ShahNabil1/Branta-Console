@@ -181,6 +181,108 @@ async function upsertPrimaryContact(
   );
 }
 
+// ---- Duplicate guard ---------------------------------------------------
+// Blocks two different leads from sharing the same email or phone.
+// Case-insensitive email match; phone match on the last-10 digits.
+const normEmailStr = (v: unknown): string | null => {
+  if (typeof v !== "string") return null;
+  const s = v.trim().toLowerCase();
+  return s.includes("@") ? s : null;
+};
+const normPhoneStr = (v: unknown): string | null => {
+  if (typeof v !== "string") return null;
+  const d = v.replace(/\D+/g, "");
+  return d.length >= 7 ? d.slice(-10) : null;
+};
+
+async function throwIfDuplicate(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  fields: {
+    email?: string | null;
+    alt_email?: string | null;
+    phone?: string | null;
+    alt_phone?: string | null;
+  },
+  excludeLeadId: string | null,
+): Promise<void> {
+  const emails = [normEmailStr(fields.email), normEmailStr(fields.alt_email)].filter(
+    (x): x is string => !!x,
+  );
+  const phones = [normPhoneStr(fields.phone), normPhoneStr(fields.alt_phone)].filter(
+    (x): x is string => !!x,
+  );
+  if (emails.length === 0 && phones.length === 0) return;
+
+  const resolveSlug = async (leadId: string): Promise<string> => {
+    const { data } = await supabase.from("leads").select("slug").eq("id", leadId).maybeSingle();
+    return data?.slug ?? leadId.slice(0, 8);
+  };
+
+  // Emails — check leads.alt_email + lead_contacts.email/alt_email.
+  for (const e of emails) {
+    const { data: L } = await supabase
+      .from("leads")
+      .select("id, slug")
+      .ilike("alt_email", e)
+      .limit(5);
+    for (const l of (L ?? []) as { id: string; slug: string }[]) {
+      if (l.id !== excludeLeadId) {
+        throw new Error(`Email ${e} is already used by lead ${l.slug}`);
+      }
+    }
+    for (const col of ["email", "alt_email"] as const) {
+      const { data: C } = await supabase
+        .from("lead_contacts")
+        .select("lead_id")
+        .ilike(col, e)
+        .limit(10);
+      for (const c of (C ?? []) as { lead_id: string }[]) {
+        if (c.lead_id !== excludeLeadId) {
+          const slug = await resolveSlug(c.lead_id);
+          throw new Error(`Email ${e} is already used by lead ${slug}`);
+        }
+      }
+    }
+  }
+
+  if (phones.length > 0) {
+    // Phones are stored unnormalized; scan and compare on last-10.
+    const { data: L } = await supabase
+      .from("leads")
+      .select("id, slug, phone, alt_phone");
+    for (const l of (L ?? []) as {
+      id: string;
+      slug: string;
+      phone: string | null;
+      alt_phone: string | null;
+    }) {
+      if (l.id === excludeLeadId) continue;
+      const lp = normPhoneStr(l.phone);
+      const la = normPhoneStr(l.alt_phone);
+      if ((lp && phones.includes(lp)) || (la && phones.includes(la))) {
+        throw new Error(`Phone is already used by lead ${l.slug}`);
+      }
+    }
+    const { data: C } = await supabase
+      .from("lead_contacts")
+      .select("lead_id, phone, alt_phone");
+    for (const c of (C ?? []) as {
+      lead_id: string;
+      phone: string | null;
+      alt_phone: string | null;
+    }) {
+      if (c.lead_id === excludeLeadId) continue;
+      const cp = normPhoneStr(c.phone);
+      const ca = normPhoneStr(c.alt_phone);
+      if ((cp && phones.includes(cp)) || (ca && phones.includes(ca))) {
+        const slug = await resolveSlug(c.lead_id);
+        throw new Error(`Phone is already used by lead ${slug}`);
+      }
+    }
+  }
+}
+
 export const listLeads = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<LeadRow[]> => {
