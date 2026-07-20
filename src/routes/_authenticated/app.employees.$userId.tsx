@@ -43,12 +43,16 @@ import {
   resetEmployeePassword,
   searchLeadsForAssignment,
   setEmployeeBan,
+  setEmployeeJobRole,
   startImpersonation,
   updateEmployeeRoles,
   type EmployeeRole,
 } from "@/lib/employee-detail.functions";
 import { checkIsAdmin, deleteEmployee } from "@/lib/employees.functions";
 import { clearBackup, isImpersonating, readBackup, writeBackup } from "@/lib/impersonation";
+import { BarcodeSvg, downloadBarcodePng } from "@/components/employee/BarcodeSvg";
+import { Input } from "@/components/ui/input";
+
 
 export const Route = createFileRoute("/_authenticated/app/employees/$userId")({
   head: () => ({ meta: [{ title: "Employee · Branta Tech" }] }),
@@ -91,6 +95,8 @@ function EmployeeDetailPage() {
   const searchLeadsFn = useServerFn(searchLeadsForAssignment);
   const assignFn = useServerFn(assignLeadOwner);
   const deleteFn = useServerFn(deleteEmployee);
+  const setJobRoleFn = useServerFn(setEmployeeJobRole);
+
 
   const admin = useQuery({
     queryKey: ["employees.admin"],
@@ -192,6 +198,24 @@ function EmployeeDetailPage() {
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
+
+  const [jobRoleDraft, setJobRoleDraft] = useState<string | null>(null);
+  const currentJobRole = detail.data?.profile.job_role ?? "";
+  const jobRoleValue = jobRoleDraft ?? currentJobRole;
+  const jobRoleDirty = jobRoleDraft !== null && jobRoleDraft !== currentJobRole;
+
+  const saveJobRole = useMutation({
+    mutationFn: () =>
+      setJobRoleFn({ data: { userId, jobRole: jobRoleValue.trim() || null } }),
+    onSuccess: () => {
+      toast.success("Job role updated");
+      setJobRoleDraft(null);
+      qc.invalidateQueries({ queryKey: ["employee.detail", userId] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
+  });
+
+
 
   if (admin.isLoading || detail.isLoading) {
     return (
@@ -435,7 +459,130 @@ function EmployeeDetailPage() {
         </div>
       </section>
 
+      {/* Employee ID card: code + scannable barcode + Job Role */}
+      <section className="rounded-sm border border-border bg-card p-5">
+        <div className="mb-3 flex items-center gap-2">
+          <ShieldCheck className="size-4 text-brand" strokeWidth={2} />
+          <h2 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            Employee ID & Job Role
+          </h2>
+        </div>
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-[minmax(260px,320px)_1fr]">
+          {/* Barcode card */}
+          <div className="rounded-sm border border-border bg-white p-3">
+            <div className="mb-1 text-[10px] font-mono uppercase tracking-[0.14em] text-muted-foreground">
+              Employee Code
+            </div>
+            {p.employee_code ? (
+              <>
+                <div className="mb-1 font-mono text-[18px] font-semibold tracking-[0.08em] text-foreground">
+                  {p.employee_code}
+                </div>
+                <div className="overflow-hidden rounded-sm border border-border bg-white">
+                  <BarcodeSvg
+                    value={p.employee_code}
+                    height={70}
+                    className="mx-auto block"
+                  />
+                </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <button
+                    onClick={() =>
+                      downloadBarcodePng(
+                        p.employee_code!,
+                        `${p.employee_code}.png`,
+                      ).catch((err) =>
+                        toast.error(
+                          err instanceof Error ? err.message : "Download failed",
+                        ),
+                      )
+                    }
+                    className="inline-flex h-8 items-center gap-1.5 rounded-sm border border-border bg-card px-2.5 text-[12px] font-medium hover:bg-muted"
+                  >
+                    <Download className="size-3.5" strokeWidth={2} />
+                    Download barcode (PNG)
+                  </button>
+                  <button
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(p.employee_code!);
+                        toast.success("Code copied");
+                      } catch {
+                        /* ignore */
+                      }
+                    }}
+                    className="grid size-8 place-items-center rounded-sm border border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
+                    aria-label="Copy code"
+                  >
+                    <Copy className="size-3.5" strokeWidth={1.75} />
+                  </button>
+                </div>
+                <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
+                  Scan with any Code128-compatible reader to reveal this ID.
+                  Use the download for printed ID cards.
+                </p>
+              </>
+            ) : (
+              <p className="text-[12px] text-muted-foreground">
+                No employee code assigned yet.
+              </p>
+            )}
+          </div>
+
+          {/* Job Role editor */}
+          <div className="rounded-sm border border-border bg-card p-4">
+            <div className="mb-1 flex items-center justify-between">
+              <div className="text-[10px] font-mono uppercase tracking-[0.14em] text-muted-foreground">
+                Job Role
+              </div>
+              {!canSuperAdmin && (
+                <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                  <Lock className="size-3" /> Super admin only
+                </span>
+              )}
+            </div>
+            <Input
+              value={jobRoleValue}
+              onChange={(ev) => setJobRoleDraft(ev.target.value)}
+              disabled={!canSuperAdmin || saveJobRole.isPending}
+              placeholder="e.g. Senior Backend Engineer"
+              className="h-9 rounded-sm"
+            />
+            <p className="mt-1.5 text-[11px] text-muted-foreground">
+              This appears on the employee's own profile as a read-only field.
+              Only a Super Admin can change it.
+            </p>
+            {canSuperAdmin && (
+              <div className="mt-2 flex items-center gap-2">
+                <button
+                  onClick={() => saveJobRole.mutate()}
+                  disabled={!jobRoleDirty || saveJobRole.isPending}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-sm bg-brand px-3 text-[12px] font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
+                >
+                  {saveJobRole.isPending ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <Check className="size-3.5" strokeWidth={2.5} />
+                  )}
+                  Save role
+                </button>
+                {jobRoleDirty && (
+                  <button
+                    onClick={() => setJobRoleDraft(null)}
+                    className="inline-flex h-8 items-center gap-1 rounded-sm border border-border bg-card px-2.5 text-[12px] hover:bg-muted"
+                  >
+                    <X className="size-3.5" />
+                    Reset
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
       {/* Roles / RBAC */}
+
       <section className="rounded-sm border border-border bg-card p-5">
         <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2">

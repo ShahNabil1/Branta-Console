@@ -355,18 +355,31 @@ function ProfileForm({
                   placeholder="As it appears on your NID / passport"
                 />
               </Field>
-              <Field label="Display Name" hint="Shown across the app">
+              <Field
+                label="Employee Code"
+                hint="Your unique Branta Tech ID · scannable barcode is on file with HR"
+              >
                 <Input
-                  className="h-9 rounded-sm"
-                  value={form.full_name ?? ""}
-                  onChange={(e) => set("full_name", e.target.value)}
-                  placeholder="How your name appears in Branta Tech"
+                  className="h-9 rounded-sm bg-muted font-mono text-[12.5px] font-semibold tracking-[0.06em] text-foreground"
+                  value={form.employee_code ?? "—"}
+                  readOnly
                 />
               </Field>
               <Field label="Official Email" hint="Assigned by Branta Tech · read only">
                 <Input
                   className="h-9 rounded-sm bg-muted font-mono text-[12px]"
                   value={email}
+                  readOnly
+                />
+              </Field>
+              <Field
+                label="Job Role"
+                hint="Assigned by a Super Admin · read only"
+              >
+                <Input
+                  className="h-9 rounded-sm bg-muted text-[12.5px]"
+                  value={form.job_role ?? ""}
+                  placeholder="Not assigned yet"
                   readOnly
                 />
               </Field>
@@ -384,6 +397,7 @@ function ProfileForm({
                 />
               </Field>
             </div>
+
           </div>
         </Section>
 

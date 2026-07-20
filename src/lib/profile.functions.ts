@@ -89,6 +89,8 @@ export type ProfileRow = {
   full_name: string | null;
   legal_full_name: string | null;
   avatar_url: string | null;
+  employee_code: string | null;
+  job_role: string | null;
   phone_primary: string | null;
   phone_alt: string | null;
   address_line1: string | null;
@@ -128,6 +130,7 @@ export type ProfileRow = {
   didit_session_id: string | null;
   updated_at: string;
 };
+
 
 export const getMyProfile = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -171,14 +174,21 @@ export const updateMyProfile = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
     );
+    // Keep display "full_name" in sync with legal_full_name — there is only
+    // one canonical name for an employee.
+    const payload: Record<string, unknown> = { ...data };
+    if (payload.legal_full_name) {
+      payload.full_name = payload.legal_full_name;
+    }
     const { error } = await supabaseAdmin
       .from("profiles")
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .update(data as any)
+      .update(payload as any)
       .eq("user_id", context.userId);
     if (error) throw new Error(error.message);
     return { ok: true as const };
   });
+
 
 /**
  * Flip KYC status to "under_review" the instant the user finishes the Didit
