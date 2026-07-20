@@ -22,6 +22,9 @@ const UpdateProfileInput = z.object({
   address_line2: nullableString(200),
   city: nullableString(80),
   district: nullableString(80),
+  division: nullableString(80),
+  upazila: nullableString(80),
+  post_office: nullableString(120),
   postcode: nullableString(20),
   country: nullableString(80),
   bank_name: nullableString(120),
@@ -55,6 +58,9 @@ export type ProfileRow = {
   address_line2: string | null;
   city: string | null;
   district: string | null;
+  division: string | null;
+  upazila: string | null;
+  post_office: string | null;
   postcode: string | null;
   country: string | null;
   bank_name: string | null;

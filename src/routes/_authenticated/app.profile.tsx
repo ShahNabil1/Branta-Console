@@ -13,6 +13,7 @@ import {
   updateMyProfile,
   type ProfileRow,
 } from "@/lib/profile.functions";
+import bdTree from "@/lib/bd-postcodes.json";
 
 
 import { requestR2Upload } from "@/lib/r2.functions";
@@ -218,16 +219,19 @@ function ProfileForm({
     try {
       await update({
         data: {
-          full_name: form.legal_full_name,
+          full_name: form.full_name,
           legal_full_name: form.legal_full_name,
           phone_primary: form.phone_primary,
           phone_alt: form.phone_alt,
           address_line1: form.address_line1,
-          address_line2: form.address_line2,
-          city: form.city,
+          address_line2: null,
+          division: form.division,
           district: form.district,
+          upazila: form.upazila,
+          post_office: form.post_office,
+          city: form.upazila,
           postcode: form.postcode,
-          country: form.country,
+          country: "Bangladesh",
           bank_name: form.bank_name,
           bank_account_name: form.bank_account_name,
           bank_account_number: form.bank_account_number,
@@ -306,12 +310,12 @@ function ProfileForm({
                   placeholder="As it appears on your NID / passport"
                 />
               </Field>
-              <Field label="Legal Full Name">
+              <Field label="Display Name" hint="Shown across the app">
                 <Input
                   className="h-9 rounded-sm"
-                  value={form.legal_full_name ?? ""}
-                  onChange={(e) => set("legal_full_name", e.target.value)}
-                  placeholder="As it appears on your NID / passport"
+                  value={form.full_name ?? ""}
+                  onChange={(e) => set("full_name", e.target.value)}
+                  placeholder="How your name appears in Branta Tech"
                 />
               </Field>
               <Field label="Official Email" hint="Assigned by Branta Tech · read only">
@@ -359,52 +363,8 @@ function ProfileForm({
         </Section>
 
         {/* Address */}
-        <Section title="Address">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Field label="Address Line 1" className="md:col-span-2">
-              <Input
-                className="h-9 rounded-sm"
-                value={form.address_line1 ?? ""}
-                onChange={(e) => set("address_line1", e.target.value)}
-                placeholder="House / Road / Village"
-              />
-            </Field>
-            <Field label="Address Line 2" className="md:col-span-2">
-              <Input
-                className="h-9 rounded-sm"
-                value={form.address_line2 ?? ""}
-                onChange={(e) => set("address_line2", e.target.value)}
-              />
-            </Field>
-            <Field label="City / Thana">
-              <Input
-                className="h-9 rounded-sm"
-                value={form.city ?? ""}
-                onChange={(e) => set("city", e.target.value)}
-              />
-            </Field>
-            <Field label="District">
-              <Input
-                className="h-9 rounded-sm"
-                value={form.district ?? ""}
-                onChange={(e) => set("district", e.target.value)}
-              />
-            </Field>
-            <Field label="Postcode">
-              <Input
-                className="h-9 rounded-sm"
-                value={form.postcode ?? ""}
-                onChange={(e) => set("postcode", e.target.value)}
-              />
-            </Field>
-            <Field label="Country">
-              <Input
-                className="h-9 rounded-sm"
-                value={form.country ?? ""}
-                onChange={(e) => set("country", e.target.value)}
-              />
-            </Field>
-          </div>
+        <Section title="Address" description="Bangladesh only. Select from the cascading dropdowns; postcode fills in automatically.">
+          <BdAddressBlock form={form} set={set} />
         </Section>
 
         {/* Banking / MFS */}
@@ -694,6 +654,200 @@ function BdPhoneInput({
         }}
         maxLength={11}
       />
+    </div>
+  );
+}
+
+// ---------- BD Address (Division → District → Upazila → Post Office → Postcode) ----------
+type BdTree = Record<
+  string,
+  Record<string, Record<string, Record<string, string>>>
+>;
+const BD_TREE = bdTree as BdTree;
+
+function BdFlag({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 20 12"
+      className={cn(
+        "h-3 w-[18px] shrink-0 overflow-hidden rounded-[1px] shadow-[0_0_0_0.5px_rgba(0,0,0,0.15)]",
+        className,
+      )}
+    >
+      <rect width="20" height="12" fill="#006A4E" />
+      <circle cx="8.5" cy="6" r="3.4" fill="#F42A41" />
+    </svg>
+  );
+}
+
+function BdSelect({
+  value,
+  onChange,
+  options,
+  placeholder,
+  disabled,
+}: {
+  value: string | null;
+  onChange: (v: string | null) => void;
+  options: string[];
+  placeholder: string;
+  disabled?: boolean;
+}) {
+  return (
+    <select
+      className={cn(
+        "h-9 w-full rounded-sm border border-input bg-background px-2.5 text-[13px] text-foreground outline-none",
+        "focus-visible:ring-2 focus-visible:ring-brand",
+        disabled && "cursor-not-allowed bg-muted text-muted-foreground",
+      )}
+      value={value ?? ""}
+      disabled={disabled}
+      onChange={(e) => onChange(e.target.value || null)}
+    >
+      <option value="">{disabled ? "—" : placeholder}</option>
+      {options.map((o) => (
+        <option key={o} value={o}>
+          {o}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+function BdAddressBlock({
+  form,
+  set,
+}: {
+  form: ProfileRow;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  set: <K extends keyof ProfileRow>(k: K, v: ProfileRow[K]) => void;
+}) {
+  const divisions = useMemo(() => Object.keys(BD_TREE).sort(), []);
+  const districts = useMemo(
+    () => (form.division ? Object.keys(BD_TREE[form.division] ?? {}).sort() : []),
+    [form.division],
+  );
+  const upazilas = useMemo(
+    () =>
+      form.division && form.district
+        ? Object.keys(BD_TREE[form.division]?.[form.district] ?? {}).sort()
+        : [],
+    [form.division, form.district],
+  );
+  const postOffices = useMemo(
+    () =>
+      form.division && form.district && form.upazila
+        ? Object.keys(
+            BD_TREE[form.division]?.[form.district]?.[form.upazila] ?? {},
+          ).sort()
+        : [],
+    [form.division, form.district, form.upazila],
+  );
+
+  const autoPostcode =
+    form.division && form.district && form.upazila && form.post_office
+      ? BD_TREE[form.division]?.[form.district]?.[form.upazila]?.[form.post_office] ?? null
+      : null;
+
+  // Auto-sync postcode whenever the post office changes.
+  useEffect(() => {
+    if (autoPostcode && autoPostcode !== form.postcode) {
+      set("postcode", autoPostcode);
+    }
+    if (!autoPostcode && form.postcode && !form.post_office) {
+      set("postcode", null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoPostcode]);
+
+  const placeholderHint =
+    "Only house / road / village — thana, post office, district etc. are picked below.";
+
+  return (
+    <div className="grid grid-cols-1 gap-4">
+      <Field label="Address" hint={placeholderHint} className="md:col-span-2">
+        <Input
+          className="h-9 rounded-sm"
+          value={form.address_line1 ?? ""}
+          onChange={(e) => set("address_line1", e.target.value)}
+          placeholder="House 12 / Road 4 / Block C / Village name"
+        />
+      </Field>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <Field label="Division">
+          <BdSelect
+            value={form.division}
+            onChange={(v) => {
+              set("division", v);
+              set("district", null);
+              set("upazila", null);
+              set("post_office", null);
+              set("postcode", null);
+            }}
+            options={divisions}
+            placeholder="Select division"
+          />
+        </Field>
+
+        <Field label="District">
+          <BdSelect
+            value={form.district}
+            onChange={(v) => {
+              set("district", v);
+              set("upazila", null);
+              set("post_office", null);
+              set("postcode", null);
+            }}
+            options={districts}
+            placeholder="Select district"
+            disabled={!form.division}
+          />
+        </Field>
+
+        <Field label="Upazila / Thana">
+          <BdSelect
+            value={form.upazila}
+            onChange={(v) => {
+              set("upazila", v);
+              set("post_office", null);
+              set("postcode", null);
+            }}
+            options={upazilas}
+            placeholder="Select upazila"
+            disabled={!form.district}
+          />
+        </Field>
+
+        <Field label="Post Office">
+          <BdSelect
+            value={form.post_office}
+            onChange={(v) => {
+              set("post_office", v);
+            }}
+            options={postOffices}
+            placeholder="Select post office"
+            disabled={!form.upazila}
+          />
+        </Field>
+
+        <Field label="Postcode" hint="Auto-filled from post office">
+          <Input
+            className="h-9 rounded-sm bg-muted font-mono text-[12px]"
+            value={form.postcode ?? ""}
+            readOnly
+            placeholder="—"
+          />
+        </Field>
+
+        <Field label="Country" hint="Fixed">
+          <div className="flex h-9 items-center gap-2 rounded-sm border border-input bg-muted px-2.5 text-[13px] text-foreground">
+            <BdFlag />
+            <span>Bangladesh</span>
+          </div>
+        </Field>
+      </div>
     </div>
   );
 }

@@ -859,6 +859,7 @@ export type Database = {
           cv_url: string | null
           didit_session_id: string | null
           district: string | null
+          division: string | null
           full_name: string | null
           id: string
           kyc_document_expiry: string | null
@@ -877,7 +878,9 @@ export type Database = {
           personal_gmail: string | null
           phone_alt: string | null
           phone_primary: string | null
+          post_office: string | null
           postcode: string | null
+          upazila: string | null
           updated_at: string
           user_id: string
         }
@@ -895,6 +898,7 @@ export type Database = {
           cv_url?: string | null
           didit_session_id?: string | null
           district?: string | null
+          division?: string | null
           full_name?: string | null
           id?: string
           kyc_document_expiry?: string | null
@@ -913,7 +917,9 @@ export type Database = {
           personal_gmail?: string | null
           phone_alt?: string | null
           phone_primary?: string | null
+          post_office?: string | null
           postcode?: string | null
+          upazila?: string | null
           updated_at?: string
           user_id: string
         }
@@ -931,6 +937,7 @@ export type Database = {
           cv_url?: string | null
           didit_session_id?: string | null
           district?: string | null
+          division?: string | null
           full_name?: string | null
           id?: string
           kyc_document_expiry?: string | null
@@ -949,7 +956,9 @@ export type Database = {
           personal_gmail?: string | null
           phone_alt?: string | null
           phone_primary?: string | null
+          post_office?: string | null
           postcode?: string | null
+          upazila?: string | null
           updated_at?: string
           user_id?: string
         }
