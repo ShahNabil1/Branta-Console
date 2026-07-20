@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard,
   Users,
@@ -8,7 +8,6 @@ import {
   BarChart3,
   Inbox,
   ChevronsLeft,
-  LogOut,
   UserPlus,
   Send,
   Building2,
@@ -19,7 +18,6 @@ import {
   PiggyBank,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/integrations/supabase/client";
 import brandLogo from "@/assets/brand-logo.png.asset.json";
 import type { LucideIcon } from "lucide-react";
 
@@ -67,13 +65,10 @@ const COLLAPSE_KEY = "branta.sidebar.collapsed";
 
 export function AppSidebar() {
   const [collapsed, setCollapsed] = useState(false);
-  const [email, setEmail] = useState<string>("");
-  const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   useEffect(() => {
     setCollapsed(localStorage.getItem(COLLAPSE_KEY) === "1");
-    supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? ""));
   }, []);
 
   const toggle = () => {
@@ -81,14 +76,6 @@ export function AppSidebar() {
     setCollapsed(next);
     localStorage.setItem(COLLAPSE_KEY, next ? "1" : "0");
   };
-
-  const initials =
-    email
-      .split("@")[0]
-      ?.split(/[._-]/)
-      .map((p) => p[0]?.toUpperCase())
-      .join("")
-      .slice(0, 2) || "BT";
 
   return (
     <aside
@@ -152,33 +139,6 @@ export function AppSidebar() {
         ))}
       </nav>
 
-      {/* Account footer */}
-      <div className="hairline-t p-3">
-        <div className={cn("flex items-center gap-3", collapsed && "justify-center")}>
-          <div className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-[10px] font-bold text-foreground">
-            {initials}
-          </div>
-          {!collapsed && (
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-[13px] font-semibold">{email || "—"}</div>
-              <div className="truncate text-[11px] text-muted-foreground">Operator</div>
-            </div>
-          )}
-          {!collapsed && (
-            <button
-              onClick={async () => {
-                await supabase.auth.signOut();
-                navigate({ to: "/login" });
-              }}
-              className="grid size-7 place-items-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground"
-              aria-label="Sign out"
-              title="Sign out"
-            >
-              <LogOut className="size-3.5" />
-            </button>
-          )}
-        </div>
-      </div>
     </aside>
   );
 }
