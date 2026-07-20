@@ -862,7 +862,7 @@ export function LeadDetail({
             </div>
             <div className="space-y-1">
               <div className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                Owner
+                ASSIGNED TO&nbsp;
               </div>
               <Select
                 value={form.owner_id || "none"}
