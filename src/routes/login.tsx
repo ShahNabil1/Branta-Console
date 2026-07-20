@@ -210,6 +210,8 @@ function LoginPage() {
   };
 
   const otpInputRef = useRef<HTMLInputElement>(null);
+  const submittingRef = useRef(false);
+  const lastSubmittedCodeRef = useRef<string>("");
 
   const lockRemaining = Math.max(0, lockUntil - Date.now());
   const enrollRemaining = Math.max(0, enrollCooldownUntil - Date.now());
@@ -397,44 +399,60 @@ function LoginPage() {
 
   const onVerify = async () => {
     if (!factorId || code.length !== 6 || locked) return;
+    if (submittingRef.current) return;
+    if (lastSubmittedCodeRef.current === code) return;
+    submittingRef.current = true;
+    lastSubmittedCodeRef.current = code;
     setVerifying(true);
     setTotpError(null);
     try {
+      let vErr: { message?: string } | null = null;
       if (phase === "enroll") {
         const { data: ch, error: chErr } = await supabase.auth.mfa.challenge({ factorId });
         if (chErr || !ch) {
           setTotpError(chErr?.message ?? "Challenge failed. Try again.");
           setCode("");
+          lastSubmittedCodeRef.current = "";
           return;
         }
-        const { error: vErr } = await supabase.auth.mfa.verify({
+        const res = await supabase.auth.mfa.verify({
           factorId,
           challengeId: ch.id,
           code,
         });
-        if (vErr) {
-          registerFailedAttempt();
-          return;
-        }
+        vErr = res.error;
       } else {
         if (!challengeId) return;
-        const { error: vErr } = await supabase.auth.mfa.verify({
+        const res = await supabase.auth.mfa.verify({
           factorId,
           challengeId,
           code,
         });
-        if (vErr) {
-          registerFailedAttempt();
-          // Challenges are single-use / short-lived — mint a fresh one for the next try.
-          const { data: ch } = await supabase.auth.mfa.challenge({ factorId });
-          if (ch) setChallengeId(ch.id);
+        vErr = res.error;
+      }
+
+      if (vErr) {
+        // If a prior (duplicate) request already elevated the session, treat as success.
+        const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+        if (aalData?.currentLevel === "aal2") {
+          setFailedAttempts(0);
+          setLockUntil(0);
+          await finalizeAndGo();
           return;
         }
+        registerFailedAttempt();
+        if (phase === "challenge") {
+          const { data: ch } = await supabase.auth.mfa.challenge({ factorId });
+          if (ch) setChallengeId(ch.id);
+        }
+        lastSubmittedCodeRef.current = "";
+        return;
       }
       setFailedAttempts(0);
       setLockUntil(0);
       await finalizeAndGo();
     } finally {
+      submittingRef.current = false;
       setVerifying(false);
     }
   };
