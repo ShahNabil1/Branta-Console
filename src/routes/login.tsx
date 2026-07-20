@@ -4,7 +4,6 @@ import { useServerFn } from "@tanstack/react-start";
 import { AlertCircle, Check, Copy, Eye, EyeOff, Fingerprint, Info, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
 import { z } from "zod";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
-import QRCode from "qrcode";
 import { supabase } from "@/integrations/supabase/client";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { cn } from "@/lib/utils";
@@ -72,6 +71,11 @@ const passwordSchema = z
   .string()
   .length(PASSWORD_LEN, `Password must be exactly ${PASSWORD_LEN} characters.`)
   .regex(PASSWORD_ALLOWED, "Password must use english letters, numbers, or symbols only.");
+
+async function renderTotpQrDataUrl(uri: string): Promise<string> {
+  const QRCode = (await import("qrcode")).default;
+  return QRCode.toDataURL(uri, { margin: 1, width: 160 });
+}
 
 type CaptchaStatus = "loading" | "ready" | "expired" | "error";
 type Phase = "credentials" | "enroll" | "challenge";
@@ -310,7 +314,7 @@ function LoginPage() {
     setFactorId(res.enr.id);
     setSecret(res.enr.totp.secret);
     try {
-      const url = await QRCode.toDataURL(res.enr.totp.uri, { margin: 1, width: 160 });
+      const url = await renderTotpQrDataUrl(res.enr.totp.uri);
       setQrDataUrl(url);
     } catch {
       // Fall back to secret only.
@@ -447,7 +451,7 @@ function LoginPage() {
       setSecret(res.enr.totp.secret);
       setQrDataUrl(null);
       try {
-        const url = await QRCode.toDataURL(res.enr.totp.uri, { margin: 1, width: 160 });
+        const url = await renderTotpQrDataUrl(res.enr.totp.uri);
         setQrDataUrl(url);
       } catch {
         /* fall back to secret only */
