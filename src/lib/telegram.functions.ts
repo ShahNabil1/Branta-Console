@@ -146,3 +146,43 @@ export const getEmployeeTelegramStatus = createServerFn({ method: "GET" })
       linkedAt: sub.linked_at,
     };
   });
+
+// One-time admin action: (re)register the Telegram webhook so incoming
+// /start pairings reach our public route with the correct secret token.
+export const registerTelegramWebhook = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ webhookUrl: z.string().url() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const [su, ad] = await Promise.all([
+      context.supabase.rpc("has_role", {
+        _user_id: context.userId,
+        _role: "super_admin",
+      }),
+      context.supabase.rpc("has_role", {
+        _user_id: context.userId,
+        _role: "admin",
+      }),
+    ]);
+    if (!su.data && !ad.data) throw new Error("Forbidden: admin role required");
+
+    const { callGateway } = await import("@/lib/connector-gateway.server");
+    const { deriveTelegramWebhookSecret } = await import(
+      "@/lib/telegram.server"
+    );
+    const secret = deriveTelegramWebhookSecret();
+    const res = await callGateway<{ ok: boolean; description?: string }>({
+      connector: "telegram",
+      path: "/setWebhook",
+      method: "POST",
+      body: {
+        url: data.webhookUrl,
+        secret_token: secret,
+        allowed_updates: ["message", "edited_message"],
+        drop_pending_updates: false,
+      },
+    });
+    return { ok: res.ok === true, description: res.description ?? "" };
+  });
+
