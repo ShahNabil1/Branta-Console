@@ -638,3 +638,55 @@ function DocumentSlot({
     </div>
   );
 }
+
+// ---------- BD Phone Input ----------
+const BENGALI_DIGITS: Record<string, string> = {
+  "০": "0", "১": "1", "২": "2", "৩": "3", "৪": "4",
+  "৫": "5", "৬": "6", "৭": "7", "৮": "8", "৯": "9",
+};
+
+function normalizeBdDigits(input: string): string {
+  let out = "";
+  for (const ch of input) {
+    if (BENGALI_DIGITS[ch]) out += BENGALI_DIGITS[ch];
+    else if (/[0-9]/.test(ch)) out += ch;
+  }
+  return out.slice(0, 11);
+}
+
+function BdPhoneInput({
+  value,
+  onChange,
+  invalid,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  invalid?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex h-9 items-center overflow-hidden rounded-sm border bg-background",
+        invalid ? "border-red-500" : "border-input",
+      )}
+    >
+      <span className="flex h-full select-none items-center gap-1.5 border-r border-input bg-muted px-2.5 font-mono text-[12px] text-muted-foreground">
+        <span aria-hidden className="text-[14px] leading-none">🇧🇩</span>
+        <span>+88</span>
+      </span>
+      <input
+        inputMode="numeric"
+        autoComplete="tel-national"
+        className="h-full flex-1 bg-transparent px-2.5 font-mono text-[12px] text-foreground outline-none"
+        value={value}
+        onChange={(e) => onChange(normalizeBdDigits(e.target.value))}
+        onPaste={(e) => {
+          e.preventDefault();
+          const text = e.clipboardData.getData("text");
+          onChange(normalizeBdDigits(text));
+        }}
+        maxLength={11}
+      />
+    </div>
+  );
+}
