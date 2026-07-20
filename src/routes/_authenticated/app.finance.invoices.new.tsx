@@ -16,6 +16,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Loader2, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SearchableSelect, type SearchableItem } from "@/components/finance/searchable-select";
+import { QuickCustomerDialog } from "@/components/finance/quick-customer-dialog";
 
 type Installment = { label: string; amount: number; due_date: string };
 type Stakeholder = { user_id: string; role: StakeholderRole; percent: number };
