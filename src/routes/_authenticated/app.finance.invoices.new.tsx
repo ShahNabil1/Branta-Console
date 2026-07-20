@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   createInvoice,
@@ -16,6 +16,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Loader2, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SearchableSelect, type SearchableItem } from "@/components/finance/searchable-select";
+import { QuickCustomerDialog } from "@/components/finance/quick-customer-dialog";
 
 type Installment = { label: string; amount: number; due_date: string };
 type Stakeholder = { user_id: string; role: StakeholderRole; percent: number };
@@ -35,6 +37,7 @@ function NewInvoicePage() {
   const emps = useQuery({ queryKey: ["finance-employees"], queryFn: () => listEmp(), staleTime: 30_000 });
 
   const [customerId, setCustomerId] = useState("");
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [projectType, setProjectType] = useState<"one_time" | "monthly_retainer">("one_time");
@@ -49,6 +52,26 @@ function NewInvoicePage() {
   const [stakeholders, setStakeholders] = useState<Stakeholder[]>([
     { user_id: "", role: "company", percent: 100 },
   ]);
+
+  const customerItems: SearchableItem[] = useMemo(
+    () => (custs.data ?? []).map((c) => ({
+      value: c.id,
+      label: `${c.customer_code} · ${c.name}`,
+      hint: c.company ?? c.email ?? c.phone ?? undefined,
+      keywords: [c.name, c.customer_code, c.email, c.phone, c.company],
+    })),
+    [custs.data],
+  );
+
+  const employeeItems: SearchableItem[] = useMemo(
+    () => (emps.data ?? []).map((e) => ({
+      value: e.user_id,
+      label: e.full_name ?? e.user_id.slice(0, 8),
+      hint: e.employee_code ?? undefined,
+      keywords: [e.full_name, e.employee_code, e.job_role, (e as { email?: string | null }).email],
+    })),
+    [emps.data],
+  );
 
   const totalNum = Number(total) || 0;
   const instSum = useMemo(() => installments.reduce((a, i) => a + Number(i.amount || 0), 0), [installments]);
@@ -108,14 +131,27 @@ function NewInvoicePage() {
       <section className="rounded-md border border-border bg-card p-5">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <div className="md:col-span-2">
-            <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Customer *</Label>
-            <select value={customerId} onChange={(e) => setCustomerId(e.target.value)}
-              className="mt-1 h-9 w-full rounded-sm border border-input bg-background px-2 text-[13px]">
-              <option value="">— Choose customer —</option>
-              {custs.data?.map((c) => (
-                <option key={c.id} value={c.id}>{c.customer_code} · {c.name}</option>
-              ))}
-            </select>
+            <div className="flex items-center justify-between">
+              <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Customer *</Label>
+              <button
+                type="button"
+                onClick={() => setQuickAddOpen(true)}
+                className="text-[11.5px] font-medium text-primary hover:underline"
+              >
+                + Quick add
+              </button>
+            </div>
+            <div className="mt-1">
+              <SearchableSelect
+                items={customerItems}
+                value={customerId}
+                onChange={setCustomerId}
+                placeholder="— Choose customer —"
+                emptyText="No customer matches. Try Quick add."
+                addLabel="Quick add customer"
+                onAdd={() => setQuickAddOpen(true)}
+              />
+            </div>
           </div>
           <div className="md:col-span-2">
             <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Title *</Label>
@@ -214,13 +250,16 @@ function NewInvoicePage() {
         <div className="space-y-2">
           {stakeholders.map((s, idx) => (
             <div key={idx} className="grid grid-cols-12 gap-2 rounded-sm border border-border bg-background p-2">
-              <select value={s.user_id} onChange={(e) => setStakeholders(stakeholders.map((x, k) => k === idx ? { ...x, user_id: e.target.value } : x))}
-                className="col-span-5 h-8 rounded-sm border border-input bg-background px-2 text-[12.5px]">
-                <option value="">— Employee —</option>
-                {emps.data?.map((e) => (
-                  <option key={e.user_id} value={e.user_id}>{e.full_name ?? e.user_id.slice(0, 8)} {e.employee_code ? `(${e.employee_code})` : ""}</option>
-                ))}
-              </select>
+              <div className="col-span-5">
+                <SearchableSelect
+                  items={employeeItems}
+                  value={s.user_id}
+                  onChange={(v) => setStakeholders(stakeholders.map((x, k) => k === idx ? { ...x, user_id: v } : x))}
+                  placeholder="— Employee —"
+                  emptyText="No employee matches"
+                  className="h-8 text-[12.5px]"
+                />
+              </div>
               <select value={s.role} onChange={(e) => setStakeholders(stakeholders.map((x, k) => k === idx ? { ...x, role: e.target.value as StakeholderRole } : x))}
                 className="col-span-4 h-8 rounded-sm border border-input bg-background px-2 text-[12.5px] capitalize">
                 <option value="outreach">Outreach</option>
@@ -261,6 +300,13 @@ function NewInvoicePage() {
           </Button>
         </div>
       </div>
+
+      <QuickCustomerDialog
+        open={quickAddOpen}
+        onOpenChange={setQuickAddOpen}
+        defaultCurrency={currency}
+        onCreated={(c) => setCustomerId(c.id)}
+      />
     </div>
   );
 }

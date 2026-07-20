@@ -763,12 +763,22 @@ export const listEmployeesForFinance = createServerFn({ method: "GET" })
       .select("user_id, full_name, employee_code, job_role")
       .order("full_name");
     if (error) throw new Error(error.message);
-    return (data ?? []) as {
+    const rows = (data ?? []) as {
       user_id: string;
       full_name: string | null;
       employee_code: string | null;
       job_role: string | null;
     }[];
+    // Enrich with email via admin API so finance search can match by email.
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const emailByUser = new Map<string, string | null>();
+      const { data: page } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+      (page?.users ?? []).forEach((u) => emailByUser.set(u.id, u.email ?? null));
+      return rows.map((r) => ({ ...r, email: emailByUser.get(r.user_id) ?? null }));
+    } catch {
+      return rows.map((r) => ({ ...r, email: null as string | null }));
+    }
   });
 
 export const isFinanceAdminCheck = createServerFn({ method: "GET" })
