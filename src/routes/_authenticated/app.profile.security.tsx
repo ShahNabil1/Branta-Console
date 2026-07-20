@@ -482,7 +482,7 @@ function SessionsSection() {
       title: isCurrent ? "Sign out from this device?" : "Sign out this session?",
       description: isCurrent
         ? "You'll be signed out immediately and returned to the login page."
-        : `${label} will lose access within a minute.`,
+        : `${label} will be signed out immediately.`,
       confirmLabel: "Sign out",
       tone: "danger",
     });
