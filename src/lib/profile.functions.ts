@@ -52,6 +52,15 @@ const UpdateProfileInput = z.object({
   avatar_url: nullableString(500),
   nid_url: nullableString(500),
   cv_url: nullableString(500),
+  identity_doc_type: z
+    .enum(["nid", "passport", "birth_certificate"])
+    .nullish()
+    .transform((v) => v ?? null),
+  nid_front_url: nullableString(500),
+  nid_back_url: nullableString(500),
+  passport_photo_url: nullableString(500),
+  passport_address_url: nullableString(500),
+  birth_certificate_url: nullableString(500),
   personal_gmail: z
     .string()
     .trim()
@@ -100,6 +109,12 @@ export type ProfileRow = {
   payment_methods: PaymentMethod[] | null;
   nid_url: string | null;
   cv_url: string | null;
+  identity_doc_type: "nid" | "passport" | "birth_certificate" | null;
+  nid_front_url: string | null;
+  nid_back_url: string | null;
+  passport_photo_url: string | null;
+  passport_address_url: string | null;
+  birth_certificate_url: string | null;
   personal_gmail: string | null;
   kyc_status: string;
   kyc_document_type: string | null;
