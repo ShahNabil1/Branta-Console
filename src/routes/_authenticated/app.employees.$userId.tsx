@@ -122,6 +122,34 @@ function EmployeeDetailPage() {
     enabled: !!admin.data?.isAdmin,
   });
 
+  const tgStatus = useQuery({
+    queryKey: ["employee.telegram", userId],
+    queryFn: () => tgStatusFn({ data: { userId } }),
+    enabled: !!admin.data?.isAdmin,
+  });
+
+  const tgUnsub = useMutation({
+    mutationFn: () => tgUnsubFn({ data: { userId } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["employee.telegram", userId] });
+      toast.success("Telegram unsubscribed");
+    },
+    onError: (err: unknown) =>
+      toast.error(err instanceof Error ? err.message : "Failed to unsubscribe"),
+  });
+
+  const onTgUnsub = async () => {
+    const ok = await confirm({
+      title: "Unsubscribe Telegram?",
+      description:
+        "This employee will stop receiving all Branta Tech Telegram notifications until they reconnect.",
+      confirmLabel: "Unsubscribe",
+      tone: "warning",
+    });
+    if (ok) tgUnsub.mutate();
+  };
+
+
   const [selectedRoles, setSelectedRoles] = useState<EmployeeRole[] | null>(
     null,
   );
