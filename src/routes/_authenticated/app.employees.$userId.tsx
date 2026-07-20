@@ -420,6 +420,23 @@ function EmployeeDetailPage() {
             )}
             {e.isBanned ? "Unban" : "Ban"}
           </button>
+          <button
+            onClick={onTgUnsub}
+            disabled={tgUnsub.isPending || !tgStatus.data?.linked}
+            title={
+              tgStatus.data?.linked
+                ? `Linked as ${tgStatus.data.username ? "@" + tgStatus.data.username : (tgStatus.data.firstName ?? "Telegram user")}`
+                : "This employee hasn't linked Telegram yet"
+            }
+            className="inline-flex h-9 items-center gap-1.5 rounded-sm border border-sky-300 bg-sky-50 px-3 text-[12.5px] font-medium text-sky-800 hover:bg-sky-100 disabled:opacity-50"
+          >
+            {tgUnsub.isPending ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <TelegramIcon className="size-3.5" />
+            )}
+            {tgStatus.data?.linked ? "Unsubscribe Telegram" : "Telegram not linked"}
+          </button>
           {canSuperAdmin && (
             <button
               onClick={onImpersonate}
