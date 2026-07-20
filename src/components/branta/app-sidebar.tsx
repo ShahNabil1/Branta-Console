@@ -152,33 +152,6 @@ export function AppSidebar() {
         ))}
       </nav>
 
-      {/* Account footer */}
-      <div className="hairline-t p-3">
-        <div className={cn("flex items-center gap-3", collapsed && "justify-center")}>
-          <div className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-[10px] font-bold text-foreground">
-            {initials}
-          </div>
-          {!collapsed && (
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-[13px] font-semibold">{email || "—"}</div>
-              <div className="truncate text-[11px] text-muted-foreground">Operator</div>
-            </div>
-          )}
-          {!collapsed && (
-            <button
-              onClick={async () => {
-                await supabase.auth.signOut();
-                navigate({ to: "/login" });
-              }}
-              className="grid size-7 place-items-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground"
-              aria-label="Sign out"
-              title="Sign out"
-            >
-              <LogOut className="size-3.5" />
-            </button>
-          )}
-        </div>
-      </div>
     </aside>
   );
 }
