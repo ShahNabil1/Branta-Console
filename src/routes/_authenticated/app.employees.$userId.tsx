@@ -43,12 +43,16 @@ import {
   resetEmployeePassword,
   searchLeadsForAssignment,
   setEmployeeBan,
+  setEmployeeJobRole,
   startImpersonation,
   updateEmployeeRoles,
   type EmployeeRole,
 } from "@/lib/employee-detail.functions";
 import { checkIsAdmin, deleteEmployee } from "@/lib/employees.functions";
 import { clearBackup, isImpersonating, readBackup, writeBackup } from "@/lib/impersonation";
+import { BarcodeSvg, downloadBarcodePng } from "@/components/employee/BarcodeSvg";
+import { Input } from "@/components/ui/input";
+
 
 export const Route = createFileRoute("/_authenticated/app/employees/$userId")({
   head: () => ({ meta: [{ title: "Employee · Branta Tech" }] }),
