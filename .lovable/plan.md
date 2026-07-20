@@ -1,98 +1,291 @@
-## Goal
+## Scope
 
-Enable Telegram notification subscription for each employee. Now: only the plumbing (link/unlink + chat_id capture + admin unsubscribe + reusable send helper). Actual event triggers will be wired later at project end.
+CRM ও Admin এর মাঝখানে **Finance** নামে একটা নতুন সেকশন যোগ করা হবে (sidebar-এ)। এটার আন্ডারে থাকবে:
 
-## Setup steps (one-time, I'll guide you)
+1. **Dashboard** — P&L, income, expense, custom date range, PDF export
+2. **Invoices** — dynamic invoice creation, milestones, payments, reminders
+3. **Expenses** — company expense tracking
+4. **Wallet** — প্রতি user এর locked/available balance, withdraw request
+5. **Withdrawals** — Finance/Super-admin approval queue
 
-1. Link the Telegram connector to this project (`standard_connectors--connect telegram` → pick "Branta Tech CRM Notifier"). This exposes `TELEGRAM_API_KEY` server-side.
-2. I'll register the bot webhook via the gateway to:
-   `https://console.brantatech.com/api/public/telegram/webhook`
-   Secret token = SHA-256(base64url) of `telegram-webhook:${TELEGRAM_API_KEY}` (derived, not stored).
-3. In BotFather, set bot commands (`/start`, `/unlink`) — I'll list exact text. No token needed from you (gateway holds it).
+Slug: **BT-01, BT-02, …** (invoice-wide sequence)
+Payout: **Invoice-level %-split**, client payment এলে proportional unlock
+Approver: `**finance` role + super-admin** (নতুন enum value)
+Reminders: **3 দিন আগে + 1 দিন আগে + due day সকাল ৯টা + overdue হলে প্রতি ৩ দিন পর**, একটাই cron (`0 3 * * *` = 9AM BDT)
 
-## Database (one migration)
+Everything realtime via Supabase Realtime on the relevant tables.
 
-Table `public.telegram_subscriptions`:
-- `user_id uuid PK` (references profiles/auth via user_id)
-- `chat_id bigint unique not null`
-- `telegram_username text`, `telegram_first_name text`
-- `link_token text unique` (nullable — set while pairing, cleared after link)
-- `link_token_expires_at timestamptz`
-- `linked_at timestamptz`, `unsubscribed_at timestamptz`
-- `active boolean not null default true`
-- standard timestamps + updated_at trigger
+---
 
-Grants: `authenticated` = SELECT own row only; all writes via service_role from server fns. RLS: user can read own row.
+## Database
 
-## Server functions (`src/lib/telegram.functions.ts`)
+### Enum additions
 
-- `startTelegramLink()` — auth'd. Generates a short random `link_token` (16 chars, 15-min TTL), upserts a placeholder row for the user (chat_id null allowed → schema uses a separate `telegram_link_requests` table OR nullable chat_id). Returns `{ deepLink: "https://t.me/<BOT_USERNAME>?start=<token>" }`.
-- `getMyTelegramStatus()` — auth'd. Returns `{ linked, chatId?, username?, linkedAt? }`.
-- `unlinkMyTelegram()` — auth'd. Deletes the row, best-effort sends a "You've been unsubscribed" message to the old chat_id.
-- `adminUnsubscribeTelegram({ userId })` — admin/super_admin gated. Same as unlink but for another user.
+```text
+- app_role: add 'finance'
+- new enum invoice_status: draft, sent, partially_paid, paid, overdue, void
+- new enum installment_status: pending, invoiced, paid, overdue, cancelled
+- new enum payout_status: locked, available, requested, paid, cancelled
+- new enum withdrawal_status: pending, approved, rejected, paid
+- new enum expense_category: salary, tools, ads, office, misc, tax, refund
+```
 
-To keep chat_id `not null` clean, use two tables:
-- `telegram_link_requests(user_id, token, expires_at)` — ephemeral.
-- `telegram_subscriptions(user_id, chat_id, …)` — only exists once paired.
+### Tables (all with `created_at`, `updated_at`, RLS + service_role grants)
 
-## Server helper (`src/lib/telegram.server.ts`)
+`**invoices**` — parent record
 
-- `sendTelegramToUser(userId, text, opts?)` — looks up active subscription, calls `/sendMessage` via gateway. Silent no-op if not linked/inactive. Returns `{ ok, skipped? }`.
-- `sendTelegramToChatId(chatId, text, opts?)` — low-level.
-- Uses existing `callGateway` pattern; adds `telegram` to `ConnectorId` union and `TELEGRAM_API_KEY` map in `src/lib/connector-gateway.server.ts`.
+- `slug` (BT-XX, sequence-driven, unique)
+- `customer_id → customers.id`
+- `title`, `description`
+- `project_type` ('one_time' | 'monthly_retainer')
+- `starts_on`, `ends_on` (nullable, for retainer timeline)
+- `currency` ('BDT' | 'USD', default 'BDT')
+- `total_amount numeric(14,2)`
+- `status invoice_status default 'draft'`
+- `paid_amount numeric(14,2) default 0` (denormalized, updated by trigger)
+- `notes`, `internal_notes`
+- `created_by user_id`
 
-## Public webhook (`src/routes/api/public/telegram.webhook.ts`)
+`**invoice_stakeholders**` — Invoice-level %-split
 
-- Verifies `X-Telegram-Bot-Api-Secret-Token` (constant-time compare against derived secret from `TELEGRAM_API_KEY`).
-- Handles `/start <token>`: finds matching `telegram_link_requests` row (unexpired), creates `telegram_subscriptions` row with the sender's chat_id/username, deletes the request, replies "✅ Linked to <email>. You'll get Branta Tech notifications here."
-- Handles `/unlink`: deletes subscription for that chat_id, replies confirmation.
-- Handles duplicate chat_id (someone else already used this Telegram account): overwrite the old subscription (per your requirement — new link replaces stale one).
-- Ignores everything else (returns 200 to prevent retries).
+- `invoice_id`
+- `user_id → profiles.user_id`
+- `role` ('outreach' | 'lead_closer' | 'worker' | 'company')
+- `percent numeric(5,2)` (0-100, sum per invoice = 100)
+- `unique(invoice_id, user_id, role)`
+- Check: `SUM(percent) = 100` per invoice enforced via trigger
+
+`**invoice_installments**` — client-side payment milestones
+
+- `invoice_id`
+- `sequence smallint` (1,2,3…)
+- `label` (e.g. "Advance", "Mid", "Final")
+- `amount numeric(14,2)` OR `percent numeric(5,2)` (one required)
+- `due_date date`
+- `status installment_status default 'pending'`
+- `paid_at timestamptz`, `paid_amount`, `payment_ref`, `payment_method`
+- On mark-paid trigger → recomputes stakeholder payout unlocks
+
+`**invoice_payouts**` — auto-generated per (installment × stakeholder)
+
+- `installment_id`, `invoice_id`, `user_id`, `role`
+- `amount numeric(14,2)` (installment.amount × stakeholder.percent)
+- `status payout_status default 'locked'`
+- `unlocked_at`, `paid_at`
+- Trigger: when installment→`paid`, all its payouts→`available`
+
+`**wallet_balances**` — materialized view refreshed per payout change
+
+- `user_id`, `locked`, `available`, `requested`, `paid_total`, `currency`
+
+`**withdrawal_requests**`
+
+- `user_id`, `amount`, `currency`, `payment_method_id` (from profile.payment_methods)
+- `status withdrawal_status default 'pending'`
+- `requested_at`, `decided_at`, `decided_by`, `paid_at`, `paid_by`
+- `admin_note`, `transfer_ref`
+- Trigger: on approve → linked payouts → `requested`; on paid → `paid`; on reject → `available`
+
+`**expenses**`
+
+- `category expense_category`, `amount`, `currency`
+- `spent_on date`, `paid_by user_id`, `vendor`, `receipt_url` (R2)
+- `notes`, `linked_invoice_id` (optional)
+
+`**invoice_reminder_log**` — idempotent reminder tracking
+
+- `installment_id`, `kind` ('t-3','t-1','due','overdue-3d')
+- `sent_at`, unique(installment_id, kind, day_bucket)
+
+### Sequence & trigger
+
+- `CREATE SEQUENCE invoice_slug_seq START 1;`
+- `assign_invoice_slug()` BEFORE INSERT → `'BT-' || lpad(nextval(...), 2, '0')`
+
+### RLS summary
+
+- **invoices, installments, stakeholders, payouts**: SELECT for `finance`/`super_admin` (all), plus stakeholder can SELECT their own payouts + parent invoice header; INSERT/UPDATE only `finance`/`super_admin`
+- **wallet_balances**: SELECT own row + finance/super_admin all
+- **withdrawal_requests**: INSERT own; SELECT own + finance/super_admin all; UPDATE only finance/super_admin
+- **expenses**: only finance/super_admin
+
+---
+
+## Server functions (`src/lib/finance/*.functions.ts`)
+
+- `listInvoices({ filter, dateRange })` / `getInvoice({ slug })`
+- `createInvoice(payload)` — creates invoice + installments + stakeholders + payouts (transactional via one server fn hitting an RPC)
+- `updateInvoice`, `updateInstallment`, `markInstallmentPaid`, `voidInvoice`
+- `quickCreateCustomer(payload)` — inline customer creation from invoice modal
+- `listMyPayouts()` / `getMyWallet()`
+- `requestWithdrawal({ amount, payment_method_id })`
+- `listWithdrawals({ status })` (finance/super_admin)
+- `decideWithdrawal({ id, action:'approve'|'reject'|'paid', note, ref })`
+- `listExpenses`, `createExpense`, `updateExpense`, `deleteExpense`
+- `getFinanceReport({ from, to, currency })` — aggregates income/expense/profit/loss per bucket
+- `generateInvoicePdf({ slug, audience: 'client'|'stakeholder' })` — returns PDF blob URL (see PDF section)
+
+Privileged mutations use `requireSupabaseAuth` + role check via `has_role`.
+
+---
+
+## Reminders (cron)
+
+- One `pg_cron` job at `0 3 * * *` UTC (= 9:00 AM BDT) hitting `/api/public/hooks/invoice-reminders`
+- Handler for each unpaid installment computes days-to-due and picks the right template (`t-3`, `t-1`, `due`, `overdue-3d` cadence)
+- Sends via Resend (`hello@brantatech.com`, "Branta Tech" sender) to all primary lead_contacts of that customer + CC to owner employee
+- Records into `invoice_reminder_log` for idempotency
+
+---
+
+## PDF generation
+
+- Server function using `**pdf-lib**` (pure JS, Cloudflare Worker-safe — verified in `mem://constraints/ssr-safe-imports.md` guidance)
+- Two templates:
+  - **Client invoice** — Branta Tech header, customer, line items = installments, totals, due dates, payment methods (from company config)
+  - **Stakeholder statement** — same slug, but shows per-stakeholder payout table with role labels
+- Uploaded to R2 (`invoices/{slug}/{audience}-{ts}.pdf`), signed URL returned
+- Dashboard report PDF: aggregated P&L for the picked date range, same generator
+
+---
 
 ## UI
 
-### Security & Notification tab (`app.profile.security.tsx`)
+### Sidebar
 
-Replace `NotificationsPlaceholder` with a real **"Notifications"** section containing a `TelegramConnectCard`:
-- Not linked: Telegram-branded button "**Connect with Telegram**" (official blue #229ED9 + paper-plane logo). Click → calls `startTelegramLink`, opens `t.me` deep link in new tab, shows in-place instruction ("Press *Start* in Telegram, then this card will update"), polls `getMyTelegramStatus` every 3s (max 3 min).
-- Linked: shows Telegram username / chat_id (masked), linked-at, and a red **"Unlink Telegram"** button (uses existing `useConfirm`).
-- Below: muted note — "Notification events will be added later. Once configured, you'll receive them here in real time."
+Insert **"Finance"** group between CRM and ADMIN in `src/components/branta/app-sidebar.tsx`:
 
-### Admin — Employee detail (`app.employees.$userId.tsx`)
+- Dashboard (`/app/finance`)
+- Invoices (`/app/finance/invoices`)
+- Wallet (`/app/finance/wallet`) — visible to everyone
+- Withdrawals (`/app/finance/withdrawals`) — finance/super_admin only
+- Expenses (`/app/finance/expenses`) — finance/super_admin only
 
-Add a new **"Notifications"** row inside the security/actions area (near ban/reset password):
-- Shows current Telegram link status for that employee.
-- Red button "**Unsubscribe Telegram**" (only enabled if linked) → `useConfirm` → `adminUnsubscribeTelegram`.
-- Post-unsubscribe: no further notifications go to that chat.
+### Routes
 
-## Telegram branding
+```text
+src/routes/_authenticated/
+├── app.finance.tsx                        (layout w/ Outlet)
+├── app.finance.index.tsx                  (Dashboard: KPI tiles, charts, date-range picker, "Download PDF")
+├── app.finance.invoices.index.tsx         (grid, filters, "+ New invoice")
+├── app.finance.invoices.$slug.tsx         (full detail: header, installments, stakeholders, payouts, activity, PDF download client+stakeholder)
+├── app.finance.wallet.tsx                 (my locked/available balance, my payouts table, "Request withdrawal")
+├── app.finance.withdrawals.tsx            (approval queue for finance/super_admin)
+└── app.finance.expenses.tsx               (table + add/edit modal)
+```
 
-- Official Telegram logo SVG in `src/components/social/telegram-icon.tsx` (paper plane, brand blue #229ED9).
-- Button style matches existing social buttons — solid Telegram blue, white icon+text, hover darken.
+### Invoice detail page sections
 
-## Not in scope (deferred to project end)
+- Header: slug (BT-01), customer link, status pill, total, paid, outstanding, "Download PDF" (client / stakeholder)
+- Timeline strip for retainers
+- **Installments** table — inline "Mark paid" (finance/super_admin), amount, due, status, payment ref
+- **Stakeholders** panel — role, name, % (color-coded chips)
+- **Payouts** panel (auto) — grouped by installment, locked/available badges
+- Activity log
+- Delete → typed-slug confirmation (reuse `useConfirm`)
 
-- Wiring specific events (lead assigned, mail failed, etc.) to `sendTelegramToUser`. Only the reusable helper ships now.
-- Per-event opt-in preferences UI.
+### Create-invoice modal (multi-step)
+
+1. Customer picker (search existing) OR "Quick create" inline form (name, company, primary email, phone)
+2. Project details (title, type, timeline, currency BDT default, total amount, notes)
+3. Installments builder (rows: label + amount OR % + due date; running validation sum = total)
+4. Stakeholders builder (add employee rows; role dropdown; % — running validation sum = 100; live payout preview per installment)
+5. Review → create
+
+### Wallet page (everyone)
+
+- Balance card (available/locked/requested/paid) — Bangla ৳ formatting, JetBrains Mono numerics
+- "Request withdrawal" button → modal picks amount ≤ available and payment method from own profile
+- My payouts table with invoice slug, role, installment, status, expected date
+
+### Withdrawals queue (finance/super_admin)
+
+- Rows with employee, amount, method, requested date
+- Actions: Approve / Reject (with note) / Mark paid (with transfer ref)
+- Realtime updates
+
+### Dashboard
+
+- KPI tiles: Total income (paid installments), Total expense, Net profit, Outstanding, Wallet locked, Wallet available (Company scope) — reuses `KpiTile`
+- Charts: monthly income vs expense bar; category expense donut; top 5 customers by revenue
+- Date range: presets (This month, Last month, Q, Year) + custom range
+- "Download PDF report"
+
+### Employee profile — Finance tab
+
+Existing `app.profile.finance.tsx` gets a new **"Wallet snapshot"** card on top that links to `/app/finance/wallet` (Payment Methods block stays). No duplicate wallet UI — canonical wallet lives under Finance.
+
+---
+
+## Notifications (integrate with existing plumbing)
+
+Wire via existing `sendTelegramToUser` + Resend for these events (helper only; user can toggle later):
+
+- Invoice sent (to stakeholders)
+- Installment paid → payout unlocked (to each stakeholder)
+- Withdrawal approved / rejected / paid (to requester)
+- Overdue installment (to owner + finance role)
+
+---
+
+## Technical Details
+
+- **DB transactions**: create-invoice uses a single Postgres function `public.create_invoice(payload jsonb)` returning the new slug — atomic across invoices/installments/stakeholders/payouts.
+- **Payout math**: at installment-paid time, trigger inserts/updates `invoice_payouts` rows = `installment.amount × stakeholder.percent / 100`, rounded HALF_EVEN, remainder assigned to the highest-percent stakeholder to avoid drift.
+- **Wallet balances**: computed on the fly via a view `public.v_wallet_balances` grouping `invoice_payouts`; RLS via `security_invoker` view.
+- **Currency**: BDT default; USD invoices tracked separately, no auto-conversion.
+- **Realtime**: `ALTER PUBLICATION supabase_realtime ADD TABLE invoices, invoice_installments, invoice_payouts, withdrawal_requests, expenses;`
+- **PDF**: `pdf-lib` (Worker-safe, no fonts fetch); embed a base64 Inter subset in `src/lib/finance/pdf-fonts.ts`.
+- **Cron**: `pg_cron` calls `https://console.brantatech.com/api/public/hooks/invoice-reminders` with `apikey` header.
+- **Idempotency**: reminder log ensures one email per (installment, kind, day).
+
+---
 
 ## Files touched
 
-New:
-- `src/lib/telegram.functions.ts`
-- `src/lib/telegram.server.ts`
-- `src/routes/api/public/telegram.webhook.ts`
-- `src/components/social/telegram-icon.tsx`
-- `src/components/profile/telegram-connect-card.tsx`
+**New migrations** (one big migration for schema, one insert-tool call to set up cron after route lives).
 
-Edited:
-- `src/lib/connector-gateway.server.ts` (add `telegram`)
-- `src/routes/_authenticated/app.profile.security.tsx` (replace placeholder)
-- `src/routes/_authenticated/app.employees.$userId.tsx` (admin unsubscribe button)
-- One migration for the two Telegram tables.
+**New source files:**
 
-## Post-build checklist you'll do
+```text
+src/lib/finance/
+  invoices.functions.ts
+  installments.functions.ts
+  payouts.functions.ts
+  withdrawals.functions.ts
+  expenses.functions.ts
+  reports.functions.ts
+  pdf.server.ts
+  pdf-fonts.ts
+src/routes/_authenticated/
+  app.finance.tsx
+  app.finance.index.tsx
+  app.finance.invoices.index.tsx
+  app.finance.invoices.$slug.tsx
+  app.finance.wallet.tsx
+  app.finance.withdrawals.tsx
+  app.finance.expenses.tsx
+src/routes/api/public/hooks/
+  invoice-reminders.ts
+src/components/finance/
+  invoice-form-modal.tsx
+  installments-builder.tsx
+  stakeholders-builder.tsx
+  withdraw-request-modal.tsx
+  wallet-balance-card.tsx
+  finance-report-charts.tsx
+```
 
-1. Link Telegram connector (I'll prompt).
-2. Confirm bot username with me (needed for the `t.me/<bot>?start=` deep link — I'll store it as `VITE_TELEGRAM_BOT_USERNAME` public env or hardcode after you tell me).
-3. I run `setWebhook` via gateway from the sandbox.
-4. You test Connect from your own profile.
+**Edited:**
+
+- `src/components/branta/app-sidebar.tsx` (add Finance group)
+- `src/routes/_authenticated/app.profile.finance.tsx` (add Wallet snapshot linking to canonical page)
+
+---
+
+## Rollout / gaps confirmed
+
+- Only plumbing + first-cut UI ships this round; **event triggers for Telegram** notifications are enabled but reuse existing helper.
+- Company-side "Branta Tech" business info for the PDF header (address, VAT/BIN, logo) — currently hardcoded from `branta-credentials`. If you want it editable via a Settings page, that's a small follow-up.
+- No FX conversion between BDT/USD (invoices are silo'd by currency).
+- Withdrawal payments are marked manually — no real bank/MFS API integration.
