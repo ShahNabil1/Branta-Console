@@ -595,7 +595,15 @@ function SheetSyncButton() {
     onError: (e) =>
       toast.error(e instanceof Error ? e.message : "Overwrite failed"),
   });
-  const busy = pushM.isPending || pullM.isPending || overwriteM.isPending;
+  const openM = useMutation({
+    mutationFn: () => openFn(),
+    onSuccess: (r) => {
+      window.open(r.url, "_blank");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Open failed"),
+  });
+  const busy =
+    pushM.isPending || pullM.isPending || overwriteM.isPending || openM.isPending;
 
   const toggleRow = (row: number) => {
     setSelectedRows((prev) => {
