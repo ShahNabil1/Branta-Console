@@ -853,6 +853,7 @@ export type Database = {
           bank_account_number: string | null
           bank_name: string | null
           bank_routing: string | null
+          birth_certificate_url: string | null
           city: string | null
           country: string | null
           created_at: string
@@ -862,6 +863,7 @@ export type Database = {
           division: string | null
           full_name: string | null
           id: string
+          identity_doc_type: string | null
           kyc_document_expiry: string | null
           kyc_document_number: string | null
           kyc_document_type: string | null
@@ -874,7 +876,11 @@ export type Database = {
           legal_full_name: string | null
           mfs_number: string | null
           mfs_provider: string | null
+          nid_back_url: string | null
+          nid_front_url: string | null
           nid_url: string | null
+          passport_address_url: string | null
+          passport_photo_url: string | null
           payment_methods: Json
           personal_gmail: string | null
           phone_alt: string | null
@@ -893,6 +899,7 @@ export type Database = {
           bank_account_number?: string | null
           bank_name?: string | null
           bank_routing?: string | null
+          birth_certificate_url?: string | null
           city?: string | null
           country?: string | null
           created_at?: string
@@ -902,6 +909,7 @@ export type Database = {
           division?: string | null
           full_name?: string | null
           id?: string
+          identity_doc_type?: string | null
           kyc_document_expiry?: string | null
           kyc_document_number?: string | null
           kyc_document_type?: string | null
@@ -914,7 +922,11 @@ export type Database = {
           legal_full_name?: string | null
           mfs_number?: string | null
           mfs_provider?: string | null
+          nid_back_url?: string | null
+          nid_front_url?: string | null
           nid_url?: string | null
+          passport_address_url?: string | null
+          passport_photo_url?: string | null
           payment_methods?: Json
           personal_gmail?: string | null
           phone_alt?: string | null
@@ -933,6 +945,7 @@ export type Database = {
           bank_account_number?: string | null
           bank_name?: string | null
           bank_routing?: string | null
+          birth_certificate_url?: string | null
           city?: string | null
           country?: string | null
           created_at?: string
@@ -942,6 +955,7 @@ export type Database = {
           division?: string | null
           full_name?: string | null
           id?: string
+          identity_doc_type?: string | null
           kyc_document_expiry?: string | null
           kyc_document_number?: string | null
           kyc_document_type?: string | null
@@ -954,7 +968,11 @@ export type Database = {
           legal_full_name?: string | null
           mfs_number?: string | null
           mfs_provider?: string | null
+          nid_back_url?: string | null
+          nid_front_url?: string | null
           nid_url?: string | null
+          passport_address_url?: string | null
+          passport_photo_url?: string | null
           payment_methods?: Json
           personal_gmail?: string | null
           phone_alt?: string | null
