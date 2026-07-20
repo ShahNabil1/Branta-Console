@@ -104,8 +104,7 @@ export function TelegramConnectCard() {
             )}
           </div>
           <p className="mt-0.5 text-[12px] text-muted-foreground">
-            Receive real-time Branta Tech alerts directly on Telegram. Event
-            triggers will be added later — connect now to be ready.
+            Receive real-time Branta Tech alerts directly on Telegram.
           </p>
 
           {status.isLoading ? (
