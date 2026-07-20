@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard,
   Users,
@@ -8,7 +8,6 @@ import {
   BarChart3,
   Inbox,
   ChevronsLeft,
-  LogOut,
   UserPlus,
   Send,
   Building2,
@@ -19,7 +18,6 @@ import {
   PiggyBank,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/integrations/supabase/client";
 import brandLogo from "@/assets/brand-logo.png.asset.json";
 import type { LucideIcon } from "lucide-react";
 
