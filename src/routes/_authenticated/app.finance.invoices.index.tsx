@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Search, FileText, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { NewInvoiceModal } from "@/components/finance/new-invoice-modal";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/app/finance/invoices/")({
@@ -38,7 +37,7 @@ function InvoicesPage() {
   });
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<InvoiceStatus | "all">("all");
-  const [open, setOpen] = useState(false);
+  
 
   useEffect(() => {
     const ch = supabase.channel("finance:invoices")
@@ -69,8 +68,8 @@ function InvoicesPage() {
             {q.data?.length ?? 0} invoice{(q.data?.length ?? 0) === 1 ? "" : "s"}
           </p>
         </div>
-        <Button onClick={() => setOpen(true)} className="h-9 rounded-sm bg-primary text-primary-foreground hover:bg-brand-700">
-          <Plus className="mr-1.5 size-3.5" /> New invoice
+        <Button asChild className="h-9 rounded-sm bg-primary text-primary-foreground hover:bg-brand-700">
+          <Link to="/app/finance/invoices/new"><Plus className="mr-1.5 size-3.5" /> New invoice</Link>
         </Button>
       </div>
 
@@ -140,7 +139,7 @@ function InvoicesPage() {
         </table>
       </div>
 
-      <NewInvoiceModal open={open} onOpenChange={setOpen} onCreated={() => q.refetch()} />
+      
     </div>
   );
 }

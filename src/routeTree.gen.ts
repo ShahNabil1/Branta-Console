@@ -41,6 +41,7 @@ import { Route as AuthenticatedAppFinanceExpensesRouteImport } from './routes/_a
 import { Route as AuthenticatedAppEmployeesUserIdRouteImport } from './routes/_authenticated/app.employees.$userId'
 import { Route as AuthenticatedAppCustomersCodeRouteImport } from './routes/_authenticated/app.customers.$code'
 import { Route as AuthenticatedAppFinanceInvoicesIndexRouteImport } from './routes/_authenticated/app.finance.invoices.index'
+import { Route as AuthenticatedAppFinanceInvoicesNewRouteImport } from './routes/_authenticated/app.finance.invoices.new'
 import { Route as AuthenticatedAppFinanceInvoicesSlugRouteImport } from './routes/_authenticated/app.finance.invoices.$slug'
 
 const LoginRoute = LoginRouteImport.update({
@@ -222,6 +223,12 @@ const AuthenticatedAppFinanceInvoicesIndexRoute =
     path: '/invoices/',
     getParentRoute: () => AuthenticatedAppFinanceRoute,
   } as any)
+const AuthenticatedAppFinanceInvoicesNewRoute =
+  AuthenticatedAppFinanceInvoicesNewRouteImport.update({
+    id: '/invoices/new',
+    path: '/invoices/new',
+    getParentRoute: () => AuthenticatedAppFinanceRoute,
+  } as any)
 const AuthenticatedAppFinanceInvoicesSlugRoute =
   AuthenticatedAppFinanceInvoicesSlugRouteImport.update({
     id: '/invoices/$slug',
@@ -261,6 +268,7 @@ export interface FileRoutesByFullPath {
   '/app/leads/': typeof AuthenticatedAppLeadsIndexRoute
   '/app/profile/': typeof AuthenticatedAppProfileIndexRoute
   '/app/finance/invoices/$slug': typeof AuthenticatedAppFinanceInvoicesSlugRoute
+  '/app/finance/invoices/new': typeof AuthenticatedAppFinanceInvoicesNewRoute
   '/app/finance/invoices/': typeof AuthenticatedAppFinanceInvoicesIndexRoute
 }
 export interface FileRoutesByTo {
@@ -290,6 +298,7 @@ export interface FileRoutesByTo {
   '/app/leads': typeof AuthenticatedAppLeadsIndexRoute
   '/app/profile': typeof AuthenticatedAppProfileIndexRoute
   '/app/finance/invoices/$slug': typeof AuthenticatedAppFinanceInvoicesSlugRoute
+  '/app/finance/invoices/new': typeof AuthenticatedAppFinanceInvoicesNewRoute
   '/app/finance/invoices': typeof AuthenticatedAppFinanceInvoicesIndexRoute
 }
 export interface FileRoutesById {
@@ -326,6 +335,7 @@ export interface FileRoutesById {
   '/_authenticated/app/leads/': typeof AuthenticatedAppLeadsIndexRoute
   '/_authenticated/app/profile/': typeof AuthenticatedAppProfileIndexRoute
   '/_authenticated/app/finance/invoices/$slug': typeof AuthenticatedAppFinanceInvoicesSlugRoute
+  '/_authenticated/app/finance/invoices/new': typeof AuthenticatedAppFinanceInvoicesNewRoute
   '/_authenticated/app/finance/invoices/': typeof AuthenticatedAppFinanceInvoicesIndexRoute
 }
 export interface FileRouteTypes {
@@ -362,6 +372,7 @@ export interface FileRouteTypes {
     | '/app/leads/'
     | '/app/profile/'
     | '/app/finance/invoices/$slug'
+    | '/app/finance/invoices/new'
     | '/app/finance/invoices/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -391,6 +402,7 @@ export interface FileRouteTypes {
     | '/app/leads'
     | '/app/profile'
     | '/app/finance/invoices/$slug'
+    | '/app/finance/invoices/new'
     | '/app/finance/invoices'
   id:
     | '__root__'
@@ -426,6 +438,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/leads/'
     | '/_authenticated/app/profile/'
     | '/_authenticated/app/finance/invoices/$slug'
+    | '/_authenticated/app/finance/invoices/new'
     | '/_authenticated/app/finance/invoices/'
   fileRoutesById: FileRoutesById
 }
@@ -665,6 +678,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppFinanceInvoicesIndexRouteImport
       parentRoute: typeof AuthenticatedAppFinanceRoute
     }
+    '/_authenticated/app/finance/invoices/new': {
+      id: '/_authenticated/app/finance/invoices/new'
+      path: '/invoices/new'
+      fullPath: '/app/finance/invoices/new'
+      preLoaderRoute: typeof AuthenticatedAppFinanceInvoicesNewRouteImport
+      parentRoute: typeof AuthenticatedAppFinanceRoute
+    }
     '/_authenticated/app/finance/invoices/$slug': {
       id: '/_authenticated/app/finance/invoices/$slug'
       path: '/invoices/$slug'
@@ -697,6 +717,7 @@ interface AuthenticatedAppFinanceRouteChildren {
   AuthenticatedAppFinanceWithdrawalsRoute: typeof AuthenticatedAppFinanceWithdrawalsRoute
   AuthenticatedAppFinanceIndexRoute: typeof AuthenticatedAppFinanceIndexRoute
   AuthenticatedAppFinanceInvoicesSlugRoute: typeof AuthenticatedAppFinanceInvoicesSlugRoute
+  AuthenticatedAppFinanceInvoicesNewRoute: typeof AuthenticatedAppFinanceInvoicesNewRoute
   AuthenticatedAppFinanceInvoicesIndexRoute: typeof AuthenticatedAppFinanceInvoicesIndexRoute
 }
 
@@ -709,6 +730,8 @@ const AuthenticatedAppFinanceRouteChildren: AuthenticatedAppFinanceRouteChildren
     AuthenticatedAppFinanceIndexRoute: AuthenticatedAppFinanceIndexRoute,
     AuthenticatedAppFinanceInvoicesSlugRoute:
       AuthenticatedAppFinanceInvoicesSlugRoute,
+    AuthenticatedAppFinanceInvoicesNewRoute:
+      AuthenticatedAppFinanceInvoicesNewRoute,
     AuthenticatedAppFinanceInvoicesIndexRoute:
       AuthenticatedAppFinanceInvoicesIndexRoute,
   }
