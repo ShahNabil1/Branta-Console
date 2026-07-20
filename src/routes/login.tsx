@@ -819,11 +819,15 @@ function LoginPage() {
                   )}
                   {passkeyBusy ? "Waiting for passkey…" : "Sign in with a passkey"}
                 </button>
-                {passkeyError && (
+                {passkeyError ? (
                   <p className="text-center text-[11.5px] text-rose-700">
                     {passkeyError}
                   </p>
-                )}
+                ) : local.length < 3 ? (
+                  <p className="text-center text-[11.5px] text-muted-foreground">
+                    Enter your Branta ID above to use a passkey.
+                  </p>
+                ) : null}
 
 
 
