@@ -131,14 +131,27 @@ function NewInvoicePage() {
       <section className="rounded-md border border-border bg-card p-5">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <div className="md:col-span-2">
-            <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Customer *</Label>
-            <select value={customerId} onChange={(e) => setCustomerId(e.target.value)}
-              className="mt-1 h-9 w-full rounded-sm border border-input bg-background px-2 text-[13px]">
-              <option value="">— Choose customer —</option>
-              {custs.data?.map((c) => (
-                <option key={c.id} value={c.id}>{c.customer_code} · {c.name}</option>
-              ))}
-            </select>
+            <div className="flex items-center justify-between">
+              <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Customer *</Label>
+              <button
+                type="button"
+                onClick={() => setQuickAddOpen(true)}
+                className="text-[11.5px] font-medium text-primary hover:underline"
+              >
+                + Quick add
+              </button>
+            </div>
+            <div className="mt-1">
+              <SearchableSelect
+                items={customerItems}
+                value={customerId}
+                onChange={setCustomerId}
+                placeholder="— Choose customer —"
+                emptyText="No customer matches. Try Quick add."
+                addLabel="Quick add customer"
+                onAdd={() => setQuickAddOpen(true)}
+              />
+            </div>
           </div>
           <div className="md:col-span-2">
             <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Title *</Label>
