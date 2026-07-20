@@ -23,6 +23,7 @@ import {
 } from "@/lib/profile.functions";
 import bdTree from "@/lib/bd-postcodes.json";
 import { BD_BANKS, BD_MFS_PROVIDERS } from "@/lib/bd-banks";
+import { ProfileSocialLinksSection } from "@/components/profile/profile-social-links-section";
 
 
 import { requestR2Upload } from "@/lib/r2.functions";
@@ -440,10 +441,19 @@ function ProfileForm({
             />
           </div>
         </Section>
+
+        {/* Social Links */}
+        <Section
+          title="Social Links"
+          description="Add your public profiles — Facebook, WhatsApp, Instagram, LinkedIn, X, YouTube, Telegram, personal website, and more."
+        >
+          <ProfileSocialLinksSection />
+        </Section>
       </div>
     </div>
   );
 }
+
 
 
 // ---------- Identity Documents (NID / Passport / Birth Certificate) ----------
