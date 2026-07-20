@@ -7,13 +7,22 @@ import {
   Loader2,
   Upload,
   ExternalLink,
+  Search,
+  Check,
+  Plus,
+  Trash2,
+  Star,
+  Landmark,
+  Smartphone,
 } from "lucide-react";
 import {
   getMyProfile,
   updateMyProfile,
   type ProfileRow,
+  type PaymentMethod,
 } from "@/lib/profile.functions";
 import bdTree from "@/lib/bd-postcodes.json";
+import { BD_BANKS, BD_MFS_PROVIDERS } from "@/lib/bd-banks";
 
 
 import { requestR2Upload } from "@/lib/r2.functions";
@@ -243,12 +252,13 @@ function ProfileForm({
           city: form.upazila,
           postcode: form.postcode,
           country: "Bangladesh",
-          bank_name: form.bank_name,
-          bank_account_name: form.bank_account_name,
-          bank_account_number: form.bank_account_number,
-          bank_routing: form.bank_routing,
-          mfs_provider: form.mfs_provider,
-          mfs_number: form.mfs_number,
+          bank_name: null,
+          bank_account_name: null,
+          bank_account_number: null,
+          bank_routing: null,
+          mfs_provider: null,
+          mfs_number: null,
+          payment_methods: form.payment_methods ?? [],
           avatar_url: form.avatar_url,
           nid_url: form.nid_url,
           cv_url: form.cv_url,
@@ -378,55 +388,15 @@ function ProfileForm({
           <BdAddressBlock form={form} set={set} />
         </Section>
 
-        {/* Banking / MFS */}
+        {/* Payment methods */}
         <Section
-          title="Banking & Mobile Financial Services"
-          description="Used for payroll and reimbursements."
+          title="Payment Methods"
+          description="Add one or more bank or mobile-financial accounts. Mark one as primary — payroll and reimbursements will use it first."
         >
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Field label="Bank Name">
-              <Input
-                className="h-9 rounded-sm"
-                value={form.bank_name ?? ""}
-                onChange={(e) => set("bank_name", e.target.value)}
-              />
-            </Field>
-            <Field label="Account Holder Name">
-              <Input
-                className="h-9 rounded-sm"
-                value={form.bank_account_name ?? ""}
-                onChange={(e) => set("bank_account_name", e.target.value)}
-              />
-            </Field>
-            <Field label="Account Number">
-              <Input
-                className="h-9 rounded-sm font-mono text-[12px]"
-                value={form.bank_account_number ?? ""}
-                onChange={(e) => set("bank_account_number", e.target.value)}
-              />
-            </Field>
-            <Field label="Routing Number">
-              <Input
-                className="h-9 rounded-sm font-mono text-[12px]"
-                value={form.bank_routing ?? ""}
-                onChange={(e) => set("bank_routing", e.target.value)}
-              />
-            </Field>
-            <Field label="MFS Provider" hint="bKash / Nagad / Rocket / Upay">
-              <Input
-                className="h-9 rounded-sm"
-                value={form.mfs_provider ?? ""}
-                onChange={(e) => set("mfs_provider", e.target.value)}
-              />
-            </Field>
-            <Field label="MFS Number">
-              <Input
-                className="h-9 rounded-sm font-mono text-[12px]"
-                value={form.mfs_number ?? ""}
-                onChange={(e) => set("mfs_number", e.target.value)}
-              />
-            </Field>
-          </div>
+          <PaymentMethodsBlock
+            methods={form.payment_methods ?? []}
+            onChange={(next) => set("payment_methods", next)}
+          />
         </Section>
 
         {/* Documents */}
@@ -864,6 +834,351 @@ function BdAddressBlock({
           </div>
         </Field>
       </div>
+    </div>
+  );
+}
+
+// ---------- Payment methods ----------
+function newId() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `pm_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function PaymentMethodsBlock({
+  methods,
+  onChange,
+}: {
+  methods: PaymentMethod[];
+  onChange: (next: PaymentMethod[]) => void;
+}) {
+  const update = (id: string, patch: Partial<PaymentMethod>) =>
+    onChange(methods.map((m) => (m.id === id ? { ...m, ...patch } : m)));
+
+  const remove = (id: string) => {
+    const next = methods.filter((m) => m.id !== id);
+    // If we removed the primary, promote the first remaining to primary.
+    if (next.length > 0 && !next.some((m) => m.is_primary)) {
+      next[0] = { ...next[0], is_primary: true };
+    }
+    onChange(next);
+  };
+
+  const setPrimary = (id: string) =>
+    onChange(methods.map((m) => ({ ...m, is_primary: m.id === id })));
+
+  const add = (kind: "bank" | "mfs") => {
+    const method: PaymentMethod = {
+      id: newId(),
+      kind,
+      is_primary: methods.length === 0,
+      bank_name: null,
+      account_holder: null,
+      account_number: null,
+      branch: null,
+      mfs_provider: null,
+      mfs_number: null,
+    };
+    onChange([...methods, method]);
+  };
+
+  return (
+    <div className="space-y-3">
+      {methods.length === 0 && (
+        <div className="rounded-sm border border-dashed border-border bg-muted/30 px-4 py-6 text-center text-[12px] text-muted-foreground">
+          No payment methods yet. Add a bank account or an MFS wallet below.
+        </div>
+      )}
+
+      {methods.map((m) => (
+        <PaymentMethodCard
+          key={m.id}
+          method={m}
+          onPatch={(p) => update(m.id, p)}
+          onRemove={() => remove(m.id)}
+          onMakePrimary={() => setPrimary(m.id)}
+          canDelete={methods.length > 0}
+        />
+      ))}
+
+      <div className="flex items-center gap-2 pt-1">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => add("bank")}
+          className="h-8 rounded-sm text-[12px]"
+        >
+          <Plus className="mr-1.5 size-3" />
+          <Landmark className="mr-1.5 size-3.5" />
+          Add Bank
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => add("mfs")}
+          className="h-8 rounded-sm text-[12px]"
+        >
+          <Plus className="mr-1.5 size-3" />
+          <Smartphone className="mr-1.5 size-3.5" />
+          Add MFS
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function PaymentMethodCard({
+  method,
+  onPatch,
+  onRemove,
+  onMakePrimary,
+  canDelete,
+}: {
+  method: PaymentMethod;
+  onPatch: (patch: Partial<PaymentMethod>) => void;
+  onRemove: () => void;
+  onMakePrimary: () => void;
+  canDelete: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-md border bg-card p-4 transition-colors",
+        method.is_primary
+          ? "border-brand ring-1 ring-brand/30"
+          : "border-border",
+      )}
+    >
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <div className="inline-flex items-center gap-1.5 rounded-sm border border-border bg-muted px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            {method.kind === "bank" ? (
+              <>
+                <Landmark className="size-3" /> Bank
+              </>
+            ) : (
+              <>
+                <Smartphone className="size-3" /> MFS
+              </>
+            )}
+          </div>
+          {/* Kind switch (in case user picked the wrong one) */}
+          <div className="inline-flex items-center gap-1 rounded-sm border border-border p-0.5 text-[11px]">
+            <button
+              type="button"
+              onClick={() => onPatch({ kind: "bank" })}
+              className={cn(
+                "rounded-[3px] px-2 py-0.5",
+                method.kind === "bank"
+                  ? "bg-foreground text-background"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              Bank
+            </button>
+            <button
+              type="button"
+              onClick={() => onPatch({ kind: "mfs" })}
+              className={cn(
+                "rounded-[3px] px-2 py-0.5",
+                method.kind === "mfs"
+                  ? "bg-foreground text-background"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              MFS
+            </button>
+          </div>
+          {method.is_primary && (
+            <span className="inline-flex items-center gap-1 rounded-sm bg-brand/10 px-1.5 py-0.5 text-[11px] font-semibold text-brand">
+              <Star className="size-3 fill-current" /> Primary
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-1.5">
+          {!method.is_primary && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onMakePrimary}
+              className="h-7 rounded-sm text-[11px]"
+            >
+              <Star className="mr-1 size-3" /> Make primary
+            </Button>
+          )}
+          {canDelete && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onRemove}
+              className="h-7 rounded-sm text-[11px] text-red-600 hover:bg-red-50 hover:text-red-700"
+            >
+              <Trash2 className="size-3.5" />
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {method.kind === "bank" ? (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <Field label="Bank Name *">
+            <SearchableSelect
+              value={method.bank_name ?? null}
+              onChange={(v) => onPatch({ bank_name: v })}
+              options={BD_BANKS}
+              placeholder="Search Bangladeshi banks…"
+            />
+          </Field>
+          <Field label="Account Holder Name *">
+            <Input
+              className="h-9 rounded-sm"
+              value={method.account_holder ?? ""}
+              onChange={(e) => onPatch({ account_holder: e.target.value })}
+              placeholder="As printed on the cheque book"
+            />
+          </Field>
+          <Field label="Account Number *">
+            <Input
+              className="h-9 rounded-sm font-mono text-[12px]"
+              value={method.account_number ?? ""}
+              onChange={(e) => onPatch({ account_number: e.target.value })}
+            />
+          </Field>
+          <Field label="Branch *">
+            <Input
+              className="h-9 rounded-sm"
+              value={method.branch ?? ""}
+              onChange={(e) => onPatch({ branch: e.target.value })}
+              placeholder="e.g. Gulshan, Dhaka"
+            />
+          </Field>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <Field label="MFS Provider *">
+            <SearchableSelect
+              value={method.mfs_provider ?? null}
+              onChange={(v) => onPatch({ mfs_provider: v })}
+              options={BD_MFS_PROVIDERS}
+              placeholder="Select MFS provider…"
+            />
+          </Field>
+          <Field label="Account Holder Name *">
+            <Input
+              className="h-9 rounded-sm"
+              value={method.account_holder ?? ""}
+              onChange={(e) => onPatch({ account_holder: e.target.value })}
+              placeholder="Registered wallet holder name"
+            />
+          </Field>
+          <Field label="MFS Number *" className="md:col-span-2">
+            <Input
+              className="h-9 rounded-sm font-mono text-[12px]"
+              value={method.mfs_number ?? ""}
+              onChange={(e) => onPatch({ mfs_number: e.target.value })}
+              placeholder="01XXXXXXXXX"
+              inputMode="numeric"
+            />
+          </Field>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------- Searchable single-select ----------
+function SearchableSelect({
+  value,
+  onChange,
+  options,
+  placeholder,
+}: {
+  value: string | null;
+  onChange: (v: string | null) => void;
+  options: string[];
+  placeholder: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
+
+  const filtered = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    if (!needle) return options;
+    return options.filter((o) => o.toLowerCase().includes(needle));
+  }, [q, options]);
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={cn(
+          "flex h-9 w-full items-center justify-between gap-2 rounded-sm border border-input bg-background px-2.5 text-left text-[13px] outline-none",
+          "focus-visible:ring-2 focus-visible:ring-brand",
+        )}
+      >
+        <span className={cn(!value && "text-muted-foreground")}>
+          {value ?? placeholder}
+        </span>
+        <Search className="size-3.5 shrink-0 text-muted-foreground" />
+      </button>
+      {open && (
+        <div className="absolute z-30 mt-1 w-full overflow-hidden rounded-sm border border-border bg-popover shadow-md">
+          <div className="flex items-center gap-1.5 border-b border-border px-2.5 py-1.5">
+            <Search className="size-3.5 text-muted-foreground" />
+            <input
+              autoFocus
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Type to search…"
+              className="h-7 w-full bg-transparent text-[13px] outline-none placeholder:text-muted-foreground"
+            />
+          </div>
+          <div className="max-h-60 overflow-auto py-1">
+            {filtered.length === 0 && (
+              <div className="px-3 py-2 text-[12px] text-muted-foreground">
+                No matches
+              </div>
+            )}
+            {filtered.map((o) => {
+              const selected = o === value;
+              return (
+                <button
+                  type="button"
+                  key={o}
+                  onClick={() => {
+                    onChange(o);
+                    setOpen(false);
+                    setQ("");
+                  }}
+                  className={cn(
+                    "flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-[13px] hover:bg-accent",
+                    selected && "bg-accent",
+                  )}
+                >
+                  <span>{o}</span>
+                  {selected && <Check className="size-3.5 text-brand" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

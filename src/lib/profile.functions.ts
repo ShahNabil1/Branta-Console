@@ -33,6 +33,22 @@ const UpdateProfileInput = z.object({
   bank_routing: nullableString(40),
   mfs_provider: nullableString(40),
   mfs_number: nullableString(40),
+  payment_methods: z
+    .array(
+      z.object({
+        id: z.string(),
+        kind: z.enum(["bank", "mfs"]),
+        is_primary: z.boolean().default(false),
+        bank_name: z.string().nullish(),
+        account_holder: z.string().nullish(),
+        account_number: z.string().nullish(),
+        branch: z.string().nullish(),
+        mfs_provider: z.string().nullish(),
+        mfs_number: z.string().nullish(),
+      }),
+    )
+    .max(20)
+    .nullish(),
   avatar_url: nullableString(500),
   nid_url: nullableString(500),
   cv_url: nullableString(500),
@@ -46,6 +62,18 @@ const UpdateProfileInput = z.object({
       message: "Must be a valid @gmail.com address",
     }),
 });
+
+export type PaymentMethod = {
+  id: string;
+  kind: "bank" | "mfs";
+  is_primary: boolean;
+  bank_name?: string | null;
+  account_holder?: string | null;
+  account_number?: string | null;
+  branch?: string | null;
+  mfs_provider?: string | null;
+  mfs_number?: string | null;
+};
 
 export type ProfileRow = {
   user_id: string;
@@ -69,6 +97,7 @@ export type ProfileRow = {
   bank_routing: string | null;
   mfs_provider: string | null;
   mfs_number: string | null;
+  payment_methods: PaymentMethod[] | null;
   nid_url: string | null;
   cv_url: string | null;
   personal_gmail: string | null;
