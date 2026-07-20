@@ -16,7 +16,6 @@ import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/ap
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app.index'
 import { Route as ApiPublicR2HealthRouteImport } from './routes/api/public/r2-health'
 import { Route as AuthenticatedAppSettingsRouteImport } from './routes/_authenticated/app.settings'
-import { Route as AuthenticatedAppProfileRouteImport } from './routes/_authenticated/app.profile'
 import { Route as AuthenticatedAppMailQueueRouteImport } from './routes/_authenticated/app.mail-queue'
 import { Route as AuthenticatedAppLeadsRouteImport } from './routes/_authenticated/app.leads'
 import { Route as AuthenticatedAppInboxRouteImport } from './routes/_authenticated/app.inbox'
@@ -65,11 +64,6 @@ const AuthenticatedAppSettingsRoute =
     path: '/settings',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
-const AuthenticatedAppProfileRoute = AuthenticatedAppProfileRouteImport.update({
-  id: '/profile',
-  path: '/profile',
-  getParentRoute: () => AuthenticatedAppRoute,
-} as any)
 const AuthenticatedAppMailQueueRoute =
   AuthenticatedAppMailQueueRouteImport.update({
     id: '/mail-queue',
@@ -147,7 +141,6 @@ export interface FileRoutesByFullPath {
   '/app/inbox': typeof AuthenticatedAppInboxRoute
   '/app/leads': typeof AuthenticatedAppLeadsRouteWithChildren
   '/app/mail-queue': typeof AuthenticatedAppMailQueueRoute
-  '/app/profile': typeof AuthenticatedAppProfileRoute
   '/app/settings': typeof AuthenticatedAppSettingsRoute
   '/api/public/r2-health': typeof ApiPublicR2HealthRoute
   '/app/': typeof AuthenticatedAppIndexRoute
@@ -165,7 +158,6 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/app/inbox': typeof AuthenticatedAppInboxRoute
   '/app/mail-queue': typeof AuthenticatedAppMailQueueRoute
-  '/app/profile': typeof AuthenticatedAppProfileRoute
   '/app/settings': typeof AuthenticatedAppSettingsRoute
   '/api/public/r2-health': typeof ApiPublicR2HealthRoute
   '/app': typeof AuthenticatedAppIndexRoute
@@ -188,7 +180,6 @@ export interface FileRoutesById {
   '/_authenticated/app/inbox': typeof AuthenticatedAppInboxRoute
   '/_authenticated/app/leads': typeof AuthenticatedAppLeadsRouteWithChildren
   '/_authenticated/app/mail-queue': typeof AuthenticatedAppMailQueueRoute
-  '/_authenticated/app/profile': typeof AuthenticatedAppProfileRoute
   '/_authenticated/app/settings': typeof AuthenticatedAppSettingsRoute
   '/api/public/r2-health': typeof ApiPublicR2HealthRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
@@ -211,7 +202,6 @@ export interface FileRouteTypes {
     | '/app/inbox'
     | '/app/leads'
     | '/app/mail-queue'
-    | '/app/profile'
     | '/app/settings'
     | '/api/public/r2-health'
     | '/app/'
@@ -229,7 +219,6 @@ export interface FileRouteTypes {
     | '/login'
     | '/app/inbox'
     | '/app/mail-queue'
-    | '/app/profile'
     | '/app/settings'
     | '/api/public/r2-health'
     | '/app'
@@ -251,7 +240,6 @@ export interface FileRouteTypes {
     | '/_authenticated/app/inbox'
     | '/_authenticated/app/leads'
     | '/_authenticated/app/mail-queue'
-    | '/_authenticated/app/profile'
     | '/_authenticated/app/settings'
     | '/api/public/r2-health'
     | '/_authenticated/app/'
@@ -323,13 +311,6 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/app/settings'
       preLoaderRoute: typeof AuthenticatedAppSettingsRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/app/profile': {
-      id: '/_authenticated/app/profile'
-      path: '/profile'
-      fullPath: '/app/profile'
-      preLoaderRoute: typeof AuthenticatedAppProfileRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
     '/_authenticated/app/mail-queue': {
@@ -455,7 +436,6 @@ interface AuthenticatedAppRouteChildren {
   AuthenticatedAppInboxRoute: typeof AuthenticatedAppInboxRoute
   AuthenticatedAppLeadsRoute: typeof AuthenticatedAppLeadsRouteWithChildren
   AuthenticatedAppMailQueueRoute: typeof AuthenticatedAppMailQueueRoute
-  AuthenticatedAppProfileRoute: typeof AuthenticatedAppProfileRoute
   AuthenticatedAppSettingsRoute: typeof AuthenticatedAppSettingsRoute
   AuthenticatedAppIndexRoute: typeof AuthenticatedAppIndexRoute
   AuthenticatedAppEmployeesUserIdRoute: typeof AuthenticatedAppEmployeesUserIdRoute
@@ -467,7 +447,6 @@ const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
   AuthenticatedAppInboxRoute: AuthenticatedAppInboxRoute,
   AuthenticatedAppLeadsRoute: AuthenticatedAppLeadsRouteWithChildren,
   AuthenticatedAppMailQueueRoute: AuthenticatedAppMailQueueRoute,
-  AuthenticatedAppProfileRoute: AuthenticatedAppProfileRoute,
   AuthenticatedAppSettingsRoute: AuthenticatedAppSettingsRoute,
   AuthenticatedAppIndexRoute: AuthenticatedAppIndexRoute,
   AuthenticatedAppEmployeesUserIdRoute: AuthenticatedAppEmployeesUserIdRoute,
