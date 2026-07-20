@@ -191,12 +191,34 @@ function ProfileForm({
     [form, profile],
   );
 
+  const isValidBdPhone = (v: string | null | undefined) =>
+    !!v && /^01[3-9]\d{8}$/.test(v);
+  const isValidGmail = (v: string | null | undefined) =>
+    !!v && /^[^\s@]+@gmail\.com$/i.test(v);
+
+  const primaryValid = isValidBdPhone(form.phone_primary);
+  const altValid = !form.phone_alt || isValidBdPhone(form.phone_alt);
+  const gmailValid = isValidGmail(form.personal_gmail);
+  const canSave = dirty && primaryValid && altValid && gmailValid;
+
   const save = async () => {
+    if (!primaryValid) {
+      toast.error("Primary Contact is required and must be a valid BD number");
+      return;
+    }
+    if (!gmailValid) {
+      toast.error("Personal Gmail is required and must be a @gmail.com address");
+      return;
+    }
+    if (!altValid) {
+      toast.error("Alternative Contact must be a valid BD number");
+      return;
+    }
     setSaving(true);
     try {
       await update({
         data: {
-          full_name: form.full_name,
+          full_name: form.legal_full_name,
           legal_full_name: form.legal_full_name,
           phone_primary: form.phone_primary,
           phone_alt: form.phone_alt,
