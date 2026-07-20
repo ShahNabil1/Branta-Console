@@ -550,11 +550,9 @@ function SheetSyncButton() {
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const status = useQuery({
-    queryKey: ["leads", "sheet-status"],
-    queryFn: () => getStatus(),
-    staleTime: 30_000,
-  });
+  // Sheet status is fetched lazily via the Open action; no query needed here.
+  void getStatus;
+
   const pushM = useMutation({
     mutationFn: () => pushFn(),
     onSuccess: (r) => {
