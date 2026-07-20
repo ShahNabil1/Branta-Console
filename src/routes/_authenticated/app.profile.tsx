@@ -550,12 +550,14 @@ function DocumentSlot({
   onChange,
   presign,
   scope,
+  accept = "image/*,application/pdf",
 }: {
   label: string;
   url: string | null;
   onChange: (u: string) => void;
   presign: ReturnType<typeof useServerFn<typeof requestR2Upload>>;
   scope: "avatar" | "document";
+  accept?: string;
 }) {
   const upload = useR2Upload(presign, scope);
   const inputRef = useRef<HTMLInputElement>(null);
