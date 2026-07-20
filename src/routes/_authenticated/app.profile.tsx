@@ -402,7 +402,7 @@ function ProfileForm({
         {/* Documents */}
         <Section
           title="Documents"
-          description="Upload your NID and CV. Files are stored privately in Cloudflare R2."
+          description="Upload your NID and CV. "
         >
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <DocumentSlot
