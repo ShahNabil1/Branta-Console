@@ -30,6 +30,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import Cropper, { type Area } from "react-easy-crop";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/app/profile")({
@@ -262,6 +269,12 @@ function ProfileForm({
           avatar_url: form.avatar_url,
           nid_url: form.nid_url,
           cv_url: form.cv_url,
+          identity_doc_type: form.identity_doc_type,
+          nid_front_url: form.nid_front_url,
+          nid_back_url: form.nid_back_url,
+          passport_photo_url: form.passport_photo_url,
+          passport_address_url: form.passport_address_url,
+          birth_certificate_url: form.birth_certificate_url,
           personal_gmail: form.personal_gmail,
         },
       });
@@ -399,19 +412,24 @@ function ProfileForm({
           />
         </Section>
 
-        {/* Documents */}
+        {/* Identity Documents */}
         <Section
-          title="Documents"
-          description="Upload your legal and professional documents.."
+          title="Identity Document"
+          description="Choose your identity document type and upload it. Files are stored privately."
+        >
+          <IdentityDocumentsBlock
+            form={form}
+            onChange={(patch) => setForm((p) => ({ ...p, ...patch }))}
+            presign={presign}
+          />
+        </Section>
+
+        {/* CV */}
+        <Section
+          title="CV / Résumé"
+          description="Upload your latest CV in PDF format."
         >
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <DocumentSlot
-              label="NID (front + back combined PDF or image)"
-              url={form.nid_url}
-              onChange={(u) => set("nid_url", u)}
-              presign={presign}
-              scope="document"
-            />
             <DocumentSlot
               label="CV / Résumé (PDF only)"
               url={form.cv_url}
@@ -427,6 +445,424 @@ function ProfileForm({
   );
 }
 
+
+// ---------- Identity Documents (NID / Passport / Birth Certificate) ----------
+type IdDocType = "nid" | "passport" | "birth_certificate";
+
+const ID_DOC_OPTIONS: { value: IdDocType; label: string }[] = [
+  { value: "nid", label: "NID (National ID)" },
+  { value: "passport", label: "Passport" },
+  { value: "birth_certificate", label: "Birth Certificate (Online)" },
+];
+
+// Standard document aspect ratios for cropping
+// NID: ISO/IEC 7810 ID-1 → 85.6 × 53.98 mm ≈ 1.586
+// Passport photo/data page ≈ 125 × 88 mm ≈ 1.42
+const NID_ASPECT = 85.6 / 53.98;
+const PASSPORT_ASPECT = 125 / 88;
+
+function IdentityDocumentsBlock({
+  form,
+  onChange,
+  presign,
+}: {
+  form: ProfileRow;
+  onChange: (patch: Partial<ProfileRow>) => void;
+  presign: ReturnType<typeof useServerFn<typeof requestR2Upload>>;
+}) {
+  const type = form.identity_doc_type;
+
+  return (
+    <div className="space-y-5">
+      {/* Document type selector */}
+      <Field label="Document Type">
+        <div className="flex flex-wrap gap-2">
+          {ID_DOC_OPTIONS.map((opt) => {
+            const active = type === opt.value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => onChange({ identity_doc_type: opt.value })}
+                className={cn(
+                  "h-9 rounded-sm border px-3 text-[12px] font-medium transition-colors",
+                  active
+                    ? "border-brand bg-brand text-white"
+                    : "border-input bg-background text-foreground hover:bg-muted",
+                )}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+      </Field>
+
+      {!type && (
+        <p className="text-[12px] text-muted-foreground">
+          Select a document type above to upload.
+        </p>
+      )}
+
+      {type === "nid" && (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <CropUploadSlot
+            label="NID — Front Side"
+            url={form.nid_front_url}
+            onChange={(u) => onChange({ nid_front_url: u })}
+            presign={presign}
+            aspect={NID_ASPECT}
+          />
+          <CropUploadSlot
+            label="NID — Back Side"
+            url={form.nid_back_url}
+            onChange={(u) => onChange({ nid_back_url: u })}
+            presign={presign}
+            aspect={NID_ASPECT}
+          />
+        </div>
+      )}
+
+      {type === "passport" && (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <CropUploadSlot
+            label="Passport — Photo Page"
+            url={form.passport_photo_url}
+            onChange={(u) => onChange({ passport_photo_url: u })}
+            presign={presign}
+            aspect={PASSPORT_ASPECT}
+          />
+          <CropUploadSlot
+            label="Passport — Address Page"
+            url={form.passport_address_url}
+            onChange={(u) => onChange({ passport_address_url: u })}
+            presign={presign}
+            aspect={PASSPORT_ASPECT}
+          />
+        </div>
+      )}
+
+      {type === "birth_certificate" && (
+        <div className="space-y-2">
+          <div className="rounded-sm border border-amber-300 bg-amber-50 px-3 py-2 text-[12px] text-amber-900">
+            Only the <strong>online</strong> Birth Certificate (issued via
+            bdris.gov.bd) is accepted. Handwritten certificates will be rejected.
+          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <DocumentSlot
+              label="Birth Certificate (PDF or Image)"
+              url={form.birth_certificate_url}
+              onChange={(u) => onChange({ birth_certificate_url: u })}
+              presign={presign}
+              scope="document"
+              accept="image/*,application/pdf"
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------- Cropping upload slot (image only, with fixed aspect crop) ----------
+function CropUploadSlot({
+  label,
+  url,
+  onChange,
+  presign,
+  aspect,
+}: {
+  label: string;
+  url: string | null;
+  onChange: (u: string) => void;
+  presign: ReturnType<typeof useServerFn<typeof requestR2Upload>>;
+  aspect: number;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [sourceUrl, setSourceUrl] = useState<string | null>(null);
+  const [sourceName, setSourceName] = useState<string>("document.jpg");
+  const upload = useR2Upload(presign, "document");
+
+  const openPicker = () => inputRef.current?.click();
+
+  const onFile = (f: File) => {
+    if (!f.type.startsWith("image/")) {
+      toast.error("Only image files are allowed (JPG, PNG)");
+      return;
+    }
+    setSourceName(f.name.replace(/\.[^.]+$/, ".jpg"));
+    const reader = new FileReader();
+    reader.onload = () => setSourceUrl(reader.result as string);
+    reader.readAsDataURL(f);
+  };
+
+  const onCropped = async (blob: Blob) => {
+    const file = new File([blob], sourceName, { type: "image/jpeg" });
+    try {
+      const publicUrl = await upload.mutateAsync(file);
+      onChange(publicUrl);
+      toast.success("Uploaded");
+      setSourceUrl(null);
+    } catch (err) {
+      toast.error((err as Error).message);
+    }
+  };
+
+  return (
+    <div className="rounded-sm border border-dashed border-border bg-muted/30 p-4">
+      <Label className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+        {label}
+      </Label>
+
+      {url ? (
+        <div className="mt-2 space-y-2">
+          <div
+            className="overflow-hidden rounded-sm border border-border bg-background"
+            style={{ aspectRatio: aspect }}
+          >
+            <img src={url} alt={label} className="size-full object-cover" />
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 rounded-sm text-[12px]"
+              onClick={openPicker}
+              disabled={upload.isPending}
+            >
+              <Upload className="mr-1.5 size-3" />
+              Replace
+            </Button>
+            <a
+              href={url}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 text-[12px] text-primary hover:underline"
+            >
+              View <ExternalLink className="size-3" />
+            </a>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-2 flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 rounded-sm text-[12px]"
+            onClick={openPicker}
+            disabled={upload.isPending}
+          >
+            {upload.isPending ? (
+              <Loader2 className="mr-1.5 size-3 animate-spin" />
+            ) : (
+              <Upload className="mr-1.5 size-3" />
+            )}
+            Upload or take photo
+          </Button>
+          <span className="text-[11px] text-muted-foreground">
+            JPG / PNG · crop preview will open
+          </span>
+        </div>
+      )}
+
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/jpeg,image/jpg,image/png,image/*"
+        capture="environment"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) onFile(f);
+          e.target.value = "";
+        }}
+      />
+
+      {sourceUrl && (
+        <CropDialog
+          src={sourceUrl}
+          aspect={aspect}
+          title={label}
+          onCancel={() => setSourceUrl(null)}
+          onConfirm={onCropped}
+          busy={upload.isPending}
+        />
+      )}
+    </div>
+  );
+}
+
+// ---------- Crop Dialog ----------
+function CropDialog({
+  src,
+  aspect,
+  title,
+  onCancel,
+  onConfirm,
+  busy,
+}: {
+  src: string;
+  aspect: number;
+  title: string;
+  onCancel: () => void;
+  onConfirm: (blob: Blob) => void;
+  busy?: boolean;
+}) {
+  const [crop, setCrop] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [rotation, setRotation] = useState(0);
+  const [pixels, setPixels] = useState<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null>(null);
+
+  const confirm = async () => {
+    if (!pixels) return;
+    const blob = await cropImageToBlob(src, pixels, rotation);
+    onConfirm(blob);
+  };
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onCancel()}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="text-[14px]">Crop · {title}</DialogTitle>
+        </DialogHeader>
+        <div className="relative h-[420px] w-full overflow-hidden rounded-sm bg-black">
+          <Cropper
+            image={src}
+            crop={crop}
+            zoom={zoom}
+            rotation={rotation}
+            aspect={aspect}
+            onCropChange={setCrop}
+            onZoomChange={setZoom}
+            onRotationChange={setRotation}
+            onCropComplete={(_a: Area, area: Area) => setPixels(area)}
+            showGrid
+            objectFit="contain"
+          />
+        </div>
+        <div className="flex flex-col gap-2 pt-2">
+          <div className="flex items-center gap-3">
+            <span className="w-14 text-[11px] uppercase tracking-wider text-muted-foreground">
+              Zoom
+            </span>
+            <input
+              type="range"
+              min={1}
+              max={4}
+              step={0.01}
+              value={zoom}
+              onChange={(e) => setZoom(Number(e.target.value))}
+              className="flex-1 accent-[hsl(var(--brand))]"
+            />
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="w-14 text-[11px] uppercase tracking-wider text-muted-foreground">
+              Rotate
+            </span>
+            <input
+              type="range"
+              min={0}
+              max={360}
+              step={1}
+              value={rotation}
+              onChange={(e) => setRotation(Number(e.target.value))}
+              className="flex-1 accent-[hsl(var(--brand))]"
+            />
+            <span className="w-10 text-right font-mono text-[11px] text-muted-foreground">
+              {rotation}°
+            </span>
+          </div>
+        </div>
+        <div className="mt-2 flex justify-end gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 rounded-sm text-[12px]"
+            onClick={onCancel}
+            disabled={busy}
+          >
+            Cancel
+          </Button>
+          <Button
+            size="sm"
+            className="h-9 rounded-sm text-[12px]"
+            onClick={confirm}
+            disabled={busy || !pixels}
+          >
+            {busy ? (
+              <Loader2 className="mr-1.5 size-3 animate-spin" />
+            ) : (
+              <Check className="mr-1.5 size-3" />
+            )}
+            Crop & Upload
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+async function cropImageToBlob(
+  src: string,
+  area: { x: number; y: number; width: number; height: number },
+  rotation: number,
+): Promise<Blob> {
+  const img = await loadImage(src);
+  const rad = (rotation * Math.PI) / 180;
+  const sin = Math.abs(Math.sin(rad));
+  const cos = Math.abs(Math.cos(rad));
+  const bBoxW = img.width * cos + img.height * sin;
+  const bBoxH = img.width * sin + img.height * cos;
+
+  // Draw rotated source onto an offscreen canvas
+  const rotCanvas = document.createElement("canvas");
+  rotCanvas.width = bBoxW;
+  rotCanvas.height = bBoxH;
+  const rctx = rotCanvas.getContext("2d")!;
+  rctx.translate(bBoxW / 2, bBoxH / 2);
+  rctx.rotate(rad);
+  rctx.drawImage(img, -img.width / 2, -img.height / 2);
+
+  // Extract the crop area
+  const out = document.createElement("canvas");
+  out.width = area.width;
+  out.height = area.height;
+  const octx = out.getContext("2d")!;
+  octx.drawImage(
+    rotCanvas,
+    area.x,
+    area.y,
+    area.width,
+    area.height,
+    0,
+    0,
+    area.width,
+    area.height,
+  );
+
+  return await new Promise<Blob>((resolve, reject) =>
+    out.toBlob(
+      (b) => (b ? resolve(b) : reject(new Error("Canvas encode failed"))),
+      "image/jpeg",
+      0.92,
+    ),
+  );
+}
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
 
 
 // ---------- Uploaders ----------
