@@ -685,6 +685,178 @@ function CropUploadSlot({
   );
 }
 
+// ---------- Crop Dialog ----------
+function CropDialog({
+  src,
+  aspect,
+  title,
+  onCancel,
+  onConfirm,
+  busy,
+}: {
+  src: string;
+  aspect: number;
+  title: string;
+  onCancel: () => void;
+  onConfirm: (blob: Blob) => void;
+  busy?: boolean;
+}) {
+  const [crop, setCrop] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [rotation, setRotation] = useState(0);
+  const [pixels, setPixels] = useState<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null>(null);
+
+  const confirm = async () => {
+    if (!pixels) return;
+    const blob = await cropImageToBlob(src, pixels, rotation);
+    onConfirm(blob);
+  };
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onCancel()}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="text-[14px]">Crop · {title}</DialogTitle>
+        </DialogHeader>
+        <div className="relative h-[420px] w-full overflow-hidden rounded-sm bg-black">
+          <Cropper
+            image={src}
+            crop={crop}
+            zoom={zoom}
+            rotation={rotation}
+            aspect={aspect}
+            onCropChange={setCrop}
+            onZoomChange={setZoom}
+            onRotationChange={setRotation}
+            onCropComplete={(_a, area) => setPixels(area)}
+            showGrid
+            objectFit="contain"
+          />
+        </div>
+        <div className="flex flex-col gap-2 pt-2">
+          <div className="flex items-center gap-3">
+            <span className="w-14 text-[11px] uppercase tracking-wider text-muted-foreground">
+              Zoom
+            </span>
+            <input
+              type="range"
+              min={1}
+              max={4}
+              step={0.01}
+              value={zoom}
+              onChange={(e) => setZoom(Number(e.target.value))}
+              className="flex-1 accent-[hsl(var(--brand))]"
+            />
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="w-14 text-[11px] uppercase tracking-wider text-muted-foreground">
+              Rotate
+            </span>
+            <input
+              type="range"
+              min={0}
+              max={360}
+              step={1}
+              value={rotation}
+              onChange={(e) => setRotation(Number(e.target.value))}
+              className="flex-1 accent-[hsl(var(--brand))]"
+            />
+            <span className="w-10 text-right font-mono text-[11px] text-muted-foreground">
+              {rotation}°
+            </span>
+          </div>
+        </div>
+        <div className="mt-2 flex justify-end gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 rounded-sm text-[12px]"
+            onClick={onCancel}
+            disabled={busy}
+          >
+            Cancel
+          </Button>
+          <Button
+            size="sm"
+            className="h-9 rounded-sm text-[12px]"
+            onClick={confirm}
+            disabled={busy || !pixels}
+          >
+            {busy ? (
+              <Loader2 className="mr-1.5 size-3 animate-spin" />
+            ) : (
+              <Check className="mr-1.5 size-3" />
+            )}
+            Crop & Upload
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+async function cropImageToBlob(
+  src: string,
+  area: { x: number; y: number; width: number; height: number },
+  rotation: number,
+): Promise<Blob> {
+  const img = await loadImage(src);
+  const rad = (rotation * Math.PI) / 180;
+  const sin = Math.abs(Math.sin(rad));
+  const cos = Math.abs(Math.cos(rad));
+  const bBoxW = img.width * cos + img.height * sin;
+  const bBoxH = img.width * sin + img.height * cos;
+
+  // Draw rotated source onto an offscreen canvas
+  const rotCanvas = document.createElement("canvas");
+  rotCanvas.width = bBoxW;
+  rotCanvas.height = bBoxH;
+  const rctx = rotCanvas.getContext("2d")!;
+  rctx.translate(bBoxW / 2, bBoxH / 2);
+  rctx.rotate(rad);
+  rctx.drawImage(img, -img.width / 2, -img.height / 2);
+
+  // Extract the crop area
+  const out = document.createElement("canvas");
+  out.width = area.width;
+  out.height = area.height;
+  const octx = out.getContext("2d")!;
+  octx.drawImage(
+    rotCanvas,
+    area.x,
+    area.y,
+    area.width,
+    area.height,
+    0,
+    0,
+    area.width,
+    area.height,
+  );
+
+  return await new Promise<Blob>((resolve, reject) =>
+    out.toBlob(
+      (b) => (b ? resolve(b) : reject(new Error("Canvas encode failed"))),
+      "image/jpeg",
+      0.92,
+    ),
+  );
+}
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
 
 // ---------- Uploaders ----------
 function useR2Upload(
