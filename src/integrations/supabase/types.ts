@@ -124,6 +124,62 @@ export type Database = {
         }
         Relationships: []
       }
+      expenses: {
+        Row: {
+          amount: number
+          category: Database["public"]["Enums"]["expense_category"]
+          created_at: string
+          created_by: string | null
+          currency: string
+          id: string
+          linked_invoice_id: string | null
+          notes: string | null
+          paid_by: string | null
+          receipt_url: string | null
+          spent_on: string
+          updated_at: string
+          vendor: string | null
+        }
+        Insert: {
+          amount: number
+          category: Database["public"]["Enums"]["expense_category"]
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          linked_invoice_id?: string | null
+          notes?: string | null
+          paid_by?: string | null
+          receipt_url?: string | null
+          spent_on?: string
+          updated_at?: string
+          vendor?: string | null
+        }
+        Update: {
+          amount?: number
+          category?: Database["public"]["Enums"]["expense_category"]
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          linked_invoice_id?: string | null
+          notes?: string | null
+          paid_by?: string | null
+          receipt_url?: string | null
+          spent_on?: string
+          updated_at?: string
+          vendor?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expenses_linked_invoice_id_fkey"
+            columns: ["linked_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       impersonation_events: {
         Row: {
           action: string
@@ -258,6 +314,288 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      invoice_installments: {
+        Row: {
+          amount: number
+          created_at: string
+          due_date: string
+          id: string
+          invoice_id: string
+          label: string
+          note: string | null
+          paid_amount: number | null
+          paid_at: string | null
+          payment_method: string | null
+          payment_ref: string | null
+          sequence: number
+          status: Database["public"]["Enums"]["installment_status"]
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          due_date: string
+          id?: string
+          invoice_id: string
+          label: string
+          note?: string | null
+          paid_amount?: number | null
+          paid_at?: string | null
+          payment_method?: string | null
+          payment_ref?: string | null
+          sequence: number
+          status?: Database["public"]["Enums"]["installment_status"]
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          due_date?: string
+          id?: string
+          invoice_id?: string
+          label?: string
+          note?: string | null
+          paid_amount?: number | null
+          paid_at?: string | null
+          payment_method?: string | null
+          payment_ref?: string | null
+          sequence?: number
+          status?: Database["public"]["Enums"]["installment_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_installments_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoice_payouts: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string
+          id: string
+          installment_id: string
+          invoice_id: string
+          paid_at: string | null
+          requested_at: string | null
+          role: Database["public"]["Enums"]["stakeholder_role"]
+          stakeholder_id: string
+          status: Database["public"]["Enums"]["payout_status"]
+          unlocked_at: string | null
+          updated_at: string
+          user_id: string
+          withdrawal_request_id: string | null
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          installment_id: string
+          invoice_id: string
+          paid_at?: string | null
+          requested_at?: string | null
+          role: Database["public"]["Enums"]["stakeholder_role"]
+          stakeholder_id: string
+          status?: Database["public"]["Enums"]["payout_status"]
+          unlocked_at?: string | null
+          updated_at?: string
+          user_id: string
+          withdrawal_request_id?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          installment_id?: string
+          invoice_id?: string
+          paid_at?: string | null
+          requested_at?: string | null
+          role?: Database["public"]["Enums"]["stakeholder_role"]
+          stakeholder_id?: string
+          status?: Database["public"]["Enums"]["payout_status"]
+          unlocked_at?: string | null
+          updated_at?: string
+          user_id?: string
+          withdrawal_request_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_payouts_installment_id_fkey"
+            columns: ["installment_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_installments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_payouts_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_payouts_stakeholder_id_fkey"
+            columns: ["stakeholder_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_stakeholders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoice_reminder_log: {
+        Row: {
+          day_bucket: string
+          id: string
+          installment_id: string
+          kind: string
+          provider_ref: string | null
+          recipients: string[] | null
+          sent_at: string
+        }
+        Insert: {
+          day_bucket: string
+          id?: string
+          installment_id: string
+          kind: string
+          provider_ref?: string | null
+          recipients?: string[] | null
+          sent_at?: string
+        }
+        Update: {
+          day_bucket?: string
+          id?: string
+          installment_id?: string
+          kind?: string
+          provider_ref?: string | null
+          recipients?: string[] | null
+          sent_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_reminder_log_installment_id_fkey"
+            columns: ["installment_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_installments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoice_stakeholders: {
+        Row: {
+          created_at: string
+          id: string
+          invoice_id: string
+          note: string | null
+          percent: number
+          role: Database["public"]["Enums"]["stakeholder_role"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          invoice_id: string
+          note?: string | null
+          percent: number
+          role: Database["public"]["Enums"]["stakeholder_role"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          invoice_id?: string
+          note?: string | null
+          percent?: number
+          role?: Database["public"]["Enums"]["stakeholder_role"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_stakeholders_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoices: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          currency: string
+          customer_id: string
+          description: string | null
+          ends_on: string | null
+          id: string
+          internal_notes: string | null
+          notes: string | null
+          paid_amount: number
+          project_type: string
+          slug: string | null
+          starts_on: string | null
+          status: Database["public"]["Enums"]["invoice_status"]
+          title: string
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          customer_id: string
+          description?: string | null
+          ends_on?: string | null
+          id?: string
+          internal_notes?: string | null
+          notes?: string | null
+          paid_amount?: number
+          project_type?: string
+          slug?: string | null
+          starts_on?: string | null
+          status?: Database["public"]["Enums"]["invoice_status"]
+          title: string
+          total_amount: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          customer_id?: string
+          description?: string | null
+          ends_on?: string | null
+          id?: string
+          internal_notes?: string | null
+          notes?: string | null
+          paid_amount?: number
+          project_type?: string
+          slug?: string | null
+          starts_on?: string | null
+          status?: Database["public"]["Enums"]["invoice_status"]
+          title?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       kyc_documents: {
         Row: {
@@ -1249,9 +1587,76 @@ export type Database = {
         }
         Relationships: []
       }
+      withdrawal_requests: {
+        Row: {
+          admin_note: string | null
+          amount: number
+          created_at: string
+          currency: string
+          decided_at: string | null
+          decided_by: string | null
+          id: string
+          paid_at: string | null
+          paid_by: string | null
+          payment_method_id: string | null
+          payment_method_snapshot: Json | null
+          requested_at: string
+          status: Database["public"]["Enums"]["withdrawal_status"]
+          transfer_ref: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_note?: string | null
+          amount: number
+          created_at?: string
+          currency?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          paid_at?: string | null
+          paid_by?: string | null
+          payment_method_id?: string | null
+          payment_method_snapshot?: Json | null
+          requested_at?: string
+          status?: Database["public"]["Enums"]["withdrawal_status"]
+          transfer_ref?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_note?: string | null
+          amount?: number
+          created_at?: string
+          currency?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          paid_at?: string | null
+          paid_by?: string | null
+          payment_method_id?: string | null
+          payment_method_snapshot?: Json | null
+          requested_at?: string
+          status?: Database["public"]["Enums"]["withdrawal_status"]
+          transfer_ref?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
-      [_ in never]: never
+      v_wallet_balances: {
+        Row: {
+          available: number | null
+          currency: string | null
+          locked: number | null
+          paid_total: number | null
+          requested: number | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       apply_super_admin_bypass: {
@@ -1266,11 +1671,33 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_finance_admin: { Args: { _user_id?: string }; Returns: boolean }
       is_super_admin: { Args: { _user_id?: string }; Returns: boolean }
       validate_branta_email: { Args: { _email: string }; Returns: boolean }
     }
     Enums: {
       app_role: "super_admin" | "admin" | "manager" | "user" | "finance"
+      expense_category:
+        | "salary"
+        | "tools"
+        | "ads"
+        | "office"
+        | "misc"
+        | "tax"
+        | "refund"
+      installment_status:
+        | "pending"
+        | "invoiced"
+        | "paid"
+        | "overdue"
+        | "cancelled"
+      invoice_status:
+        | "draft"
+        | "sent"
+        | "partially_paid"
+        | "paid"
+        | "overdue"
+        | "void"
       lead_status:
         | "new"
         | "contacted"
@@ -1278,6 +1705,9 @@ export type Database = {
         | "meeting"
         | "converted"
         | "lost"
+      payout_status: "locked" | "available" | "requested" | "paid" | "cancelled"
+      stakeholder_role: "outreach" | "lead_closer" | "worker" | "company"
+      withdrawal_status: "pending" | "approved" | "rejected" | "paid"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1406,6 +1836,30 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["super_admin", "admin", "manager", "user", "finance"],
+      expense_category: [
+        "salary",
+        "tools",
+        "ads",
+        "office",
+        "misc",
+        "tax",
+        "refund",
+      ],
+      installment_status: [
+        "pending",
+        "invoiced",
+        "paid",
+        "overdue",
+        "cancelled",
+      ],
+      invoice_status: [
+        "draft",
+        "sent",
+        "partially_paid",
+        "paid",
+        "overdue",
+        "void",
+      ],
       lead_status: [
         "new",
         "contacted",
@@ -1414,6 +1868,9 @@ export const Constants = {
         "converted",
         "lost",
       ],
+      payout_status: ["locked", "available", "requested", "paid", "cancelled"],
+      stakeholder_role: ["outreach", "lead_closer", "worker", "company"],
+      withdrawal_status: ["pending", "approved", "rejected", "paid"],
     },
   },
 } as const
