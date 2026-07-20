@@ -1270,7 +1270,7 @@ export type Database = {
       validate_branta_email: { Args: { _email: string }; Returns: boolean }
     }
     Enums: {
-      app_role: "super_admin" | "admin" | "manager" | "user"
+      app_role: "super_admin" | "admin" | "manager" | "user" | "finance"
       lead_status:
         | "new"
         | "contacted"
@@ -1405,7 +1405,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["super_admin", "admin", "manager", "user"],
+      app_role: ["super_admin", "admin", "manager", "user", "finance"],
       lead_status: [
         "new",
         "contacted",
