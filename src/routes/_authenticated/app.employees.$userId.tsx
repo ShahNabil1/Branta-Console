@@ -49,8 +49,13 @@ import {
   type EmployeeRole,
 } from "@/lib/employee-detail.functions";
 import { checkIsAdmin, deleteEmployee } from "@/lib/employees.functions";
+import {
+  adminUnsubscribeTelegram,
+  getEmployeeTelegramStatus,
+} from "@/lib/telegram.functions";
 import { clearBackup, isImpersonating, readBackup, writeBackup } from "@/lib/impersonation";
 import { BarcodeSvg, downloadBarcodePng } from "@/components/employee/BarcodeSvg";
+import { TelegramIcon } from "@/components/social/telegram-icon";
 import { Input } from "@/components/ui/input";
 
 
@@ -96,6 +101,8 @@ function EmployeeDetailPage() {
   const assignFn = useServerFn(assignLeadOwner);
   const deleteFn = useServerFn(deleteEmployee);
   const setJobRoleFn = useServerFn(setEmployeeJobRole);
+  const tgStatusFn = useServerFn(getEmployeeTelegramStatus);
+  const tgUnsubFn = useServerFn(adminUnsubscribeTelegram);
 
 
   const admin = useQuery({
@@ -114,6 +121,34 @@ function EmployeeDetailPage() {
     queryFn: () => listLeadsFn({ data: { userId } }),
     enabled: !!admin.data?.isAdmin,
   });
+
+  const tgStatus = useQuery({
+    queryKey: ["employee.telegram", userId],
+    queryFn: () => tgStatusFn({ data: { userId } }),
+    enabled: !!admin.data?.isAdmin,
+  });
+
+  const tgUnsub = useMutation({
+    mutationFn: () => tgUnsubFn({ data: { userId } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["employee.telegram", userId] });
+      toast.success("Telegram unsubscribed");
+    },
+    onError: (err: unknown) =>
+      toast.error(err instanceof Error ? err.message : "Failed to unsubscribe"),
+  });
+
+  const onTgUnsub = async () => {
+    const ok = await confirm({
+      title: "Unsubscribe Telegram?",
+      description:
+        "This employee will stop receiving all Branta Tech Telegram notifications until they reconnect.",
+      confirmLabel: "Unsubscribe",
+      tone: "warning",
+    });
+    if (ok) tgUnsub.mutate();
+  };
+
 
   const [selectedRoles, setSelectedRoles] = useState<EmployeeRole[] | null>(
     null,
@@ -384,6 +419,23 @@ function EmployeeDetailPage() {
               <Ban className="size-3.5" strokeWidth={2} />
             )}
             {e.isBanned ? "Unban" : "Ban"}
+          </button>
+          <button
+            onClick={onTgUnsub}
+            disabled={tgUnsub.isPending || !tgStatus.data?.linked}
+            title={
+              tgStatus.data?.linked
+                ? `Linked as ${tgStatus.data.username ? "@" + tgStatus.data.username : (tgStatus.data.firstName ?? "Telegram user")}`
+                : "This employee hasn't linked Telegram yet"
+            }
+            className="inline-flex h-9 items-center gap-1.5 rounded-sm border border-sky-300 bg-sky-50 px-3 text-[12.5px] font-medium text-sky-800 hover:bg-sky-100 disabled:opacity-50"
+          >
+            {tgUnsub.isPending ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <TelegramIcon className="size-3.5" />
+            )}
+            {tgStatus.data?.linked ? "Unsubscribe Telegram" : "Telegram not linked"}
           </button>
           {canSuperAdmin && (
             <button

@@ -45,6 +45,7 @@ import {
 import { cn } from "@/lib/utils";
 import { SESSION_KEY_STORAGE } from "@/hooks/use-session-watcher";
 import { PASSWORD_LEN, stripToPassword } from "@/lib/branta-credentials";
+import { TelegramConnectCard } from "@/components/profile/telegram-connect-card";
 
 export const Route = createFileRoute("/_authenticated/app/profile/security")({
   head: () => ({ meta: [{ title: "Security & Notifications · Profile" }] }),
@@ -617,19 +618,23 @@ function SessionsSection() {
   );
 }
 
-// ---------- Notifications placeholder ----------
+// ---------- Notifications ----------
 
 function NotificationsPlaceholder() {
   return (
     <Section
       title="Notifications"
-      description="Preferences for email, in-app and browser push notifications."
+      description="Choose where Branta Tech alerts reach you. More channels coming soon."
       icon={ShieldCheck}
     >
-      <div className="rounded-sm border border-dashed border-border bg-muted/30 px-4 py-6 text-center text-[12.5px] text-muted-foreground">
-        Coming next — you'll be able to control which events send you email,
-        show in-app toasts, or push to your desktop.
+      <div className="space-y-3">
+        <TelegramConnectCard />
+        <div className="rounded-sm border border-dashed border-border bg-muted/30 px-4 py-3 text-[11.5px] text-muted-foreground">
+          Email and in-app notification preferences will land here after
+          event triggers are wired.
+        </div>
       </div>
     </Section>
   );
 }
+

@@ -9,7 +9,8 @@ export type ConnectorId =
   | "google_mail"
   | "google_calendar"
   | "google_docs"
-  | "google_sheets";
+  | "google_sheets"
+  | "telegram";
 
 const KEY_ENV: Record<ConnectorId, string> = {
   resend: "RESEND_API_KEY",
@@ -18,6 +19,7 @@ const KEY_ENV: Record<ConnectorId, string> = {
   google_calendar: "GOOGLE_CALENDAR_API_KEY",
   google_docs: "GOOGLE_DOCS_API_KEY",
   google_sheets: "GOOGLE_SHEETS_API_KEY",
+  telegram: "TELEGRAM_API_KEY",
 };
 
 export interface GatewayCallOptions {

@@ -1075,6 +1075,60 @@ export type Database = {
         }
         Relationships: []
       }
+      telegram_link_requests: {
+        Row: {
+          created_at: string
+          expires_at: string
+          token: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          token: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          token?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      telegram_subscriptions: {
+        Row: {
+          active: boolean
+          chat_id: number
+          created_at: string
+          linked_at: string
+          telegram_first_name: string | null
+          telegram_username: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          chat_id: number
+          created_at?: string
+          linked_at?: string
+          telegram_first_name?: string | null
+          telegram_username?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          chat_id?: number
+          created_at?: string
+          linked_at?: string
+          telegram_first_name?: string | null
+          telegram_username?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_passkeys: {
         Row: {
           aaguid: string | null
