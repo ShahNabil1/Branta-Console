@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Search, FileText, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { NewInvoiceModal } from "@/components/finance/new-invoice-modal";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/app/finance/invoices/")({
