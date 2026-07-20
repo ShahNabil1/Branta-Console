@@ -824,7 +824,7 @@ function BdAddressBlock({
             }}
             options={districts}
             placeholder="Select district"
-            disabled={!form.division}
+            disabled={districts.length === 0}
           />
         </Field>
 
