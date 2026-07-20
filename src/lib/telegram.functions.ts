@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
-import { TELEGRAM_BOT_USERNAME } from "@/lib/telegram.server";
+import { TELEGRAM_BOT_USERNAME } from "@/lib/telegram-constants";
 
 function randomToken(len = 20): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789abcdefghjkmnpqrstuvwxyz";

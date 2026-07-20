@@ -1,7 +1,6 @@
 // Server-only Telegram helpers. Never import from browser code.
 import { callGateway } from "@/lib/connector-gateway.server";
-
-export const TELEGRAM_BOT_USERNAME = "Brantatechmanagement_Bot";
+export { TELEGRAM_BOT_USERNAME } from "@/lib/telegram-constants";
 
 export interface SendTelegramOptions {
   parseMode?: "HTML" | "MarkdownV2";
