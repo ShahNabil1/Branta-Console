@@ -772,12 +772,9 @@ function BdAddressBlock({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoPostcode]);
 
-  const placeholderHint =
-    "Only house / road / village — thana, post office, district etc. are picked below.";
-
   return (
     <div className="grid grid-cols-1 gap-4">
-      <Field label="Address" hint={placeholderHint} className="md:col-span-2">
+      <Field label="Address *" className="md:col-span-2">
         <Input
           className="h-9 rounded-sm"
           value={form.address_line1 ?? ""}
@@ -787,7 +784,7 @@ function BdAddressBlock({
       </Field>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <Field label="Division">
+        <Field label="Division *">
           <BdSelect
             value={form.division}
             onChange={(v) => {
@@ -802,7 +799,7 @@ function BdAddressBlock({
           />
         </Field>
 
-        <Field label="District">
+        <Field label="District *">
           <BdSelect
             value={form.district}
             onChange={(v) => {
@@ -817,7 +814,7 @@ function BdAddressBlock({
           />
         </Field>
 
-        <Field label="Upazila / Thana">
+        <Field label="Upazila / Thana *">
           <BdSelect
             value={form.upazila}
             onChange={(v) => {
@@ -831,7 +828,7 @@ function BdAddressBlock({
           />
         </Field>
 
-        <Field label="Post Office">
+        <Field label="Post Office *">
           <BdSelect
             value={form.post_office}
             onChange={(v) => {
@@ -843,7 +840,7 @@ function BdAddressBlock({
           />
         </Field>
 
-        <Field label="Postcode" hint="Auto-filled from post office">
+        <Field label="Postcode *">
           <Input
             className="h-9 rounded-sm bg-muted font-mono text-[12px]"
             value={form.postcode ?? ""}
@@ -852,7 +849,7 @@ function BdAddressBlock({
           />
         </Field>
 
-        <Field label="Country" hint="Fixed">
+        <Field label="Country *">
           <div className="flex h-9 items-center gap-2 rounded-sm border border-input bg-muted px-2.5 text-[13px] text-foreground">
             <BdFlag />
             <span>Bangladesh</span>
