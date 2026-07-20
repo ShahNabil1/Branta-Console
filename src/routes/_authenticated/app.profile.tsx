@@ -218,16 +218,19 @@ function ProfileForm({
     try {
       await update({
         data: {
-          full_name: form.legal_full_name,
+          full_name: form.full_name,
           legal_full_name: form.legal_full_name,
           phone_primary: form.phone_primary,
           phone_alt: form.phone_alt,
           address_line1: form.address_line1,
-          address_line2: form.address_line2,
-          city: form.city,
+          address_line2: null,
+          division: form.division,
           district: form.district,
+          upazila: form.upazila,
+          post_office: form.post_office,
+          city: form.upazila,
           postcode: form.postcode,
-          country: form.country,
+          country: "Bangladesh",
           bank_name: form.bank_name,
           bank_account_name: form.bank_account_name,
           bank_account_number: form.bank_account_number,
