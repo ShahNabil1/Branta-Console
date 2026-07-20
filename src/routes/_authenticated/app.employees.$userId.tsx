@@ -101,6 +101,8 @@ function EmployeeDetailPage() {
   const assignFn = useServerFn(assignLeadOwner);
   const deleteFn = useServerFn(deleteEmployee);
   const setJobRoleFn = useServerFn(setEmployeeJobRole);
+  const tgStatusFn = useServerFn(getEmployeeTelegramStatus);
+  const tgUnsubFn = useServerFn(adminUnsubscribeTelegram);
 
 
   const admin = useQuery({
