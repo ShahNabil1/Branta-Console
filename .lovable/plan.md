@@ -1,82 +1,98 @@
+## Goal
 
-# Profile → 4 Tabs + Security Suite + Passkey Login
+Enable Telegram notification subscription for each employee. Now: only the plumbing (link/unlink + chat_id capture + admin unsubscribe + reusable send helper). Actual event triggers will be wired later at project end.
 
-Backend + shared UI primitives are already in place. This plan wires up the routes and UI. Confirm before I write the ~2000 lines of tab UI and login integration.
+## Setup steps (one-time, I'll guide you)
 
-## Routes
+1. Link the Telegram connector to this project (`standard_connectors--connect telegram` → pick "Branta Tech CRM Notifier"). This exposes `TELEGRAM_API_KEY` server-side.
+2. I'll register the bot webhook via the gateway to:
+   `https://console.brantatech.com/api/public/telegram/webhook`
+   Secret token = SHA-256(base64url) of `telegram-webhook:${TELEGRAM_API_KEY}` (derived, not stored).
+3. In BotFather, set bot commands (`/start`, `/unlink`) — I'll list exact text. No token needed from you (gateway holds it).
 
-```
-/app/profile              (layout with tabs + <Outlet />)
-  /personal               (default — existing Personal Information form, minus Payment Methods)
-  /finance                (Payment Methods + Wallet placeholder)
-  /security               (2FA reset, Passkeys, Change Password, Sessions)
-  /activity               (placeholder — "coming soon")
-```
+## Database (one migration)
 
-`app.profile.tsx` becomes a thin layout. All four sub-routes fetch profile via `getMyProfile` (React Query, invalidated on save).
+Table `public.telegram_subscriptions`:
+- `user_id uuid PK` (references profiles/auth via user_id)
+- `chat_id bigint unique not null`
+- `telegram_username text`, `telegram_first_name text`
+- `link_token text unique` (nullable — set while pairing, cleared after link)
+- `link_token_expires_at timestamptz`
+- `linked_at timestamptz`, `unsubscribed_at timestamptz`
+- `active boolean not null default true`
+- standard timestamps + updated_at trigger
 
-## Personal Information tab
-- Extracted from the old 1813-line `app.profile.tsx`.
-- Sections: Basic (avatar, full name, legal name, personal Gmail), Phone (BdPhoneInput ×2), Address (BdAddressBlock — mandatory), Identity Documents (IdentityDocumentsBlock), Documents (CV PDF), Social Links.
-- Uses `updateMyProfile`. **Payment Methods removed from this tab.**
+Grants: `authenticated` = SELECT own row only; all writes via service_role from server fns. RLS: user can read own row.
 
-## Finance & Wallet tab
-- `PaymentMethodsBlock` — reads/writes `profiles.payment_methods` JSONB via `updateMyProfile`.
-- Wallet section: placeholder card showing 0.00 BDT balance + "Wallet system coming soon" (wired to primary payment method label). No transactions/withdrawal endpoints yet — user said we wire the wallet later.
+## Server functions (`src/lib/telegram.functions.ts`)
 
-## Security & Notification tab
+- `startTelegramLink()` — auth'd. Generates a short random `link_token` (16 chars, 15-min TTL), upserts a placeholder row for the user (chat_id null allowed → schema uses a separate `telegram_link_requests` table OR nullable chat_id). Returns `{ deepLink: "https://t.me/<BOT_USERNAME>?start=<token>" }`.
+- `getMyTelegramStatus()` — auth'd. Returns `{ linked, chatId?, username?, linkedAt? }`.
+- `unlinkMyTelegram()` — auth'd. Deletes the row, best-effort sends a "You've been unsubscribed" message to the old chat_id.
+- `adminUnsubscribeTelegram({ userId })` — admin/super_admin gated. Same as unlink but for another user.
 
-**Section 1 — Two-Factor Authentication (TOTP)**
-- Shows current status (enrolled/not enrolled) via `supabase.auth.mfa.listFactors()`.
-- "Reset 2FA" button → `useConfirm` warning: "You will be signed out immediately and must set up 2FA again on next login." On confirm: unenroll all TOTP factors via `supabase.auth.mfa.unenroll`, then `signOut()` + redirect to `/login`.
+To keep chat_id `not null` clean, use two tables:
+- `telegram_link_requests(user_id, token, expires_at)` — ephemeral.
+- `telegram_subscriptions(user_id, chat_id, …)` — only exists once paired.
 
-**Section 2 — Passkeys** (max 3)
-- List via `listMyPasskeys`. Shows friendly name, device type, backed_up badge, last used, created.
-- "Add passkey" dialog → prompt for friendly name → `beginPasskeyRegistration` → `startRegistration` from `@simplewebauthn/browser` → `finishPasskeyRegistration`.
-- Delete button with `useConfirm`.
+## Server helper (`src/lib/telegram.server.ts`)
 
-**Section 3 — Change Password**
-- Current password, new password, confirm new password.
-- Validates via `strongPasswordSchema`; calls `changeMyPassword`. Toast on success.
+- `sendTelegramToUser(userId, text, opts?)` — looks up active subscription, calls `/sendMessage` via gateway. Silent no-op if not linked/inactive. Returns `{ ok, skipped? }`.
+- `sendTelegramToChatId(chatId, text, opts?)` — low-level.
+- Uses existing `callGateway` pattern; adds `telegram` to `ConnectorId` union and `TELEGRAM_API_KEY` map in `src/lib/connector-gateway.server.ts`.
 
-**Section 4 — Active Sessions**
-- List via `listMySessions({ current_session_key })`. Row per session: device · browser · OS · city, country · IP · last seen · "This device" badge for current.
-- "Sign out" per row (calls `revokeSession`), "Sign out all other devices" button.
-- Client polls `pingSession` every 60s; when `revoked: true`, calls `supabase.auth.signOut()` + redirect. Session key = random UUID stored in `localStorage` on login.
+## Public webhook (`src/routes/api/public/telegram.webhook.ts`)
 
-**Notifications** — placeholder ("coming next").
+- Verifies `X-Telegram-Bot-Api-Secret-Token` (constant-time compare against derived secret from `TELEGRAM_API_KEY`).
+- Handles `/start <token>`: finds matching `telegram_link_requests` row (unexpired), creates `telegram_subscriptions` row with the sender's chat_id/username, deletes the request, replies "✅ Linked to <email>. You'll get Branta Tech notifications here."
+- Handles `/unlink`: deletes subscription for that chat_id, replies confirmation.
+- Handles duplicate chat_id (someone else already used this Telegram account): overwrite the old subscription (per your requirement — new link replaces stale one).
+- Ignores everything else (returns 200 to prevent retries).
 
-## My Activity tab
-- Placeholder card: "Activity timeline — coming next."
+## UI
 
-## Login page changes (`src/routes/login.tsx`)
-- Add "Sign in with a passkey" button below the password form.
-- Flow: prompt Branta ID → `beginPasskeyLogin` → `startAuthentication` → `finishPasskeyLogin` returns `{ email, token_hash }` → `supabase.auth.verifyOtp({ type: "magiclink", email, token_hash })` → session established.
-- Because WebAuthn already verified biometrics, **skip TOTP step** — set a `bypassMfa` flag in navigation state so `/two-factor` recognizes the AAL2-satisfying-passkey path (or route directly to `/app`; the passkey flow does not enroll MFA, so we route based on whether user has any verified TOTP factor).
-- On any successful login (password+TOTP or passkey): generate `session_key = crypto.randomUUID()`, store in `localStorage.branta_session_key`, call `registerSession({ session_key })`.
+### Security & Notification tab (`app.profile.security.tsx`)
 
-## Global session-revocation watcher
-- New hook `useSessionWatcher()` mounted in `_authenticated/route.tsx`. Reads `localStorage.branta_session_key`, polls `pingSession` every 60s. On `revoked` → `signOut()` + push to `/login?reason=revoked`.
+Replace `NotificationsPlaceholder` with a real **"Notifications"** section containing a `TelegramConnectCard`:
+- Not linked: Telegram-branded button "**Connect with Telegram**" (official blue #229ED9 + paper-plane logo). Click → calls `startTelegramLink`, opens `t.me` deep link in new tab, shows in-place instruction ("Press *Start* in Telegram, then this card will update"), polls `getMyTelegramStatus` every 3s (max 3 min).
+- Linked: shows Telegram username / chat_id (masked), linked-at, and a red **"Unlink Telegram"** button (uses existing `useConfirm`).
+- Below: muted note — "Notification events will be added later. Once configured, you'll receive them here in real time."
 
-## Files to write
-- `src/routes/_authenticated/app.profile.tsx` — layout (~120 lines)
-- `src/routes/_authenticated/app.profile.personal.tsx` — extracted from old file (~800 lines)
-- `src/routes/_authenticated/app.profile.finance.tsx` — (~150 lines)
-- `src/routes/_authenticated/app.profile.security.tsx` — (~600 lines)
-- `src/routes/_authenticated/app.profile.activity.tsx` — placeholder (~40 lines)
-- `src/hooks/use-session-watcher.ts` — (~40 lines)
-- Edit `src/routes/_authenticated/route.tsx` — mount watcher
-- Edit `src/routes/login.tsx` — passkey button + `registerSession` on success
-- Redirect `/app/profile` → `/app/profile/personal` (index route)
+### Admin — Employee detail (`app.employees.$userId.tsx`)
 
-## Dependencies to install
-- `@simplewebauthn/browser`
-- `ua-parser-js` (server) — check if already added by earlier turn
+Add a new **"Notifications"** row inside the security/actions area (near ban/reset password):
+- Shows current Telegram link status for that employee.
+- Red button "**Unsubscribe Telegram**" (only enabled if linked) → `useConfirm` → `adminUnsubscribeTelegram`.
+- Post-unsubscribe: no further notifications go to that chat.
 
-## Notes
-- Real IP: extracted server-side from `cf-connecting-ip` / `x-forwarded-for` (already implemented). No client-side IP request needed.
-- Real geo: server-side `ipapi.co` lookup (already implemented). No Google Maps prompt — that adds noisy consent for marginal value; happy to switch to browser geolocation on request.
-- Passkey max=3 enforced server-side.
-- Password history size=1 (blocks current + previous). Extend later if needed.
+## Telegram branding
 
-**Confirm and I proceed with the full implementation. Estimated 6-8 sequential file writes.**
+- Official Telegram logo SVG in `src/components/social/telegram-icon.tsx` (paper plane, brand blue #229ED9).
+- Button style matches existing social buttons — solid Telegram blue, white icon+text, hover darken.
+
+## Not in scope (deferred to project end)
+
+- Wiring specific events (lead assigned, mail failed, etc.) to `sendTelegramToUser`. Only the reusable helper ships now.
+- Per-event opt-in preferences UI.
+
+## Files touched
+
+New:
+- `src/lib/telegram.functions.ts`
+- `src/lib/telegram.server.ts`
+- `src/routes/api/public/telegram.webhook.ts`
+- `src/components/social/telegram-icon.tsx`
+- `src/components/profile/telegram-connect-card.tsx`
+
+Edited:
+- `src/lib/connector-gateway.server.ts` (add `telegram`)
+- `src/routes/_authenticated/app.profile.security.tsx` (replace placeholder)
+- `src/routes/_authenticated/app.employees.$userId.tsx` (admin unsubscribe button)
+- One migration for the two Telegram tables.
+
+## Post-build checklist you'll do
+
+1. Link Telegram connector (I'll prompt).
+2. Confirm bot username with me (needed for the `t.me/<bot>?start=` deep link — I'll store it as `VITE_TELEGRAM_BOT_USERNAME` public env or hardcode after you tell me).
+3. I run `setWebhook` via gateway from the sandbox.
+4. You test Connect from your own profile.
