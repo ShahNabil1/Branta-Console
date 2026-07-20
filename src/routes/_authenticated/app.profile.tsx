@@ -191,12 +191,34 @@ function ProfileForm({
     [form, profile],
   );
 
+  const isValidBdPhone = (v: string | null | undefined) =>
+    !!v && /^01[3-9]\d{8}$/.test(v);
+  const isValidGmail = (v: string | null | undefined) =>
+    !!v && /^[^\s@]+@gmail\.com$/i.test(v);
+
+  const primaryValid = isValidBdPhone(form.phone_primary);
+  const altValid = !form.phone_alt || isValidBdPhone(form.phone_alt);
+  const gmailValid = isValidGmail(form.personal_gmail);
+  const canSave = dirty && primaryValid && altValid && gmailValid;
+
   const save = async () => {
+    if (!primaryValid) {
+      toast.error("Primary Contact is required and must be a valid BD number");
+      return;
+    }
+    if (!gmailValid) {
+      toast.error("Personal Gmail is required and must be a @gmail.com address");
+      return;
+    }
+    if (!altValid) {
+      toast.error("Alternative Contact must be a valid BD number");
+      return;
+    }
     setSaving(true);
     try {
       await update({
         data: {
-          full_name: form.full_name,
+          full_name: form.legal_full_name,
           legal_full_name: form.legal_full_name,
           phone_primary: form.phone_primary,
           phone_alt: form.phone_alt,
@@ -248,7 +270,7 @@ function ProfileForm({
 
           <Button
             onClick={save}
-            disabled={!dirty || saving}
+            disabled={!canSave || saving}
             className="h-9 rounded-sm bg-primary text-primary-foreground hover:bg-brand-700"
           >
             {saving ? (
@@ -284,12 +306,12 @@ function ProfileForm({
                   placeholder="As it appears on your NID / passport"
                 />
               </Field>
-              <Field label="Display Name">
+              <Field label="Legal Full Name">
                 <Input
                   className="h-9 rounded-sm"
-                  value={form.full_name ?? ""}
-                  onChange={(e) => set("full_name", e.target.value)}
-                  placeholder="Shown across the console"
+                  value={form.legal_full_name ?? ""}
+                  onChange={(e) => set("legal_full_name", e.target.value)}
+                  placeholder="As it appears on your NID / passport"
                 />
               </Field>
               <Field label="Official Email" hint="Assigned by Branta Tech · read only">
@@ -300,15 +322,16 @@ function ProfileForm({
                 />
               </Field>
               <Field
-                label="Personal Gmail"
+                label="Personal Gmail *"
                 hint="Used for Google Meet invites. Must be a @gmail.com address."
+                className="md:col-span-2"
               >
                 <Input
                   className="h-9 rounded-sm font-mono text-[12px]"
                   value={form.personal_gmail ?? ""}
                   onChange={(e) => set("personal_gmail", e.target.value.trim().toLowerCase() || null)}
-                  placeholder="yourname@gmail.com"
                   type="email"
+                  aria-invalid={!gmailValid}
                 />
               </Field>
             </div>
@@ -318,20 +341,18 @@ function ProfileForm({
         {/* Contact */}
         <Section title="Contact">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Field label="Primary Contact">
-              <Input
-                className="h-9 rounded-sm"
+            <Field label="Primary Contact *">
+              <BdPhoneInput
                 value={form.phone_primary ?? ""}
-                onChange={(e) => set("phone_primary", e.target.value)}
-                placeholder="+8801XXXXXXXXX"
+                onChange={(v) => set("phone_primary", v || null)}
+                invalid={!primaryValid}
               />
             </Field>
             <Field label="Alternative Contact">
-              <Input
-                className="h-9 rounded-sm"
+              <BdPhoneInput
                 value={form.phone_alt ?? ""}
-                onChange={(e) => set("phone_alt", e.target.value)}
-                placeholder="+8801XXXXXXXXX"
+                onChange={(v) => set("phone_alt", v || null)}
+                invalid={!altValid}
               />
             </Field>
           </div>
@@ -613,6 +634,58 @@ function DocumentSlot({
             onError: (err) => toast.error((err as Error).message),
           });
         }}
+      />
+    </div>
+  );
+}
+
+// ---------- BD Phone Input ----------
+const BENGALI_DIGITS: Record<string, string> = {
+  "০": "0", "১": "1", "২": "2", "৩": "3", "৪": "4",
+  "৫": "5", "৬": "6", "৭": "7", "৮": "8", "৯": "9",
+};
+
+function normalizeBdDigits(input: string): string {
+  let out = "";
+  for (const ch of input) {
+    if (BENGALI_DIGITS[ch]) out += BENGALI_DIGITS[ch];
+    else if (/[0-9]/.test(ch)) out += ch;
+  }
+  return out.slice(0, 11);
+}
+
+function BdPhoneInput({
+  value,
+  onChange,
+  invalid,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  invalid?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex h-9 items-center overflow-hidden rounded-sm border bg-background",
+        invalid ? "border-red-500" : "border-input",
+      )}
+    >
+      <span className="flex h-full select-none items-center gap-1.5 border-r border-input bg-muted px-2.5 font-mono text-[12px] text-muted-foreground">
+        <span aria-hidden className="text-[14px] leading-none">🇧🇩</span>
+        <span>+88</span>
+      </span>
+      <input
+        inputMode="numeric"
+        autoComplete="tel-national"
+        className="h-full flex-1 bg-transparent px-2.5 font-mono text-[12px] text-foreground outline-none"
+        value={value}
+        onChange={(e) => onChange(normalizeBdDigits(e.target.value))}
+        onPaste={(e) => {
+          e.preventDefault();
+          const text = e.clipboardData.getData("text");
+          onChange(normalizeBdDigits(text));
+        }}
+        maxLength={11}
       />
     </div>
   );
