@@ -55,6 +55,8 @@ export interface EmployeeDetail {
     full_name: string | null;
     legal_full_name: string | null;
     avatar_url: string | null;
+    employee_code: string | null;
+    job_role: string | null;
     phone_primary: string | null;
     phone_alt: string | null;
     address_line1: string | null;
@@ -75,6 +77,7 @@ export interface EmployeeDetail {
     kyc_status: string | null;
   };
 }
+
 
 const ROLE_ORDER = ["super_admin", "admin", "manager", "user"];
 const primaryRole = (roles: string[]): EmployeeRole => {
