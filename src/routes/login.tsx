@@ -104,28 +104,33 @@ function LoginPage() {
 
   const onPasskeySignIn = async () => {
     setPasskeyError(null);
-    const r = localSchema.safeParse(local);
-    if (!r.success) {
-      setLocalError(r.error.issues[0]?.message ?? "Enter your Branta ID first.");
-      return;
-    }
     setPasskeyBusy(true);
     try {
       const { startAuthentication } = await import("@simplewebauthn/browser");
-      const options = await beginPasskey({ data: { branta_local: r.data } });
+      // Discoverable / usernameless flow — the browser prompts the user to
+      // choose a saved Branta passkey. If they've typed a Branta ID we scope
+      // the challenge to that account; otherwise it stays open.
+      const parsed = localSchema.safeParse(local);
+      const options = await beginPasskey({
+        data: { branta_local: parsed.success ? parsed.data : null },
+      });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const assertion = await startAuthentication({ optionsJSON: options as any });
       const res = await finishPasskey({ data: { assertion_response: assertion } });
+      // Supabase verifyOtp with a hashed token only accepts { type, token_hash }.
       const { error } = await supabase.auth.verifyOtp({
         type: "magiclink",
-        email: res.email,
         token_hash: res.token_hash,
       });
       if (error) throw error;
       await finalizeAndGo({ viaPasskey: true });
     } catch (err) {
       const msg = (err as Error).message || "Passkey sign-in failed.";
-      setPasskeyError(msg.includes("NotAllowed") ? "Cancelled." : msg);
+      setPasskeyError(
+        msg.includes("NotAllowed") || msg.includes("cancel")
+          ? "Cancelled."
+          : msg,
+      );
     } finally {
       setPasskeyBusy(false);
     }
@@ -809,7 +814,7 @@ function LoginPage() {
                 <button
                   type="button"
                   onClick={onPasskeySignIn}
-                  disabled={passkeyBusy || local.length < 3}
+                  disabled={passkeyBusy}
                   className="flex h-9 w-full items-center justify-center gap-2 rounded-sm border border-input bg-background text-[13px] font-semibold text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {passkeyBusy ? (
@@ -822,10 +827,6 @@ function LoginPage() {
                 {passkeyError ? (
                   <p className="text-center text-[11.5px] text-rose-700">
                     {passkeyError}
-                  </p>
-                ) : local.length < 3 ? (
-                  <p className="text-center text-[11.5px] text-muted-foreground">
-                    Enter your Branta ID above to use a passkey.
                   </p>
                 ) : null}
 
