@@ -402,7 +402,7 @@ function ProfileForm({
         {/* Documents */}
         <Section
           title="Documents"
-          description="Upload your NID and CV. "
+          description="Upload your legal and professional documents.."
         >
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <DocumentSlot
