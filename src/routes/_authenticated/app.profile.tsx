@@ -443,11 +443,12 @@ function ProfileForm({
               scope="document"
             />
             <DocumentSlot
-              label="CV / Résumé"
+              label="CV / Résumé (PDF only)"
               url={form.cv_url}
               onChange={(u) => set("cv_url", u)}
               presign={presign}
               scope="document"
+              accept="application/pdf"
             />
           </div>
         </Section>
