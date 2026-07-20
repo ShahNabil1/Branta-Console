@@ -357,7 +357,7 @@ function ProfileForm({
               </Field>
               <Field
                 label="Employee Code"
-                hint="Your unique Branta Tech ID · scannable barcode is on file with HR"
+                hint="Your unique Branta Tech Employee ID"
               >
                 <Input
                   className="h-9 rounded-sm bg-muted font-mono text-[12.5px] font-semibold tracking-[0.06em] text-foreground"
