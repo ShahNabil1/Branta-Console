@@ -37,6 +37,7 @@ function NewInvoicePage() {
   const emps = useQuery({ queryKey: ["finance-employees"], queryFn: () => listEmp(), staleTime: 30_000 });
 
   const [customerId, setCustomerId] = useState("");
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [projectType, setProjectType] = useState<"one_time" | "monthly_retainer">("one_time");
@@ -51,6 +52,26 @@ function NewInvoicePage() {
   const [stakeholders, setStakeholders] = useState<Stakeholder[]>([
     { user_id: "", role: "company", percent: 100 },
   ]);
+
+  const customerItems: SearchableItem[] = useMemo(
+    () => (custs.data ?? []).map((c) => ({
+      value: c.id,
+      label: `${c.customer_code} · ${c.name}`,
+      hint: c.company ?? c.email ?? c.phone ?? undefined,
+      keywords: [c.name, c.customer_code, c.email, c.phone, c.company],
+    })),
+    [custs.data],
+  );
+
+  const employeeItems: SearchableItem[] = useMemo(
+    () => (emps.data ?? []).map((e) => ({
+      value: e.user_id,
+      label: e.full_name ?? e.user_id.slice(0, 8),
+      hint: e.employee_code ?? undefined,
+      keywords: [e.full_name, e.employee_code, e.job_role, (e as { email?: string | null }).email],
+    })),
+    [emps.data],
+  );
 
   const totalNum = Number(total) || 0;
   const instSum = useMemo(() => installments.reduce((a, i) => a + Number(i.amount || 0), 0), [installments]);
