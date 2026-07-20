@@ -306,12 +306,12 @@ function ProfileForm({
                   placeholder="As it appears on your NID / passport"
                 />
               </Field>
-              <Field label="Display Name">
+              <Field label="Legal Full Name">
                 <Input
                   className="h-9 rounded-sm"
-                  value={form.full_name ?? ""}
-                  onChange={(e) => set("full_name", e.target.value)}
-                  placeholder="Shown across the console"
+                  value={form.legal_full_name ?? ""}
+                  onChange={(e) => set("legal_full_name", e.target.value)}
+                  placeholder="As it appears on your NID / passport"
                 />
               </Field>
               <Field label="Official Email" hint="Assigned by Branta Tech · read only">
@@ -322,15 +322,16 @@ function ProfileForm({
                 />
               </Field>
               <Field
-                label="Personal Gmail"
+                label="Personal Gmail *"
                 hint="Used for Google Meet invites. Must be a @gmail.com address."
+                className="md:col-span-2"
               >
                 <Input
                   className="h-9 rounded-sm font-mono text-[12px]"
                   value={form.personal_gmail ?? ""}
                   onChange={(e) => set("personal_gmail", e.target.value.trim().toLowerCase() || null)}
-                  placeholder="yourname@gmail.com"
                   type="email"
+                  aria-invalid={!gmailValid}
                 />
               </Field>
             </div>
