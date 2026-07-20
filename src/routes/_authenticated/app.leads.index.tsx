@@ -544,6 +544,7 @@ function SheetSyncButton() {
   const pushFn = useServerFn(pushLeadsToSheet);
   const pullFn = useServerFn(pullLeadsFromSheet);
   const overwriteFn = useServerFn(overwritePullDuplicates);
+  const openFn = useServerFn(openLeadSheet);
   const qc = useQueryClient();
   const [conflicts, setConflicts] = useState<SheetDuplicate[]>([]);
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
