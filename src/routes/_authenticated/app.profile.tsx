@@ -660,7 +660,7 @@ function CropUploadSlot({
             Upload or take photo
           </Button>
           <span className="text-[11px] text-muted-foreground">
-            JPG / PNG · crop preview will open
+            JPG / PNG ·
           </span>
         </div>
       )}
