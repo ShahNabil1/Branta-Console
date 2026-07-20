@@ -310,7 +310,7 @@ function EmployeeDetailPage() {
 
   const e = detail.data;
   const p = e.profile;
-  const isSelf = admin.data?.isAdmin && userId === admin.data && false; // placeholder
+  const isSelf = false;
   const canSuperAdmin = !!admin.data?.isSuperAdmin && !isImpersonating();
 
   const toggleRole = (r: EmployeeRole) => {
