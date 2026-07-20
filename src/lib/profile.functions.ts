@@ -89,6 +89,8 @@ export type ProfileRow = {
   full_name: string | null;
   legal_full_name: string | null;
   avatar_url: string | null;
+  employee_code: string | null;
+  job_role: string | null;
   phone_primary: string | null;
   phone_alt: string | null;
   address_line1: string | null;
@@ -128,6 +130,7 @@ export type ProfileRow = {
   didit_session_id: string | null;
   updated_at: string;
 };
+
 
 export const getMyProfile = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
