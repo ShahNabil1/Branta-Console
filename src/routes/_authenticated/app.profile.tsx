@@ -200,7 +200,14 @@ function ProfileForm({
   const primaryValid = isValidBdPhone(form.phone_primary);
   const altValid = !form.phone_alt || isValidBdPhone(form.phone_alt);
   const gmailValid = isValidGmail(form.personal_gmail);
-  const canSave = dirty && primaryValid && altValid && gmailValid;
+  const addressValid =
+    !!form.address_line1?.trim() &&
+    !!form.division &&
+    !!form.district &&
+    !!form.upazila &&
+    !!form.post_office &&
+    !!form.postcode;
+  const canSave = dirty && primaryValid && altValid && gmailValid && addressValid;
 
   const save = async () => {
     if (!primaryValid) {
@@ -213,6 +220,10 @@ function ProfileForm({
     }
     if (!altValid) {
       toast.error("Alternative Contact must be a valid BD number");
+      return;
+    }
+    if (!addressValid) {
+      toast.error("Address is required — fill every field");
       return;
     }
     setSaving(true);
