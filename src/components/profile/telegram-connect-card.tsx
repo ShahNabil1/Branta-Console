@@ -22,8 +22,25 @@ export function TelegramConnectCard() {
   const statusFn = useServerFn(getMyTelegramStatus);
   const startFn = useServerFn(startTelegramLink);
   const unlinkFn = useServerFn(unlinkMyTelegram);
+  const registerFn = useServerFn(registerTelegramWebhook);
+  const isAdminFn = useServerFn(checkIsAdmin);
   const [polling, setPolling] = useState(false);
   const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const admin = useQuery({ queryKey: ["is-admin"], queryFn: () => isAdminFn() });
+
+  const register = useMutation({
+    mutationFn: () =>
+      registerFn({
+        data: {
+          webhookUrl: `${window.location.origin}/api/public/telegram/webhook`,
+        },
+      }),
+    onSuccess: (r) =>
+      toast.success(r.ok ? "Webhook registered" : `Webhook: ${r.description}`),
+    onError: (err: unknown) =>
+      toast.error(err instanceof Error ? err.message : "Register failed"),
+  });
 
   const status = useQuery({
     queryKey: ["telegram-status"],
