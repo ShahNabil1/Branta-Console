@@ -65,13 +65,10 @@ const COLLAPSE_KEY = "branta.sidebar.collapsed";
 
 export function AppSidebar() {
   const [collapsed, setCollapsed] = useState(false);
-  const [email, setEmail] = useState<string>("");
-  const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   useEffect(() => {
     setCollapsed(localStorage.getItem(COLLAPSE_KEY) === "1");
-    supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? ""));
   }, []);
 
   const toggle = () => {
@@ -79,14 +76,6 @@ export function AppSidebar() {
     setCollapsed(next);
     localStorage.setItem(COLLAPSE_KEY, next ? "1" : "0");
   };
-
-  const initials =
-    email
-      .split("@")[0]
-      ?.split(/[._-]/)
-      .map((p) => p[0]?.toUpperCase())
-      .join("")
-      .slice(0, 2) || "BT";
 
   return (
     <aside
