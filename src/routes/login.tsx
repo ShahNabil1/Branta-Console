@@ -794,6 +794,35 @@ function LoginPage() {
                   </button>
                 </div>
 
+                <div className="flex items-center gap-2 pt-1">
+                  <div className="h-px flex-1 bg-border" />
+                  <span className="text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    or
+                  </span>
+                  <div className="h-px flex-1 bg-border" />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={onPasskeySignIn}
+                  disabled={passkeyBusy || local.length < 3}
+                  className="flex h-9 w-full items-center justify-center gap-2 rounded-sm border border-input bg-background text-[13px] font-semibold text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {passkeyBusy ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <Fingerprint className="size-3.5 text-brand" />
+                  )}
+                  {passkeyBusy ? "Waiting for passkey…" : "Sign in with a passkey"}
+                </button>
+                {passkeyError && (
+                  <p className="text-center text-[11.5px] text-rose-700">
+                    {passkeyError}
+                  </p>
+                )}
+
+
+
                 <div className="flex flex-col items-center gap-2 pt-2">
                   <div className="min-h-[65px] w-full" aria-label="Verification challenge">
                     <Turnstile
