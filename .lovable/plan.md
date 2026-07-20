@@ -1,85 +1,82 @@
-# Inbox Page — Plan
 
-সব ইনকামিং মেইল ([hello@brantatech.com](mailto:hello@brantatech.com) → Cloudflare routing → [brantatech@gmail.com](mailto:brantatech@gmail.com)) সরাসরি Gmail connector দিয়ে fetch করা হবে, DB-তে full body store না করে হালকা metadata cache রাখা হবে, আর reply যাবে existing Resend/Brevo queue দিয়ে।
+# Profile → 4 Tabs + Security Suite + Passkey Login
 
-## 1. Routing & Sidebar
+Backend + shared UI primitives are already in place. This plan wires up the routes and UI. Confirm before I write the ~2000 lines of tab UI and login integration.
 
-- নতুন route: `src/routes/_authenticated/app.inbox.tsx` (list) এবং `app.inbox.$id.tsx` (thread view)।
-- `app-sidebar.tsx`-এ Inbox item-এর `to` `/app` থেকে `/app/inbox` করা।
-
-## 2. Gmail data flow (no heavy DB mirroring)
-
-Gmail-ই source of truth। আমরা শুধু lightweight metadata cache রাখব যাতে lead-linking, notification, unread badge কাজ করে।
-
-Server functions (`src/lib/inbox.functions.ts`, gateway = `google_mail`):
-
-- `listInbox({ pageToken, q })` → `users/me/messages?q=to:hello@brantatech.com -from:me` (+ user filter) → `messages.get(format=metadata)` batched → returns thread list (subject, from, snippet, date, unread, labelIds, lead link)।
-- `getThread(threadId)` → `users/me/threads/{id}?format=full` → parse MIME parts (text/plain + text/html), attachments metadata, headers (Message-ID, References, In-Reply-To)।
-- `markRead(threadId)` → `messages/{id}/modify` removing `UNREAD` (needs `gmail.modify` scope; reconnect flow if 403)।
-- `archiveThread`, `trashThread` — একই modify endpoint।
-
-Client: TanStack Query + Supabase Realtime channel (নিচের cache table)। Auto-poll প্রতি 60s ও tab focus-এ refetch।
-
-## 3. Metadata cache + lead linking
-
-New table `public.inbox_messages` (Gmail message-id primary key):
+## Routes
 
 ```
-gmail_message_id text pk, gmail_thread_id text, from_email citext,
-from_name text, subject text, snippet text, received_at timestamptz,
-is_unread bool, lead_id uuid null → leads(id), lead_contact_id uuid null,
-handled_by uuid null (auto = lead.owner_id), created_at, updated_at
+/app/profile              (layout with tabs + <Outlet />)
+  /personal               (default — existing Personal Information form, minus Payment Methods)
+  /finance                (Payment Methods + Wallet placeholder)
+  /security               (2FA reset, Passkeys, Change Password, Sessions)
+  /activity               (placeholder — "coming soon")
 ```
 
-- GRANT authenticated select/update; service_role all; RLS: super_admin bypass + `handled_by = auth.uid()` OR lead-owner পড়তে/আপডেট করতে পারবে।
-- Realtime publication-এ যুক্ত।
+`app.profile.tsx` becomes a thin layout. All four sub-routes fetch profile via `getMyProfile` (React Query, invalidated on save).
 
-**Auto-linking logic** (server fn `syncInboxMessage`):
+## Personal Information tab
+- Extracted from the old 1813-line `app.profile.tsx`.
+- Sections: Basic (avatar, full name, legal name, personal Gmail), Phone (BdPhoneInput ×2), Address (BdAddressBlock — mandatory), Identity Documents (IdentityDocumentsBlock), Documents (CV PDF), Social Links.
+- Uses `updateMyProfile`. **Payment Methods removed from this tab.**
 
-1. `listInbox` যেকোনো message আগে না দেখলে upsert row।
-2. `from_email` দিয়ে `lead_contacts` + `leads.email/alt_email`-এ match খুঁজি → পেলে `lead_id`, `lead_contact_id`, `handled_by = lead.owner_id` সেট।
-3. Match পেলে:
-  - Gmail-এ label apply (`Lead/BT-XX`) — `users/me/labels` তে না থাকলে তৈরি → `messages.modify` addLabelIds।
-  - `lead_activities`-এ `type='inbound_email'` row।
-  - `leads.last_activity_at = received_at` (bumps to top)।
-  - Owner-এর জন্য notification: existing `notifications_store` pattern-এ push + Realtime toast (নতুন component `InboxReplyNotifier` `EmailFailureNotifier`-এর মতো)।
+## Finance & Wallet tab
+- `PaymentMethodsBlock` — reads/writes `profiles.payment_methods` JSONB via `updateMyProfile`.
+- Wallet section: placeholder card showing 0.00 BDT balance + "Wallet system coming soon" (wired to primary payment method label). No transactions/withdrawal endpoints yet — user said we wire the wallet later.
 
-Sync trigger:
+## Security & Notification tab
 
-- Inbox page open হলে ও প্রতি 60s এ background sync।
-- (Optional Phase 2) Gmail push notification/pub-sub — এখন বাদ, polling যথেষ্ট।
+**Section 1 — Two-Factor Authentication (TOTP)**
+- Shows current status (enrolled/not enrolled) via `supabase.auth.mfa.listFactors()`.
+- "Reset 2FA" button → `useConfirm` warning: "You will be signed out immediately and must set up 2FA again on next login." On confirm: unenroll all TOTP factors via `supabase.auth.mfa.unenroll`, then `signOut()` + redirect to `/login`.
 
-## 4. Thread viewer (Gmail-like UI)
+**Section 2 — Passkeys** (max 3)
+- List via `listMyPasskeys`. Shows friendly name, device type, backed_up badge, last used, created.
+- "Add passkey" dialog → prompt for friendly name → `beginPasskeyRegistration` → `startRegistration` from `@simplewebauthn/browser` → `finishPasskeyRegistration`.
+- Delete button with `useConfirm`.
 
-- Left: thread list (from, subject, snippet, time, unread bold, lead badge `BT-12` clickable → `/app/leads/$slug`)।
-- Right: selected thread — collapsible messages, sanitized HTML iframe (DOMPurify) with plaintext fallback, attachment chips (download via Gmail `attachments.get`)।
-- Filters: All / Unread / Linked to lead / Unlinked / by lead-owner (default = me)।
-- Search box → passes as Gmail `q`।
+**Section 3 — Change Password**
+- Current password, new password, confirm new password.
+- Validates via `strongPasswordSchema`; calls `changeMyPassword`. Toast on success.
 
-## 5. Reply — Resend/Brevo (existing infra reuse)
+**Section 4 — Active Sessions**
+- List via `listMySessions({ current_session_key })`. Row per session: device · browser · OS · city, country · IP · last seen · "This device" badge for current.
+- "Sign out" per row (calls `revokeSession`), "Sign out all other devices" button.
+- Client polls `pingSession` every 60s; when `revoked: true`, calls `supabase.auth.signOut()` + redirect. Session key = random UUID stored in `localStorage` on login.
 
-Reply composer একই `lead-email` pipeline ব্যবহার করবে যাতে queue, chunking, plain+html dual, webhook tracking সব identical থাকে।
+**Notifications** — placeholder ("coming next").
 
-- `src/lib/inbox-reply.functions.ts` → internally reuse `sendLeadEmail` helper থেকে core send/enqueue logic (refactor করে `sendTrackedEmail({ leadId?, provider, to, subject, html, text, headers })` বানানো)।
-- Reply message-এ Gmail থেকে original headers pass করে RFC threading maintain: `In-Reply-To: <original-Message-ID>`, `References: ...` — Resend/Brevo দুই provider-ই custom headers accept করে।
-- Provider selector + fallback toggle Lead compose থেকেই clone।
-- Tags: `lead_id`, `lead_slug`, `lead_email_id`, `inbox_thread_id` — Resend/Brevo webhook-এ existing sheet routing কাজ করবে; inbox thread-এর পাশে delivery status timeline দেখাব।
-- Sent copy Gmail-এ দেখা যাবে না (SMTP নয়, API); তাই send success-এ Gmail `users/me/messages/send` না করে thread-এ আমাদের own record কার্ড দেখাব "Sent via Resend/Brevo · delivered/opened" — Gmail-এ mirroring optional Phase 2।
+## My Activity tab
+- Placeholder card: "Activity timeline — coming next."
 
-## 6. Scopes & setup guide
+## Login page changes (`src/routes/login.tsx`)
+- Add "Sign in with a passkey" button below the password form.
+- Flow: prompt Branta ID → `beginPasskeyLogin` → `startAuthentication` → `finishPasskeyLogin` returns `{ email, token_hash }` → `supabase.auth.verifyOtp({ type: "magiclink", email, token_hash })` → session established.
+- Because WebAuthn already verified biometrics, **skip TOTP step** — set a `bypassMfa` flag in navigation state so `/two-factor` recognizes the AAL2-satisfying-passkey path (or route directly to `/app`; the passkey flow does not enroll MFA, so we route based on whether user has any verified TOTP factor).
+- On any successful login (password+TOTP or passkey): generate `session_key = crypto.randomUUID()`, store in `localStorage.branta_session_key`, call `registerSession({ session_key })`.
 
-Gmail connector-এ প্রয়োজনীয় scopes: `gmail.readonly` (list/get), `gmail.modify` (mark read, apply Lead labels)। 403 `insufficient scopes` এলে `reconnect` prompt দেখাব।
+## Global session-revocation watcher
+- New hook `useSessionWatcher()` mounted in `_authenticated/route.tsx`. Reads `localStorage.branta_session_key`, polls `pingSession` every 60s. On `revoked` → `signOut()` + push to `/login?reason=revoked`.
 
-## Technical Summary
+## Files to write
+- `src/routes/_authenticated/app.profile.tsx` — layout (~120 lines)
+- `src/routes/_authenticated/app.profile.personal.tsx` — extracted from old file (~800 lines)
+- `src/routes/_authenticated/app.profile.finance.tsx` — (~150 lines)
+- `src/routes/_authenticated/app.profile.security.tsx` — (~600 lines)
+- `src/routes/_authenticated/app.profile.activity.tsx` — placeholder (~40 lines)
+- `src/hooks/use-session-watcher.ts` — (~40 lines)
+- Edit `src/routes/_authenticated/route.tsx` — mount watcher
+- Edit `src/routes/login.tsx` — passkey button + `registerSession` on success
+- Redirect `/app/profile` → `/app/profile/personal` (index route)
 
-- New files: `src/routes/_authenticated/app.inbox.tsx`, `app.inbox.$id.tsx`, `src/lib/inbox.functions.ts`, `src/lib/inbox-reply.functions.ts`, `src/components/inbox/*` (ThreadList, ThreadView, ReplyComposer, InboxReplyNotifier)।
-- Refactor: `src/lib/lead-email.functions.ts` — extract `sendTrackedEmail` core।
-- Migration: `inbox_messages` table + GRANTs + RLS + realtime publication।
-- Sidebar route fix।
-- No new secrets; uses existing `GOOGLE_MAIL_API_KEY`, `RESEND_API_KEY`, `BREVO_API_KEY`, webhook secrets।
+## Dependencies to install
+- `@simplewebauthn/browser`
+- `ua-parser-js` (server) — check if already added by earlier turn
 
-## Open questions (ধরে নিয়েছি, ভুল হলে বলো)
+## Notes
+- Real IP: extracted server-side from `cf-connecting-ip` / `x-forwarded-for` (already implemented). No client-side IP request needed.
+- Real geo: server-side `ipapi.co` lookup (already implemented). No Google Maps prompt — that adds noisy consent for marginal value; happy to switch to browser geolocation on request.
+- Passkey max=3 enforced server-side.
+- Password history size=1 (blocks current + previous). Extend later if needed.
 
-1. Inbox filter: ধরে নিলাম শুধুই `to:hello@brantatech.com`-এর incoming (আমাদের নিজের পাঠানো মেইল বাদ)। Sent tab দরকার? - না, ইমেইল তো সেন্ড হবে আমাদের এ্যাক্সিস্টিং রিসেন্ড আর ব্রেভো দিয়ে আর লিড এর মতোই ওইটা ওইটার সব স্ট্যাটাস, ভিউ তে ক্লিক করলে ওইটার কী মেইল সব দেখা যাবে। 
-2. সব employee পুরো inbox দেখবে, নাকি default view "assigned to me" + super_admin সব? আমি ২য়টা ধরেছি। - [hello@brantatech.com](mailto:hello@brantatech.com) এর পুরো ইনবক্স ই দেখুক সব ইমপ্লয়ী 
-3. Notification: শুধু in-app bell/toast, নাকি email/push-ও? - in-app bell/toast আপাতত 
+**Confirm and I proceed with the full implementation. Estimated 6-8 sequential file writes.**

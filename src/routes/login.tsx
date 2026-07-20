@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
-import { AlertCircle, Check, Copy, Eye, EyeOff, Info, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { AlertCircle, Check, Copy, Eye, EyeOff, Fingerprint, Info, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
 import { z } from "zod";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import QRCode from "qrcode";
@@ -8,6 +9,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { cn } from "@/lib/utils";
 import brandLogo from "@/assets/brand-logo.png.asset.json";
+import { registerSession } from "@/lib/user-sessions.functions";
+import { beginPasskeyLogin, finishPasskeyLogin } from "@/lib/passkeys.functions";
+import { ensureSessionKey } from "@/hooks/use-session-watcher";
+
+export const PASSKEY_SESSION_FLAG = "branta.passkey_session";
 
 const TURNSTILE_SITE_KEY = "0x4AAAAAACNbiRh7P7qtgkXG";
 
@@ -73,6 +79,54 @@ type Phase = "credentials" | "enroll" | "challenge";
 function LoginPage() {
   const navigate = useNavigate();
   const { reason, redirect: redirectParam } = useSearch({ from: "/login" });
+  const registerSessionFn = useServerFn(registerSession);
+  const beginPasskey = useServerFn(beginPasskeyLogin);
+  const finishPasskey = useServerFn(finishPasskeyLogin);
+  const [passkeyBusy, setPasskeyBusy] = useState(false);
+  const [passkeyError, setPasskeyError] = useState<string | null>(null);
+
+  const finalizeAndGo = async (opts?: { viaPasskey?: boolean }) => {
+    try {
+      if (opts?.viaPasskey && typeof window !== "undefined") {
+        window.sessionStorage.setItem(PASSKEY_SESSION_FLAG, "1");
+      }
+      const key = ensureSessionKey();
+      await registerSessionFn({ data: { session_key: key } }).catch(() => {});
+    } catch {
+      /* non-fatal */
+    }
+    navigate({ to: sanitizeRedirect(redirectParam) });
+  };
+
+  const onPasskeySignIn = async () => {
+    setPasskeyError(null);
+    const r = localSchema.safeParse(local);
+    if (!r.success) {
+      setLocalError(r.error.issues[0]?.message ?? "Enter your Branta ID first.");
+      return;
+    }
+    setPasskeyBusy(true);
+    try {
+      const { startAuthentication } = await import("@simplewebauthn/browser");
+      const options = await beginPasskey({ data: { branta_local: r.data } });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const assertion = await startAuthentication({ optionsJSON: options as any });
+      const res = await finishPasskey({ data: { assertion_response: assertion } });
+      const { error } = await supabase.auth.verifyOtp({
+        type: "magiclink",
+        email: res.email,
+        token_hash: res.token_hash,
+      });
+      if (error) throw error;
+      await finalizeAndGo({ viaPasskey: true });
+    } catch (err) {
+      const msg = (err as Error).message || "Passkey sign-in failed.";
+      setPasskeyError(msg.includes("NotAllowed") ? "Cancelled." : msg);
+    } finally {
+      setPasskeyBusy(false);
+    }
+  };
+
 
   // Phase state
   const [phase, setPhase] = useState<Phase>("credentials");
@@ -370,7 +424,7 @@ function LoginPage() {
       }
       setFailedAttempts(0);
       setLockUntil(0);
-      navigate({ to: sanitizeRedirect(redirectParam) });
+      await finalizeAndGo();
     } finally {
       setVerifying(false);
     }
@@ -739,6 +793,35 @@ function LoginPage() {
                     <span>{submitting ? "Signing in…" : "Sign in"}</span>
                   </button>
                 </div>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <div className="h-px flex-1 bg-border" />
+                  <span className="text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    or
+                  </span>
+                  <div className="h-px flex-1 bg-border" />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={onPasskeySignIn}
+                  disabled={passkeyBusy || local.length < 3}
+                  className="flex h-9 w-full items-center justify-center gap-2 rounded-sm border border-input bg-background text-[13px] font-semibold text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {passkeyBusy ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <Fingerprint className="size-3.5 text-brand" />
+                  )}
+                  {passkeyBusy ? "Waiting for passkey…" : "Sign in with a passkey"}
+                </button>
+                {passkeyError && (
+                  <p className="text-center text-[11.5px] text-rose-700">
+                    {passkeyError}
+                  </p>
+                )}
+
+
 
                 <div className="flex flex-col items-center gap-2 pt-2">
                   <div className="min-h-[65px] w-full" aria-label="Verification challenge">

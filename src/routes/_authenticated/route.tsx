@@ -1,7 +1,9 @@
 import { createFileRoute, Outlet, redirect, useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { useIdleTimeout } from "@/hooks/use-idle-timeout";
+import { useSessionWatcher } from "@/hooks/use-session-watcher";
 import { IMP_ACTIVE_KEY } from "@/lib/impersonation";
+import { PASSKEY_SESSION_FLAG } from "@/routes/login";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -10,13 +12,16 @@ export const Route = createFileRoute("/_authenticated")({
     const { data: userData, error } = await supabase.auth.getUser();
     if (error || !userData.user) throw redirect(redirectTo);
 
-    // Bypass MFA checks while an admin is impersonating another user — the
-    // target account may not have TOTP set up, but the admin's original
-    // session (still stored in sessionStorage) has already satisfied AAL2.
+    // Bypass MFA checks while an admin is impersonating another user, OR when
+    // the current session was established via a passkey (WebAuthn already
+    // provided a strong factor).
     const impersonating =
       typeof window !== "undefined" &&
       sessionStorage.getItem(IMP_ACTIVE_KEY) === "1";
-    if (!impersonating) {
+    const viaPasskey =
+      typeof window !== "undefined" &&
+      sessionStorage.getItem(PASSKEY_SESSION_FLAG) === "1";
+    if (!impersonating && !viaPasskey) {
       const { data: aal } =
         await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
       if (aal?.nextLevel === "aal2" && aal.currentLevel !== "aal2") {
@@ -45,5 +50,6 @@ function AuthGate() {
     await supabase.auth.signOut();
     navigate({ to: "/login", search: { reason: "idle" } });
   });
+  useSessionWatcher();
   return <Outlet />;
 }
