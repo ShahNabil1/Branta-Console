@@ -440,10 +440,19 @@ function ProfileForm({
             />
           </div>
         </Section>
+
+        {/* Social Links */}
+        <Section
+          title="Social Links"
+          description="Add your public profiles — Facebook, WhatsApp, Instagram, LinkedIn, X, YouTube, Telegram, personal website, and more."
+        >
+          <ProfileSocialLinksSection />
+        </Section>
       </div>
     </div>
   );
 }
+
 
 
 // ---------- Identity Documents (NID / Passport / Birth Certificate) ----------
