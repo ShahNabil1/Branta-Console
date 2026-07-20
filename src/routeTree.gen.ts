@@ -25,6 +25,7 @@ import { Route as AuthenticatedAppProfileIndexRouteImport } from './routes/_auth
 import { Route as AuthenticatedAppLeadsIndexRouteImport } from './routes/_authenticated/app.leads.index'
 import { Route as AuthenticatedAppEmployeesIndexRouteImport } from './routes/_authenticated/app.employees.index'
 import { Route as AuthenticatedAppCustomersIndexRouteImport } from './routes/_authenticated/app.customers.index'
+import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram.webhook'
 import { Route as ApiPublicResendWebhookRouteImport } from './routes/api/public/resend.webhook'
 import { Route as ApiPublicBrevoWebhookRouteImport } from './routes/api/public/brevo.webhook'
 import { Route as AuthenticatedAppProfileSecurityRouteImport } from './routes/_authenticated/app.profile.security'
@@ -121,6 +122,12 @@ const AuthenticatedAppCustomersIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedAppCustomersRoute,
   } as any)
+const ApiPublicTelegramWebhookRoute =
+  ApiPublicTelegramWebhookRouteImport.update({
+    id: '/api/public/telegram/webhook',
+    path: '/api/public/telegram/webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicResendWebhookRoute = ApiPublicResendWebhookRouteImport.update({
   id: '/api/public/resend/webhook',
   path: '/api/public/resend/webhook',
@@ -195,6 +202,7 @@ export interface FileRoutesByFullPath {
   '/app/profile/security': typeof AuthenticatedAppProfileSecurityRoute
   '/api/public/brevo/webhook': typeof ApiPublicBrevoWebhookRoute
   '/api/public/resend/webhook': typeof ApiPublicResendWebhookRoute
+  '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
   '/app/customers/': typeof AuthenticatedAppCustomersIndexRoute
   '/app/employees/': typeof AuthenticatedAppEmployeesIndexRoute
   '/app/leads/': typeof AuthenticatedAppLeadsIndexRoute
@@ -217,6 +225,7 @@ export interface FileRoutesByTo {
   '/app/profile/security': typeof AuthenticatedAppProfileSecurityRoute
   '/api/public/brevo/webhook': typeof ApiPublicBrevoWebhookRoute
   '/api/public/resend/webhook': typeof ApiPublicResendWebhookRoute
+  '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
   '/app/customers': typeof AuthenticatedAppCustomersIndexRoute
   '/app/employees': typeof AuthenticatedAppEmployeesIndexRoute
   '/app/leads': typeof AuthenticatedAppLeadsIndexRoute
@@ -245,6 +254,7 @@ export interface FileRoutesById {
   '/_authenticated/app/profile/security': typeof AuthenticatedAppProfileSecurityRoute
   '/api/public/brevo/webhook': typeof ApiPublicBrevoWebhookRoute
   '/api/public/resend/webhook': typeof ApiPublicResendWebhookRoute
+  '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
   '/_authenticated/app/customers/': typeof AuthenticatedAppCustomersIndexRoute
   '/_authenticated/app/employees/': typeof AuthenticatedAppEmployeesIndexRoute
   '/_authenticated/app/leads/': typeof AuthenticatedAppLeadsIndexRoute
@@ -273,6 +283,7 @@ export interface FileRouteTypes {
     | '/app/profile/security'
     | '/api/public/brevo/webhook'
     | '/api/public/resend/webhook'
+    | '/api/public/telegram/webhook'
     | '/app/customers/'
     | '/app/employees/'
     | '/app/leads/'
@@ -295,6 +306,7 @@ export interface FileRouteTypes {
     | '/app/profile/security'
     | '/api/public/brevo/webhook'
     | '/api/public/resend/webhook'
+    | '/api/public/telegram/webhook'
     | '/app/customers'
     | '/app/employees'
     | '/app/leads'
@@ -322,6 +334,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/profile/security'
     | '/api/public/brevo/webhook'
     | '/api/public/resend/webhook'
+    | '/api/public/telegram/webhook'
     | '/_authenticated/app/customers/'
     | '/_authenticated/app/employees/'
     | '/_authenticated/app/leads/'
@@ -335,6 +348,7 @@ export interface RootRouteChildren {
   ApiPublicR2HealthRoute: typeof ApiPublicR2HealthRoute
   ApiPublicBrevoWebhookRoute: typeof ApiPublicBrevoWebhookRoute
   ApiPublicResendWebhookRoute: typeof ApiPublicResendWebhookRoute
+  ApiPublicTelegramWebhookRoute: typeof ApiPublicTelegramWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -450,6 +464,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/customers/'
       preLoaderRoute: typeof AuthenticatedAppCustomersIndexRouteImport
       parentRoute: typeof AuthenticatedAppCustomersRoute
+    }
+    '/api/public/telegram/webhook': {
+      id: '/api/public/telegram/webhook'
+      path: '/api/public/telegram/webhook'
+      fullPath: '/api/public/telegram/webhook'
+      preLoaderRoute: typeof ApiPublicTelegramWebhookRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/public/resend/webhook': {
       id: '/api/public/resend/webhook'
@@ -615,6 +636,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicR2HealthRoute: ApiPublicR2HealthRoute,
   ApiPublicBrevoWebhookRoute: ApiPublicBrevoWebhookRoute,
   ApiPublicResendWebhookRoute: ApiPublicResendWebhookRoute,
+  ApiPublicTelegramWebhookRoute: ApiPublicTelegramWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
