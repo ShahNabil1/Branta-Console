@@ -250,13 +250,16 @@ function NewInvoicePage() {
         <div className="space-y-2">
           {stakeholders.map((s, idx) => (
             <div key={idx} className="grid grid-cols-12 gap-2 rounded-sm border border-border bg-background p-2">
-              <select value={s.user_id} onChange={(e) => setStakeholders(stakeholders.map((x, k) => k === idx ? { ...x, user_id: e.target.value } : x))}
-                className="col-span-5 h-8 rounded-sm border border-input bg-background px-2 text-[12.5px]">
-                <option value="">— Employee —</option>
-                {emps.data?.map((e) => (
-                  <option key={e.user_id} value={e.user_id}>{e.full_name ?? e.user_id.slice(0, 8)} {e.employee_code ? `(${e.employee_code})` : ""}</option>
-                ))}
-              </select>
+              <div className="col-span-5">
+                <SearchableSelect
+                  items={employeeItems}
+                  value={s.user_id}
+                  onChange={(v) => setStakeholders(stakeholders.map((x, k) => k === idx ? { ...x, user_id: v } : x))}
+                  placeholder="— Employee —"
+                  emptyText="No employee matches"
+                  className="h-8 text-[12.5px]"
+                />
+              </div>
               <select value={s.role} onChange={(e) => setStakeholders(stakeholders.map((x, k) => k === idx ? { ...x, role: e.target.value as StakeholderRole } : x))}
                 className="col-span-4 h-8 rounded-sm border border-input bg-background px-2 text-[12.5px] capitalize">
                 <option value="outreach">Outreach</option>
