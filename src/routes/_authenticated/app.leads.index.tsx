@@ -542,7 +542,12 @@ function SheetSyncButton() {
   const getStatus = useServerFn(getSheetSyncStatus);
   const pushFn = useServerFn(pushLeadsToSheet);
   const pullFn = useServerFn(pullLeadsFromSheet);
+  const overwriteFn = useServerFn(overwritePullDuplicates);
   const qc = useQueryClient();
+  const [conflicts, setConflicts] = useState<SheetDuplicate[]>([]);
+  const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
+  const [dialogOpen, setDialogOpen] = useState(false);
+
   const status = useQuery({
     queryKey: ["leads", "sheet-status"],
     queryFn: () => getStatus(),
@@ -551,7 +556,9 @@ function SheetSyncButton() {
   const pushM = useMutation({
     mutationFn: () => pushFn(),
     onSuccess: (r) => {
-      toast.success("Pushed to Google Sheet");
+      toast.success(
+        `Sheet updated · ${r.appended} new · ${r.updated} updated · ${r.skipped} unchanged`,
+      );
       qc.invalidateQueries({ queryKey: ["leads"] });
       if (r.spreadsheetUrl) window.open(r.spreadsheetUrl, "_blank");
     },
@@ -560,44 +567,177 @@ function SheetSyncButton() {
   const pullM = useMutation({
     mutationFn: () => pullFn(),
     onSuccess: (r) => {
-      toast.success(`Pulled: ${r.created} new · ${r.updated} updated`);
       qc.invalidateQueries({ queryKey: ["leads"] });
+      if (r.skippedDuplicates.length > 0) {
+        setConflicts(r.skippedDuplicates);
+        setSelectedRows(new Set(r.skippedDuplicates.map((d) => d.row)));
+        setDialogOpen(true);
+        toast.warning(
+          `Pulled ${r.created} new · skipped ${r.skippedDuplicates.length} duplicate(s)`,
+        );
+      } else {
+        toast.success(`Pulled ${r.created} new leads`);
+      }
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Pull failed"),
   });
-  const busy = pushM.isPending || pullM.isPending;
+  const overwriteM = useMutation({
+    mutationFn: (rows: number[]) => overwriteFn({ data: { rows } }),
+    onSuccess: (r) => {
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      toast.success(`Imported ${r.created} duplicate row(s)`);
+      setDialogOpen(false);
+      setConflicts([]);
+      setSelectedRows(new Set());
+    },
+    onError: (e) =>
+      toast.error(e instanceof Error ? e.message : "Overwrite failed"),
+  });
+  const busy = pushM.isPending || pullM.isPending || overwriteM.isPending;
+
+  const toggleRow = (row: number) => {
+    setSelectedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(row)) next.delete(row);
+      else next.add(row);
+      return next;
+    });
+  };
+  const toggleAll = () => {
+    setSelectedRows((prev) =>
+      prev.size === conflicts.length
+        ? new Set()
+        : new Set(conflicts.map((d) => d.row)),
+    );
+  };
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-9 rounded-sm border-border text-[12.5px]"
-          disabled={busy}
-        >
-          {busy ? (
-            <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-          ) : (
-            <SheetIcon className="mr-1.5 size-3.5" />
-          )}
-          Sheet
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56 rounded-sm text-[12.5px]">
-        <DropdownMenuItem onClick={() => pushM.mutate()} disabled={busy}>
-          <ArrowUpToLine className="mr-2 size-3.5" /> Push leads → Sheet
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => pullM.mutate()} disabled={busy}>
-          <ArrowDownToLine className="mr-2 size-3.5" /> Pull from Sheet
-        </DropdownMenuItem>
-        {status.data?.spreadsheetUrl && (
-          <DropdownMenuItem
-            onClick={() => window.open(status.data.spreadsheetUrl!, "_blank")}
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 rounded-sm border-border text-[12.5px]"
+            disabled={busy}
           >
-            <ExternalLink className="mr-2 size-3.5" /> Open Sheet
+            {busy ? (
+              <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+            ) : (
+              <SheetIcon className="mr-1.5 size-3.5" />
+            )}
+            Sheet
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="end"
+          className="w-56 rounded-sm text-[12.5px]"
+        >
+          <DropdownMenuItem onClick={() => pushM.mutate()} disabled={busy}>
+            <ArrowUpToLine className="mr-2 size-3.5" /> Push leads → Sheet
           </DropdownMenuItem>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+          <DropdownMenuItem onClick={() => pullM.mutate()} disabled={busy}>
+            <ArrowDownToLine className="mr-2 size-3.5" /> Pull from Sheet
+          </DropdownMenuItem>
+          {status.data?.spreadsheetUrl && (
+            <DropdownMenuItem
+              onClick={() =>
+                window.open(status.data.spreadsheetUrl!, "_blank")
+              }
+            >
+              <ExternalLink className="mr-2 size-3.5" /> Open Sheet
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-2xl rounded-sm">
+          <DialogHeader>
+            <DialogTitle className="text-[14px]">
+              Duplicate rows skipped
+            </DialogTitle>
+            <DialogDescription className="text-[12px]">
+              These rows in the sheet share an email or phone with a lead you
+              already have. Select the ones you want to import anyway — the
+              existing leads will stay untouched.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[420px] overflow-auto rounded-sm border border-border">
+            <table className="w-full text-[12px]">
+              <thead className="bg-muted/60 text-left text-[11px] uppercase tracking-wide text-muted-foreground">
+                <tr>
+                  <th className="w-8 px-2 py-1.5">
+                    <Checkbox
+                      checked={
+                        conflicts.length > 0 &&
+                        selectedRows.size === conflicts.length
+                      }
+                      onCheckedChange={toggleAll}
+                    />
+                  </th>
+                  <th className="px-2 py-1.5">Row</th>
+                  <th className="px-2 py-1.5">Name</th>
+                  <th className="px-2 py-1.5">Contact</th>
+                  <th className="px-2 py-1.5">Matches</th>
+                </tr>
+              </thead>
+              <tbody>
+                {conflicts.map((c) => (
+                  <tr
+                    key={c.row}
+                    className="border-t border-border hover:bg-muted/40"
+                  >
+                    <td className="px-2 py-1.5">
+                      <Checkbox
+                        checked={selectedRows.has(c.row)}
+                        onCheckedChange={() => toggleRow(c.row)}
+                      />
+                    </td>
+                    <td className="px-2 py-1.5 font-mono">{c.row}</td>
+                    <td className="px-2 py-1.5">{c.name}</td>
+                    <td className="px-2 py-1.5 text-muted-foreground">
+                      {c.email ?? c.phone ?? "—"}
+                    </td>
+                    <td className="px-2 py-1.5">
+                      <span className="font-mono text-primary">
+                        {c.matchedSlug}
+                      </span>
+                      <span className="ml-1 text-muted-foreground">
+                        · {c.matchedName} ({c.matchedOn})
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 rounded-sm text-[12.5px]"
+              onClick={() => setDialogOpen(false)}
+              disabled={overwriteM.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              className="h-9 rounded-sm bg-primary text-[12.5px] text-primary-foreground hover:bg-brand-700"
+              disabled={selectedRows.size === 0 || overwriteM.isPending}
+              onClick={() =>
+                overwriteM.mutate(Array.from(selectedRows).sort((a, b) => a - b))
+              }
+            >
+              {overwriteM.isPending ? (
+                <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+              ) : null}
+              Overwrite {selectedRows.size} row(s)
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
