@@ -374,7 +374,7 @@ function ProfileForm({
               </Field>
               <Field
                 label="Job Role"
-                hint="Assigned by a Super Admin · read only"
+                hint="Assigned by Branta Tech · read only"
               >
                 <Input
                   className="h-9 rounded-sm bg-muted text-[12.5px]"
