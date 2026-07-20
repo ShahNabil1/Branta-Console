@@ -359,52 +359,8 @@ function ProfileForm({
         </Section>
 
         {/* Address */}
-        <Section title="Address">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Field label="Address Line 1" className="md:col-span-2">
-              <Input
-                className="h-9 rounded-sm"
-                value={form.address_line1 ?? ""}
-                onChange={(e) => set("address_line1", e.target.value)}
-                placeholder="House / Road / Village"
-              />
-            </Field>
-            <Field label="Address Line 2" className="md:col-span-2">
-              <Input
-                className="h-9 rounded-sm"
-                value={form.address_line2 ?? ""}
-                onChange={(e) => set("address_line2", e.target.value)}
-              />
-            </Field>
-            <Field label="City / Thana">
-              <Input
-                className="h-9 rounded-sm"
-                value={form.city ?? ""}
-                onChange={(e) => set("city", e.target.value)}
-              />
-            </Field>
-            <Field label="District">
-              <Input
-                className="h-9 rounded-sm"
-                value={form.district ?? ""}
-                onChange={(e) => set("district", e.target.value)}
-              />
-            </Field>
-            <Field label="Postcode">
-              <Input
-                className="h-9 rounded-sm"
-                value={form.postcode ?? ""}
-                onChange={(e) => set("postcode", e.target.value)}
-              />
-            </Field>
-            <Field label="Country">
-              <Input
-                className="h-9 rounded-sm"
-                value={form.country ?? ""}
-                onChange={(e) => set("country", e.target.value)}
-              />
-            </Field>
-          </div>
+        <Section title="Address" description="Bangladesh only. Select from the cascading dropdowns; postcode fills in automatically.">
+          <BdAddressBlock form={form} set={set} />
         </Section>
 
         {/* Banking / MFS */}
