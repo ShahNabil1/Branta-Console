@@ -31,24 +31,65 @@ export function useSessionWatcher() {
     const key = window.localStorage.getItem(SESSION_KEY_STORAGE);
     if (!key) return;
     let stopped = false;
+
+    const forceSignOut = async () => {
+      if (stopped) return;
+      stopped = true;
+      window.localStorage.removeItem(SESSION_KEY_STORAGE);
+      try {
+        await supabase.auth.signOut();
+      } catch {
+        // ignore — we still want to bounce to /login
+      }
+      navigate({ to: "/login", search: { reason: "signed_out" } });
+    };
+
     const tick = async () => {
       try {
         const res = await ping({ data: { session_key: key } });
         if (stopped) return;
-        if (res.revoked) {
-          window.localStorage.removeItem(SESSION_KEY_STORAGE);
-          await supabase.auth.signOut();
-          navigate({ to: "/login", search: { reason: "signed_out" } });
-        }
+        if (res.revoked) await forceSignOut();
       } catch {
         // silent — network hiccups shouldn't sign the user out
       }
     };
     void tick();
     const id = window.setInterval(tick, PING_INTERVAL_MS);
+
+    // Realtime: react instantly when THIS session_key row gets revoked
+    // elsewhere. Falls back to the 60s poll if realtime is unavailable.
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    (async () => {
+      const { data } = await supabase.auth.getUser();
+      const uid = data.user?.id;
+      if (!uid || stopped) return;
+      channel = supabase
+        .channel(`user-sessions:${uid}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "user_sessions",
+            filter: `user_id=eq.${uid}`,
+          },
+          (payload) => {
+            const row = payload.new as {
+              session_key?: string;
+              revoked_at?: string | null;
+            };
+            if (row?.session_key === key && row.revoked_at) {
+              void forceSignOut();
+            }
+          },
+        )
+        .subscribe();
+    })();
+
     return () => {
       stopped = true;
       window.clearInterval(id);
+      if (channel) supabase.removeChannel(channel);
     };
   }, [navigate, ping]);
 }
