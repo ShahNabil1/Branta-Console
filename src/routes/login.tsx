@@ -424,7 +424,7 @@ function LoginPage() {
       }
       setFailedAttempts(0);
       setLockUntil(0);
-      navigate({ to: sanitizeRedirect(redirectParam) });
+      await finalizeAndGo();
     } finally {
       setVerifying(false);
     }
