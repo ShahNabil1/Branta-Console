@@ -341,20 +341,18 @@ function ProfileForm({
         {/* Contact */}
         <Section title="Contact">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Field label="Primary Contact">
-              <Input
-                className="h-9 rounded-sm"
+            <Field label="Primary Contact *">
+              <BdPhoneInput
                 value={form.phone_primary ?? ""}
-                onChange={(e) => set("phone_primary", e.target.value)}
-                placeholder="+8801XXXXXXXXX"
+                onChange={(v) => set("phone_primary", v || null)}
+                invalid={!primaryValid}
               />
             </Field>
             <Field label="Alternative Contact">
-              <Input
-                className="h-9 rounded-sm"
+              <BdPhoneInput
                 value={form.phone_alt ?? ""}
-                onChange={(e) => set("phone_alt", e.target.value)}
-                placeholder="+8801XXXXXXXXX"
+                onChange={(v) => set("phone_alt", v || null)}
+                invalid={!altValid}
               />
             </Field>
           </div>
