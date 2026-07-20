@@ -49,7 +49,6 @@ import {
   type LeadStatusOption,
 } from "@/lib/lead-options.functions";
 import {
-  getSheetSyncStatus,
   openLeadSheet,
   pushLeadsToSheet,
   pullLeadsFromSheet,
