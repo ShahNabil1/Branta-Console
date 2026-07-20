@@ -360,7 +360,13 @@ export const createLead = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<LeadRow> => {
     const email = data.email === "" ? null : data.email ?? null;
     const altEmail = data.alt_email === "" ? null : data.alt_email ?? null;
+    await throwIfDuplicate(
+      context.supabase,
+      { email, alt_email: altEmail, phone: data.phone ?? null, alt_phone: data.alt_phone ?? null },
+      null,
+    );
     const { data: row, error } = await context.supabase
+
       .from("leads")
       .insert({
         name: data.name,
