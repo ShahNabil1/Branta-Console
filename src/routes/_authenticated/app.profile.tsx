@@ -388,55 +388,15 @@ function ProfileForm({
           <BdAddressBlock form={form} set={set} />
         </Section>
 
-        {/* Banking / MFS */}
+        {/* Payment methods */}
         <Section
-          title="Banking & Mobile Financial Services"
-          description="Used for payroll and reimbursements."
+          title="Payment Methods"
+          description="Add one or more bank or mobile-financial accounts. Mark one as primary — payroll and reimbursements will use it first."
         >
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Field label="Bank Name">
-              <Input
-                className="h-9 rounded-sm"
-                value={form.bank_name ?? ""}
-                onChange={(e) => set("bank_name", e.target.value)}
-              />
-            </Field>
-            <Field label="Account Holder Name">
-              <Input
-                className="h-9 rounded-sm"
-                value={form.bank_account_name ?? ""}
-                onChange={(e) => set("bank_account_name", e.target.value)}
-              />
-            </Field>
-            <Field label="Account Number">
-              <Input
-                className="h-9 rounded-sm font-mono text-[12px]"
-                value={form.bank_account_number ?? ""}
-                onChange={(e) => set("bank_account_number", e.target.value)}
-              />
-            </Field>
-            <Field label="Routing Number">
-              <Input
-                className="h-9 rounded-sm font-mono text-[12px]"
-                value={form.bank_routing ?? ""}
-                onChange={(e) => set("bank_routing", e.target.value)}
-              />
-            </Field>
-            <Field label="MFS Provider" hint="bKash / Nagad / Rocket / Upay">
-              <Input
-                className="h-9 rounded-sm"
-                value={form.mfs_provider ?? ""}
-                onChange={(e) => set("mfs_provider", e.target.value)}
-              />
-            </Field>
-            <Field label="MFS Number">
-              <Input
-                className="h-9 rounded-sm font-mono text-[12px]"
-                value={form.mfs_number ?? ""}
-                onChange={(e) => set("mfs_number", e.target.value)}
-              />
-            </Field>
-          </div>
+          <PaymentMethodsBlock
+            methods={form.payment_methods ?? []}
+            onChange={(next) => set("payment_methods", next)}
+          />
         </Section>
 
         {/* Documents */}
