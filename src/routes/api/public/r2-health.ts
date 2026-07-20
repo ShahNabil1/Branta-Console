@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { checkR2Health, createPresignedPutUrl, createPresignedGetUrl, deleteObject, getR2Client, getR2Config } from "@/lib/r2.server";
-import { PutObjectCommand } from "@aws-sdk/client-s3";
 
 export const Route = createFileRoute("/api/public/r2-health")({
   server: {
@@ -14,7 +13,10 @@ export const Route = createFileRoute("/api/public/r2-health")({
         const key = `_diagnostics/health-${Date.now()}.txt`;
         try {
           const cfg = getR2Config();
-          const client = getR2Client(cfg);
+          const [{ PutObjectCommand }, client] = await Promise.all([
+            import("@aws-sdk/client-s3"),
+            getR2Client(cfg),
+          ]);
           await client.send(new PutObjectCommand({
             Bucket: cfg.bucket,
             Key: key,

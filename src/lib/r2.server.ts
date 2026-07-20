@@ -9,9 +9,6 @@
  *   R2_PUBLIC_BASE_URL (optional CDN base, e.g. https://cdn.brantatech.com)
  */
 
-import { S3Client, HeadBucketCommand, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-
 export type R2Config = {
   accountId: string;
   accessKeyId: string;
@@ -44,7 +41,10 @@ export function getR2Config(): R2Config {
   };
 }
 
-export function getR2Client(cfg: R2Config = getR2Config()): S3Client {
+export async function getR2Client(
+  cfg: R2Config = getR2Config(),
+): Promise<import("@aws-sdk/client-s3").S3Client> {
+  const { S3Client } = await import("@aws-sdk/client-s3");
   return new S3Client({
     region: "auto",
     endpoint: cfg.endpoint,
@@ -61,7 +61,11 @@ export async function createPresignedPutUrl(params: {
   expiresInSeconds?: number;
 }): Promise<{ url: string; publicUrl: string | null; key: string }> {
   const cfg = getR2Config();
-  const client = getR2Client(cfg);
+  const [{ PutObjectCommand }, { getSignedUrl }, client] = await Promise.all([
+    import("@aws-sdk/client-s3"),
+    import("@aws-sdk/s3-request-presigner"),
+    getR2Client(cfg),
+  ]);
   const url = await getSignedUrl(
     client,
     new PutObjectCommand({
@@ -82,7 +86,11 @@ export async function createPresignedGetUrl(params: {
   expiresInSeconds?: number;
 }): Promise<string> {
   const cfg = getR2Config();
-  const client = getR2Client(cfg);
+  const [{ GetObjectCommand }, { getSignedUrl }, client] = await Promise.all([
+    import("@aws-sdk/client-s3"),
+    import("@aws-sdk/s3-request-presigner"),
+    getR2Client(cfg),
+  ]);
   return getSignedUrl(
     client,
     new GetObjectCommand({ Bucket: cfg.bucket, Key: params.key }),
@@ -92,7 +100,10 @@ export async function createPresignedGetUrl(params: {
 
 export async function deleteObject(key: string): Promise<void> {
   const cfg = getR2Config();
-  const client = getR2Client(cfg);
+  const [{ DeleteObjectCommand }, client] = await Promise.all([
+    import("@aws-sdk/client-s3"),
+    getR2Client(cfg),
+  ]);
   await client.send(new DeleteObjectCommand({ Bucket: cfg.bucket, Key: key }));
 }
 
@@ -108,7 +119,10 @@ export async function checkR2Health(): Promise<{
 }> {
   try {
     const cfg = getR2Config();
-    const client = getR2Client(cfg);
+    const [{ HeadBucketCommand }, client] = await Promise.all([
+      import("@aws-sdk/client-s3"),
+      getR2Client(cfg),
+    ]);
     await client.send(new HeadBucketCommand({ Bucket: cfg.bucket }));
     return {
       ok: true,
