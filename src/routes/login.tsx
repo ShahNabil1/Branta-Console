@@ -448,14 +448,6 @@ function LoginPage() {
         lastSubmittedCodeRef.current = "";
         return;
       }
-        registerFailedAttempt();
-        if (phase === "challenge") {
-          const { data: ch } = await supabase.auth.mfa.challenge({ factorId });
-          if (ch) setChallengeId(ch.id);
-        }
-        lastSubmittedCodeRef.current = "";
-        return;
-      }
       setFailedAttempts(0);
       setLockUntil(0);
       await finalizeAndGo();
