@@ -126,7 +126,7 @@ export function TelegramConnectCard() {
                     title: "Unlink Telegram?",
                     description:
                       "You will stop receiving Branta Tech notifications on this Telegram chat. You can reconnect any time.",
-                    confirmText: "Unlink",
+                    confirmLabel: "Unlink",
                     tone: "danger",
                   });
                   if (ok) unlink.mutate();
