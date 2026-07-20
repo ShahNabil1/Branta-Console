@@ -423,7 +423,7 @@ export const listMyPayouts = createServerFn({ method: "GET" })
         : Promise.resolve({ data: [] as { id: string; label: string; due_date: string }[] }),
     ]);
     const invMap = new Map<string, string>();
-    (invs ?? []).forEach((i: { id: string; slug: string }) => invMap.set(i.id, i.slug));
+    (invs ?? []).forEach((i: { id: string; slug: string | null }) => invMap.set(i.id, i.slug ?? ""));
     const instMap = new Map<string, { label: string; due_date: string }>();
     (insts ?? []).forEach((i: { id: string; label: string; due_date: string }) =>
       instMap.set(i.id, { label: i.label, due_date: i.due_date }),
