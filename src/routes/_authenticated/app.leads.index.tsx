@@ -539,7 +539,6 @@ function EmptyState({
 
 // ---------- Sheet sync ----------
 function SheetSyncButton() {
-  const getStatus = useServerFn(getSheetSyncStatus);
   const pushFn = useServerFn(pushLeadsToSheet);
   const pullFn = useServerFn(pullLeadsFromSheet);
   const overwriteFn = useServerFn(overwritePullDuplicates);
@@ -549,8 +548,7 @@ function SheetSyncButton() {
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  // Sheet status is fetched lazily via the Open action; no query needed here.
-  void getStatus;
+
 
   const pushM = useMutation({
     mutationFn: () => pushFn(),
