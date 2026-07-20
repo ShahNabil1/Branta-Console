@@ -14,7 +14,18 @@ import {
   Star,
   Landmark,
   Smartphone,
+  Eye,
+  ImageUp,
+  Camera,
+  X,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   getMyProfile,
   updateMyProfile,
@@ -1048,19 +1059,107 @@ function AvatarUploader({
 }) {
   const upload = useR2Upload(presign, "avatar");
   const inputRef = useRef<HTMLInputElement>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [viewOpen, setViewOpen] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(false);
+
+  const pickFile = () => {
+    setMenuOpen(false);
+    // Defer to allow dropdown to unmount before opening the picker
+    setTimeout(() => inputRef.current?.click(), 0);
+  };
+
+  const openView = () => {
+    if (!url) return;
+    setMenuOpen(false);
+    setViewOpen(true);
+  };
+
+  const askRemove = () => {
+    setMenuOpen(false);
+    setConfirmRemove(true);
+  };
+
+  const doRemove = () => {
+    onChange("");
+    setConfirmRemove(false);
+    toast.success("Profile picture removed");
+  };
 
   return (
     <div className="flex flex-col items-start gap-2">
-      <div className="size-[104px] overflow-hidden rounded-md border border-border bg-muted">
-        {url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={url} alt="Avatar" className="size-full object-cover" />
-        ) : (
-          <div className="flex size-full items-center justify-center text-[11px] text-muted-foreground">
-            No photo
-          </div>
-        )}
-      </div>
+      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            aria-label="Profile picture options"
+            className="group relative size-[104px] overflow-hidden rounded-full border border-border bg-muted outline-none ring-offset-background transition focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+            disabled={upload.isPending}
+          >
+            {url ? (
+              <img
+                src={url}
+                alt="Profile"
+                className="size-full object-cover"
+              />
+            ) : (
+              <div className="flex size-full items-center justify-center text-[11px] text-muted-foreground">
+                No photo
+              </div>
+            )}
+            <div className="pointer-events-none absolute inset-0 flex items-end justify-center bg-gradient-to-t from-black/55 via-black/10 to-transparent opacity-0 transition-opacity group-hover:opacity-100">
+              <div className="mb-2 inline-flex items-center gap-1 rounded-full bg-black/70 px-2 py-0.5 text-[10.5px] font-semibold text-white">
+                <Camera className="size-3" />
+                Edit
+              </div>
+            </div>
+            {upload.isPending && (
+              <div className="absolute inset-0 grid place-items-center bg-black/40">
+                <Loader2 className="size-5 animate-spin text-white" />
+              </div>
+            )}
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-56 rounded-md">
+          <DropdownMenuItem
+            onSelect={(e) => {
+              e.preventDefault();
+              openView();
+            }}
+            disabled={!url}
+            className="gap-2 text-[12.5px]"
+          >
+            <Eye className="size-3.5" />
+            View profile picture
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={(e) => {
+              e.preventDefault();
+              pickFile();
+            }}
+            className="gap-2 text-[12.5px]"
+          >
+            <ImageUp className="size-3.5" />
+            {url ? "Update profile picture" : "Upload profile picture"}
+          </DropdownMenuItem>
+          {url && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onSelect={(e) => {
+                  e.preventDefault();
+                  askRemove();
+                }}
+                className="gap-2 text-[12.5px] text-red-600 focus:bg-red-50 focus:text-red-700"
+              >
+                <Trash2 className="size-3.5" />
+                Remove profile picture
+              </DropdownMenuItem>
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+
       <input
         ref={inputRef}
         type="file"
@@ -1068,33 +1167,98 @@ function AvatarUploader({
         className="hidden"
         onChange={(e) => {
           const f = e.target.files?.[0];
+          // Reset so selecting the same file again re-triggers change
+          e.target.value = "";
           if (!f) return;
           upload.mutate(f, {
             onSuccess: (u) => {
               onChange(u);
-              toast.success("Avatar uploaded");
+              toast.success("Profile picture updated");
             },
             onError: (err) => toast.error((err as Error).message),
           });
         }}
       />
-      <Button
-        variant="outline"
-        size="sm"
-        className="h-8 rounded-sm text-[12px]"
-        onClick={() => inputRef.current?.click()}
-        disabled={upload.isPending}
-      >
-        {upload.isPending ? (
-          <Loader2 className="mr-1.5 size-3 animate-spin" />
-        ) : (
-          <Upload className="mr-1.5 size-3" />
-        )}
-        {url ? "Replace" : "Upload"}
-      </Button>
+
+      {/* View dialog */}
+      <Dialog open={viewOpen} onOpenChange={setViewOpen}>
+        <DialogContent className="max-w-lg p-0 overflow-hidden">
+          <DialogHeader className="border-b border-border px-4 py-2.5">
+            <DialogTitle className="text-[13px] font-semibold">
+              Profile picture
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid place-items-center bg-black/95 p-4">
+            {url && (
+              <img
+                src={url}
+                alt="Profile full"
+                className="max-h-[70vh] w-auto max-w-full rounded-sm object-contain"
+              />
+            )}
+          </div>
+          <div className="flex items-center justify-end gap-2 border-t border-border px-4 py-2.5">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 rounded-sm text-[12px]"
+              onClick={() => {
+                setViewOpen(false);
+                pickFile();
+              }}
+            >
+              <ImageUp className="mr-1.5 size-3" />
+              Update
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 rounded-sm text-[12px]"
+              onClick={() => setViewOpen(false)}
+            >
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Remove confirmation */}
+      <Dialog open={confirmRemove} onOpenChange={setConfirmRemove}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-[14px]">
+              Remove profile picture?
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-[12.5px] text-muted-foreground">
+            Your profile will show the default placeholder until you upload a
+            new photo.
+          </p>
+          <div className="mt-2 flex items-center justify-end gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 rounded-sm text-[12px]"
+              onClick={() => setConfirmRemove(false)}
+            >
+              <X className="mr-1.5 size-3" />
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              className="h-8 rounded-sm bg-red-600 text-[12px] text-white hover:bg-red-700"
+              onClick={doRemove}
+            >
+              <Trash2 className="mr-1.5 size-3" />
+              Remove
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
 
 function DocumentSlot({
   label,
