@@ -300,6 +300,13 @@ function NewInvoicePage() {
           </Button>
         </div>
       </div>
+
+      <QuickCustomerDialog
+        open={quickAddOpen}
+        onOpenChange={setQuickAddOpen}
+        defaultCurrency={currency}
+        onCreated={(c) => setCustomerId(c.id)}
+      />
     </div>
   );
 }
