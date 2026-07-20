@@ -739,16 +739,52 @@ function BdAddressBlock({
       ? BD_TREE[form.division]?.[form.district]?.[form.upazila]?.[form.post_office] ?? null
       : null;
 
-  // Auto-sync postcode whenever the post office changes.
+  // Prune stale/orphaned selections that no longer match the cascading tree.
+  // Without this, a previously-saved value (e.g. postcode 5800) sticks around
+  // even though the visible dropdown shows nothing, and downstream selects
+  // wrongly become enabled because their parent is truthy but invalid.
   useEffect(() => {
+    if (form.division && !divisions.includes(form.division)) {
+      set("division", null);
+      set("district", null);
+      set("upazila", null);
+      set("post_office", null);
+      set("postcode", null);
+      return;
+    }
+    if (form.district && !districts.includes(form.district)) {
+      set("district", null);
+      set("upazila", null);
+      set("post_office", null);
+      set("postcode", null);
+      return;
+    }
+    if (form.upazila && !upazilas.includes(form.upazila)) {
+      set("upazila", null);
+      set("post_office", null);
+      set("postcode", null);
+      return;
+    }
+    if (form.post_office && !postOffices.includes(form.post_office)) {
+      set("post_office", null);
+      set("postcode", null);
+      return;
+    }
+    if (!form.post_office && form.postcode) {
+      set("postcode", null);
+      return;
+    }
     if (autoPostcode && autoPostcode !== form.postcode) {
       set("postcode", autoPostcode);
     }
-    if (!autoPostcode && form.postcode && !form.post_office) {
-      set("postcode", null);
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoPostcode]);
+  }, [
+    form.division,
+    form.district,
+    form.upazila,
+    form.post_office,
+    autoPostcode,
+  ]);
 
   return (
     <div className="grid grid-cols-1 gap-4">
