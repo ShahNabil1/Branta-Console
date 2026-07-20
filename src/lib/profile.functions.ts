@@ -85,6 +85,7 @@ export type ProfileRow = {
   bank_routing: string | null;
   mfs_provider: string | null;
   mfs_number: string | null;
+  payment_methods: PaymentMethod[] | null;
   nid_url: string | null;
   cv_url: string | null;
   personal_gmail: string | null;
