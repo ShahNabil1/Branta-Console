@@ -181,13 +181,134 @@ async function upsertPrimaryContact(
   );
 }
 
+// ---- Duplicate guard ---------------------------------------------------
+// Blocks two different leads from sharing the same email or phone.
+// Case-insensitive email match; phone match on the last-10 digits.
+const normEmailStr = (v: unknown): string | null => {
+  if (typeof v !== "string") return null;
+  const s = v.trim().toLowerCase();
+  return s.includes("@") ? s : null;
+};
+const normPhoneStr = (v: unknown): string | null => {
+  if (typeof v !== "string") return null;
+  const d = v.replace(/\D+/g, "");
+  return d.length >= 7 ? d.slice(-10) : null;
+};
+
+async function throwIfDuplicate(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  fields: {
+    email?: string | null;
+    alt_email?: string | null;
+    phone?: string | null;
+    alt_phone?: string | null;
+  },
+  excludeLeadId: string | null,
+): Promise<void> {
+  const emails = [normEmailStr(fields.email), normEmailStr(fields.alt_email)].filter(
+    (x): x is string => !!x,
+  );
+  const phones = [normPhoneStr(fields.phone), normPhoneStr(fields.alt_phone)].filter(
+    (x): x is string => !!x,
+  );
+  if (emails.length === 0 && phones.length === 0) return;
+
+  const resolveSlug = async (leadId: string): Promise<string> => {
+    const { data } = await supabase.from("leads").select("slug").eq("id", leadId).maybeSingle();
+    return data?.slug ?? leadId.slice(0, 8);
+  };
+
+  // Emails — check leads.alt_email + lead_contacts.email/alt_email.
+  for (const e of emails) {
+    const { data: L } = await supabase
+      .from("leads")
+      .select("id, slug")
+      .ilike("alt_email", e)
+      .limit(5);
+    for (const l of (L ?? []) as { id: string; slug: string }[]) {
+      if (l.id !== excludeLeadId) {
+        throw new Error(`Email ${e} is already used by lead ${l.slug}`);
+      }
+    }
+    for (const col of ["email", "alt_email"] as const) {
+      const { data: C } = await supabase
+        .from("lead_contacts")
+        .select("lead_id")
+        .ilike(col, e)
+        .limit(10);
+      for (const c of (C ?? []) as { lead_id: string }[]) {
+        if (c.lead_id !== excludeLeadId) {
+          const slug = await resolveSlug(c.lead_id);
+          throw new Error(`Email ${e} is already used by lead ${slug}`);
+        }
+      }
+    }
+  }
+
+  if (phones.length > 0) {
+    // Phones are stored unnormalized; scan and compare on last-10.
+    const { data: L } = await supabase
+      .from("leads")
+      .select("id, slug, phone, alt_phone");
+    const leadsList = (L ?? []) as Array<{
+      id: string;
+      slug: string;
+      phone: string | null;
+      alt_phone: string | null;
+    }>;
+    for (const l of leadsList) {
+      if (l.id === excludeLeadId) continue;
+      const lp = normPhoneStr(l.phone);
+      const la = normPhoneStr(l.alt_phone);
+      if ((lp && phones.includes(lp)) || (la && phones.includes(la))) {
+        throw new Error(`Phone is already used by lead ${l.slug}`);
+      }
+    }
+    const { data: C } = await supabase
+      .from("lead_contacts")
+      .select("lead_id, phone, alt_phone");
+    const contactsList = (C ?? []) as Array<{
+      lead_id: string;
+      phone: string | null;
+      alt_phone: string | null;
+    }>;
+    for (const c of contactsList) {
+      if (c.lead_id === excludeLeadId) continue;
+      const cp = normPhoneStr(c.phone);
+      const ca = normPhoneStr(c.alt_phone);
+      if ((cp && phones.includes(cp)) || (ca && phones.includes(ca))) {
+        const slug = await resolveSlug(c.lead_id);
+        throw new Error(`Phone is already used by lead ${slug}`);
+      }
+    }
+  }
+}
+
 export const listLeads = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<LeadRow[]> => {
+    // Sweep abandoned "Untitled lead" drafts (older than 2 min, no meaningful
+    // data). This keeps the list clean when a user clicks New lead and walks
+    // away without saving anything.
+    const cutoff = new Date(Date.now() - 2 * 60_000).toISOString();
+    await context.supabase
+      .from("leads")
+      .delete()
+      .eq("name", DRAFT_LEAD_NAME)
+      .lt("created_at", cutoff)
+      .is("company", null)
+      .is("phone", null)
+      .is("alt_email", null)
+      .is("alt_phone", null)
+      .is("next_action", null)
+      .is("notes", null);
+
     const { data, error } = await context.supabase
       .from("leads")
       .select("*")
       .neq("status", "converted")
+      .neq("name", DRAFT_LEAD_NAME)
       .order("last_activity_at", { ascending: false })
       .limit(500);
     if (error) throw new Error(error.message);
@@ -195,6 +316,7 @@ export const listLeads = createServerFn({ method: "GET" })
     const withEmails = await attachPrimaryEmails(context.supabase, rows);
     return attachOwnerNames(context.supabase, withEmails);
   });
+
 
 export const getLead = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -238,7 +360,13 @@ export const createLead = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<LeadRow> => {
     const email = data.email === "" ? null : data.email ?? null;
     const altEmail = data.alt_email === "" ? null : data.alt_email ?? null;
+    await throwIfDuplicate(
+      context.supabase,
+      { email, alt_email: altEmail, phone: data.phone ?? null, alt_phone: data.alt_phone ?? null },
+      null,
+    );
     const { data: row, error } = await context.supabase
+
       .from("leads")
       .insert({
         name: data.name,
@@ -318,6 +446,19 @@ export const updateLead = createServerFn({ method: "POST" })
     // Split email out — it lives in lead_contacts now.
     const emailPatch = patch.email;
     delete patch.email;
+
+    // Duplicate guard — block reusing an email/phone that another lead owns.
+    await throwIfDuplicate(
+      context.supabase,
+      {
+        email: typeof emailPatch === "string" ? emailPatch : null,
+        alt_email: (patch.alt_email as string | null | undefined) ?? null,
+        phone: (patch.phone as string | null | undefined) ?? null,
+        alt_phone: (patch.alt_phone as string | null | undefined) ?? null,
+      },
+      data.id,
+    );
+
 
     const { data: prior } = await context.supabase
       .from("leads")
@@ -507,6 +648,16 @@ export const addLeadContact = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => ContactInput.parse(d))
   .handler(async ({ data, context }): Promise<LeadContactRow> => {
+    await throwIfDuplicate(
+      context.supabase,
+      {
+        email: data.email,
+        alt_email: data.alt_email ?? null,
+        phone: data.phone ?? null,
+        alt_phone: data.alt_phone ?? null,
+      },
+      data.leadId,
+    );
     if (data.isPrimary) {
       await context.supabase
         .from("lead_contacts")
@@ -556,6 +707,22 @@ export const updateLeadContact = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => UpdateContactInput.parse(d))
   .handler(async ({ data, context }): Promise<LeadContactRow> => {
+    // Resolve owning lead so the dup check can exclude it.
+    const { data: owner } = await context.supabase
+      .from("lead_contacts")
+      .select("lead_id")
+      .eq("id", data.id)
+      .maybeSingle();
+    await throwIfDuplicate(
+      context.supabase,
+      {
+        email: data.email ?? null,
+        alt_email: data.alt_email ?? null,
+        phone: data.phone ?? null,
+        alt_phone: data.alt_phone ?? null,
+      },
+      owner?.lead_id ?? null,
+    );
     const patch: Record<string, unknown> = {};
     const keys: (keyof typeof data)[] = [
       "name",
