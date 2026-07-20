@@ -251,12 +251,13 @@ async function throwIfDuplicate(
     const { data: L } = await supabase
       .from("leads")
       .select("id, slug, phone, alt_phone");
-    for (const l of (L ?? []) as {
+    const leadsList = (L ?? []) as Array<{
       id: string;
       slug: string;
       phone: string | null;
       alt_phone: string | null;
-    }) {
+    }>;
+    for (const l of leadsList) {
       if (l.id === excludeLeadId) continue;
       const lp = normPhoneStr(l.phone);
       const la = normPhoneStr(l.alt_phone);
@@ -267,11 +268,12 @@ async function throwIfDuplicate(
     const { data: C } = await supabase
       .from("lead_contacts")
       .select("lead_id, phone, alt_phone");
-    for (const c of (C ?? []) as {
+    const contactsList = (C ?? []) as Array<{
       lead_id: string;
       phone: string | null;
       alt_phone: string | null;
-    }) {
+    }>;
+    for (const c of contactsList) {
       if (c.lead_id === excludeLeadId) continue;
       const cp = normPhoneStr(c.phone);
       const ca = normPhoneStr(c.alt_phone);
