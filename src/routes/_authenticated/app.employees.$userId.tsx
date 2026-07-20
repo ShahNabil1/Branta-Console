@@ -95,6 +95,8 @@ function EmployeeDetailPage() {
   const searchLeadsFn = useServerFn(searchLeadsForAssignment);
   const assignFn = useServerFn(assignLeadOwner);
   const deleteFn = useServerFn(deleteEmployee);
+  const setJobRoleFn = useServerFn(setEmployeeJobRole);
+
 
   const admin = useQuery({
     queryKey: ["employees.admin"],
