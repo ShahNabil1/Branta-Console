@@ -199,6 +199,24 @@ function EmployeeDetailPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
 
+  const [jobRoleDraft, setJobRoleDraft] = useState<string | null>(null);
+  const currentJobRole = detail.data?.profile.job_role ?? "";
+  const jobRoleValue = jobRoleDraft ?? currentJobRole;
+  const jobRoleDirty = jobRoleDraft !== null && jobRoleDraft !== currentJobRole;
+
+  const saveJobRole = useMutation({
+    mutationFn: () =>
+      setJobRoleFn({ data: { userId, jobRole: jobRoleValue.trim() || null } }),
+    onSuccess: () => {
+      toast.success("Job role updated");
+      setJobRoleDraft(null);
+      qc.invalidateQueries({ queryKey: ["employee.detail", userId] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
+  });
+
+
+
   if (admin.isLoading || detail.isLoading) {
     return (
       <div className="flex h-full items-center justify-center text-muted-foreground">
