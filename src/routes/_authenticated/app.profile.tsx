@@ -838,7 +838,7 @@ function BdAddressBlock({
             }}
             options={upazilas}
             placeholder="Select upazila"
-            disabled={!form.district}
+            disabled={!form.district || districts.length === 0 || upazilas.length === 0 && !form.upazila ? !form.district : !form.district}
           />
         </Field>
 
