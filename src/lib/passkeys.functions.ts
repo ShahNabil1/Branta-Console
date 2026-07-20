@@ -224,9 +224,11 @@ export const beginPasskeyLogin = createServerFn({ method: "POST" })
           .string()
           .trim()
           .toLowerCase()
-          .regex(/^[a-z]{3,10}$/, "Enter your Branta ID"),
+          .regex(/^[a-z]{3,10}$/)
+          .optional()
+          .nullable(),
       })
-      .parse(input),
+      .parse(input ?? {}),
   )
   .handler(async ({ data }) => {
     const { generateAuthenticationOptions } = await import(
@@ -236,33 +238,36 @@ export const beginPasskeyLogin = createServerFn({ method: "POST" })
       "@/integrations/supabase/client.server"
     );
     const { rpID } = getRpConfig();
-    const email = `${data.branta_local}@brantatech.com`;
 
-    // Resolve user
-    const { data: usersPage } = await supabaseAdmin.auth.admin.listUsers({
-      page: 1,
-      perPage: 200,
-    });
-    const user = usersPage?.users.find(
-      (u) => u.email?.toLowerCase() === email,
-    );
-    // Do not reveal whether the account exists — always return options with
-    // an empty allowCredentials list if unknown, so the client fails
-    // consistently. But we still need real challenges for allowed accounts.
-    const { data: creds } = user
-      ? await supabaseAdmin
+    let allowCredentials: { id: string; transports: AuthenticatorTransport[] }[] = [];
+
+    if (data.branta_local) {
+      const email = `${data.branta_local}@brantatech.com`;
+      const { data: usersPage } = await supabaseAdmin.auth.admin.listUsers({
+        page: 1,
+        perPage: 200,
+      });
+      const user = usersPage?.users.find(
+        (u) => u.email?.toLowerCase() === email,
+      );
+      if (user) {
+        const { data: creds } = await supabaseAdmin
           .from("user_passkeys")
           .select("credential_id,transports")
-          .eq("user_id", user.id)
-      : { data: [] as { credential_id: string; transports: string[] | null }[] };
+          .eq("user_id", user.id);
+        allowCredentials = (creds ?? []).map((c) => ({
+          id: c.credential_id,
+          transports: (c.transports ?? []) as AuthenticatorTransport[],
+        }));
+      }
+    }
 
     const options = await generateAuthenticationOptions({
       rpID,
       userVerification: "preferred",
-      allowCredentials: (creds ?? []).map((c) => ({
-        id: c.credential_id,
-        transports: (c.transports ?? []) as AuthenticatorTransport[],
-      })),
+      // Empty allowCredentials = discoverable / usernameless flow: the
+      // authenticator picks a resident credential and prompts the user.
+      allowCredentials,
     });
 
     await supabaseAdmin
@@ -271,7 +276,7 @@ export const beginPasskeyLogin = createServerFn({ method: "POST" })
       .insert({
         challenge: options.challenge,
         purpose: "login",
-        branta_local: data.branta_local,
+        branta_local: data.branta_local ?? null,
       } as any);
 
     return options;
@@ -321,12 +326,13 @@ export const finishPasskeyLogin = createServerFn({ method: "POST" })
     if (!pkRow) throw new Error("Unknown passkey.");
 
     // Confirm the branta_local claimed at begin matches this credential's user
+    // (only when the client claimed one — discoverable flow skips this).
     const { data: userRes } = await supabaseAdmin.auth.admin.getUserById(
       pkRow.user_id,
     );
     const email = userRes.user?.email ?? "";
     const expectedLocal = email.split("@")[0]?.toLowerCase() ?? "";
-    if (expectedLocal !== chal.branta_local) {
+    if (chal.branta_local && expectedLocal !== chal.branta_local) {
       throw new Error("Passkey / account mismatch.");
     }
 
