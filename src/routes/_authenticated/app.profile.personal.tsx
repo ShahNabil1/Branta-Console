@@ -14,7 +14,18 @@ import {
   Star,
   Landmark,
   Smartphone,
+  Eye,
+  ImageUp,
+  Camera,
+  X,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   getMyProfile,
   updateMyProfile,
