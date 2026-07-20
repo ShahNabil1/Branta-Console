@@ -13,6 +13,7 @@ import {
   updateMyProfile,
   type ProfileRow,
 } from "@/lib/profile.functions";
+import bdTree from "@/lib/bd-postcodes.json";
 
 
 import { requestR2Upload } from "@/lib/r2.functions";
