@@ -717,95 +717,242 @@ function CropDialog({
     width: number;
     height: number;
   } | null>(null);
+  const [stage, setStage] = useState<"crop" | "review">("crop");
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
+  const [preparing, setPreparing] = useState(false);
 
-  const confirm = async () => {
-    if (!pixels) return;
-    const blob = await cropImageToBlob(src, pixels, rotation);
-    onConfirm(blob);
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
+  const reset = () => {
+    setZoom(1);
+    setRotation(0);
+    setCrop({ x: 0, y: 0 });
   };
+
+  const buildPreview = async () => {
+    if (!pixels) return;
+    setPreparing(true);
+    try {
+      const blob = await cropImageToBlob(src, pixels, rotation);
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      const url = URL.createObjectURL(blob);
+      setPreviewBlob(blob);
+      setPreviewUrl(url);
+      setStage("review");
+    } finally {
+      setPreparing(false);
+    }
+  };
+
+  const confirmUpload = () => {
+    if (!previewBlob) return;
+    onConfirm(previewBlob);
+  };
+
+  const kb = previewBlob ? Math.max(1, Math.round(previewBlob.size / 1024)) : 0;
 
   return (
     <Dialog open onOpenChange={(o) => !o && onCancel()}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="text-[14px]">Crop · {title}</DialogTitle>
+          <DialogTitle className="text-[14px]">
+            {stage === "crop" ? `Crop · ${title}` : `Review · ${title}`}
+          </DialogTitle>
         </DialogHeader>
-        <div className="relative h-[420px] w-full overflow-hidden rounded-sm bg-black">
-          <Cropper
-            image={src}
-            crop={crop}
-            zoom={zoom}
-            rotation={rotation}
-            aspect={aspect}
-            onCropChange={setCrop}
-            onZoomChange={setZoom}
-            onRotationChange={setRotation}
-            onCropComplete={(_a: Area, area: Area) => setPixels(area)}
-            showGrid
-            objectFit="contain"
-          />
-        </div>
-        <div className="flex flex-col gap-2 pt-2">
-          <div className="flex items-center gap-3">
-            <span className="w-14 text-[11px] uppercase tracking-wider text-muted-foreground">
-              Zoom
-            </span>
-            <input
-              type="range"
-              min={1}
-              max={4}
-              step={0.01}
-              value={zoom}
-              onChange={(e) => setZoom(Number(e.target.value))}
-              className="flex-1 accent-[hsl(var(--brand))]"
-            />
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="w-14 text-[11px] uppercase tracking-wider text-muted-foreground">
-              Rotate
-            </span>
-            <input
-              type="range"
-              min={0}
-              max={360}
-              step={1}
-              value={rotation}
-              onChange={(e) => setRotation(Number(e.target.value))}
-              className="flex-1 accent-[hsl(var(--brand))]"
-            />
-            <span className="w-10 text-right font-mono text-[11px] text-muted-foreground">
-              {rotation}°
-            </span>
-          </div>
-        </div>
-        <div className="mt-2 flex justify-end gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-9 rounded-sm text-[12px]"
-            onClick={onCancel}
-            disabled={busy}
-          >
-            Cancel
-          </Button>
-          <Button
-            size="sm"
-            className="h-9 rounded-sm text-[12px]"
-            onClick={confirm}
-            disabled={busy || !pixels}
-          >
-            {busy ? (
-              <Loader2 className="mr-1.5 size-3 animate-spin" />
-            ) : (
-              <Check className="mr-1.5 size-3" />
-            )}
-            Crop & Upload
-          </Button>
-        </div>
+
+        {stage === "crop" ? (
+          <>
+            <div className="relative h-[420px] w-full overflow-hidden rounded-sm bg-black">
+              <Cropper
+                image={src}
+                crop={crop}
+                zoom={zoom}
+                rotation={rotation}
+                aspect={aspect}
+                onCropChange={setCrop}
+                onZoomChange={setZoom}
+                onRotationChange={setRotation}
+                onCropComplete={(_a: Area, area: Area) => setPixels(area)}
+                showGrid
+                objectFit="contain"
+              />
+            </div>
+            <div className="flex flex-col gap-2 pt-2">
+              <div className="flex items-center gap-2">
+                <span className="w-14 text-[11px] uppercase tracking-wider text-muted-foreground">
+                  Zoom
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 w-7 rounded-sm p-0 text-[14px]"
+                  onClick={() => setZoom((z) => Math.max(1, +(z - 0.1).toFixed(2)))}
+                >
+                  −
+                </Button>
+                <input
+                  type="range"
+                  min={1}
+                  max={4}
+                  step={0.01}
+                  value={zoom}
+                  onChange={(e) => setZoom(Number(e.target.value))}
+                  className="flex-1 accent-[hsl(var(--brand))]"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 w-7 rounded-sm p-0 text-[14px]"
+                  onClick={() => setZoom((z) => Math.min(4, +(z + 0.1).toFixed(2)))}
+                >
+                  +
+                </Button>
+                <span className="w-12 text-right font-mono text-[11px] text-muted-foreground">
+                  {zoom.toFixed(2)}×
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-14 text-[11px] uppercase tracking-wider text-muted-foreground">
+                  Rotate
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 rounded-sm px-2 text-[11px]"
+                  onClick={() => setRotation((r) => (r + 270) % 360)}
+                >
+                  −90°
+                </Button>
+                <input
+                  type="range"
+                  min={0}
+                  max={360}
+                  step={1}
+                  value={rotation}
+                  onChange={(e) => setRotation(Number(e.target.value))}
+                  className="flex-1 accent-[hsl(var(--brand))]"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 rounded-sm px-2 text-[11px]"
+                  onClick={() => setRotation((r) => (r + 90) % 360)}
+                >
+                  +90°
+                </Button>
+                <span className="w-10 text-right font-mono text-[11px] text-muted-foreground">
+                  {rotation}°
+                </span>
+              </div>
+            </div>
+            <div className="mt-2 flex items-center justify-between">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-9 rounded-sm text-[12px] text-muted-foreground"
+                onClick={reset}
+              >
+                Reset
+              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 rounded-sm text-[12px]"
+                  onClick={onCancel}
+                  disabled={busy}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  className="h-9 rounded-sm text-[12px]"
+                  onClick={buildPreview}
+                  disabled={busy || !pixels || preparing}
+                >
+                  {preparing ? (
+                    <Loader2 className="mr-1.5 size-3 animate-spin" />
+                  ) : (
+                    <Check className="mr-1.5 size-3" />
+                  )}
+                  Preview
+                </Button>
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex flex-col items-center gap-3 pt-1">
+              <div className="w-full rounded-sm border border-border bg-[hsl(var(--muted))]/40 p-3">
+                <div className="mx-auto flex max-h-[380px] items-center justify-center overflow-hidden rounded-sm bg-black">
+                  {previewUrl && (
+                    <img
+                      src={previewUrl}
+                      alt="Crop preview"
+                      className="max-h-[380px] w-auto object-contain"
+                    />
+                  )}
+                </div>
+              </div>
+              <p className="text-center text-[12px] text-muted-foreground">
+                This is exactly what will be saved to your profile.{" "}
+                <span className="font-mono text-foreground">~{kb} KB</span> · Uploaded
+                privately to Cloudflare R2.
+              </p>
+            </div>
+            <div className="mt-3 flex items-center justify-between">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-9 rounded-sm text-[12px] text-muted-foreground"
+                onClick={() => setStage("crop")}
+                disabled={busy}
+              >
+                ← Back to crop
+              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 rounded-sm text-[12px]"
+                  onClick={onCancel}
+                  disabled={busy}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  className="h-9 rounded-sm text-[12px]"
+                  onClick={confirmUpload}
+                  disabled={busy || !previewBlob}
+                >
+                  {busy ? (
+                    <Loader2 className="mr-1.5 size-3 animate-spin" />
+                  ) : (
+                    <Upload className="mr-1.5 size-3" />
+                  )}
+                  Confirm & Upload
+                </Button>
+              </div>
+            </div>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );
 }
+
 
 async function cropImageToBlob(
   src: string,
