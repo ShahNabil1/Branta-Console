@@ -1,7 +1,7 @@
 // Renders a Code128 barcode as an SVG for the given value.
-// Client-only. Provides a download() ref for saving as .svg or .png.
+// Client-only. jsbarcode is dynamically imported so it never runs on the SSR
+// worker (its tslib interop breaks the Cloudflare bundle otherwise).
 import { useEffect, useRef } from "react";
-import JsBarcode from "jsbarcode";
 
 export function BarcodeSvg({
   value,
@@ -17,24 +17,32 @@ export function BarcodeSvg({
   const ref = useRef<SVGSVGElement>(null);
   useEffect(() => {
     if (!ref.current || !value) return;
-    JsBarcode(ref.current, value, {
-      format: "CODE128",
-      lineColor: "#111",
-      background: "#ffffff",
-      width: 2,
-      height,
-      margin: 8,
-      displayValue,
-      fontSize: 14,
-      font: "monospace",
-      textMargin: 4,
+    let cancelled = false;
+    void import("jsbarcode").then(({ default: JsBarcode }) => {
+      if (cancelled || !ref.current) return;
+      JsBarcode(ref.current, value, {
+        format: "CODE128",
+        lineColor: "#111",
+        background: "#ffffff",
+        width: 2,
+        height,
+        margin: 8,
+        displayValue,
+        fontSize: 14,
+        font: "monospace",
+        textMargin: 4,
+      });
     });
+    return () => {
+      cancelled = true;
+    };
   }, [value, height, displayValue]);
   return <svg ref={ref} className={className} />;
 }
 
 // Trigger a download of the barcode as a PNG (preferred for printing on ID cards)
 export async function downloadBarcodePng(value: string, filename: string) {
+  const { default: JsBarcode } = await import("jsbarcode");
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   JsBarcode(svg, value, {
     format: "CODE128",
