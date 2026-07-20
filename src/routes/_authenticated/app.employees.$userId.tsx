@@ -49,8 +49,13 @@ import {
   type EmployeeRole,
 } from "@/lib/employee-detail.functions";
 import { checkIsAdmin, deleteEmployee } from "@/lib/employees.functions";
+import {
+  adminUnsubscribeTelegram,
+  getEmployeeTelegramStatus,
+} from "@/lib/telegram.functions";
 import { clearBackup, isImpersonating, readBackup, writeBackup } from "@/lib/impersonation";
 import { BarcodeSvg, downloadBarcodePng } from "@/components/employee/BarcodeSvg";
+import { TelegramIcon } from "@/components/social/telegram-icon";
 import { Input } from "@/components/ui/input";
 
 
