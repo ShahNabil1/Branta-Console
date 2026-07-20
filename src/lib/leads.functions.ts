@@ -707,6 +707,22 @@ export const updateLeadContact = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => UpdateContactInput.parse(d))
   .handler(async ({ data, context }): Promise<LeadContactRow> => {
+    // Resolve owning lead so the dup check can exclude it.
+    const { data: owner } = await context.supabase
+      .from("lead_contacts")
+      .select("lead_id")
+      .eq("id", data.id)
+      .maybeSingle();
+    await throwIfDuplicate(
+      context.supabase,
+      {
+        email: data.email ?? null,
+        alt_email: data.alt_email ?? null,
+        phone: data.phone ?? null,
+        alt_phone: data.alt_phone ?? null,
+      },
+      owner?.lead_id ?? null,
+    );
     const patch: Record<string, unknown> = {};
     const keys: (keyof typeof data)[] = [
       "name",
