@@ -671,7 +671,14 @@ function BdPhoneInput({
       )}
     >
       <span className="flex h-full select-none items-center gap-1.5 border-r border-input bg-muted px-2.5 font-mono text-[12px] text-muted-foreground">
-        <span aria-hidden className="text-[14px] leading-none">🇧🇩</span>
+        <svg
+          aria-hidden
+          viewBox="0 0 20 12"
+          className="h-3 w-[18px] shrink-0 overflow-hidden rounded-[1px] shadow-[0_0_0_0.5px_rgba(0,0,0,0.15)]"
+        >
+          <rect width="20" height="12" fill="#006A4E" />
+          <circle cx="8.5" cy="6" r="3.4" fill="#F42A41" />
+        </svg>
         <span>+88</span>
       </span>
       <input
