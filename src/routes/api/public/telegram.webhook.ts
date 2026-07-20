@@ -133,7 +133,21 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
             chatId,
             `✅ <b>Connected to Branta Tech</b>${email ? ` as <code>${email}</code>` : ""}.\n\nYou'll start receiving your Branta notifications here. Send /unlink any time to stop.`,
           );
+
+          // Verification test message so the employee can immediately confirm
+          // notifications actually reach this chat.
+          const linkedAt = new Date().toLocaleString("en-GB", {
+            timeZone: "Asia/Dhaka",
+            hour12: true,
+            dateStyle: "medium",
+            timeStyle: "short",
+          });
+          await sendTelegramToChatId(
+            chatId,
+            `🔔 <b>Test notification</b>\nThis is a verification message from Branta Tech to confirm your Telegram is linked successfully.\n\n<b>Chat ID:</b> <code>${chatId}</code>\n<b>Linked at:</b> ${linkedAt} (BDT)\n\nIf you can read this, notifications are working. ✅`,
+          );
           return Response.json({ ok: true });
+
         }
 
         // /unlink — user-initiated unsubscribe from the Telegram side.
