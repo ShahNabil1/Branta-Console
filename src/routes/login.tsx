@@ -433,15 +433,21 @@ function LoginPage() {
 
       if (vErr) {
         // If a prior (duplicate) request already elevated the session, treat as success.
-        const { data: sess } = await supabase.auth.getSession();
-        const aal = (sess.session as unknown as { aal?: string } | null)?.aal
-          ?? (sess.session?.user?.factors?.some((f) => f.status === "verified") ? "aal2" : null);
-        if (sess.session && aal === "aal2") {
+        const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+        if (aalData?.currentLevel === "aal2") {
           setFailedAttempts(0);
           setLockUntil(0);
           await finalizeAndGo();
           return;
         }
+        registerFailedAttempt();
+        if (phase === "challenge") {
+          const { data: ch } = await supabase.auth.mfa.challenge({ factorId });
+          if (ch) setChallengeId(ch.id);
+        }
+        lastSubmittedCodeRef.current = "";
+        return;
+      }
         registerFailedAttempt();
         if (phase === "challenge") {
           const { data: ch } = await supabase.auth.mfa.challenge({ factorId });
