@@ -50,6 +50,7 @@ import {
 } from "@/lib/lead-options.functions";
 import {
   getSheetSyncStatus,
+  openLeadSheet,
   pushLeadsToSheet,
   pullLeadsFromSheet,
   overwritePullDuplicates,
