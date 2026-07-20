@@ -37,7 +37,7 @@ function InvoicesPage() {
   });
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<InvoiceStatus | "all">("all");
-  const [open, setOpen] = useState(false);
+  const [_open, _setOpen] = useState(false);
 
   useEffect(() => {
     const ch = supabase.channel("finance:invoices")
