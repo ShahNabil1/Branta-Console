@@ -405,19 +405,24 @@ function ProfileForm({
           />
         </Section>
 
-        {/* Documents */}
+        {/* Identity Documents */}
         <Section
-          title="Documents"
-          description="Upload your legal and professional documents.."
+          title="Identity Document"
+          description="Choose your identity document type and upload it. Files are stored privately."
+        >
+          <IdentityDocumentsBlock
+            form={form}
+            onChange={(patch) => setForm((p) => ({ ...p, ...patch }))}
+            presign={presign}
+          />
+        </Section>
+
+        {/* CV */}
+        <Section
+          title="CV / Résumé"
+          description="Upload your latest CV in PDF format."
         >
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <DocumentSlot
-              label="NID (front + back combined PDF or image)"
-              url={form.nid_url}
-              onChange={(u) => set("nid_url", u)}
-              presign={presign}
-              scope="document"
-            />
             <DocumentSlot
               label="CV / Résumé (PDF only)"
               url={form.cv_url}
