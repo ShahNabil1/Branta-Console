@@ -210,6 +210,8 @@ function LoginPage() {
   };
 
   const otpInputRef = useRef<HTMLInputElement>(null);
+  const submittingRef = useRef(false);
+  const lastSubmittedCodeRef = useRef<string>("");
 
   const lockRemaining = Math.max(0, lockUntil - Date.now());
   const enrollRemaining = Math.max(0, enrollCooldownUntil - Date.now());
