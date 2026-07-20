@@ -2,12 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { CheckCircle2, ExternalLink, Loader2, Unlink } from "lucide-react";
+import { CheckCircle2, ExternalLink, Loader2, Unlink, Webhook } from "lucide-react";
 import {
   getMyTelegramStatus,
+  registerTelegramWebhook,
   startTelegramLink,
   unlinkMyTelegram,
 } from "@/lib/telegram.functions";
+import { checkIsAdmin } from "@/lib/employees.functions";
 import { TelegramIcon } from "@/components/social/telegram-icon";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm-dialog";
@@ -20,8 +22,25 @@ export function TelegramConnectCard() {
   const statusFn = useServerFn(getMyTelegramStatus);
   const startFn = useServerFn(startTelegramLink);
   const unlinkFn = useServerFn(unlinkMyTelegram);
+  const registerFn = useServerFn(registerTelegramWebhook);
+  const isAdminFn = useServerFn(checkIsAdmin);
   const [polling, setPolling] = useState(false);
   const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const admin = useQuery({ queryKey: ["is-admin"], queryFn: () => isAdminFn() });
+
+  const register = useMutation({
+    mutationFn: () =>
+      registerFn({
+        data: {
+          webhookUrl: `${window.location.origin}/api/public/telegram/webhook`,
+        },
+      }),
+    onSuccess: (r) =>
+      toast.success(r.ok ? "Webhook registered" : `Webhook: ${r.description}`),
+    onError: (err: unknown) =>
+      toast.error(err instanceof Error ? err.message : "Register failed"),
+  });
 
   const status = useQuery({
     queryKey: ["telegram-status"],
@@ -170,6 +189,27 @@ export function TelegramConnectCard() {
           )}
         </div>
       </div>
+      {admin.data?.isAdmin && (
+        <div className="mt-3 flex items-center justify-between gap-2 rounded-sm border border-dashed border-border bg-muted/30 px-2.5 py-2 text-[11.5px] text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5">
+            <Webhook className="size-3.5" /> Admin: register the Telegram bot
+            webhook (one-time, or after changing the public URL).
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-7 px-2 text-[11.5px]"
+            disabled={register.isPending}
+            onClick={() => register.mutate()}
+          >
+            {register.isPending ? (
+              <Loader2 className="mr-1.5 size-3 animate-spin" />
+            ) : null}
+            Register webhook
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
