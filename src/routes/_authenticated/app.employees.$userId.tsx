@@ -26,6 +26,7 @@ import {
   Lock,
   LogIn,
   LogOut,
+  MailPlus,
   Search,
   ShieldAlert,
   ShieldCheck,
@@ -45,6 +46,7 @@ import {
   getEmployeeWallet,
   listAssignedLeads,
   listEmployeeSessions,
+  resendOnboardingInstructions,
   resetEmployeePassword,
   revokeEmployeeSession,
   searchLeadsForAssignment,
@@ -98,6 +100,7 @@ function EmployeeDetailPage() {
   const updateRolesFn = useServerFn(updateEmployeeRoles);
   const banFn = useServerFn(setEmployeeBan);
   const resetFn = useServerFn(resetEmployeePassword);
+  const resendOnboardingFn = useServerFn(resendOnboardingInstructions);
   const startImpFn = useServerFn(startImpersonation);
   const listLeadsFn = useServerFn(listAssignedLeads);
   const searchLeadsFn = useServerFn(searchLeadsForAssignment);
@@ -186,6 +189,13 @@ function EmployeeDetailPage() {
   const resetMut = useMutation({
     mutationFn: () => resetFn({ data: { userId } }),
     onSuccess: () => toast.success("New password emailed to the employee"),
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
+  });
+
+  const resendOnboardingMut = useMutation({
+    mutationFn: () => resendOnboardingFn({ data: { userId } }),
+    onSuccess: () =>
+      toast.success("Onboarding instructions re-sent with a new temporary password"),
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
 
@@ -348,6 +358,23 @@ function EmployeeDetailPage() {
     resetMut.mutate();
   };
 
+  const onboardingPending = e.mustChangePassword || e.mustLinkTelegram;
+  const pendingSteps = [
+    e.mustChangePassword ? "set their personal password" : null,
+    e.mustLinkTelegram ? "link Telegram" : null,
+  ].filter(Boolean) as string[];
+
+  const onResendOnboarding = async () => {
+    const ok = await confirm({
+      title: "Re-send onboarding instructions?",
+      description: `A fresh temporary password will be emailed to ${e.email}. They still need to ${pendingSteps.join(" and ")} on next sign-in. Their current password will stop working.`,
+      confirmLabel: "Re-send instructions",
+    });
+    if (!ok) return;
+    resendOnboardingMut.mutate();
+  };
+
+
   const onDelete = async () => {
     const ok = await confirm({
       title: "Delete this employee?",
@@ -383,6 +410,21 @@ function EmployeeDetailPage() {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {onboardingPending && (
+            <button
+              onClick={onResendOnboarding}
+              disabled={resendOnboardingMut.isPending}
+              title={`Pending: ${pendingSteps.join(", ")}`}
+              className="inline-flex h-9 items-center gap-1.5 rounded-sm border border-primary/40 bg-primary/10 px-3 text-[12.5px] font-medium text-primary hover:bg-primary/15 disabled:opacity-60"
+            >
+              {resendOnboardingMut.isPending ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <MailPlus className="size-3.5" strokeWidth={2} />
+              )}
+              Resend onboarding
+            </button>
+          )}
           <button
             onClick={onReset}
             disabled={resetMut.isPending}

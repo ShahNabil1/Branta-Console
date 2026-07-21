@@ -63,6 +63,8 @@ export interface EmployeeDetail {
   lastSignInAt: string | null;
   bannedUntil: string | null;
   isBanned: boolean;
+  mustChangePassword: boolean;
+  mustLinkTelegram: boolean;
   profile: {
     full_name: string | null;
     legal_full_name: string | null;
@@ -123,7 +125,7 @@ export const getEmployeeDetail = createServerFn({ method: "GET" })
       supabaseAdmin
         .from("profiles")
         .select(
-          "full_name, legal_full_name, avatar_url, employee_code, job_role, phone_primary, phone_alt, address_line1, address_line2, city, district, division, upazila, post_office, postcode, country, bank_name, bank_account_name, bank_account_number, bank_routing, mfs_provider, mfs_number, payment_methods, nid_url, cv_url, identity_doc_type, nid_front_url, nid_back_url, passport_photo_url, passport_address_url, birth_certificate_url, personal_gmail, kyc_status",
+          "full_name, legal_full_name, avatar_url, employee_code, job_role, phone_primary, phone_alt, address_line1, address_line2, city, district, division, upazila, post_office, postcode, country, bank_name, bank_account_name, bank_account_number, bank_routing, mfs_provider, mfs_number, payment_methods, nid_url, cv_url, identity_doc_type, nid_front_url, nid_back_url, passport_photo_url, passport_address_url, birth_certificate_url, personal_gmail, kyc_status, must_change_password, must_link_telegram",
         )
         .eq("user_id", data.userId)
         .maybeSingle(),
@@ -148,6 +150,8 @@ export const getEmployeeDetail = createServerFn({ method: "GET" })
       lastSignInAt: u.last_sign_in_at ?? null,
       bannedUntil,
       isBanned,
+      mustChangePassword: !!(prof.data as any)?.must_change_password,
+      mustLinkTelegram: !!(prof.data as any)?.must_link_telegram,
       profile: (prof.data ?? {
         full_name: null,
         legal_full_name: null,
@@ -335,7 +339,74 @@ export const resetEmployeePassword = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
-// Impersonation: super_admin only, cannot self-impersonate. We generate a
+// Re-send onboarding instructions to an employee who hasn't yet set their
+// personal password and/or linked Telegram. Mints a fresh temporary
+// password, re-asserts both onboarding flags, and emails the welcome
+// credentials again.
+export const resendOnboardingInstructions = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ userId: uuid }).parse(input))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const { supabaseAdmin } = await import(
+      "@/integrations/supabase/client.server"
+    );
+
+    const { data: u, error: uErr } = await supabaseAdmin.auth.admin.getUserById(
+      data.userId,
+    );
+    if (uErr || !u.user) throw new Error(uErr?.message ?? "User not found");
+    const email = (u.user.email ?? "").toLowerCase();
+    if (!email.endsWith(DOMAIN))
+      throw new Error("Not a Branta employee account.");
+
+    const prof = await supabaseAdmin
+      .from("profiles")
+      .select("must_change_password, must_link_telegram")
+      .eq("user_id", data.userId)
+      .maybeSingle();
+    const mustPwd = !!(prof.data as any)?.must_change_password;
+    const mustTg = !!(prof.data as any)?.must_link_telegram;
+    if (!mustPwd && !mustTg) {
+      throw new Error(
+        "This employee has already completed onboarding. Use Reset password instead.",
+      );
+    }
+
+    const newPassword = generateTempPassword();
+    const upd = await supabaseAdmin.auth.admin.updateUserById(data.userId, {
+      password: newPassword,
+    });
+    if (upd.error) throw new Error(upd.error.message);
+
+    // Re-assert both onboarding gates so the flow runs cleanly on next login.
+    await supabaseAdmin
+      .from("profiles")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .update({
+        must_change_password: true,
+        must_link_telegram: mustTg || true,
+      } as any)
+      .eq("user_id", data.userId);
+
+    const roleRes = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", data.userId);
+    const role = primaryRole((roleRes.data ?? []).map((r) => r.role));
+
+    const { sendWelcomeEmail } = await import("@/lib/branta-email.server");
+    await sendWelcomeEmail({
+      recipientEmail: email,
+      brantaId: email.split("@")[0] ?? "",
+      tempPassword: newPassword,
+      loginUrl: `${requestOrigin()}/login`,
+      role,
+    });
+
+    return { ok: true as const, pendingPassword: mustPwd, pendingTelegram: mustTg };
+  });
+
 // magic link via admin.generateLink and return its hashed_token; the client
 // then calls supabase.auth.verifyOtp() to swap into the target session.
 export const startImpersonation = createServerFn({ method: "POST" })
