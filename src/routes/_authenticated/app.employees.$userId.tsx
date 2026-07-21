@@ -99,6 +99,7 @@ function EmployeeDetailPage() {
   const updateRolesFn = useServerFn(updateEmployeeRoles);
   const banFn = useServerFn(setEmployeeBan);
   const resetFn = useServerFn(resetEmployeePassword);
+  const resendOnboardingFn = useServerFn(resendOnboardingInstructions);
   const startImpFn = useServerFn(startImpersonation);
   const listLeadsFn = useServerFn(listAssignedLeads);
   const searchLeadsFn = useServerFn(searchLeadsForAssignment);
