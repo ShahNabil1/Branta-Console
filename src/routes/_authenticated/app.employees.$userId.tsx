@@ -191,6 +191,13 @@ function EmployeeDetailPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
 
+  const resendOnboardingMut = useMutation({
+    mutationFn: () => resendOnboardingFn({ data: { userId } }),
+    onSuccess: () =>
+      toast.success("Onboarding instructions re-sent with a new temporary password"),
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
+  });
+
   const delMut = useMutation({
     mutationFn: () => deleteFn({ data: { userId } }),
     onSuccess: () => {
