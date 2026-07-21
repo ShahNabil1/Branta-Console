@@ -1,7 +1,8 @@
 // Forced password change — first sign-in after admin creates the employee OR
-// after an admin resets their password. Uses the temporary password as the
-// "current" credential; on success the `must_change_password` flag clears and
-// the gate advances the user (either to Telegram linking or straight to /app).
+// after an admin resets their password. The employee is already authenticated
+// (they signed in with the temp password + 2FA), so we don't ask for the
+// current password again; we just require a new one and reject reusing the
+// temp password (its hash was seeded into password_history at issue time).
 import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -10,7 +11,7 @@ import { Eye, EyeOff, KeyRound, Loader2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import brandLogo from "@/assets/brand-logo.png.asset.json";
-import { changeMyPassword } from "@/lib/change-password.functions";
+import { setInitialPassword } from "@/lib/change-password.functions";
 import { getOnboardingStatus } from "@/lib/onboarding.functions";
 import {
   PASSWORD_LEN,
@@ -28,7 +29,7 @@ export const Route = createFileRoute("/_authenticated/onboarding/password")({
 function OnboardingPasswordPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const changeFn = useServerFn(changeMyPassword);
+  const setFn = useServerFn(setInitialPassword);
   const statusFn = useServerFn(getOnboardingStatus);
 
   const status = useQuery({
@@ -36,7 +37,6 @@ function OnboardingPasswordPage() {
     queryFn: () => statusFn(),
   });
 
-  // If they've already changed the password, don't linger here.
   useEffect(() => {
     if (!status.data) return;
     if (!status.data.mustChangePassword) {
@@ -54,23 +54,15 @@ function OnboardingPasswordPage() {
     });
   }, []);
 
-  const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [confirm, setConfirm] = useState("");
-  const [showCur, setShowCur] = useState(false);
   const [showNext, setShowNext] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   const parsed = strongPasswordSchema.safeParse(next);
   const mismatch = confirm.length > 0 && next !== confirm;
-  const sameAsTemp = next.length > 0 && next === current;
-  const canSubmit =
-    !busy &&
-    current.length > 0 &&
-    parsed.success &&
-    !mismatch &&
-    !sameAsTemp;
+  const canSubmit = !busy && parsed.success && !mismatch && confirm.length > 0;
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,9 +70,7 @@ function OnboardingPasswordPage() {
     setBusy(true);
     setErr(null);
     try {
-      await changeFn({
-        data: { current_password: current, new_password: next },
-      });
+      await setFn({ data: { new_password: next } });
       toast.success("Password updated");
       await qc.invalidateQueries({ queryKey: ["onboarding.status"] });
       const fresh = await statusFn();
@@ -111,8 +101,8 @@ function OnboardingPasswordPage() {
             Set your personal password
           </h1>
           <p className="mt-1 max-w-sm text-[12.5px] text-muted-foreground">
-            The temporary password is only valid for this first sign-in. Choose
-            a personal password now — you'll use it every time from here on.
+            The temporary password was only for the first sign-in. Choose a
+            personal password now — you'll use it every time from here on.
           </p>
           {email && (
             <div className="mt-2 font-mono text-[11.5px] text-muted-foreground">
@@ -122,30 +112,6 @@ function OnboardingPasswordPage() {
         </div>
 
         <form onSubmit={onSubmit} className="space-y-3">
-          <div>
-            <label className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-              Temporary password
-            </label>
-            <div className="mt-1 flex items-center gap-1">
-              <input
-                type={showCur ? "text" : "password"}
-                autoComplete="current-password"
-                value={current}
-                onChange={(e) => setCurrent(stripToPassword(e.target.value))}
-                maxLength={PASSWORD_LEN}
-                className="h-9 flex-1 rounded-sm border border-border bg-card px-2.5 font-mono text-[13px] tracking-widest outline-none focus:border-brand"
-              />
-              <button
-                type="button"
-                onClick={() => setShowCur((s) => !s)}
-                className="grid size-9 place-items-center rounded-sm border border-border bg-card text-muted-foreground hover:bg-muted"
-                aria-label={showCur ? "Hide" : "Show"}
-              >
-                {showCur ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-              </button>
-            </div>
-          </div>
-
           <div>
             <label className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
               New password ({PASSWORD_LEN} chars, incl. upper, lower, digit, symbol)
@@ -196,11 +162,6 @@ function OnboardingPasswordPage() {
             {mismatch && (
               <p className="mt-1 text-[11.5px] text-rose-600">
                 Passwords do not match.
-              </p>
-            )}
-            {sameAsTemp && (
-              <p className="mt-1 text-[11.5px] text-rose-600">
-                New password must be different from the temporary one.
               </p>
             )}
           </div>
