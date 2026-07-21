@@ -775,6 +775,36 @@ export function LeadDetail({
   const dupByField = new Map(dupConflicts.map((c) => [c.field, c] as const));
   const hasDupBlocking = dupConflicts.length > 0;
 
+  const renderDupMessage = (c: DupConflict | undefined): React.ReactNode => {
+    if (!c) return null;
+    const sourceLabel: Record<DupConflict["conflictSource"], string> = {
+      "leads.email": "primary email",
+      "leads.alt_email": "alternative email",
+      "leads.phone": "primary phone",
+      "leads.alt_phone": "alternative phone",
+      "lead_contacts.email": "contact email",
+      "lead_contacts.alt_email": "contact alt. email",
+      "lead_contacts.phone": "contact phone",
+      "lead_contacts.alt_phone": "contact alt. phone",
+    };
+    const fieldLabel =
+      c.field === "email"
+        ? "Email"
+        : c.field === "alt_email"
+        ? "Alternative email"
+        : c.field === "phone"
+        ? "Phone"
+        : "Alternative phone";
+    return (
+      <>
+        {fieldLabel} conflicts with lead{" "}
+        <span className="font-semibold">{c.conflictSlug}</span> (
+        {sourceLabel[c.conflictSource]}).
+      </>
+    );
+  };
+
+
 
   const saveM = useMutation({
     mutationFn: () =>
