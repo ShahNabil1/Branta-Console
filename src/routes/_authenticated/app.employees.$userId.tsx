@@ -1,6 +1,6 @@
 // Employee detail page: full profile, RBAC, lead assignment, ban / delete,
-// password reset, and one-click impersonation with an exit banner.
-import { useMemo, useState } from "react";
+// password reset, one-click impersonation, wallet + sessions.
+import { useEffect, useMemo, useState } from "react";
 import {
   createFileRoute,
   Link,
@@ -19,17 +19,20 @@ import {
   Copy,
   Download,
   ExternalLink,
+  Eye,
   KeyRound,
   Link as LinkIcon,
   Loader2,
   Lock,
   LogIn,
+  LogOut,
   Search,
   ShieldAlert,
   ShieldCheck,
   Trash2,
   Unlock,
   UserCog,
+  Wallet,
   X,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -39,14 +42,19 @@ import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
   assignLeadOwner,
   getEmployeeDetail,
+  getEmployeeWallet,
   listAssignedLeads,
+  listEmployeeSessions,
   resetEmployeePassword,
+  revokeEmployeeSession,
   searchLeadsForAssignment,
   setEmployeeBan,
   setEmployeeJobRole,
   startImpersonation,
   updateEmployeeRoles,
+  type EmployeeDetail,
   type EmployeeRole,
+  type PaymentMethodLite,
 } from "@/lib/employee-detail.functions";
 import { checkIsAdmin, deleteEmployee } from "@/lib/employees.functions";
 import {
@@ -57,7 +65,12 @@ import { clearBackup, isImpersonating, readBackup, writeBackup } from "@/lib/imp
 import { BarcodeSvg, downloadBarcodePng } from "@/components/employee/BarcodeSvg";
 import { TelegramIcon } from "@/components/social/telegram-icon";
 import { Input } from "@/components/ui/input";
-
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/_authenticated/app/employees/$userId")({
   head: () => ({ meta: [{ title: "Employee · Branta Tech" }] }),
@@ -103,7 +116,9 @@ function EmployeeDetailPage() {
   const setJobRoleFn = useServerFn(setEmployeeJobRole);
   const tgStatusFn = useServerFn(getEmployeeTelegramStatus);
   const tgUnsubFn = useServerFn(adminUnsubscribeTelegram);
-
+  const walletFn = useServerFn(getEmployeeWallet);
+  const sessionsFn = useServerFn(listEmployeeSessions);
+  const revokeSessionFn = useServerFn(revokeEmployeeSession);
 
   const admin = useQuery({
     queryKey: ["employees.admin"],
@@ -149,12 +164,8 @@ function EmployeeDetailPage() {
     if (ok) tgUnsub.mutate();
   };
 
-
-  const [selectedRoles, setSelectedRoles] = useState<EmployeeRole[] | null>(
-    null,
-  );
+  const [selectedRoles, setSelectedRoles] = useState<EmployeeRole[] | null>(null);
   const roles = selectedRoles ?? detail.data?.roles ?? [];
-
   const rolesDirty = useMemo(() => {
     if (!detail.data || !selectedRoles) return false;
     const a = [...detail.data.roles].sort().join(",");
@@ -201,7 +212,6 @@ function EmployeeDetailPage() {
     mutationFn: () => startImpFn({ data: { userId } }),
     onSuccess: async (res) => {
       try {
-        // 1. Snapshot the current admin session first.
         const { data: cur } = await supabase.auth.getSession();
         if (!cur.session)
           throw new Error("No active admin session to preserve.");
@@ -215,20 +225,14 @@ function EmployeeDetailPage() {
           started_at: Date.now(),
         });
         window.dispatchEvent(new Event("branta:impersonation-changed"));
-
-        // 2. Swap to the target session via the magic link OTP.
         const { error } = await supabase.auth.verifyOtp({
           type: "magiclink",
           token_hash: res.hashedToken,
         });
         if (error) throw error;
-
-        // 3. Land on the target's dashboard.
         window.location.assign("/app");
       } catch (err) {
-        toast.error(
-          err instanceof Error ? err.message : "Impersonation failed",
-        );
+        toast.error(err instanceof Error ? err.message : "Impersonation failed");
       }
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
@@ -250,7 +254,8 @@ function EmployeeDetailPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
 
-
+  const [tab, setTab] = useState<"profile" | "wallet">("profile");
+  const [avatarOpen, setAvatarOpen] = useState(false);
 
   if (admin.isLoading || detail.isLoading) {
     return (
@@ -310,13 +315,11 @@ function EmployeeDetailPage() {
 
   const e = detail.data;
   const p = e.profile;
-  const isSelf = false;
   const canSuperAdmin = !!admin.data?.isSuperAdmin && !isImpersonating();
 
   const toggleRole = (r: EmployeeRole) => {
     const base = selectedRoles ?? [...e.roles];
     const next = base.includes(r) ? base.filter((x) => x !== r) : [...base, r];
-    // Always ensure at least one role.
     if (next.length === 0) return;
     setSelectedRoles(next);
   };
@@ -324,8 +327,7 @@ function EmployeeDetailPage() {
   const onImpersonate = async () => {
     const ok = await confirm({
       title: "Impersonate this employee?",
-      description:
-        `You will be signed in as ${e.email}. All actions will be logged. Use the amber banner to exit.`,
+      description: `You will be signed in as ${e.email}. All actions will be logged. Use the amber banner to exit.`,
       confirmLabel: "Impersonate",
       tone: "warning",
     });
@@ -368,6 +370,8 @@ function EmployeeDetailPage() {
     delMut.mutate();
   };
 
+  const initial = (p.full_name ?? e.brantaId).slice(0, 1).toUpperCase();
+
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 p-6">
       {/* Header */}
@@ -381,7 +385,7 @@ function EmployeeDetailPage() {
           </button>
           <div>
             <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-              Employee
+              Employee · {p.employee_code ?? e.brantaId}
             </div>
             <h1 className="mt-0.5 text-lg font-semibold tracking-tight">
               {p.full_name ?? e.brantaId}
@@ -442,11 +446,7 @@ function EmployeeDetailPage() {
               onClick={onImpersonate}
               disabled={impMut.isPending || e.isBanned}
               className="inline-flex h-9 items-center gap-1.5 rounded-sm border border-brand/40 bg-brand/10 px-3 text-[12.5px] font-semibold text-brand hover:bg-brand/20 disabled:opacity-60"
-              title={
-                e.isBanned
-                  ? "Unban this employee before impersonating"
-                  : "Sign in as this employee"
-              }
+              title={e.isBanned ? "Unban this employee before impersonating" : "Sign in as this employee"}
             >
               {impMut.isPending ? (
                 <Loader2 className="size-3.5 animate-spin" />
@@ -471,17 +471,29 @@ function EmployeeDetailPage() {
         </div>
       </div>
 
-      {/* Identity + status */}
+      {/* Identity strip */}
       <section className="rounded-sm border border-border bg-card p-5">
         <div className="flex flex-wrap items-center gap-3">
-          <div className="grid size-14 place-items-center overflow-hidden rounded-sm border border-border bg-muted text-lg font-semibold text-muted-foreground">
-            {p.avatar_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={p.avatar_url} alt="" className="size-full object-cover" />
-            ) : (
-              (p.full_name ?? e.brantaId).slice(0, 1).toUpperCase()
+          <button
+            type="button"
+            onClick={() => p.avatar_url && setAvatarOpen(true)}
+            className={cn(
+              "group relative grid size-14 place-items-center overflow-hidden rounded-sm border border-border bg-muted text-lg font-semibold text-muted-foreground",
+              p.avatar_url && "cursor-pointer",
             )}
-          </div>
+            aria-label={p.avatar_url ? "View avatar" : "No avatar"}
+          >
+            {p.avatar_url ? (
+              <>
+                <img src={p.avatar_url} alt="" className="size-full object-cover" />
+                <span className="pointer-events-none absolute inset-0 hidden items-center justify-center bg-black/40 text-white group-hover:flex">
+                  <Eye className="size-4" />
+                </span>
+              </>
+            ) : (
+              initial
+            )}
+          </button>
           <div className="min-w-0 flex-1">
             <div className="font-mono text-[13px]">
               <span>{e.brantaId}</span>
@@ -511,7 +523,14 @@ function EmployeeDetailPage() {
         </div>
       </section>
 
-      {/* Employee ID card: code + scannable barcode + Job Role */}
+      <AvatarDialog
+        open={avatarOpen}
+        onOpenChange={setAvatarOpen}
+        url={p.avatar_url}
+        name={p.full_name ?? e.brantaId}
+      />
+
+      {/* Employee ID + Job Role */}
       <section className="rounded-sm border border-border bg-card p-5">
         <div className="mb-3 flex items-center gap-2">
           <ShieldCheck className="size-4 text-brand" strokeWidth={2} />
@@ -520,33 +539,26 @@ function EmployeeDetailPage() {
           </h2>
         </div>
         <div className="grid grid-cols-1 gap-5 md:grid-cols-[minmax(260px,320px)_1fr]">
-          {/* Barcode card */}
           <div className="rounded-sm border border-border bg-white p-3">
-            <div className="mb-1 text-[10px] font-mono uppercase tracking-[0.14em] text-muted-foreground">
+            <div className="mb-1 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
               Employee Code
             </div>
             {p.employee_code ? (
               <>
-                <div className="mb-1 font-mono text-[18px] font-semibold tracking-[0.08em] text-foreground">
-                  {p.employee_code}
+                <div className="mb-1 flex items-center gap-2">
+                  <div className="font-mono text-[18px] font-semibold tracking-[0.08em] text-foreground">
+                    {p.employee_code}
+                  </div>
+                  <CopyBtn value={p.employee_code} />
                 </div>
                 <div className="overflow-hidden rounded-sm border border-border bg-white">
-                  <BarcodeSvg
-                    value={p.employee_code}
-                    height={70}
-                    className="mx-auto block"
-                  />
+                  <BarcodeSvg value={p.employee_code} height={70} className="mx-auto block" />
                 </div>
-                <div className="mt-2 flex items-center gap-2">
+                <div className="mt-2">
                   <button
                     onClick={() =>
-                      downloadBarcodePng(
-                        p.employee_code!,
-                        `${p.employee_code}.png`,
-                      ).catch((err) =>
-                        toast.error(
-                          err instanceof Error ? err.message : "Download failed",
-                        ),
+                      downloadBarcodePng(p.employee_code!, `${p.employee_code}.png`).catch(
+                        (err) => toast.error(err instanceof Error ? err.message : "Download failed"),
                       )
                     }
                     className="inline-flex h-8 items-center gap-1.5 rounded-sm border border-border bg-card px-2.5 text-[12px] font-medium hover:bg-muted"
@@ -554,37 +566,15 @@ function EmployeeDetailPage() {
                     <Download className="size-3.5" strokeWidth={2} />
                     Download barcode (PNG)
                   </button>
-                  <button
-                    onClick={async () => {
-                      try {
-                        await navigator.clipboard.writeText(p.employee_code!);
-                        toast.success("Code copied");
-                      } catch {
-                        /* ignore */
-                      }
-                    }}
-                    className="grid size-8 place-items-center rounded-sm border border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
-                    aria-label="Copy code"
-                  >
-                    <Copy className="size-3.5" strokeWidth={1.75} />
-                  </button>
                 </div>
-                <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
-                  Scan with any Code128-compatible reader to reveal this ID.
-                  Use the download for printed ID cards.
-                </p>
               </>
             ) : (
-              <p className="text-[12px] text-muted-foreground">
-                No employee code assigned yet.
-              </p>
+              <p className="text-[12px] text-muted-foreground">No employee code assigned yet.</p>
             )}
           </div>
-
-          {/* Job Role editor */}
           <div className="rounded-sm border border-border bg-card p-4">
             <div className="mb-1 flex items-center justify-between">
-              <div className="text-[10px] font-mono uppercase tracking-[0.14em] text-muted-foreground">
+              <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
                 Job Role
               </div>
               {!canSuperAdmin && (
@@ -600,10 +590,6 @@ function EmployeeDetailPage() {
               placeholder="e.g. Senior Backend Engineer"
               className="h-9 rounded-sm"
             />
-            <p className="mt-1.5 text-[11px] text-muted-foreground">
-              This appears on the employee's own profile as a read-only field.
-              Only a Super Admin can change it.
-            </p>
             {canSuperAdmin && (
               <div className="mt-2 flex items-center gap-2">
                 <button
@@ -633,8 +619,7 @@ function EmployeeDetailPage() {
         </div>
       </section>
 
-      {/* Roles / RBAC */}
-
+      {/* RBAC */}
       <section className="rounded-sm border border-border bg-card p-5">
         <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -656,9 +641,7 @@ function EmployeeDetailPage() {
                 disabled={saveRoles.isPending}
                 className="inline-flex h-7 items-center gap-1 rounded-sm bg-brand px-2.5 text-[11.5px] font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
               >
-                {saveRoles.isPending && (
-                  <Loader2 className="size-3 animate-spin" />
-                )}
+                {saveRoles.isPending && <Loader2 className="size-3 animate-spin" />}
                 Save
               </button>
             </div>
@@ -676,9 +659,7 @@ function EmployeeDetailPage() {
                 disabled={disabled}
                 className={cn(
                   "rounded-sm border px-3 py-2.5 text-left transition-colors",
-                  active
-                    ? "border-brand bg-brand/5"
-                    : "border-border bg-card hover:bg-muted",
+                  active ? "border-brand bg-brand/5" : "border-border bg-card hover:bg-muted",
                   disabled && "cursor-not-allowed opacity-50",
                 )}
               >
@@ -686,58 +667,33 @@ function EmployeeDetailPage() {
                   <div className="text-[12.5px] font-semibold">{r.label}</div>
                   {active && <Check className="size-3.5 text-brand" strokeWidth={2.5} />}
                 </div>
-                <div className="mt-0.5 text-[10.5px] text-muted-foreground">
-                  {r.note}
-                </div>
+                <div className="mt-0.5 text-[10.5px] text-muted-foreground">{r.note}</div>
               </button>
             );
           })}
         </div>
-        <p className="mt-2 text-[11px] text-muted-foreground">
-          Roles map to feature access via the <code className="font-mono">has_role()</code> RLS
-          policies. Add multiple roles to combine permissions.
-        </p>
       </section>
 
-      {/* Profile details */}
-      <section className="rounded-sm border border-border bg-card p-5">
-        <div className="mb-3 flex items-center gap-2">
-          <UserCog className="size-4 text-brand" strokeWidth={2} />
-          <h2 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Profile details
-          </h2>
-        </div>
-        <div className="grid grid-cols-1 gap-x-8 gap-y-3 md:grid-cols-2">
-          <Field label="Full name" value={p.full_name} />
-          <Field label="Legal full name" value={p.legal_full_name} />
-          <Field label="Work email" value={e.email} copy />
-          <Field label="Personal Gmail" value={p.personal_gmail} copy />
-          <Field label="Phone" value={p.phone_primary} copy />
-          <Field label="Alt. phone" value={p.phone_alt} copy />
-          <Field
-            label="Address"
-            value={[p.address_line1, p.address_line2].filter(Boolean).join(", ") || null}
-          />
-          <Field
-            label="City / District"
-            value={[p.city, p.district].filter(Boolean).join(" · ") || null}
-          />
-          <Field label="Postcode" value={p.postcode} />
-          <Field label="Country" value={p.country} />
-          <Field label="Bank" value={p.bank_name} />
-          <Field label="Account name" value={p.bank_account_name} />
-          <Field label="Account number" value={p.bank_account_number} copy />
-          <Field label="Routing / IFSC" value={p.bank_routing} />
-          <Field label="MFS provider" value={p.mfs_provider} />
-          <Field label="MFS number" value={p.mfs_number} copy />
-        </div>
+      {/* Tabs */}
+      <div className="flex items-center gap-1 border-b border-border">
+        <TabBtn active={tab === "profile"} onClick={() => setTab("profile")} icon={UserCog}>
+          Profile
+        </TabBtn>
+        <TabBtn active={tab === "wallet"} onClick={() => setTab("wallet")} icon={Wallet}>
+          Wallet
+        </TabBtn>
+      </div>
 
-        <div className="mt-4 flex flex-wrap gap-2">
-          <DocLink label="NID document" url={p.nid_url} />
-          <DocLink label="CV / Resume" url={p.cv_url} />
-          <DocLink label="Avatar" url={p.avatar_url} />
-        </div>
-      </section>
+      {tab === "profile" ? <ProfileTab e={e} /> : <WalletTab userId={userId} walletFn={walletFn} />}
+
+      {/* Sessions */}
+      <SessionsSection
+        userId={userId}
+        listFn={sessionsFn}
+        revokeFn={revokeSessionFn}
+        confirm={confirm}
+        qc={qc}
+      />
 
       {/* Assigned leads */}
       <section className="rounded-sm border border-border bg-card p-5">
@@ -765,15 +721,573 @@ function EmployeeDetailPage() {
           }
         />
       </section>
-
-      {/* Danger info */}
-      {isSelf && (
-        <div className="rounded-sm border border-amber-300 bg-amber-50 px-3 py-2 text-[12px] text-amber-800">
-          <ShieldAlert className="mr-1 inline size-3.5" />
-          Self-management: some destructive actions are disabled on your own account.
-        </div>
-      )}
     </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────
+
+function TabBtn({
+  active,
+  onClick,
+  icon: Icon,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: typeof UserCog;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "-mb-px inline-flex items-center gap-1.5 border-b-2 px-3 py-2 text-[12.5px] font-semibold transition-colors",
+        active
+          ? "border-brand text-foreground"
+          : "border-transparent text-muted-foreground hover:text-foreground",
+      )}
+    >
+      <Icon className="size-3.5" strokeWidth={2} />
+      {children}
+    </button>
+  );
+}
+
+function ProfileTab({ e }: { e: EmployeeDetail }) {
+  const p = e.profile;
+  const addressLine =
+    [p.address_line1, p.address_line2].filter(Boolean).join(", ") || null;
+  const region =
+    [p.upazila ?? p.city, p.district, p.division].filter(Boolean).join(" · ") || null;
+  return (
+    <section className="rounded-sm border border-border bg-card p-5">
+      <div className="mb-3 flex items-center gap-2">
+        <UserCog className="size-4 text-brand" strokeWidth={2} />
+        <h2 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+          Personal details
+        </h2>
+      </div>
+      <div className="grid grid-cols-1 gap-x-8 gap-y-3 md:grid-cols-2">
+        <Field label="Full name" value={p.full_name} copy />
+        <Field label="Legal full name" value={p.legal_full_name} copy />
+        <Field label="Work email" value={e.email} copy />
+        <Field label="Personal Gmail" value={p.personal_gmail} copy />
+        <Field label="Phone" value={p.phone_primary} copy />
+        <Field label="Alt. phone" value={p.phone_alt} copy />
+        <Field label="Address" value={addressLine} copy />
+        <Field label="Area" value={region} copy />
+        <Field label="Post office" value={p.post_office} copy />
+        <Field label="Postcode" value={p.postcode} copy />
+        <Field label="Country" value={p.country} copy />
+      </div>
+
+      <div className="mt-5 mb-2 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+        Documents
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <DocLink label="Avatar" url={p.avatar_url} />
+        <DocLink label="NID document" url={p.nid_url} />
+        <DocLink label="NID front" url={p.nid_front_url} />
+        <DocLink label="NID back" url={p.nid_back_url} />
+        <DocLink label="Passport photo" url={p.passport_photo_url} />
+        <DocLink label="Passport address" url={p.passport_address_url} />
+        <DocLink label="Birth certificate" url={p.birth_certificate_url} />
+        <DocLink label="CV / Résumé" url={p.cv_url} />
+      </div>
+    </section>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────
+
+const currencyFmt = (n: number, cur: string) =>
+  `${cur === "USD" ? "$" : "৳"} ${Number(n).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+
+function WalletTab({
+  userId,
+  walletFn,
+}: {
+  userId: string;
+  walletFn: ReturnType<typeof useServerFn<typeof getEmployeeWallet>>;
+}) {
+  const wallet = useQuery({
+    queryKey: ["employee.wallet", userId],
+    queryFn: () => walletFn({ data: { userId } }),
+  });
+
+  const detail = useQueryClient().getQueryData<EmployeeDetail>([
+    "employee.detail",
+    userId,
+  ]);
+  const methods = (detail?.profile.payment_methods ?? []) as PaymentMethodLite[];
+
+  if (wallet.isLoading) {
+    return (
+      <section className="flex items-center gap-2 rounded-sm border border-border bg-card p-6 text-[13px] text-muted-foreground">
+        <Loader2 className="size-4 animate-spin" /> Loading wallet…
+      </section>
+    );
+  }
+  if (wallet.error || !wallet.data) {
+    return (
+      <section className="rounded-sm border border-rose-200 bg-rose-50 p-4 text-[12.5px] text-rose-700">
+        {wallet.error instanceof Error ? wallet.error.message : "Wallet unavailable"}
+      </section>
+    );
+  }
+
+  const { balances, payouts, withdrawals } = wallet.data;
+
+  const lifetimePaid = payouts
+    .filter((p) => p.status === "paid")
+    .reduce<Record<string, number>>((acc, p) => {
+      acc[p.currency] = (acc[p.currency] ?? 0) + Number(p.amount);
+      return acc;
+    }, {});
+  const lifetimeCurrencies = Object.keys(lifetimePaid);
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Balances */}
+      <section className="rounded-sm border border-border bg-card p-5">
+        <div className="mb-3 flex items-center gap-2">
+          <Wallet className="size-4 text-brand" strokeWidth={2} />
+          <h3 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            Balance
+          </h3>
+        </div>
+        {balances.length === 0 ? (
+          <p className="text-[12.5px] text-muted-foreground">No balance yet.</p>
+        ) : (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {balances.flatMap((b) => [
+              <BalanceCard key={`${b.currency}-locked`} label="Locked" value={b.locked} currency={b.currency} tone="muted" />,
+              <BalanceCard key={`${b.currency}-avail`} label="Available" value={b.available} currency={b.currency} tone="brand" />,
+              <BalanceCard key={`${b.currency}-req`} label="Requested" value={b.requested} currency={b.currency} tone="amber" />,
+              <BalanceCard key={`${b.currency}-paid`} label="Lifetime paid" value={b.paid} currency={b.currency} tone="emerald" />,
+            ])}
+          </div>
+        )}
+        {lifetimeCurrencies.length > 0 && (
+          <div className="mt-3 text-[11.5px] text-muted-foreground">
+            Lifetime payout total:{" "}
+            {lifetimeCurrencies
+              .map((c) => currencyFmt(lifetimePaid[c] ?? 0, c))
+              .join(" · ")}
+          </div>
+        )}
+      </section>
+
+      {/* Payment methods */}
+      <section className="rounded-sm border border-border bg-card p-5">
+        <div className="mb-3 flex items-center gap-2">
+          <UserCog className="size-4 text-brand" strokeWidth={2} />
+          <h3 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            Payment methods
+          </h3>
+        </div>
+        {methods.length === 0 ? (
+          <p className="text-[12.5px] text-muted-foreground">
+            This employee hasn't saved any bank or MFS account yet.
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            {methods.map((m) => (
+              <PaymentMethodCard key={m.id} m={m} />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Payouts */}
+      <section className="rounded-sm border border-border bg-card p-5">
+        <div className="mb-3 flex items-center gap-2">
+          <h3 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            Payment history ({payouts.length})
+          </h3>
+        </div>
+        {payouts.length === 0 ? (
+          <p className="text-[12.5px] text-muted-foreground">No payouts yet.</p>
+        ) : (
+          <div className="overflow-hidden rounded-sm border border-border">
+            <table className="w-full text-left text-[12.5px]">
+              <thead className="bg-muted text-[10.5px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                <tr>
+                  <th className="px-3 py-2">Invoice</th>
+                  <th className="px-3 py-2">Installment</th>
+                  <th className="px-3 py-2 text-right">Amount</th>
+                  <th className="px-3 py-2">Status</th>
+                  <th className="px-3 py-2">When</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {payouts.map((r) => (
+                  <tr key={r.id}>
+                    <td className="px-3 py-1.5 font-mono">
+                      {r.invoice_slug ? (
+                        <Link
+                          to="/app/finance/invoices/$slug"
+                          params={{ slug: r.invoice_slug }}
+                          className="text-brand hover:underline"
+                        >
+                          {r.invoice_slug}
+                        </Link>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                    <td className="px-3 py-1.5">{r.installment_label ?? "—"}</td>
+                    <td className="px-3 py-1.5 text-right font-mono">
+                      {currencyFmt(Number(r.amount), r.currency)}
+                    </td>
+                    <td className="px-3 py-1.5">
+                      <PayoutStatusBadge status={r.status} />
+                    </td>
+                    <td className="px-3 py-1.5 font-mono text-[11.5px] text-muted-foreground">
+                      {new Date(r.paid_at ?? r.requested_at ?? r.unlocked_at ?? r.created_at).toLocaleDateString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {/* Withdrawals */}
+      <section className="rounded-sm border border-border bg-card p-5">
+        <div className="mb-3 flex items-center gap-2">
+          <h3 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            Withdrawal requests ({withdrawals.length})
+          </h3>
+        </div>
+        {withdrawals.length === 0 ? (
+          <p className="text-[12.5px] text-muted-foreground">No withdrawal requests.</p>
+        ) : (
+          <div className="overflow-hidden rounded-sm border border-border">
+            <table className="w-full text-left text-[12.5px]">
+              <thead className="bg-muted text-[10.5px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                <tr>
+                  <th className="px-3 py-2">Requested</th>
+                  <th className="px-3 py-2 text-right">Amount</th>
+                  <th className="px-3 py-2">Status</th>
+                  <th className="px-3 py-2">Transfer ref</th>
+                  <th className="px-3 py-2">Note</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {withdrawals.map((w) => (
+                  <tr key={w.id}>
+                    <td className="px-3 py-1.5 font-mono text-[11.5px]">
+                      {new Date(w.requested_at).toLocaleString()}
+                    </td>
+                    <td className="px-3 py-1.5 text-right font-mono">
+                      {currencyFmt(Number(w.amount), w.currency)}
+                    </td>
+                    <td className="px-3 py-1.5">
+                      <WithdrawStatusBadge status={w.status} />
+                    </td>
+                    <td className="px-3 py-1.5 font-mono text-[11.5px]">
+                      {w.transfer_ref ? (
+                        <span className="inline-flex items-center gap-1">
+                          {w.transfer_ref}
+                          <CopyBtn value={w.transfer_ref} small />
+                        </span>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                    <td className="px-3 py-1.5 text-[11.5px] text-muted-foreground">
+                      {w.admin_note ?? "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function BalanceCard({
+  label,
+  value,
+  currency,
+  tone,
+}: {
+  label: string;
+  value: number;
+  currency: string;
+  tone: "brand" | "muted" | "amber" | "emerald";
+}) {
+  const cls =
+    tone === "brand"
+      ? "border-brand/30 bg-brand/5"
+      : tone === "amber"
+        ? "border-amber-200 bg-amber-50"
+        : tone === "emerald"
+          ? "border-emerald-200 bg-emerald-50"
+          : "border-border bg-muted/40";
+  return (
+    <div className={cn("rounded-sm border p-3", cls)}>
+      <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+        {label} · {currency}
+      </div>
+      <div className="mt-1 font-mono text-[17px] font-semibold">
+        {currencyFmt(Number(value), currency)}
+      </div>
+    </div>
+  );
+}
+
+function PayoutStatusBadge({ status }: { status: string }) {
+  const map: Record<string, string> = {
+    locked: "border-border bg-muted text-muted-foreground",
+    available: "border-emerald-300 bg-emerald-50 text-emerald-700",
+    requested: "border-amber-300 bg-amber-50 text-amber-800",
+    paid: "border-brand/40 bg-brand/10 text-brand",
+  };
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-sm border px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.06em]",
+        map[status] ?? "border-border bg-muted text-muted-foreground",
+      )}
+    >
+      {status === "locked" && <Lock className="mr-1 size-3" />}
+      {status}
+    </span>
+  );
+}
+
+function WithdrawStatusBadge({ status }: { status: string }) {
+  const map: Record<string, string> = {
+    pending: "border-amber-300 bg-amber-50 text-amber-800",
+    approved: "border-sky-300 bg-sky-50 text-sky-700",
+    paid: "border-emerald-300 bg-emerald-50 text-emerald-700",
+    rejected: "border-rose-300 bg-rose-50 text-rose-700",
+  };
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-sm border px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.06em]",
+        map[status] ?? "border-border bg-muted text-muted-foreground",
+      )}
+    >
+      {status}
+    </span>
+  );
+}
+
+function PaymentMethodCard({ m }: { m: PaymentMethodLite }) {
+  return (
+    <div
+      className={cn(
+        "rounded-sm border p-3",
+        m.is_primary ? "border-brand ring-1 ring-brand/20" : "border-border",
+      )}
+    >
+      <div className="mb-2 flex items-center gap-2">
+        <span className="inline-flex items-center rounded-sm border border-border bg-muted px-1.5 py-0.5 font-mono text-[10.5px] uppercase tracking-[0.08em]">
+          {m.kind === "bank" ? "Bank" : "MFS"}
+        </span>
+        {m.is_primary && (
+          <span className="inline-flex items-center rounded-sm bg-brand/10 px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.06em] text-brand">
+            Primary
+          </span>
+        )}
+      </div>
+      <div className="grid grid-cols-1 gap-2">
+        {m.kind === "bank" ? (
+          <>
+            <Field label="Bank" value={m.bank_name} copy />
+            <Field label="Account holder" value={m.account_holder} copy />
+            <Field label="Account number" value={m.account_number} copy />
+            <Field label="Branch" value={m.branch} copy />
+          </>
+        ) : (
+          <>
+            <Field label="MFS provider" value={m.mfs_provider} copy />
+            <Field label="Account holder" value={m.account_holder} copy />
+            <Field label="MFS number" value={m.mfs_number} copy />
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────
+
+function SessionsSection({
+  userId,
+  listFn,
+  revokeFn,
+  confirm,
+  qc,
+}: {
+  userId: string;
+  listFn: ReturnType<typeof useServerFn<typeof listEmployeeSessions>>;
+  revokeFn: ReturnType<typeof useServerFn<typeof revokeEmployeeSession>>;
+  confirm: ReturnType<typeof useConfirm>;
+  qc: ReturnType<typeof useQueryClient>;
+}) {
+  const q = useQuery({
+    queryKey: ["employee.sessions", userId],
+    queryFn: () => listFn({ data: { userId } }),
+    refetchInterval: 30_000,
+  });
+
+  // Realtime: reflect sign-outs from anywhere immediately.
+  useEffect(() => {
+    const ch = supabase
+      .channel(`admin-sessions:${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "user_sessions",
+          filter: `user_id=eq.${userId}`,
+        },
+        () => qc.invalidateQueries({ queryKey: ["employee.sessions", userId] }),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, [userId, qc]);
+
+  const revoke = useMutation({
+    mutationFn: (sessionId: string) => revokeFn({ data: { userId, sessionId } }),
+    onSuccess: () => {
+      toast.success("Session signed out");
+      qc.invalidateQueries({ queryKey: ["employee.sessions", userId] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
+  });
+
+  const onRevoke = async (id: string, label: string) => {
+    const ok = await confirm({
+      title: "Sign out this session?",
+      description: `${label} will be signed out from this device immediately.`,
+      confirmLabel: "Sign out",
+      tone: "warning",
+    });
+    if (ok) revoke.mutate(id);
+  };
+
+  const rows = q.data ?? [];
+  const active = rows.filter((r) => !r.revoked_at);
+
+  return (
+    <section className="rounded-sm border border-border bg-card p-5">
+      <div className="mb-3 flex items-center gap-2">
+        <ShieldAlert className="size-4 text-brand" strokeWidth={2} />
+        <h2 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+          Sessions ({active.length} active)
+        </h2>
+      </div>
+      {q.isLoading ? (
+        <div className="flex items-center gap-2 text-[12.5px] text-muted-foreground">
+          <Loader2 className="size-3.5 animate-spin" /> Loading…
+        </div>
+      ) : rows.length === 0 ? (
+        <p className="text-[12.5px] text-muted-foreground">No sessions recorded yet.</p>
+      ) : (
+        <ul className="divide-y divide-border rounded-sm border border-border">
+          {rows.map((s) => {
+            const label = `${s.browser ?? "Browser"} · ${s.device ?? "Device"}`;
+            const geo = [s.city, s.region, s.country].filter(Boolean).join(", ");
+            return (
+              <li key={s.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                <div className="min-w-0">
+                  <div className="text-[12.5px] font-medium">
+                    {label}
+                    {s.revoked_at && (
+                      <span className="ml-2 rounded-sm border border-border bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground">
+                        Revoked
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    {s.os ?? "—"} · {s.ip ?? "—"}
+                    {geo && ` · ${geo}`} · last seen{" "}
+                    {new Date(s.last_seen_at).toLocaleString()}
+                  </div>
+                </div>
+                {!s.revoked_at && (
+                  <button
+                    onClick={() => onRevoke(s.id, label)}
+                    disabled={revoke.isPending}
+                    className="inline-flex h-7 items-center gap-1 rounded-sm border border-rose-300 bg-rose-50 px-2 text-[11.5px] font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-60"
+                  >
+                    <LogOut className="size-3" />
+                    Sign out
+                  </button>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────
+
+function AvatarDialog({
+  open,
+  onOpenChange,
+  url,
+  name,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  url: string | null;
+  name: string;
+}) {
+  if (!url) return null;
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md overflow-hidden p-0">
+        <DialogHeader className="border-b border-border px-4 py-2.5">
+          <DialogTitle className="text-[13px] font-semibold">
+            Avatar · {name}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="grid place-items-center bg-muted/40 p-4">
+          <img src={url} alt="" className="max-h-[70vh] w-auto rounded-sm object-contain" />
+        </div>
+        <div className="flex items-center justify-end gap-2 border-t border-border p-3">
+          <a
+            href={url}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="inline-flex h-8 items-center gap-1.5 rounded-sm border border-border bg-card px-2.5 text-[12px] font-medium hover:bg-muted"
+          >
+            <ExternalLink className="size-3.5" />
+            Open
+          </a>
+          <a
+            href={url}
+            download
+            className="inline-flex h-8 items-center gap-1.5 rounded-sm bg-brand px-3 text-[12px] font-semibold text-white hover:bg-brand-700"
+          >
+            <Download className="size-3.5" />
+            Download
+          </a>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -812,6 +1326,32 @@ function StatusBadge({ banned }: { banned: boolean }) {
   );
 }
 
+function CopyBtn({ value, small }: { value: string; small?: boolean }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(value);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1400);
+        } catch { /* ignore */ }
+      }}
+      className={cn(
+        "grid place-items-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground",
+        small ? "size-5" : "size-6",
+      )}
+      aria-label="Copy"
+    >
+      {copied ? (
+        <Check className={cn(small ? "size-2.5" : "size-3", "text-emerald-600")} strokeWidth={2.5} />
+      ) : (
+        <Copy className={cn(small ? "size-2.5" : "size-3")} strokeWidth={1.75} />
+      )}
+    </button>
+  );
+}
+
 function Field({
   label,
   value,
@@ -821,19 +1361,10 @@ function Field({
   value: string | null | undefined;
   copy?: boolean;
 }) {
-  const [copied, setCopied] = useState(false);
   const empty = !value;
-  const onCopy = async () => {
-    if (!value) return;
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1400);
-    } catch { /* ignore */ }
-  };
   return (
     <div>
-      <div className="text-[10px] font-mono uppercase tracking-[0.14em] text-muted-foreground">
+      <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
         {label}
       </div>
       <div className="mt-0.5 flex items-center gap-1.5">
@@ -845,19 +1376,7 @@ function Field({
         >
           {empty ? "—" : value}
         </span>
-        {copy && !empty && (
-          <button
-            onClick={onCopy}
-            className="grid size-6 place-items-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground"
-            aria-label="Copy"
-          >
-            {copied ? (
-              <Check className="size-3 text-emerald-600" strokeWidth={2.5} />
-            ) : (
-              <Copy className="size-3" strokeWidth={1.75} />
-            )}
-          </button>
-        )}
+        {copy && !empty && <CopyBtn value={value!} />}
       </div>
     </div>
   );
@@ -880,7 +1399,8 @@ function DocLink({ label, url }: { label: string; url: string | null }) {
   );
 }
 
-// Assigned leads: show current owned leads + search-and-assign combobox.
+// ────────────────────────────────────────────────────────────────
+
 function AssignLeadsPanel({
   userId: _userId,
   assigned,
@@ -947,19 +1467,14 @@ function AssignLeadsPanel({
       ) : (
         <ul className="divide-y divide-border rounded-sm border border-border">
           {assigned.map((l) => (
-            <li
-              key={l.id}
-              className="flex items-center justify-between gap-3 px-3 py-2"
-            >
+            <li key={l.id} className="flex items-center justify-between gap-3 px-3 py-2">
               <div className="min-w-0">
                 <Link
                   to="/app/leads/$slug"
                   params={{ slug: l.slug }}
                   className="text-[13px] font-medium text-foreground hover:text-brand"
                 >
-                  <span className="font-mono text-[11.5px] text-muted-foreground">
-                    {l.lead_code}
-                  </span>{" "}
+                  <span className="font-mono text-[11.5px] text-muted-foreground">{l.slug}</span>{" "}
                   {l.name}
                 </Link>
                 <div className="text-[11px] text-muted-foreground">
@@ -971,11 +1486,7 @@ function AssignLeadsPanel({
                 disabled={pending === l.id}
                 className="inline-flex h-7 items-center gap-1 rounded-sm border border-border bg-card px-2 text-[11.5px] hover:bg-muted disabled:opacity-60"
               >
-                {pending === l.id ? (
-                  <Loader2 className="size-3 animate-spin" />
-                ) : (
-                  <X className="size-3" />
-                )}
+                {pending === l.id ? <Loader2 className="size-3 animate-spin" /> : <X className="size-3" />}
                 Unassign
               </button>
             </li>
@@ -984,7 +1495,7 @@ function AssignLeadsPanel({
       )}
 
       <div className="rounded-sm border border-dashed border-border p-3">
-        <div className="mb-2 text-[11px] font-mono uppercase tracking-[0.14em] text-muted-foreground">
+        <div className="mb-2 font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
           Assign more leads
         </div>
         <div className="flex items-center gap-2">
@@ -1009,15 +1520,10 @@ function AssignLeadsPanel({
         {results.length > 0 && (
           <ul className="mt-2 max-h-56 divide-y divide-border overflow-y-auto rounded-sm border border-border">
             {results.map((r) => (
-              <li
-                key={r.id}
-                className="flex items-center justify-between gap-3 px-3 py-2"
-              >
+              <li key={r.id} className="flex items-center justify-between gap-3 px-3 py-2">
                 <div className="min-w-0">
                   <div className="text-[13px] font-medium">
-                    <span className="font-mono text-[11.5px] text-muted-foreground">
-                      {r.lead_code}
-                    </span>{" "}
+                    <span className="font-mono text-[11.5px] text-muted-foreground">{r.slug}</span>{" "}
                     {r.name}
                   </div>
                   <div className="text-[11px] text-muted-foreground">
