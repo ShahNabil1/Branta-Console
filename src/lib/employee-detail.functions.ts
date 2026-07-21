@@ -150,6 +150,8 @@ export const getEmployeeDetail = createServerFn({ method: "GET" })
       lastSignInAt: u.last_sign_in_at ?? null,
       bannedUntil,
       isBanned,
+      mustChangePassword: !!(prof.data as any)?.must_change_password,
+      mustLinkTelegram: !!(prof.data as any)?.must_link_telegram,
       profile: (prof.data ?? {
         full_name: null,
         legal_full_name: null,
