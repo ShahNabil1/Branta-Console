@@ -41,6 +41,18 @@ const requestOrigin = () => {
   return "https://console.brantatech.com";
 };
 
+export interface PaymentMethodLite {
+  id: string;
+  kind: "bank" | "mfs";
+  is_primary: boolean;
+  bank_name: string | null;
+  account_holder: string | null;
+  account_number: string | null;
+  branch: string | null;
+  mfs_provider: string | null;
+  mfs_number: string | null;
+}
+
 export interface EmployeeDetail {
   userId: string;
   email: string;
