@@ -143,6 +143,19 @@ export const createEmployee = createServerFn({ method: "POST" })
         throw new Error(roleErr.message);
       }
 
+      // Force onboarding on first sign-in: set a personal password AND
+      // link Telegram. Both flags self-clear once the employee completes
+      // the corresponding step.
+      await supabaseAdmin
+        .from("profiles")
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .update({
+          must_change_password: true,
+          must_link_telegram: true,
+        } as any)
+        .eq("user_id", newUserId);
+
+
       // Best-effort: origin comes from the caller's request so the login URL
       // matches whichever host the operator is using (preview vs. custom).
       const origin = (() => {
