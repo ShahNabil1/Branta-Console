@@ -207,17 +207,26 @@ function PasskeysSection() {
 
   const [addOpen, setAddOpen] = useState(false);
   const [name, setName] = useState("");
+  const [mfaCode, setMfaCode] = useState("");
   const [busy, setBusy] = useState(false);
+
+  const mfaValid = /^\d{6}$/.test(mfaCode);
 
   const startAdd = async () => {
     if (!name.trim()) {
       toast.error("Give this passkey a name so you can recognize it later.");
       return;
     }
+    if (!mfaValid) {
+      toast.error("Enter the 6-digit code from your authenticator app.");
+      return;
+    }
     setBusy(true);
     try {
       const { startRegistration } = await import("@simplewebauthn/browser");
-      const options = await begin({ data: { friendly_name: name.trim() } });
+      const options = await begin({
+        data: { friendly_name: name.trim(), mfa_code: mfaCode },
+      });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const attestation = await startRegistration({ optionsJSON: options as any });
       await finish({
@@ -226,6 +235,7 @@ function PasskeysSection() {
       toast.success("Passkey added");
       setAddOpen(false);
       setName("");
+      setMfaCode("");
       await qc.invalidateQueries({ queryKey: ["me", "passkeys"] });
     } catch (err) {
       toast.error("Could not add passkey", { description: (err as Error).message });
@@ -233,6 +243,7 @@ function PasskeysSection() {
       setBusy(false);
     }
   };
+
 
   const onDelete = async (id: string, label: string) => {
     const ok = await confirm({
