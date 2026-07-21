@@ -502,15 +502,8 @@ function EmployeeDetailPage() {
             <div className="mt-1 flex flex-wrap items-center gap-2">
               <RoleBadge role={e.role} />
               <StatusBadge banned={e.isBanned} />
-              <span
-                className={cn(
-                  "inline-flex items-center rounded-sm border px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.06em]",
-                  kycBadge(p.kyc_status),
-                )}
-              >
-                KYC · {(p.kyc_status ?? "not_verified").replace("_", " ")}
-              </span>
             </div>
+
           </div>
           <dl className="grid grid-cols-2 gap-x-6 gap-y-1 text-[12px]">
             <dt className="text-muted-foreground">Created</dt>
