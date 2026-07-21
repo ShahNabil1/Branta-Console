@@ -360,7 +360,7 @@ function LeadsPage() {
           <div>Lead</div>
           <div>Company</div>
           <div>Status</div>
-          <div>Owner</div>
+          <div>Assigned to</div>
           <div>Service</div>
           <div className="text-right">Last activity</div>
         </div>
