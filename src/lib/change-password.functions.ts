@@ -36,7 +36,7 @@ export const changeMyPassword = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
     );
-    const { createClient } = await import("@supabase/supabase-js");
+    
 
     // Get email so we can verify current password
     const { data: userData } = await supabaseAdmin.auth.admin.getUserById(
