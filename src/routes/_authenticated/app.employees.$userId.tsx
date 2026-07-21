@@ -84,18 +84,8 @@ const ROLE_OPTIONS: { value: EmployeeRole; label: string; note: string }[] = [
   { value: "super_admin", label: "Super admin", note: "Full unrestricted access" },
 ];
 
-const kycBadge = (s?: string | null) => {
-  switch (s) {
-    case "verified":
-      return "border-emerald-300 bg-emerald-50 text-emerald-700";
-    case "under_review":
-      return "border-sky-300 bg-sky-50 text-sky-700";
-    case "rejected":
-      return "border-rose-300 bg-rose-50 text-rose-700";
-    default:
-      return "border-border bg-muted text-muted-foreground";
-  }
-};
+
+
 
 function EmployeeDetailPage() {
   const { userId } = Route.useParams();
