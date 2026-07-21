@@ -155,6 +155,18 @@ export const createEmployee = createServerFn({ method: "POST" })
         } as any)
         .eq("user_id", newUserId);
 
+      // Seed the temp password hash into password_history so the onboarding
+      // "set initial password" step can reject reuse without asking the
+      // employee to retype the temp password.
+      try {
+        const { hashPassword } = await import("@/lib/password-hash.server");
+        const tempHash = await hashPassword(password);
+        await supabaseAdmin
+          .from("password_history")
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .insert({ user_id: newUserId, password_hash: tempHash } as any);
+      } catch { /* best-effort */ }
+
 
       // Best-effort: origin comes from the caller's request so the login URL
       // matches whichever host the operator is using (preview vs. custom).
