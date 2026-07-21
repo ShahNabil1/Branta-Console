@@ -41,6 +41,7 @@ export interface LeadRow {
   created_at: string;
   updated_at: string;
   owner_name?: string | null;
+  owner_avatar_url?: string | null;
 }
 
 export interface LeadContactRow {
@@ -148,15 +149,18 @@ async function attachOwnerNames(
   if (ids.length === 0) return rows;
   const { data } = await supabase
     .from("profiles")
-    .select("user_id, full_name")
+    .select("user_id, full_name, avatar_url")
     .in("user_id", ids);
   const nameByUser = new Map<string, string | null>();
-  (data ?? []).forEach((p: { user_id: string; full_name: string | null }) =>
-    nameByUser.set(p.user_id, p.full_name),
-  );
+  const avatarByUser = new Map<string, string | null>();
+  (data ?? []).forEach((p: { user_id: string; full_name: string | null; avatar_url: string | null }) => {
+    nameByUser.set(p.user_id, p.full_name);
+    avatarByUser.set(p.user_id, p.avatar_url);
+  });
   return rows.map((r) => ({
     ...r,
     owner_name: r.owner_id ? nameByUser.get(r.owner_id) ?? null : null,
+    owner_avatar_url: r.owner_id ? avatarByUser.get(r.owner_id) ?? null : null,
   }));
 }
 
