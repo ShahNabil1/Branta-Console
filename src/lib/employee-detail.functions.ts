@@ -63,6 +63,8 @@ export interface EmployeeDetail {
   lastSignInAt: string | null;
   bannedUntil: string | null;
   isBanned: boolean;
+  mustChangePassword: boolean;
+  mustLinkTelegram: boolean;
   profile: {
     full_name: string | null;
     legal_full_name: string | null;
