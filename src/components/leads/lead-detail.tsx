@@ -249,6 +249,7 @@ function EmailRow({
   onTagChange,
   onCompose,
   className,
+  error,
 }: {
   label: string;
   value: string;
@@ -257,6 +258,7 @@ function EmailRow({
   onTagChange: (v: string) => void;
   onCompose: () => void;
   className?: string;
+  error?: React.ReactNode;
 }) {
   return (
     <Field label={label} className={className}>
@@ -266,8 +268,12 @@ function EmailRow({
           type="email"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="h-9 flex-1 rounded-sm text-[12.5px]"
+          className={cn(
+            "h-9 flex-1 rounded-sm text-[12.5px]",
+            error && "border-red-500 focus-visible:ring-red-500",
+          )}
           placeholder="name@company.com"
+          aria-invalid={!!error}
         />
         <LabelSelect value={tag} onChange={onTagChange} />
         <TooltipProvider delayDuration={200}>
@@ -289,6 +295,9 @@ function EmailRow({
           </Tooltip>
         </TooltipProvider>
       </div>
+      {error && (
+        <p className="mt-1 text-[11.5px] font-medium text-red-600">{error}</p>
+      )}
     </Field>
   );
 }
@@ -300,6 +309,7 @@ function PhoneRow({
   tag,
   onTagChange,
   className,
+  error,
 }: {
   label: string;
   value: string;
@@ -307,6 +317,7 @@ function PhoneRow({
   tag: string;
   onTagChange: (v: string) => void;
   className?: string;
+  error?: React.ReactNode;
 }) {
   const digits = value.replace(/[^\d]/g, "");
   return (
@@ -317,8 +328,12 @@ function PhoneRow({
           type="tel"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="h-9 flex-1 rounded-sm text-[12.5px]"
+          className={cn(
+            "h-9 flex-1 rounded-sm text-[12.5px]",
+            error && "border-red-500 focus-visible:ring-red-500",
+          )}
           placeholder="+8801XXXXXXXXX"
+          aria-invalid={!!error}
         />
         <LabelSelect value={tag} onChange={onTagChange} />
         <TooltipProvider delayDuration={200}>
@@ -358,6 +373,9 @@ function PhoneRow({
           </Tooltip>
         </TooltipProvider>
       </div>
+      {error && (
+        <p className="mt-1 text-[11.5px] font-medium text-red-600">{error}</p>
+      )}
     </Field>
   );
 }
