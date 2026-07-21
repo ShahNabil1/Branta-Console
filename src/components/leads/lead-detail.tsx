@@ -1189,6 +1189,7 @@ export function LeadDetail({
                   tag={form.email_label}
                   onTagChange={(v) => setForm({ ...form, email_label: v })}
                   onCompose={() => setTab("emails")}
+                  error={renderDupMessage(dupByField.get("email"))}
                 />
                 <EmailRow
                   label="Alternative email"
@@ -1197,6 +1198,7 @@ export function LeadDetail({
                   tag={form.alt_email_label}
                   onTagChange={(v) => setForm({ ...form, alt_email_label: v })}
                   onCompose={() => setTab("emails")}
+                  error={renderDupMessage(dupByField.get("alt_email"))}
                 />
                 <PhoneRow
                   label="Phone"
@@ -1204,6 +1206,7 @@ export function LeadDetail({
                   onChange={(v) => setForm({ ...form, phone: v })}
                   tag={form.phone_label}
                   onTagChange={(v) => setForm({ ...form, phone_label: v })}
+                  error={renderDupMessage(dupByField.get("phone"))}
                 />
                 <PhoneRow
                   label="Alternative phone"
@@ -1211,7 +1214,9 @@ export function LeadDetail({
                   onChange={(v) => setForm({ ...form, alt_phone: v })}
                   tag={form.alt_phone_label}
                   onTagChange={(v) => setForm({ ...form, alt_phone_label: v })}
+                  error={renderDupMessage(dupByField.get("alt_phone"))}
                 />
+
 
                 <div className="col-span-2 md:col-span-3">
                   <SocialLinksSection leadId={lead.id} locked={false} />
