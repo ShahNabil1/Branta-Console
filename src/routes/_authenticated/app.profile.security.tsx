@@ -340,30 +340,55 @@ function PasskeysSection() {
             <DialogTitle>Add a passkey</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <Label className="text-[12px] font-semibold text-muted-foreground">
-              Name this passkey
-            </Label>
-            <Input
-              autoFocus
-              value={name}
-              onChange={(e) => setName(e.target.value.slice(0, 80))}
-              placeholder="e.g. MacBook Touch ID"
-              className="h-9 rounded-sm"
-            />
+            <div>
+              <Label className="text-[12px] font-semibold text-muted-foreground">
+                Name this passkey
+              </Label>
+              <Input
+                autoFocus
+                value={name}
+                onChange={(e) => setName(e.target.value.slice(0, 80))}
+                placeholder="e.g. MacBook Touch ID"
+                className="mt-1 h-9 rounded-sm"
+              />
+            </div>
+            <div>
+              <Label className="text-[12px] font-semibold text-muted-foreground">
+                2FA code from your authenticator
+              </Label>
+              <Input
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                value={mfaCode}
+                onChange={(e) =>
+                  setMfaCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+                }
+                placeholder="000000"
+                className="mt-1 h-9 rounded-sm font-mono tracking-[0.35em]"
+              />
+              <p className="mt-1 text-[11.5px] text-muted-foreground">
+                We verify 2FA before enrolling a new passkey — this prevents a
+                stolen password alone from adding a persistent sign-in method.
+              </p>
+            </div>
             <p className="text-[11.5px] text-muted-foreground">
-              Your browser will ask for biometric verification (Face ID, Touch
-              ID, Windows Hello, or a security key). Nothing is stored on our
-              servers except the public credential.
+              Your browser will then ask for biometric verification (Face ID,
+              Touch ID, Windows Hello, or a security key). Nothing is stored on
+              our servers except the public credential.
             </p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddOpen(false)} disabled={busy}>
               Cancel
             </Button>
-            <Button onClick={startAdd} disabled={busy || !name.trim()}>
+            <Button
+              onClick={startAdd}
+              disabled={busy || !name.trim() || !mfaValid}
+            >
               {busy ? <><Loader2 className="mr-1.5 size-3.5 animate-spin" />Verifying…</> : "Continue"}
             </Button>
           </DialogFooter>
+
         </DialogContent>
       </Dialog>
     </Section>
