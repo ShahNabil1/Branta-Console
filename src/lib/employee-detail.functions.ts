@@ -74,7 +74,7 @@ export interface EmployeeDetail {
     bank_routing: string | null;
     mfs_provider: string | null;
     mfs_number: string | null;
-    payment_methods: Array<Record<string, unknown>> | null;
+    payment_methods: PaymentMethodLite[] | null;
     nid_url: string | null;
     cv_url: string | null;
     identity_doc_type: string | null;
