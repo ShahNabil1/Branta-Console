@@ -41,6 +41,18 @@ const requestOrigin = () => {
   return "https://console.brantatech.com";
 };
 
+export interface PaymentMethodLite {
+  id: string;
+  kind: "bank" | "mfs";
+  is_primary: boolean;
+  bank_name: string | null;
+  account_holder: string | null;
+  account_number: string | null;
+  branch: string | null;
+  mfs_provider: string | null;
+  mfs_number: string | null;
+}
+
 export interface EmployeeDetail {
   userId: string;
   email: string;
@@ -63,6 +75,9 @@ export interface EmployeeDetail {
     address_line2: string | null;
     city: string | null;
     district: string | null;
+    division: string | null;
+    upazila: string | null;
+    post_office: string | null;
     postcode: string | null;
     country: string | null;
     bank_name: string | null;
@@ -71,12 +86,20 @@ export interface EmployeeDetail {
     bank_routing: string | null;
     mfs_provider: string | null;
     mfs_number: string | null;
+    payment_methods: PaymentMethodLite[] | null;
     nid_url: string | null;
     cv_url: string | null;
+    identity_doc_type: string | null;
+    nid_front_url: string | null;
+    nid_back_url: string | null;
+    passport_photo_url: string | null;
+    passport_address_url: string | null;
+    birth_certificate_url: string | null;
     personal_gmail: string | null;
     kyc_status: string | null;
   };
 }
+
 
 
 const ROLE_ORDER = ["super_admin", "admin", "manager", "user"];
@@ -100,7 +123,7 @@ export const getEmployeeDetail = createServerFn({ method: "GET" })
       supabaseAdmin
         .from("profiles")
         .select(
-          "full_name, legal_full_name, avatar_url, employee_code, job_role, phone_primary, phone_alt, address_line1, address_line2, city, district, postcode, country, bank_name, bank_account_name, bank_account_number, bank_routing, mfs_provider, mfs_number, nid_url, cv_url, personal_gmail, kyc_status",
+          "full_name, legal_full_name, avatar_url, employee_code, job_role, phone_primary, phone_alt, address_line1, address_line2, city, district, division, upazila, post_office, postcode, country, bank_name, bank_account_name, bank_account_number, bank_routing, mfs_provider, mfs_number, payment_methods, nid_url, cv_url, identity_doc_type, nid_front_url, nid_back_url, passport_photo_url, passport_address_url, birth_certificate_url, personal_gmail, kyc_status",
         )
         .eq("user_id", data.userId)
         .maybeSingle(),
@@ -137,6 +160,9 @@ export const getEmployeeDetail = createServerFn({ method: "GET" })
         address_line2: null,
         city: null,
         district: null,
+        division: null,
+        upazila: null,
+        post_office: null,
         postcode: null,
         country: null,
         bank_name: null,
@@ -145,8 +171,15 @@ export const getEmployeeDetail = createServerFn({ method: "GET" })
         bank_routing: null,
         mfs_provider: null,
         mfs_number: null,
+        payment_methods: null,
         nid_url: null,
         cv_url: null,
+        identity_doc_type: null,
+        nid_front_url: null,
+        nid_back_url: null,
+        passport_photo_url: null,
+        passport_address_url: null,
+        birth_certificate_url: null,
         personal_gmail: null,
         kyc_status: "not_verified",
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -459,6 +492,174 @@ export const assignLeadOwner = createServerFn({ method: "POST" })
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .update({ owner_id: data.ownerId } as any)
       .eq("id", data.leadId);
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
+// ─── Wallet (admin view of another employee) ───────────────────────────────
+
+export interface EmployeeWalletBalance {
+  currency: string;
+  locked: number;
+  available: number;
+  requested: number;
+  paid: number;
+}
+
+export interface EmployeePayoutRow {
+  id: string;
+  invoice_id: string;
+  invoice_slug: string | null;
+  installment_id: string;
+  installment_label: string | null;
+  installment_due: string | null;
+  amount: number;
+  currency: string;
+  status: string;
+  unlocked_at: string | null;
+  requested_at: string | null;
+  paid_at: string | null;
+  created_at: string;
+}
+
+export interface EmployeeWithdrawalRow {
+  id: string;
+  amount: number;
+  currency: string;
+  status: string;
+  requested_at: string;
+  decided_at: string | null;
+  paid_at: string | null;
+  transfer_ref: string | null;
+  admin_note: string | null;
+}
+
+export const getEmployeeWallet = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ userId: uuid }).parse(input))
+  .handler(
+    async ({ data, context }): Promise<{
+      balances: EmployeeWalletBalance[];
+      payouts: EmployeePayoutRow[];
+      withdrawals: EmployeeWithdrawalRow[];
+    }> => {
+      await assertAdmin(context.supabase, context.userId);
+      const { supabaseAdmin } = await import(
+        "@/integrations/supabase/client.server"
+      );
+
+      const [balRes, poRes, wdRes] = await Promise.all([
+        supabaseAdmin.from("v_wallet_balances").select("*").eq("user_id", data.userId),
+        supabaseAdmin
+          .from("invoice_payouts")
+          .select("*")
+          .eq("user_id", data.userId)
+          .order("created_at", { ascending: false })
+          .limit(500),
+        supabaseAdmin
+          .from("withdrawal_requests")
+          .select("id, amount, currency, status, requested_at, decided_at, paid_at, transfer_ref, admin_note")
+          .eq("user_id", data.userId)
+          .order("requested_at", { ascending: false })
+          .limit(200),
+      ]);
+      if (balRes.error) throw new Error(balRes.error.message);
+      if (poRes.error) throw new Error(poRes.error.message);
+      if (wdRes.error) throw new Error(wdRes.error.message);
+
+      const rows = (poRes.data ?? []) as unknown as EmployeePayoutRow[];
+      const invIds = Array.from(new Set(rows.map((r) => r.invoice_id))).filter(Boolean);
+      const instIds = Array.from(new Set(rows.map((r) => r.installment_id))).filter(Boolean);
+      const [invs, insts] = await Promise.all([
+        invIds.length
+          ? supabaseAdmin.from("invoices").select("id, slug").in("id", invIds)
+          : Promise.resolve({ data: [] as { id: string; slug: string | null }[] }),
+        instIds.length
+          ? supabaseAdmin
+              .from("invoice_installments")
+              .select("id, label, due_date")
+              .in("id", instIds)
+          : Promise.resolve({
+              data: [] as { id: string; label: string; due_date: string }[],
+            }),
+      ]);
+      const invMap = new Map<string, string | null>();
+      (invs.data ?? []).forEach((i: { id: string; slug: string | null }) =>
+        invMap.set(i.id, i.slug),
+      );
+      const instMap = new Map<string, { label: string; due_date: string }>();
+      (insts.data ?? []).forEach(
+        (i: { id: string; label: string; due_date: string }) =>
+          instMap.set(i.id, { label: i.label, due_date: i.due_date }),
+      );
+
+      return {
+        balances: (balRes.data ?? []) as unknown as EmployeeWalletBalance[],
+        payouts: rows.map((r) => ({
+          ...r,
+          invoice_slug: invMap.get(r.invoice_id) ?? null,
+          installment_label: instMap.get(r.installment_id)?.label ?? null,
+          installment_due: instMap.get(r.installment_id)?.due_date ?? null,
+        })),
+        withdrawals: (wdRes.data ?? []) as unknown as EmployeeWithdrawalRow[],
+      };
+    },
+  );
+
+// ─── Sessions (admin view of another employee) ─────────────────────────────
+
+export interface EmployeeSessionRow {
+  id: string;
+  session_key: string;
+  device: string | null;
+  browser: string | null;
+  os: string | null;
+  ip: string | null;
+  country: string | null;
+  city: string | null;
+  region: string | null;
+  created_at: string;
+  last_seen_at: string;
+  revoked_at: string | null;
+}
+
+export const listEmployeeSessions = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ userId: uuid }).parse(input))
+  .handler(async ({ data, context }): Promise<EmployeeSessionRow[]> => {
+    await assertAdmin(context.supabase, context.userId);
+    const { supabaseAdmin } = await import(
+      "@/integrations/supabase/client.server"
+    );
+    const { data: rows, error } = await supabaseAdmin
+      .from("user_sessions")
+      .select(
+        "id, session_key, device, browser, os, ip, country, city, region, created_at, last_seen_at, revoked_at",
+      )
+      .eq("user_id", data.userId)
+      .order("last_seen_at", { ascending: false })
+      .limit(50);
+    if (error) throw new Error(error.message);
+    return (rows ?? []) as EmployeeSessionRow[];
+  });
+
+export const revokeEmployeeSession = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ userId: uuid, sessionId: uuid }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const { supabaseAdmin } = await import(
+      "@/integrations/supabase/client.server"
+    );
+    // Update triggers realtime → target device's session-watcher signs out.
+    const { error } = await supabaseAdmin
+      .from("user_sessions")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .update({ revoked_at: new Date().toISOString() } as any)
+      .eq("user_id", data.userId)
+      .eq("id", data.sessionId);
     if (error) throw new Error(error.message);
     return { ok: true as const };
   });
