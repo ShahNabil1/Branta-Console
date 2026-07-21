@@ -358,6 +358,23 @@ function EmployeeDetailPage() {
     resetMut.mutate();
   };
 
+  const onboardingPending = e.mustChangePassword || e.mustLinkTelegram;
+  const pendingSteps = [
+    e.mustChangePassword ? "set their personal password" : null,
+    e.mustLinkTelegram ? "link Telegram" : null,
+  ].filter(Boolean) as string[];
+
+  const onResendOnboarding = async () => {
+    const ok = await confirm({
+      title: "Re-send onboarding instructions?",
+      description: `A fresh temporary password will be emailed to ${e.email}. They still need to ${pendingSteps.join(" and ")} on next sign-in. Their current password will stop working.`,
+      confirmLabel: "Re-send instructions",
+    });
+    if (!ok) return;
+    resendOnboardingMut.mutate();
+  };
+
+
   const onDelete = async () => {
     const ok = await confirm({
       title: "Delete this employee?",
