@@ -12,9 +12,17 @@ function labelFor(seg: string) {
   return CRUMB_LABELS[seg] ?? seg.charAt(0).toUpperCase() + seg.slice(1);
 }
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export function TopBar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const segments = pathname.split("/").filter(Boolean);
+  const segments = pathname
+    .split("/")
+    .filter(Boolean)
+    // Hide raw UUIDs / long opaque IDs from the breadcrumb — they're never
+    // meaningful to a reader. The page itself renders a human title.
+    .filter((seg) => !UUID_RE.test(seg));
 
   return (
     <header className="hairline-b flex h-14 shrink-0 items-center justify-between bg-card px-6">
@@ -42,6 +50,7 @@ export function TopBar() {
           })
         )}
       </nav>
+
 
       {/* Cmd-K + notifications */}
       <div className="flex items-center gap-3">
