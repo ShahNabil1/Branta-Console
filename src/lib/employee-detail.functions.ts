@@ -398,6 +398,15 @@ export const resendOnboardingInstructions = createServerFn({ method: "POST" })
       } as any)
       .eq("user_id", data.userId);
 
+    try {
+      const { hashPassword } = await import("@/lib/password-hash.server");
+      const tempHash = await hashPassword(newPassword);
+      await supabaseAdmin
+        .from("password_history")
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .insert({ user_id: data.userId, password_hash: tempHash } as any);
+    } catch { /* best-effort */ }
+
     const roleRes = await supabaseAdmin
       .from("user_roles")
       .select("role")
