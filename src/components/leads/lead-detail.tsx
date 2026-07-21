@@ -708,6 +708,56 @@ export function LeadDetail({
   const activeService = serviceOptions.find((s) => s.key === form.service);
   const serviceNeedsDetail = activeService?.requires_detail ?? false;
 
+  // ---- Inline duplicate check --------------------------------------------
+  const checkDup = useServerFn(checkLeadDuplicates);
+  const [dupConflicts, setDupConflicts] = useState<DupConflict[]>([]);
+  useEffect(() => {
+    if (!editing) {
+      setDupConflicts([]);
+      return;
+    }
+    const email = form.email.trim();
+    const altEmail = form.alt_email.trim();
+    const phone = form.phone.trim();
+    const altPhone = form.alt_phone.trim();
+    if (!email && !altEmail && !phone && !altPhone) {
+      setDupConflicts([]);
+      return;
+    }
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      try {
+        const res = await checkDup({
+          data: {
+            excludeLeadId: lead.id,
+            email: email || null,
+            alt_email: altEmail || null,
+            phone: phone || null,
+            alt_phone: altPhone || null,
+          },
+        });
+        if (!cancelled) setDupConflicts(res);
+      } catch {
+        if (!cancelled) setDupConflicts([]);
+      }
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [
+    editing,
+    lead.id,
+    form.email,
+    form.alt_email,
+    form.phone,
+    form.alt_phone,
+    checkDup,
+  ]);
+  const dupByField = new Map(dupConflicts.map((c) => [c.field, c] as const));
+  const hasDupBlocking = dupConflicts.length > 0;
+
+
   const saveM = useMutation({
     mutationFn: () =>
       update({
