@@ -63,6 +63,9 @@ export interface EmployeeDetail {
     address_line2: string | null;
     city: string | null;
     district: string | null;
+    division: string | null;
+    upazila: string | null;
+    post_office: string | null;
     postcode: string | null;
     country: string | null;
     bank_name: string | null;
@@ -71,12 +74,20 @@ export interface EmployeeDetail {
     bank_routing: string | null;
     mfs_provider: string | null;
     mfs_number: string | null;
+    payment_methods: Array<Record<string, unknown>> | null;
     nid_url: string | null;
     cv_url: string | null;
+    identity_doc_type: string | null;
+    nid_front_url: string | null;
+    nid_back_url: string | null;
+    passport_photo_url: string | null;
+    passport_address_url: string | null;
+    birth_certificate_url: string | null;
     personal_gmail: string | null;
     kyc_status: string | null;
   };
 }
+
 
 
 const ROLE_ORDER = ["super_admin", "admin", "manager", "user"];
