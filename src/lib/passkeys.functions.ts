@@ -78,7 +78,17 @@ export const deleteMyPasskey = createServerFn({ method: "POST" })
 export const beginPasskeyRegistration = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
-    z.object({ friendly_name: z.string().trim().min(1).max(80) }).parse(input),
+    z
+      .object({
+        friendly_name: z.string().trim().min(1).max(80),
+        // 2FA code from the user's TOTP authenticator. Required so a stolen
+        // password can't quietly add a persistent passkey to the account.
+        mfa_code: z
+          .string()
+          .trim()
+          .regex(/^\d{6}$/, "Enter the 6-digit code from your authenticator."),
+      })
+      .parse(input),
   )
   .handler(async ({ data, context }) => {
     const { generateRegistrationOptions } = await import(
@@ -88,6 +98,27 @@ export const beginPasskeyRegistration = createServerFn({ method: "POST" })
       "@/integrations/supabase/client.server"
     );
     const { rpID } = getRpConfig();
+
+    // --- Verify 2FA before allowing a new passkey enrollment. ---
+    // Find the user's verified TOTP factor and challenge+verify it.
+    const factorsRes = await context.supabase.auth.mfa.listFactors();
+    if (factorsRes.error) throw new Error(factorsRes.error.message);
+    const totp = (factorsRes.data?.totp ?? []).find(
+      (f) => f.status === "verified",
+    );
+    if (!totp) {
+      throw new Error(
+        "Set up an authenticator app (2FA) before adding a passkey.",
+      );
+    }
+    const ch = await context.supabase.auth.mfa.challenge({ factorId: totp.id });
+    if (ch.error) throw new Error(ch.error.message);
+    const vr = await context.supabase.auth.mfa.verify({
+      factorId: totp.id,
+      challengeId: ch.data.id,
+      code: data.mfa_code,
+    });
+    if (vr.error) throw new Error("Invalid 2FA code. Please try again.");
 
     // Enforce max
     const { count } = await supabaseAdmin
@@ -99,6 +130,7 @@ export const beginPasskeyRegistration = createServerFn({ method: "POST" })
         `You already have ${MAX_PASSKEYS} passkeys. Delete one before adding another.`,
       );
     }
+
 
     const { data: existing } = await supabaseAdmin
       .from("user_passkeys")
