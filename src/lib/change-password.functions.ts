@@ -36,7 +36,7 @@ export const changeMyPassword = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
     );
-    const { createClient } = await import("@supabase/supabase-js");
+    
 
     // Get email so we can verify current password
     const { data: userData } = await supabaseAdmin.auth.admin.getUserById(
@@ -49,21 +49,26 @@ export const changeMyPassword = createServerFn({ method: "POST" })
       throw new Error("New password must be different from your current password.");
     }
 
-    // Verify current password using a throwaway anon client (no session persist).
-    const verifier = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_PUBLISHABLE_KEY!,
-      { auth: { persistSession: false, autoRefreshToken: false } },
+    // Verify current password via GoTrue token endpoint directly.
+    // Using fetch avoids supabase-js quirks (localStorage, GoTrueClient
+    // singleton reuse across server-fn invocations) that can cause spurious
+    // "Invalid login credentials" on Workers.
+    const tokenRes = await fetch(
+      `${process.env.SUPABASE_URL}/auth/v1/token?grant_type=password`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: process.env.SUPABASE_PUBLISHABLE_KEY!,
+          Authorization: `Bearer ${process.env.SUPABASE_PUBLISHABLE_KEY!}`,
+        },
+        body: JSON.stringify({ email, password: data.current_password }),
+      },
     );
-    const { error: verifyErr } = await verifier.auth.signInWithPassword({
-      email,
-      password: data.current_password,
-    });
-    if (verifyErr) {
+    if (!tokenRes.ok) {
       throw new Error("Current password is incorrect.");
     }
-    // Sign out the verifier session immediately.
-    await verifier.auth.signOut();
+
 
     // Check the new password against the history (last 1 entry).
     const newHash = await hashPassword(data.new_password, HISTORY_SALT);
