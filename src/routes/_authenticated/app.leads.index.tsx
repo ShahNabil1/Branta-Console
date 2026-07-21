@@ -326,7 +326,7 @@ function LeadsPage() {
         </Select>
         <Select value={ownerFilter} onValueChange={setOwnerFilter}>
           <SelectTrigger className="h-9 w-[200px] rounded-sm text-[12.5px]">
-            <SelectValue placeholder="Owner" />
+            <SelectValue placeholder="Assigned to" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All owners</SelectItem>
