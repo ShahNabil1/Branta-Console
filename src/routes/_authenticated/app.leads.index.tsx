@@ -427,14 +427,22 @@ function LeadsPage() {
                     </span>
                   </div>
                   <div className="flex min-w-0 items-center gap-2">
-                    <span
-                      className="grid size-6 shrink-0 place-items-center rounded-full text-[10px] font-bold text-primary-foreground shadow-sm transition-transform duration-200 group-hover:scale-110"
-                      style={{
-                        background: `linear-gradient(135deg, ${accent}, color-mix(in oklab, ${accent} 55%, #000))`,
-                      }}
-                    >
-                      {initialsOf(row.owner_name)}
-                    </span>
+                    {row.owner_avatar_url ? (
+                      <img
+                        src={row.owner_avatar_url}
+                        alt={row.owner_name ?? "Assigned"}
+                        className="size-6 shrink-0 rounded-full object-cover shadow-sm ring-1 ring-border transition-transform duration-200 group-hover:scale-110"
+                      />
+                    ) : (
+                      <span
+                        className="grid size-6 shrink-0 place-items-center rounded-full text-[10px] font-bold text-primary-foreground shadow-sm transition-transform duration-200 group-hover:scale-110"
+                        style={{
+                          background: `linear-gradient(135deg, ${accent}, color-mix(in oklab, ${accent} 55%, #000))`,
+                        }}
+                      >
+                        {initialsOf(row.owner_name)}
+                      </span>
+                    )}
                     <span className="truncate text-[12.5px] text-foreground">
                       {row.owner_name ?? "Unassigned"}
                     </span>
