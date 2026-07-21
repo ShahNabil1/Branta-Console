@@ -45,6 +45,7 @@ import {
   getEmployeeWallet,
   listAssignedLeads,
   listEmployeeSessions,
+  resendOnboardingInstructions,
   resetEmployeePassword,
   revokeEmployeeSession,
   searchLeadsForAssignment,
