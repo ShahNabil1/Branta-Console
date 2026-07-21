@@ -410,6 +410,21 @@ function EmployeeDetailPage() {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {onboardingPending && (
+            <button
+              onClick={onResendOnboarding}
+              disabled={resendOnboardingMut.isPending}
+              title={`Pending: ${pendingSteps.join(", ")}`}
+              className="inline-flex h-9 items-center gap-1.5 rounded-sm border border-primary/40 bg-primary/10 px-3 text-[12.5px] font-medium text-primary hover:bg-primary/15 disabled:opacity-60"
+            >
+              {resendOnboardingMut.isPending ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <MailPlus className="size-3.5" strokeWidth={2} />
+              )}
+              Resend onboarding
+            </button>
+          )}
           <button
             onClick={onReset}
             disabled={resetMut.isPending}
