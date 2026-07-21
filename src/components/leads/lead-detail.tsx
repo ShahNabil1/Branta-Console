@@ -1328,7 +1328,8 @@ export function LeadDetail({
                     saveM.isPending ||
                     !form.name.trim() ||
                     (sourceNeedsDetail && !form.source_other.trim()) ||
-                    (serviceNeedsDetail && !form.service_other.trim())
+                    (serviceNeedsDetail && !form.service_other.trim()) ||
+                    hasDupBlocking
                   }
                   onClick={() => saveM.mutate()}
                 >
