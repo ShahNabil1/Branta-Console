@@ -15,6 +15,8 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app.index'
 import { Route as ApiPublicR2HealthRouteImport } from './routes/api/public/r2-health'
+import { Route as AuthenticatedOnboardingTelegramRouteImport } from './routes/_authenticated/onboarding.telegram'
+import { Route as AuthenticatedOnboardingPasswordRouteImport } from './routes/_authenticated/onboarding.password'
 import { Route as AuthenticatedAppSettingsRouteImport } from './routes/_authenticated/app.settings'
 import { Route as AuthenticatedAppProfileRouteImport } from './routes/_authenticated/app.profile'
 import { Route as AuthenticatedAppMailQueueRouteImport } from './routes/_authenticated/app.mail-queue'
@@ -73,6 +75,18 @@ const ApiPublicR2HealthRoute = ApiPublicR2HealthRouteImport.update({
   path: '/api/public/r2-health',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedOnboardingTelegramRoute =
+  AuthenticatedOnboardingTelegramRouteImport.update({
+    id: '/onboarding/telegram',
+    path: '/onboarding/telegram',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedOnboardingPasswordRoute =
+  AuthenticatedOnboardingPasswordRouteImport.update({
+    id: '/onboarding/password',
+    path: '/onboarding/password',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAppSettingsRoute =
   AuthenticatedAppSettingsRouteImport.update({
     id: '/settings',
@@ -247,6 +261,8 @@ export interface FileRoutesByFullPath {
   '/app/mail-queue': typeof AuthenticatedAppMailQueueRoute
   '/app/profile': typeof AuthenticatedAppProfileRouteWithChildren
   '/app/settings': typeof AuthenticatedAppSettingsRoute
+  '/onboarding/password': typeof AuthenticatedOnboardingPasswordRoute
+  '/onboarding/telegram': typeof AuthenticatedOnboardingTelegramRoute
   '/api/public/r2-health': typeof ApiPublicR2HealthRoute
   '/app/': typeof AuthenticatedAppIndexRoute
   '/app/customers/$code': typeof AuthenticatedAppCustomersCodeRoute
@@ -277,6 +293,8 @@ export interface FileRoutesByTo {
   '/app/inbox': typeof AuthenticatedAppInboxRoute
   '/app/mail-queue': typeof AuthenticatedAppMailQueueRoute
   '/app/settings': typeof AuthenticatedAppSettingsRoute
+  '/onboarding/password': typeof AuthenticatedOnboardingPasswordRoute
+  '/onboarding/telegram': typeof AuthenticatedOnboardingTelegramRoute
   '/api/public/r2-health': typeof ApiPublicR2HealthRoute
   '/app': typeof AuthenticatedAppIndexRoute
   '/app/customers/$code': typeof AuthenticatedAppCustomersCodeRoute
@@ -314,6 +332,8 @@ export interface FileRoutesById {
   '/_authenticated/app/mail-queue': typeof AuthenticatedAppMailQueueRoute
   '/_authenticated/app/profile': typeof AuthenticatedAppProfileRouteWithChildren
   '/_authenticated/app/settings': typeof AuthenticatedAppSettingsRoute
+  '/_authenticated/onboarding/password': typeof AuthenticatedOnboardingPasswordRoute
+  '/_authenticated/onboarding/telegram': typeof AuthenticatedOnboardingTelegramRoute
   '/api/public/r2-health': typeof ApiPublicR2HealthRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
   '/_authenticated/app/customers/$code': typeof AuthenticatedAppCustomersCodeRoute
@@ -351,6 +371,8 @@ export interface FileRouteTypes {
     | '/app/mail-queue'
     | '/app/profile'
     | '/app/settings'
+    | '/onboarding/password'
+    | '/onboarding/telegram'
     | '/api/public/r2-health'
     | '/app/'
     | '/app/customers/$code'
@@ -381,6 +403,8 @@ export interface FileRouteTypes {
     | '/app/inbox'
     | '/app/mail-queue'
     | '/app/settings'
+    | '/onboarding/password'
+    | '/onboarding/telegram'
     | '/api/public/r2-health'
     | '/app'
     | '/app/customers/$code'
@@ -417,6 +441,8 @@ export interface FileRouteTypes {
     | '/_authenticated/app/mail-queue'
     | '/_authenticated/app/profile'
     | '/_authenticated/app/settings'
+    | '/_authenticated/onboarding/password'
+    | '/_authenticated/onboarding/telegram'
     | '/api/public/r2-health'
     | '/_authenticated/app/'
     | '/_authenticated/app/customers/$code'
@@ -495,6 +521,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/public/r2-health'
       preLoaderRoute: typeof ApiPublicR2HealthRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/onboarding/telegram': {
+      id: '/_authenticated/onboarding/telegram'
+      path: '/onboarding/telegram'
+      fullPath: '/onboarding/telegram'
+      preLoaderRoute: typeof AuthenticatedOnboardingTelegramRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/onboarding/password': {
+      id: '/_authenticated/onboarding/password'
+      path: '/onboarding/password'
+      fullPath: '/onboarding/password'
+      preLoaderRoute: typeof AuthenticatedOnboardingPasswordRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/app/settings': {
       id: '/_authenticated/app/settings'
@@ -809,10 +849,14 @@ const AuthenticatedAppRouteWithChildren =
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAppRoute: typeof AuthenticatedAppRouteWithChildren
+  AuthenticatedOnboardingPasswordRoute: typeof AuthenticatedOnboardingPasswordRoute
+  AuthenticatedOnboardingTelegramRoute: typeof AuthenticatedOnboardingTelegramRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAppRoute: AuthenticatedAppRouteWithChildren,
+  AuthenticatedOnboardingPasswordRoute: AuthenticatedOnboardingPasswordRoute,
+  AuthenticatedOnboardingTelegramRoute: AuthenticatedOnboardingTelegramRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

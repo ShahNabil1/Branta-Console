@@ -1300,6 +1300,8 @@ export type Database = {
           legal_full_name: string | null
           mfs_number: string | null
           mfs_provider: string | null
+          must_change_password: boolean
+          must_link_telegram: boolean
           nid_back_url: string | null
           nid_front_url: string | null
           nid_url: string | null
@@ -1348,6 +1350,8 @@ export type Database = {
           legal_full_name?: string | null
           mfs_number?: string | null
           mfs_provider?: string | null
+          must_change_password?: boolean
+          must_link_telegram?: boolean
           nid_back_url?: string | null
           nid_front_url?: string | null
           nid_url?: string | null
@@ -1396,6 +1400,8 @@ export type Database = {
           legal_full_name?: string | null
           mfs_number?: string | null
           mfs_provider?: string | null
+          must_change_password?: boolean
+          must_link_telegram?: boolean
           nid_back_url?: string | null
           nid_front_url?: string | null
           nid_url?: string | null

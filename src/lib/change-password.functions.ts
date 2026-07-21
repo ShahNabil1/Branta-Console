@@ -98,5 +98,14 @@ export const changeMyPassword = createServerFn({ method: "POST" })
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .insert({ user_id: context.userId, password_hash: currentHash } as any);
 
+    // Clear the "must change password" onboarding flag if it was set — the
+    // employee has now chosen their own personal password.
+    await supabaseAdmin
+      .from("profiles")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .update({ must_change_password: false } as any)
+      .eq("user_id", context.userId);
+
     return { ok: true as const };
   });
+

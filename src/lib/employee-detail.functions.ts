@@ -307,6 +307,14 @@ export const resetEmployeePassword = createServerFn({ method: "POST" })
     });
     if (upd.error) throw new Error(upd.error.message);
 
+    // Force the employee to set their own password on next sign-in.
+    await supabaseAdmin
+      .from("profiles")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .update({ must_change_password: true } as any)
+      .eq("user_id", data.userId);
+
+
     const roleRes = await supabaseAdmin
       .from("user_roles")
       .select("role")

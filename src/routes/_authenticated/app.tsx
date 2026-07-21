@@ -1,10 +1,15 @@
-import { createFileRoute, Outlet } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { Loader2 } from "lucide-react";
 import { AppSidebar } from "@/components/branta/app-sidebar";
 import { TopBar } from "@/components/branta/top-bar";
 import { CommandPalette } from "@/components/branta/command-palette";
 import { EmailFailureNotifier } from "@/components/branta/email-failure-notifier";
 import { InboxNotifier } from "@/components/branta/inbox-notifier";
 import { ImpersonationBanner } from "@/components/branta/impersonation-banner";
+import { getOnboardingStatus } from "@/lib/onboarding.functions";
 
 export const Route = createFileRoute("/_authenticated/app")({
   ssr: false,
@@ -12,6 +17,42 @@ export const Route = createFileRoute("/_authenticated/app")({
 });
 
 function AppShell() {
+  const navigate = useNavigate();
+  const statusFn = useServerFn(getOnboardingStatus);
+
+  // Gate: force new employees through password + telegram before the app
+  // renders. The check is cheap (one profile row) and cached at the layout
+  // level, so nested routes don't re-fetch it.
+  const status = useQuery({
+    queryKey: ["onboarding.status"],
+    queryFn: () => statusFn(),
+    staleTime: 60_000,
+  });
+
+  useEffect(() => {
+    if (!status.data) return;
+    if (status.data.mustChangePassword) {
+      navigate({ to: "/onboarding/password", replace: true });
+    } else if (status.data.mustLinkTelegram) {
+      navigate({ to: "/onboarding/telegram", replace: true });
+    }
+  }, [status.data, navigate]);
+
+  if (
+    status.data?.mustChangePassword ||
+    status.data?.mustLinkTelegram ||
+    status.isLoading
+  ) {
+    return (
+      <div className="grid h-screen w-full place-items-center bg-background text-muted-foreground">
+        <div className="flex items-center gap-2 text-[13px]">
+          <Loader2 className="size-4 animate-spin" />
+          Preparing your workspace…
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen w-full flex-col overflow-hidden bg-background">
       <ImpersonationBanner />
@@ -30,4 +71,5 @@ function AppShell() {
     </div>
   );
 }
+
 
