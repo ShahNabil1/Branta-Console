@@ -100,7 +100,7 @@ function OnboardingPasswordPage() {
       <div className="w-full max-w-md rounded-md border border-border bg-card p-6 shadow-sm">
         <div className="mb-5 flex flex-col items-center text-center">
           <img
-            src={brandLogo.src}
+            src={brandLogo.url}
             alt="Branta Tech"
             className="mb-3 h-9 w-auto"
           />

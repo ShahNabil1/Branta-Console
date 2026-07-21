@@ -56,7 +56,7 @@ function OnboardingTelegramPage() {
       <div className="w-full max-w-md space-y-4">
         <div className="rounded-md border border-border bg-card p-6 text-center shadow-sm">
           <img
-            src={brandLogo.src}
+            src={brandLogo.url}
             alt="Branta Tech"
             className="mx-auto mb-3 h-9 w-auto"
           />
