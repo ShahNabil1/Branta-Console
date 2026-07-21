@@ -53,6 +53,7 @@ import {
 import {
   addLeadActivity,
   addLeadContact,
+  checkLeadDuplicates,
   deleteLead,
   deleteLeadContact,
   listLeadActivities,
@@ -60,6 +61,7 @@ import {
   setPrimaryLeadContact,
   updateLead,
   updateLeadContact,
+  type DupConflict,
   type LeadContactRow,
   type LeadRow,
   type LeadStatusDB,
