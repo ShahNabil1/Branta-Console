@@ -26,6 +26,7 @@ import {
   Lock,
   LogIn,
   LogOut,
+  MailPlus,
   Search,
   ShieldAlert,
   ShieldCheck,
