@@ -406,6 +406,9 @@ function ChangePasswordSection() {
   const [next, setNext] = useState("");
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNext, setShowNext] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const mismatch = confirm.length > 0 && next !== confirm;
   const canSubmit =
@@ -428,6 +431,18 @@ function ChangePasswordSection() {
     }
   };
 
+  const renderToggle = (visible: boolean, setVisible: (v: boolean) => void) => (
+    <button
+      type="button"
+      onClick={() => setVisible(!visible)}
+      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-sm p-1 text-muted-foreground hover:text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+      tabIndex={-1}
+      aria-label={visible ? "Hide password" : "Show password"}
+    >
+      {visible ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+    </button>
+  );
+
   return (
     <Section
       title="Change Password"
@@ -439,47 +454,57 @@ function ChangePasswordSection() {
           <Label className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Current password
           </Label>
-          <Input
-            type="password"
-            className="h-9 rounded-sm font-mono text-[12px]"
-            value={current}
-            onChange={(e) => setCurrent(stripToPassword(e.target.value))}
-            autoComplete="current-password"
-          />
+          <div className="relative">
+            <Input
+              type={showCurrent ? "text" : "password"}
+              className="h-9 rounded-sm pr-8 font-mono text-[12px]"
+              value={current}
+              onChange={(e) => setCurrent(stripToPassword(e.target.value))}
+              autoComplete="current-password"
+            />
+            {renderToggle(showCurrent, setShowCurrent)}
+          </div>
         </div>
         <div className="space-y-1.5">
           <Label className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             New password
           </Label>
-          <Input
-            type="password"
-            className="h-9 rounded-sm font-mono text-[12px]"
-            value={next}
-            onChange={(e) => setNext(stripToPassword(e.target.value))}
-            autoComplete="new-password"
-            maxLength={PASSWORD_LEN}
-          />
+          <div className="relative">
+            <Input
+              type={showNext ? "text" : "password"}
+              className="h-9 rounded-sm pr-8 font-mono text-[12px]"
+              value={next}
+              onChange={(e) => setNext(stripToPassword(e.target.value))}
+              autoComplete="new-password"
+              maxLength={PASSWORD_LEN}
+            />
+            {renderToggle(showNext, setShowNext)}
+          </div>
         </div>
         <div className="space-y-1.5">
           <Label className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Confirm new password
           </Label>
-          <Input
-            type="password"
-            className={cn(
-              "h-9 rounded-sm font-mono text-[12px]",
-              mismatch && "border-red-500",
-            )}
-            value={confirm}
-            onChange={(e) => setConfirm(stripToPassword(e.target.value))}
-            autoComplete="new-password"
-            maxLength={PASSWORD_LEN}
-          />
+          <div className="relative">
+            <Input
+              type={showConfirm ? "text" : "password"}
+              className={cn(
+                "h-9 rounded-sm pr-8 font-mono text-[12px]",
+                mismatch && "border-red-500",
+              )}
+              value={confirm}
+              onChange={(e) => setConfirm(stripToPassword(e.target.value))}
+              autoComplete="new-password"
+              maxLength={PASSWORD_LEN}
+            />
+            {renderToggle(showConfirm, setShowConfirm)}
+          </div>
           {mismatch && (
             <p className="text-[11px] text-red-600">Passwords don't match.</p>
           )}
         </div>
       </div>
+
       <div className="mt-4 flex justify-end">
         <Button
           onClick={submit}
