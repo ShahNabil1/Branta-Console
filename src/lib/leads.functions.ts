@@ -289,6 +289,198 @@ async function throwIfDuplicate(
   }
 }
 
+// ---- Inline duplicate check --------------------------------------------
+// Same rules as throwIfDuplicate, but returns per-field conflicts instead
+// of throwing. Used by the lead-detail form to surface warnings live.
+export type DupField = "email" | "alt_email" | "phone" | "alt_phone";
+export interface DupConflict {
+  field: DupField;
+  value: string;
+  conflictLeadId: string;
+  conflictSlug: string;
+  /** Where the duplicate value lives on the other lead. */
+  conflictSource:
+    | "leads.email"
+    | "leads.alt_email"
+    | "leads.phone"
+    | "leads.alt_phone"
+    | "lead_contacts.email"
+    | "lead_contacts.alt_email"
+    | "lead_contacts.phone"
+    | "lead_contacts.alt_phone";
+}
+
+export const checkLeadDuplicates = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (input: {
+      excludeLeadId?: string | null;
+      email?: string | null;
+      alt_email?: string | null;
+      phone?: string | null;
+      alt_phone?: string | null;
+    }) => input,
+  )
+  .handler(async ({ data, context }): Promise<DupConflict[]> => {
+    const supabase = context.supabase;
+    const excludeLeadId = data.excludeLeadId ?? null;
+
+    const norm = {
+      email: normEmailStr(data.email),
+      alt_email: normEmailStr(data.alt_email),
+      phone: normPhoneStr(data.phone),
+      alt_phone: normPhoneStr(data.alt_phone),
+    };
+
+    const conflicts: DupConflict[] = [];
+    const slugCache = new Map<string, string>();
+    const resolveSlug = async (leadId: string): Promise<string> => {
+      const cached = slugCache.get(leadId);
+      if (cached) return cached;
+      const { data: r } = await supabase
+        .from("leads")
+        .select("slug")
+        .eq("id", leadId)
+        .maybeSingle();
+      const slug = (r?.slug as string | undefined) ?? leadId.slice(0, 8);
+      slugCache.set(leadId, slug);
+      return slug;
+    };
+
+    for (const field of ["email", "alt_email"] as const) {
+      const value = norm[field];
+      if (!value) continue;
+
+      const { data: L } = await supabase
+        .from("leads")
+        .select("id, slug")
+        .ilike("alt_email", value)
+        .limit(5);
+      for (const l of (L ?? []) as { id: string; slug: string }[]) {
+        if (l.id === excludeLeadId) continue;
+        slugCache.set(l.id, l.slug);
+        conflicts.push({
+          field,
+          value,
+          conflictLeadId: l.id,
+          conflictSlug: l.slug,
+          conflictSource: "leads.alt_email",
+        });
+        break;
+      }
+      if (conflicts.some((c) => c.field === field)) continue;
+
+      for (const col of ["email", "alt_email"] as const) {
+        const { data: C } = await supabase
+          .from("lead_contacts")
+          .select("lead_id")
+          .ilike(col, value)
+          .limit(10);
+        let hit: string | null = null;
+        for (const c of (C ?? []) as { lead_id: string }[]) {
+          if (c.lead_id !== excludeLeadId) {
+            hit = c.lead_id;
+            break;
+          }
+        }
+        if (hit) {
+          conflicts.push({
+            field,
+            value,
+            conflictLeadId: hit,
+            conflictSlug: await resolveSlug(hit),
+            conflictSource: col === "email" ? "lead_contacts.email" : "lead_contacts.alt_email",
+          });
+          break;
+        }
+      }
+    }
+
+    const phoneTargets: Array<{ field: DupField; value: string }> = [];
+    if (norm.phone) phoneTargets.push({ field: "phone", value: norm.phone });
+    if (norm.alt_phone) phoneTargets.push({ field: "alt_phone", value: norm.alt_phone });
+    if (phoneTargets.length > 0) {
+      const { data: L } = await supabase
+        .from("leads")
+        .select("id, slug, phone, alt_phone");
+      const leadsList = (L ?? []) as Array<{
+        id: string;
+        slug: string;
+        phone: string | null;
+        alt_phone: string | null;
+      }>;
+      for (const t of phoneTargets) {
+        let matched = false;
+        for (const l of leadsList) {
+          if (l.id === excludeLeadId) continue;
+          const lp = normPhoneStr(l.phone);
+          const la = normPhoneStr(l.alt_phone);
+          if (lp === t.value) {
+            slugCache.set(l.id, l.slug);
+            conflicts.push({
+              field: t.field,
+              value: t.value,
+              conflictLeadId: l.id,
+              conflictSlug: l.slug,
+              conflictSource: "leads.phone",
+            });
+            matched = true;
+            break;
+          }
+          if (la === t.value) {
+            slugCache.set(l.id, l.slug);
+            conflicts.push({
+              field: t.field,
+              value: t.value,
+              conflictLeadId: l.id,
+              conflictSlug: l.slug,
+              conflictSource: "leads.alt_phone",
+            });
+            matched = true;
+            break;
+          }
+        }
+        if (matched) continue;
+
+        const { data: C } = await supabase
+          .from("lead_contacts")
+          .select("lead_id, phone, alt_phone");
+        const contactsList = (C ?? []) as Array<{
+          lead_id: string;
+          phone: string | null;
+          alt_phone: string | null;
+        }>;
+        for (const c of contactsList) {
+          if (c.lead_id === excludeLeadId) continue;
+          const cp = normPhoneStr(c.phone);
+          const ca = normPhoneStr(c.alt_phone);
+          if (cp === t.value) {
+            conflicts.push({
+              field: t.field,
+              value: t.value,
+              conflictLeadId: c.lead_id,
+              conflictSlug: await resolveSlug(c.lead_id),
+              conflictSource: "lead_contacts.phone",
+            });
+            break;
+          }
+          if (ca === t.value) {
+            conflicts.push({
+              field: t.field,
+              value: t.value,
+              conflictLeadId: c.lead_id,
+              conflictSlug: await resolveSlug(c.lead_id),
+              conflictSource: "lead_contacts.alt_phone",
+            });
+            break;
+          }
+        }
+      }
+    }
+
+    return conflicts;
+  });
+
 export const listLeads = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<LeadRow[]> => {

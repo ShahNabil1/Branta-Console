@@ -53,6 +53,7 @@ import {
 import {
   addLeadActivity,
   addLeadContact,
+  checkLeadDuplicates,
   deleteLead,
   deleteLeadContact,
   listLeadActivities,
@@ -60,6 +61,7 @@ import {
   setPrimaryLeadContact,
   updateLead,
   updateLeadContact,
+  type DupConflict,
   type LeadContactRow,
   type LeadRow,
   type LeadStatusDB,
@@ -247,6 +249,7 @@ function EmailRow({
   onTagChange,
   onCompose,
   className,
+  error,
 }: {
   label: string;
   value: string;
@@ -255,6 +258,7 @@ function EmailRow({
   onTagChange: (v: string) => void;
   onCompose: () => void;
   className?: string;
+  error?: React.ReactNode;
 }) {
   return (
     <Field label={label} className={className}>
@@ -264,8 +268,12 @@ function EmailRow({
           type="email"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="h-9 flex-1 rounded-sm text-[12.5px]"
+          className={cn(
+            "h-9 flex-1 rounded-sm text-[12.5px]",
+            error && "border-red-500 focus-visible:ring-red-500",
+          )}
           placeholder="name@company.com"
+          aria-invalid={!!error}
         />
         <LabelSelect value={tag} onChange={onTagChange} />
         <TooltipProvider delayDuration={200}>
@@ -287,6 +295,9 @@ function EmailRow({
           </Tooltip>
         </TooltipProvider>
       </div>
+      {error && (
+        <p className="mt-1 text-[11.5px] font-medium text-red-600">{error}</p>
+      )}
     </Field>
   );
 }
@@ -298,6 +309,7 @@ function PhoneRow({
   tag,
   onTagChange,
   className,
+  error,
 }: {
   label: string;
   value: string;
@@ -305,6 +317,7 @@ function PhoneRow({
   tag: string;
   onTagChange: (v: string) => void;
   className?: string;
+  error?: React.ReactNode;
 }) {
   const digits = value.replace(/[^\d]/g, "");
   return (
@@ -315,8 +328,12 @@ function PhoneRow({
           type="tel"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="h-9 flex-1 rounded-sm text-[12.5px]"
+          className={cn(
+            "h-9 flex-1 rounded-sm text-[12.5px]",
+            error && "border-red-500 focus-visible:ring-red-500",
+          )}
           placeholder="+8801XXXXXXXXX"
+          aria-invalid={!!error}
         />
         <LabelSelect value={tag} onChange={onTagChange} />
         <TooltipProvider delayDuration={200}>
@@ -356,6 +373,9 @@ function PhoneRow({
           </Tooltip>
         </TooltipProvider>
       </div>
+      {error && (
+        <p className="mt-1 text-[11.5px] font-medium text-red-600">{error}</p>
+      )}
     </Field>
   );
 }
@@ -705,6 +725,86 @@ export function LeadDetail({
   const sourceNeedsDetail = activeSource?.requires_detail ?? false;
   const activeService = serviceOptions.find((s) => s.key === form.service);
   const serviceNeedsDetail = activeService?.requires_detail ?? false;
+
+  // ---- Inline duplicate check --------------------------------------------
+  const checkDup = useServerFn(checkLeadDuplicates);
+  const [dupConflicts, setDupConflicts] = useState<DupConflict[]>([]);
+  useEffect(() => {
+    if (!editing) {
+      setDupConflicts([]);
+      return;
+    }
+    const email = form.email.trim();
+    const altEmail = form.alt_email.trim();
+    const phone = form.phone.trim();
+    const altPhone = form.alt_phone.trim();
+    if (!email && !altEmail && !phone && !altPhone) {
+      setDupConflicts([]);
+      return;
+    }
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      try {
+        const res = await checkDup({
+          data: {
+            excludeLeadId: lead.id,
+            email: email || null,
+            alt_email: altEmail || null,
+            phone: phone || null,
+            alt_phone: altPhone || null,
+          },
+        });
+        if (!cancelled) setDupConflicts(res);
+      } catch {
+        if (!cancelled) setDupConflicts([]);
+      }
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [
+    editing,
+    lead.id,
+    form.email,
+    form.alt_email,
+    form.phone,
+    form.alt_phone,
+    checkDup,
+  ]);
+  const dupByField = new Map(dupConflicts.map((c) => [c.field, c] as const));
+  const hasDupBlocking = dupConflicts.length > 0;
+
+  const renderDupMessage = (c: DupConflict | undefined): React.ReactNode => {
+    if (!c) return null;
+    const sourceLabel: Record<DupConflict["conflictSource"], string> = {
+      "leads.email": "primary email",
+      "leads.alt_email": "alternative email",
+      "leads.phone": "primary phone",
+      "leads.alt_phone": "alternative phone",
+      "lead_contacts.email": "contact email",
+      "lead_contacts.alt_email": "contact alt. email",
+      "lead_contacts.phone": "contact phone",
+      "lead_contacts.alt_phone": "contact alt. phone",
+    };
+    const fieldLabel =
+      c.field === "email"
+        ? "Email"
+        : c.field === "alt_email"
+        ? "Alternative email"
+        : c.field === "phone"
+        ? "Phone"
+        : "Alternative phone";
+    return (
+      <>
+        {fieldLabel} conflicts with lead{" "}
+        <span className="font-semibold">{c.conflictSlug}</span> (
+        {sourceLabel[c.conflictSource]}).
+      </>
+    );
+  };
+
+
 
   const saveM = useMutation({
     mutationFn: () =>
@@ -1119,6 +1219,7 @@ export function LeadDetail({
                   tag={form.email_label}
                   onTagChange={(v) => setForm({ ...form, email_label: v })}
                   onCompose={() => setTab("emails")}
+                  error={renderDupMessage(dupByField.get("email"))}
                 />
                 <EmailRow
                   label="Alternative email"
@@ -1127,6 +1228,7 @@ export function LeadDetail({
                   tag={form.alt_email_label}
                   onTagChange={(v) => setForm({ ...form, alt_email_label: v })}
                   onCompose={() => setTab("emails")}
+                  error={renderDupMessage(dupByField.get("alt_email"))}
                 />
                 <PhoneRow
                   label="Phone"
@@ -1134,6 +1236,7 @@ export function LeadDetail({
                   onChange={(v) => setForm({ ...form, phone: v })}
                   tag={form.phone_label}
                   onTagChange={(v) => setForm({ ...form, phone_label: v })}
+                  error={renderDupMessage(dupByField.get("phone"))}
                 />
                 <PhoneRow
                   label="Alternative phone"
@@ -1141,7 +1244,9 @@ export function LeadDetail({
                   onChange={(v) => setForm({ ...form, alt_phone: v })}
                   tag={form.alt_phone_label}
                   onTagChange={(v) => setForm({ ...form, alt_phone_label: v })}
+                  error={renderDupMessage(dupByField.get("alt_phone"))}
                 />
+
 
                 <div className="col-span-2 md:col-span-3">
                   <SocialLinksSection leadId={lead.id} locked={false} />
@@ -1276,7 +1381,8 @@ export function LeadDetail({
                     saveM.isPending ||
                     !form.name.trim() ||
                     (sourceNeedsDetail && !form.source_other.trim()) ||
-                    (serviceNeedsDetail && !form.service_other.trim())
+                    (serviceNeedsDetail && !form.service_other.trim()) ||
+                    hasDupBlocking
                   }
                   onClick={() => saveM.mutate()}
                 >
