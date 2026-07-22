@@ -41,15 +41,21 @@ function WalletPage() {
   const prof = useQuery({ queryKey: ["me", "profile"], queryFn: () => profile(), staleTime: 60_000 });
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
+    let ch: ReturnType<typeof supabase.channel> | null = null;
+    let cancelled = false;
+    void supabase.auth.getUser().then(({ data }) => {
       const uid = data.user?.id;
-      if (!uid) return;
-      const ch = supabase.channel(`wallet:${uid}`)
+      if (!uid || cancelled) return;
+      ch = supabase.channel(`wallet:${uid}`)
         .on("postgres_changes", { event: "*", schema: "public", table: "invoice_payouts", filter: `user_id=eq.${uid}` }, () => { void w.refetch(); void p.refetch(); })
         .on("postgres_changes", { event: "*", schema: "public", table: "withdrawal_requests", filter: `user_id=eq.${uid}` }, () => void wr.refetch())
+        // Invoice-level changes affect lock/unlock and totals; refetch on any invoice or installment change the user is a stakeholder on.
+        .on("postgres_changes", { event: "*", schema: "public", table: "invoices" }, () => { void w.refetch(); void p.refetch(); })
+        .on("postgres_changes", { event: "*", schema: "public", table: "invoice_installments" }, () => { void w.refetch(); void p.refetch(); })
+        .on("postgres_changes", { event: "*", schema: "public", table: "invoice_stakeholders", filter: `user_id=eq.${uid}` }, () => { void w.refetch(); void p.refetch(); })
         .subscribe();
-      return () => { void supabase.removeChannel(ch); };
     });
+    return () => { cancelled = true; if (ch) void supabase.removeChannel(ch); };
   }, [w, p, wr]);
 
   const [modal, setModal] = useState<{ cur: Currency; available: number } | null>(null);
