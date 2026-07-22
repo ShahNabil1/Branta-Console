@@ -104,6 +104,7 @@ function WithdrawalsPage() {
   }, [q]);
 
   const [dialog, setDialog] = useState<{ id: string; action: "approve" | "reject" | "paid" } | null>(null);
+  const [methodView, setMethodView] = useState<MethodSnap>(null);
   const [note, setNote] = useState("");
   const [ref, setRef] = useState("");
 
