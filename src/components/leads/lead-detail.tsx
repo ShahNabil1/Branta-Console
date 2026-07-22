@@ -1533,6 +1533,39 @@ export function LeadDetail({
                               {a.body}
                             </div>
                           )}
+                          {(() => {
+                            const m = a.meta as Record<string, unknown> | null | undefined;
+                            const ev = m?.event as string | undefined;
+                            const invSlug = m?.invoice_slug as string | undefined;
+                            const custCode = m?.customer_code as string | undefined;
+                            if (invSlug) {
+                              return (
+                                <div className="mt-1">
+                                  <Link
+                                    to="/app/finance/invoices/$slug"
+                                    params={{ slug: invSlug }}
+                                    className="inline-flex items-center gap-1 rounded-sm border border-border bg-muted/40 px-1.5 py-0.5 font-mono text-[11px] text-brand hover:bg-muted"
+                                  >
+                                    Open {invSlug} →
+                                  </Link>
+                                </div>
+                              );
+                            }
+                            if (ev === "customer_created" && custCode) {
+                              return (
+                                <div className="mt-1">
+                                  <Link
+                                    to="/app/customers/$code"
+                                    params={{ code: custCode }}
+                                    className="inline-flex items-center gap-1 rounded-sm border border-border bg-muted/40 px-1.5 py-0.5 font-mono text-[11px] text-brand hover:bg-muted"
+                                  >
+                                    Open {custCode} →
+                                  </Link>
+                                </div>
+                              );
+                            }
+                            return null;
+                          })()}
                           <div
                             className="mt-1 font-mono text-[10.5px] text-muted-foreground"
                             title={d.toISOString()}
