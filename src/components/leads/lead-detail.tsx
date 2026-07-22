@@ -100,6 +100,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { SocialLinksSection } from "@/components/leads/social-links-section";
 import { ActivityLinkPreview } from "@/components/leads/activity-link-preview";
+import { RequestTransferDialog } from "@/components/leads/request-transfer-dialog";
 import {
   Dialog,
   DialogContent,
