@@ -37,6 +37,7 @@ function LeadDetailPage() {
   const getFn = useServerFn(getLeadBySlug);
   const listUsers = useServerFn(listAssignableUsers);
   const logView = useServerFn(logLeadView);
+  const qc = useQueryClient();
 
   const leadQ = useQuery({
     queryKey: ["leads", "by-slug", slug],
