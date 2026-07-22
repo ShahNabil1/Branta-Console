@@ -231,4 +231,3 @@ function WithdrawalsPage() {
     </div>
   );
 }
-}
