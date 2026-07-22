@@ -120,6 +120,22 @@ function CompanyWalletPage() {
   const c: CompanyWalletCurrency | undefined = w.data?.[cur];
   const invsInCur = (invs.data ?? []).filter((i) => i.currency === cur);
   const ledgerInCur = (ledger.data ?? []).filter((l) => l.currency === cur);
+  const manualsInCur = (manuals.data ?? []).filter((m) => m.currency === cur);
+
+  const delManual = async (id: string) => {
+    const ok = await confirm({
+      title: "Remove manual payout",
+      description: "This reverses the credit from the employee wallet. Only allowed while it is still 'available'.",
+      tone: "danger",
+      confirmLabel: "Remove",
+    });
+    if (!ok) return;
+    try {
+      await manualDelFn({ data: { id } });
+      toast.success("Removed");
+      void w.refetch(); void manuals.refetch();
+    } catch (e) { toast.error((e as Error).message); }
+  };
 
   return (
     <div className="mx-auto max-w-7xl space-y-5 px-6 py-6">
