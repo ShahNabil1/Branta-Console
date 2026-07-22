@@ -1709,13 +1709,20 @@ function PermissionsTab({ userId }: { userId: string }) {
 
       <ul className="divide-y divide-border rounded-sm border border-border">
         {PERMISSION_ROWS.map((row) => {
-          const value = perms[row.key];
+          const dependsOnAccess =
+            row.key === "customer_view_all" ||
+            row.key === "customer_view_detail";
+          const gatedOff = dependsOnAccess && !perms.customer_access;
+          const value = gatedOff ? false : perms[row.key];
           const pending =
             mut.isPending && mut.variables?.key === row.key;
+          const disabled = mut.isPending || gatedOff;
           return (
             <li
               key={row.key}
-              className="flex items-start justify-between gap-4 px-3 py-3"
+              className={`flex items-start justify-between gap-4 px-3 py-3 ${
+                gatedOff ? "opacity-50" : ""
+              }`}
             >
               <div className="min-w-0">
                 <div className="text-[12.5px] font-semibold text-foreground">
@@ -1731,16 +1738,29 @@ function PermissionsTab({ userId }: { userId: string }) {
                 )}
                 <Switch
                   checked={value}
-                  disabled={mut.isPending}
-                  onCheckedChange={(v) =>
-                    mut.mutate({ key: row.key, value: !!v })
-                  }
+                  disabled={disabled}
+                  onCheckedChange={(v) => {
+                    if (
+                      row.key === "customer_access" &&
+                      !v &&
+                      (perms.customer_view_all || perms.customer_view_detail)
+                    ) {
+                      if (perms.customer_view_all) {
+                        mut.mutate({ key: "customer_view_all", value: false });
+                      }
+                      if (perms.customer_view_detail) {
+                        mut.mutate({ key: "customer_view_detail", value: false });
+                      }
+                    }
+                    mut.mutate({ key: row.key, value: !!v });
+                  }}
                 />
               </div>
             </li>
           );
         })}
       </ul>
+
     </section>
   );
 }
