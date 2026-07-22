@@ -697,6 +697,16 @@ export function LeadDetail({
   // Details section lock — read-only by default, unlocks on Edit click.
   const [editing, setEditing] = useState(initialEdit);
   const [transferOpen, setTransferOpen] = useState(false);
+  const listMineFn = useServerFn(listMyTransferRequests);
+  const myTransfersQ = useQuery({
+    queryKey: ["transfers", "mine", lead.id],
+    queryFn: () => listMineFn(),
+    enabled: !myPermsQ.data?.lead_assign,
+    staleTime: 15_000,
+  });
+  const pendingTransfer = (myTransfersQ.data ?? []).find(
+    (r) => r.lead_id === lead.id && r.status === "pending",
+  );
   const confirm = useConfirm();
 
   useEffect(() => {
