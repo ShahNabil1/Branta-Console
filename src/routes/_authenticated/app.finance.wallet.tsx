@@ -505,3 +505,129 @@ function AddLedgerModal({ cur, onClose, onSubmit, submitting }: {
     </div>
   );
 }
+
+type PayoutKind = "salary" | "bonus" | "profit_share" | "reimbursement" | "adjustment" | "other";
+interface EmpOption { user_id: string; full_name: string | null; employee_code: string | null; job_role?: string | null; email?: string | null }
+
+function PayEmployeeModal({ cur, employees, onClose, onSubmit, submitting }: {
+  cur: Currency;
+  employees: EmpOption[];
+  onClose: () => void;
+  submitting: boolean;
+  onSubmit: (d: { user_id: string; currency: Currency; amount: number; kind: PayoutKind; notes: string | null }) => void;
+}) {
+  const [q, setQ] = useState("");
+  const [userId, setUserId] = useState<string>("");
+  const [currency, setCurrency] = useState<Currency>(cur);
+  const [kind, setKind] = useState<PayoutKind>("salary");
+  const [amount, setAmount] = useState("");
+  const [notes, setNotes] = useState("");
+
+  const filtered = employees.filter((e) => {
+    const s = q.trim().toLowerCase();
+    if (!s) return true;
+    return (
+      (e.full_name ?? "").toLowerCase().includes(s) ||
+      (e.employee_code ?? "").toLowerCase().includes(s) ||
+      (e.email ?? "").toLowerCase().includes(s)
+    );
+  }).slice(0, 50);
+
+  const selected = employees.find((e) => e.user_id === userId);
+
+  const submit = () => {
+    if (!userId) return toast.error("Select an employee");
+    const n = Number(amount);
+    if (!n || n <= 0) return toast.error("Amount must be greater than 0");
+    onSubmit({ user_id: userId, currency, amount: n, kind, notes: notes.trim() || null });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 p-4">
+      <div className="w-full max-w-lg rounded-md border border-border bg-card p-5 shadow-lg">
+        <h3 className="flex items-center gap-2 text-[14px] font-semibold">
+          <HandCoins className="size-4 text-emerald-700" /> Pay employee
+        </h3>
+        <p className="mt-1 text-[11.5px] text-muted-foreground">
+          Credit an employee wallet directly. The amount becomes withdrawable immediately. Company cash leaves only when the employee's withdrawal is marked paid.
+        </p>
+
+        <div className="mt-4 space-y-3">
+          <div>
+            <label className="text-[11px] font-semibold uppercase text-muted-foreground">Employee</label>
+            <Input value={q} onChange={(e) => setQ(e.target.value)}
+              placeholder="Search by name, code or email…"
+              className="mt-1 h-9 rounded-sm" />
+            <div className="mt-2 max-h-40 overflow-y-auto rounded-sm border border-border">
+              {filtered.length === 0 ? (
+                <div className="px-3 py-2 text-[12px] text-muted-foreground">No matches</div>
+              ) : filtered.map((e) => (
+                <button key={e.user_id} type="button"
+                  onClick={() => setUserId(e.user_id)}
+                  className={cn(
+                    "flex w-full items-center justify-between border-b border-border px-3 py-1.5 text-left text-[12.5px] last:border-b-0 hover:bg-muted/60",
+                    userId === e.user_id && "bg-emerald-50",
+                  )}>
+                  <span>
+                    <span className="font-medium">{e.full_name ?? "—"}</span>
+                    {e.email && <span className="ml-2 text-muted-foreground">{e.email}</span>}
+                  </span>
+                  <span className="font-mono text-[11px] text-muted-foreground">{e.employee_code ?? ""}</span>
+                </button>
+              ))}
+            </div>
+            {selected && (
+              <div className="mt-1.5 text-[11.5px] text-emerald-700">
+                Selected: <strong>{selected.full_name}</strong> {selected.employee_code ? `· ${selected.employee_code}` : ""}
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="text-[11px] font-semibold uppercase text-muted-foreground">Reason</label>
+              <select value={kind} onChange={(e) => setKind(e.target.value as PayoutKind)}
+                className="mt-1 h-9 w-full rounded-sm border border-input bg-background px-2 text-[13px]">
+                <option value="salary">Salary</option>
+                <option value="bonus">Bonus</option>
+                <option value="profit_share">Profit share</option>
+                <option value="reimbursement">Reimbursement</option>
+                <option value="adjustment">Adjustment</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-[11px] font-semibold uppercase text-muted-foreground">Currency</label>
+              <select value={currency} onChange={(e) => setCurrency(e.target.value as Currency)}
+                className="mt-1 h-9 w-full rounded-sm border border-input bg-background px-2 text-[13px]">
+                <option value="BDT">BDT</option>
+                <option value="USD">USD</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-[11px] font-semibold uppercase text-muted-foreground">Amount</label>
+              <Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)}
+                className="mt-1 h-9 rounded-sm font-mono" placeholder="e.g. 25000" />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[11px] font-semibold uppercase text-muted-foreground">Notes</label>
+            <Input value={notes} onChange={(e) => setNotes(e.target.value)}
+              placeholder="Optional — month, reference, reason…"
+              className="mt-1 h-9 rounded-sm" />
+          </div>
+        </div>
+
+        <div className="mt-5 flex justify-end gap-2">
+          <Button variant="ghost" onClick={onClose} className="h-9 rounded-sm">Cancel</Button>
+          <Button onClick={submit} disabled={submitting}
+            className="h-9 rounded-sm bg-emerald-600 text-white hover:bg-emerald-700">
+            {submitting && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
+            Credit employee wallet
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
