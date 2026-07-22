@@ -724,7 +724,9 @@ export const listEmployeeSessions = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ userId: uuid }).parse(input))
   .handler(async ({ data, context }): Promise<EmployeeSessionRow[]> => {
-    await assertAdmin(context.supabase, context.userId);
+    if (data.userId !== context.userId) {
+      await assertAdmin(context.supabase, context.userId);
+    }
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
     );
