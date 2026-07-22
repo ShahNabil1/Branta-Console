@@ -222,6 +222,18 @@ export const getCustomerByCode = createServerFn({ method: "GET" })
       data,
       context,
     }): Promise<{ customer: CustomerRow; leadSlug: string | null }> => {
+      // Gate: customer detail requires customer_access + customer_view_detail.
+      const { data: canAccess } = await context.supabase.rpc("has_permission", {
+        _user_id: context.userId,
+        _perm: "customer_access",
+      });
+      if (!canAccess) throw new Error("Forbidden: customer_access required");
+      const { data: canDetail } = await context.supabase.rpc("has_permission", {
+        _user_id: context.userId,
+        _perm: "customer_view_detail",
+      });
+      if (!canDetail) throw new Error("Forbidden: customer_view_detail required");
+
       const { data: cust, error } = await context.supabase
         .from("customers")
         .select("*")
@@ -230,6 +242,7 @@ export const getCustomerByCode = createServerFn({ method: "GET" })
       if (error) throw new Error(error.message);
       if (!cust) throw new Error("Customer not found");
       const customer = cust as unknown as CustomerRow;
+
 
       let leadSlug: string | null = null;
       if (customer.converted_from_lead_id) {
