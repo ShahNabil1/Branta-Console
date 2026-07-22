@@ -621,6 +621,51 @@ export const listMyPayouts = createServerFn({ method: "GET" })
   });
 
 // ==================== Withdrawals ====================
+// Flow:
+//   request  → payouts FIFO (available → requested, tagged with request id).
+//              Withdrawal row status = 'pending'. Employee "available" drops
+//              immediately, so no double-spend. Company net is unchanged.
+//   cancel   → employee (while still pending) reverts payouts to available.
+//   approve  → admin acknowledges; payouts stay 'requested'.
+//   reject   → payouts requested→available; request row → 'rejected'.
+//   paid     → payouts requested→paid; request row → 'paid'. A negative
+//              company_ledger entry ('withdrawal_payout') records the cash
+//              outflow so the Company Real Balance reflects the transfer.
+
+async function revertRequestedPayoutsToAvailable(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  requestId: string,
+) {
+  const { data: prev } = await supabase
+    .from("invoice_payouts")
+    .select("id, invoice_id")
+    .eq("withdrawal_request_id", requestId);
+  if (!prev || prev.length === 0) return;
+  // Re-derive availability from invoice status: a fully paid invoice keeps
+  // payouts 'available', otherwise they fall back to 'locked'.
+  const invIds = Array.from(new Set((prev as { invoice_id: string }[]).map((p) => p.invoice_id)));
+  const { data: invs } = await supabase
+    .from("invoices").select("id, status").in("id", invIds);
+  const paidInv = new Set<string>(
+    ((invs ?? []) as { id: string; status: string }[])
+      .filter((i) => i.status === "paid").map((i) => i.id),
+  );
+  const nowIso = new Date().toISOString();
+  for (const p of prev as { id: string; invoice_id: string }[]) {
+    const restore = paidInv.has(p.invoice_id) ? "available" : "locked";
+    await supabase
+      .from("invoice_payouts")
+      .update({
+        status: restore,
+        requested_at: null,
+        withdrawal_request_id: null,
+        unlocked_at: restore === "available" ? nowIso : null,
+      } as never)
+      .eq("id", p.id);
+  }
+}
+
 export const requestWithdrawal = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { amount: number; currency: Currency; payment_method_id?: string | null; payment_method_snapshot?: Record<string, unknown> | null }) =>
@@ -632,7 +677,6 @@ export const requestWithdrawal = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    // Check available balance
     const { data: bal, error: bErr } = await context.supabase
       .from("v_wallet_balances")
       .select("*")
@@ -656,7 +700,57 @@ export const requestWithdrawal = createServerFn({ method: "POST" })
       } as any)
       .select("*").single();
     if (error) throw new Error(error.message);
-    return wr as unknown as WithdrawalRow;
+    const row = wr as unknown as WithdrawalRow;
+
+    // Reserve payouts immediately (FIFO) so the employee cannot double-spend
+    // while the request is pending review.
+    const { data: avail } = await context.supabase
+      .from("invoice_payouts")
+      .select("id, amount")
+      .eq("user_id", context.userId)
+      .eq("currency", data.currency)
+      .eq("status", "available")
+      .order("unlocked_at", { ascending: true });
+    const nowIso = new Date().toISOString();
+    let remaining = Number(data.amount);
+    for (const p of (avail ?? []) as { id: string; amount: number }[]) {
+      if (remaining <= 0.001) break;
+      // v1 does not split payout rows; typical case = exact match.
+      await context.supabase
+        .from("invoice_payouts")
+        .update({
+          status: "requested",
+          requested_at: nowIso,
+          withdrawal_request_id: row.id,
+        } as never)
+        .eq("id", p.id);
+      remaining -= Number(p.amount);
+    }
+    return row;
+  });
+
+export const cancelMyWithdrawal = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string }) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: wr } = await context.supabase
+      .from("withdrawal_requests").select("*").eq("id", data.id).maybeSingle();
+    const row = wr as WithdrawalRow | null;
+    if (!row) throw new Error("Request not found");
+    if (row.user_id !== context.userId) throw new Error("Forbidden");
+    if (row.status !== "pending") throw new Error("Only pending requests can be cancelled");
+    await revertRequestedPayoutsToAvailable(context.supabase, row.id);
+    const { error } = await context.supabase
+      .from("withdrawal_requests")
+      .update({
+        status: "rejected",
+        decided_at: new Date().toISOString(),
+        decided_by: context.userId,
+        admin_note: "Cancelled by employee",
+      } as never)
+      .eq("id", row.id);
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
   });
 
 export const listMyWithdrawals = createServerFn({ method: "GET" })
@@ -714,10 +808,19 @@ export const decideWithdrawal = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await ensureFinanceAdmin(context.supabase as never, context.userId);
 
+    const { data: existing } = await context.supabase
+      .from("withdrawal_requests").select("*").eq("id", data.id).maybeSingle();
+    const row = existing as WithdrawalRow | null;
+    if (!row) throw new Error("Request not found");
+    if (row.status === "paid") throw new Error("Already paid — cannot change");
+    if (row.status === "rejected") throw new Error("Already rejected");
+    if (data.action === "paid" && row.status !== "approved")
+      throw new Error("Approve the request before marking it paid");
+    if (data.action === "approve" && row.status !== "pending")
+      throw new Error("Only pending requests can be approved");
+
     const nowIso = new Date().toISOString();
-    const update: Record<string, unknown> = {
-      admin_note: data.note ?? null,
-    };
+    const update: Record<string, unknown> = { admin_note: data.note ?? row.admin_note ?? null };
     if (data.action === "approve") {
       update.status = "approved";
       update.decided_at = nowIso;
@@ -726,11 +829,25 @@ export const decideWithdrawal = createServerFn({ method: "POST" })
       update.status = "rejected";
       update.decided_at = nowIso;
       update.decided_by = context.userId;
+      await revertRequestedPayoutsToAvailable(context.supabase, row.id);
     } else {
       update.status = "paid";
       update.paid_at = nowIso;
       update.paid_by = context.userId;
       if (data.transfer_ref) update.transfer_ref = data.transfer_ref;
+      await context.supabase
+        .from("invoice_payouts")
+        .update({ status: "paid", paid_at: nowIso } as never)
+        .eq("withdrawal_request_id", row.id);
+      // Cash outflow → company ledger so real_balance drops by the payout.
+      await context.supabase.from("company_ledger").insert({
+        kind: "withdrawal_payout",
+        currency: row.currency,
+        amount: -Math.abs(Number(row.amount)),
+        notes: `Payout to employee (withdrawal ${row.id.slice(0, 8)}${data.transfer_ref ? ` · ref ${data.transfer_ref}` : ""})`,
+        occurred_on: nowIso.slice(0, 10),
+        created_by: context.userId,
+      } as never);
     }
 
     const { error } = await context.supabase
@@ -738,59 +855,6 @@ export const decideWithdrawal = createServerFn({ method: "POST" })
       .update(update as never)
       .eq("id", data.id);
     if (error) throw new Error(error.message);
-
-    // Reconcile payouts: (approve) lock proportional 'available' payouts as 'requested'.
-    // (paid) mark corresponding requested payouts as 'paid'. (reject) leave payouts as-is.
-    const { data: wr } = await context.supabase
-      .from("withdrawal_requests").select("*").eq("id", data.id).maybeSingle();
-    const row = wr as WithdrawalRow | null;
-    if (!row) return { ok: true as const };
-
-    if (data.action === "approve") {
-      // Move 'available' payouts (FIFO) up to row.amount → 'requested'
-      const { data: avail } = await context.supabase
-        .from("invoice_payouts")
-        .select("id, amount")
-        .eq("user_id", row.user_id)
-        .eq("currency", row.currency)
-        .eq("status", "available")
-        .order("unlocked_at", { ascending: true });
-      let remaining = Number(row.amount);
-      for (const p of (avail ?? []) as { id: string; amount: number }[]) {
-        if (remaining <= 0) break;
-        const take = Math.min(remaining, Number(p.amount));
-        // If full, mark requested. If partial, we still mark as requested
-        // (splitting payout rows is out-of-scope for v1; typical case = exact match).
-        if (Math.abs(take - Number(p.amount)) < 0.01) {
-          await context.supabase
-            .from("invoice_payouts")
-            .update({
-              status: "requested",
-              requested_at: nowIso,
-              withdrawal_request_id: row.id,
-            } as never)
-            .eq("id", p.id);
-          remaining -= Number(p.amount);
-        } else {
-          // Partial: mark this payout as requested for the full amount
-          // and stop (small residual will remain available).
-          await context.supabase
-            .from("invoice_payouts")
-            .update({
-              status: "requested",
-              requested_at: nowIso,
-              withdrawal_request_id: row.id,
-            } as never)
-            .eq("id", p.id);
-          remaining = 0;
-        }
-      }
-    } else if (data.action === "paid") {
-      await context.supabase
-        .from("invoice_payouts")
-        .update({ status: "paid", paid_at: nowIso } as never)
-        .eq("withdrawal_request_id", row.id);
-    }
 
     return { ok: true as const };
   });
