@@ -93,9 +93,9 @@ export function AppSidebar() {
   const nav = useMemo<NavGroup[]>(() => {
     const perms = permsQ.data;
     if (!perms) return NAV;
-    const isSuperAdmin = perms.isSuperAdmin;
+    const isAdmin = perms.isAdmin ?? perms.isSuperAdmin;
     return NAV.map((g) => {
-      if (g.label === "Admin" && !isSuperAdmin) return { ...g, items: [] };
+      if (g.label === "Admin" && !isAdmin) return { ...g, items: [] };
       return {
         ...g,
         items: g.items.filter((it) => {
