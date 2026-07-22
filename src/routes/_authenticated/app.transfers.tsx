@@ -242,18 +242,13 @@ function TransfersPage() {
                   </td>
                   <td className="px-3 py-2 align-top">
                     {r.lead_slug ? (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          navigate({
-                            to: "/app/leads/$slug",
-                            params: { slug: r.lead_slug! },
-                          })
-                        }
+                      <Link
+                        to="/app/leads/$slug"
+                        params={{ slug: r.lead_slug }}
                         className="rounded-sm bg-muted px-1.5 py-0.5 font-mono text-[11px] text-foreground hover:bg-muted/70"
                       >
                         {r.lead_slug}
-                      </button>
+                      </Link>
                     ) : (
                       <span className="text-muted-foreground">—</span>
                     )}
