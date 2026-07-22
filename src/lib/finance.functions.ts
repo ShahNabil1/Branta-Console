@@ -1104,20 +1104,27 @@ export const getCompanyWallet = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     await ensureFinanceAdmin(context.supabase as never, context.userId);
     const [{ data: invs }, { data: insts }, { data: ledger }, { data: exps }, { data: payouts }] = await Promise.all([
-      context.supabase.from("invoices").select("id, currency, total_amount, paid_amount, status").not("status", "eq", "void"),
+      context.supabase.from("invoices").select("id, currency, total_amount, paid_amount, status").not("status", "in", "(void,paid)"),
       context.supabase.from("invoice_installments").select("invoice_id, amount, paid_amount, status, due_date"),
       context.supabase.from("company_ledger").select("currency, amount"),
       context.supabase.from("expenses").select("currency, amount"),
-      context.supabase.from("invoice_payouts").select("currency, amount, status"),
+      context.supabase.from("invoice_payouts").select("currency, amount, status, role"),
     ]);
     const invRows = (invs ?? []) as { id: string; currency: Currency; total_amount: number; paid_amount: number; status: InvoiceStatus }[];
     const currencyByInvoice = new Map(invRows.map((r) => [r.id, r.currency] as const));
+    // Also load ALL invoices (incl. paid) so installments can resolve to a currency for `received`.
+    const { data: allInvs } = await context.supabase.from("invoices").select("id, currency").neq("status", "void");
+    (allInvs ?? []).forEach((r) => {
+      const row = r as { id: string; currency: Currency };
+      if (!currencyByInvoice.has(row.id)) currencyByInvoice.set(row.id, row.currency);
+    });
     const empty = (cur: Currency): CompanyWalletCurrency => ({
       currency: cur, received: 0, ledger_total: 0, expenses_total: 0, real_balance: 0,
       pending: 0, estimated_total: 0,
       employees_locked: 0, employees_available: 0, employees_requested: 0, employees_owed: 0, company_net: 0,
     });
     const map: Record<Currency, CompanyWalletCurrency> = { BDT: empty("BDT"), USD: empty("USD") };
+    // Estimated = full contract value of invoices NOT fully paid and NOT void.
     invRows.forEach((r) => { map[r.currency].estimated_total += Number(r.total_amount); });
     (insts ?? []).forEach((row) => {
       const r = row as { invoice_id: string; amount: number; paid_amount: number | null; status: string };
@@ -1135,8 +1142,11 @@ export const getCompanyWallet = createServerFn({ method: "GET" })
       if (map[r.currency]) map[r.currency].expenses_total += Number(r.amount);
     });
     (payouts ?? []).forEach((row) => {
-      const r = row as { currency: Currency; amount: number; status: PayoutStatus };
+      const r = row as { currency: Currency; amount: number; status: PayoutStatus; role: StakeholderRole | null };
       if (!map[r.currency]) return;
+      // Company-role payouts represent the company's own share, not money owed to employees.
+      // They stay inside real_balance and must not be subtracted as "employees owed".
+      if (r.role === "company") return;
       if (r.status === "locked") map[r.currency].employees_locked += Number(r.amount);
       else if (r.status === "available") map[r.currency].employees_available += Number(r.amount);
       else if (r.status === "requested") map[r.currency].employees_requested += Number(r.amount);
