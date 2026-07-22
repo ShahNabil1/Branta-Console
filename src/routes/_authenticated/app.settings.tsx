@@ -1,8 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Settings } from "lucide-react";
+import { RequireSuperAdmin } from "@/components/branta/require-super-admin";
 
 export const Route = createFileRoute("/_authenticated/app/settings")({
-  component: SettingsStub,
+  component: () => (
+    <RequireSuperAdmin>
+      <SettingsStub />
+    </RequireSuperAdmin>
+  ),
 });
 
 function SettingsStub() {
