@@ -1,11 +1,11 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { ArrowLeft, Building2, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getCustomerByCode } from "@/lib/customers.functions";
-import { getLeadBySlug, listAssignableUsers } from "@/lib/leads.functions";
+import { getLeadBySlug, listAssignableUsers, logLeadView } from "@/lib/leads.functions";
 import { LeadDetail } from "@/components/leads/lead-detail";
 
 export const Route = createFileRoute("/_authenticated/app/customers/$code")({
@@ -24,6 +24,8 @@ function CustomerDetailPage() {
   const getCustomer = useServerFn(getCustomerByCode);
   const getLead = useServerFn(getLeadBySlug);
   const listUsers = useServerFn(listAssignableUsers);
+  const logView = useServerFn(logLeadView);
+  const qc = useQueryClient();
 
   const customerQ = useQuery({
     queryKey: ["customers", "by-code", code],
@@ -72,6 +74,20 @@ function CustomerDetailPage() {
       supabase.removeChannel(ch);
     };
   }, [leadQ]);
+
+  // Log a "viewed" activity when opening the customer (mirrors lead detail).
+  useEffect(() => {
+    const leadId = leadQ.data?.id;
+    if (!leadId) return;
+    logView({ data: { leadId } })
+      .then((res) => {
+        if (res?.logged) {
+          qc.invalidateQueries({ queryKey: ["leads", "activities", leadId] });
+        }
+      })
+      .catch(() => {});
+  }, [leadQ.data?.id, logView, qc]);
+
 
   if (customerQ.isLoading || (leadSlug && leadQ.isLoading)) {
     return (
