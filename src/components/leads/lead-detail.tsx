@@ -1356,31 +1356,35 @@ export function LeadDetail({
 
             </div>
             <div className="flex items-center justify-between border-t border-border px-3 py-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 rounded-sm text-[12px] text-red-600 hover:bg-red-50 hover:text-red-700"
-                onClick={async () => {
-                  const label = lead.slug ?? lead.lead_code ?? "this lead";
-                  const ok = await confirm({
-                    tone: "danger",
-                    title: `Delete lead ${label}?`,
-                    description:
-                      "This permanently removes the lead and all its contacts, emails, meetings, notes, social links, and activity history. This action cannot be undone.",
-                    confirmLabel: "Delete lead",
-                    requireTypedText: label,
-                  });
-                  if (ok) delM.mutate();
-                }}
-                disabled={delM.isPending}
-              >
-                {delM.isPending ? (
-                  <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-                ) : (
-                  <Trash2 className="mr-1.5 size-3.5" />
-                )}
-                Delete
-              </Button>
+              {canDeleteLead ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 rounded-sm text-[12px] text-red-600 hover:bg-red-50 hover:text-red-700"
+                  onClick={async () => {
+                    const label = lead.slug ?? lead.lead_code ?? "this lead";
+                    const ok = await confirm({
+                      tone: "danger",
+                      title: `Delete lead ${label}?`,
+                      description:
+                        "This permanently removes the lead and all its contacts, emails, meetings, notes, social links, and activity history. This action cannot be undone.",
+                      confirmLabel: "Delete lead",
+                      requireTypedText: label,
+                    });
+                    if (ok) delM.mutate();
+                  }}
+                  disabled={delM.isPending}
+                >
+                  {delM.isPending ? (
+                    <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                  ) : (
+                    <Trash2 className="mr-1.5 size-3.5" />
+                  )}
+                  Delete
+                </Button>
+              ) : (
+                <span />
+              )}
               {editing && (
                 <Button
                   size="sm"
