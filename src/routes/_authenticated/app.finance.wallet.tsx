@@ -156,6 +156,9 @@ function CompanyWalletPage() {
               </button>
             ))}
           </div>
+          <Button onClick={() => setPayOpen(true)} variant="outline" className="h-9 rounded-sm border-emerald-300 text-emerald-700 hover:bg-emerald-50">
+            <HandCoins className="mr-1.5 size-3.5" /> Pay employee
+          </Button>
           <Button onClick={() => setAddOpen(true)} className="h-9 rounded-sm bg-primary hover:bg-brand-700">
             <PlusCircle className="mr-1.5 size-3.5" /> Add ledger entry
           </Button>
