@@ -35,6 +35,7 @@ function WalletPage() {
   const payouts = useServerFn(listMyPayouts);
   const withdrawals = useServerFn(listMyWithdrawals);
   const request = useServerFn(requestWithdrawal);
+  const cancelReq = useServerFn(cancelMyWithdrawal);
   const profile = useServerFn(getMyProfile);
 
   const w = useQuery({ queryKey: ["wallet"], queryFn: () => wallet(), staleTime: 15_000 });
@@ -50,8 +51,7 @@ function WalletPage() {
       if (!uid || cancelled) return;
       ch = supabase.channel(`wallet:${uid}`)
         .on("postgres_changes", { event: "*", schema: "public", table: "invoice_payouts", filter: `user_id=eq.${uid}` }, () => { void w.refetch(); void p.refetch(); })
-        .on("postgres_changes", { event: "*", schema: "public", table: "withdrawal_requests", filter: `user_id=eq.${uid}` }, () => void wr.refetch())
-        // Invoice-level changes affect lock/unlock and totals; refetch on any invoice or installment change the user is a stakeholder on.
+        .on("postgres_changes", { event: "*", schema: "public", table: "withdrawal_requests", filter: `user_id=eq.${uid}` }, () => { void wr.refetch(); void w.refetch(); })
         .on("postgres_changes", { event: "*", schema: "public", table: "invoices" }, () => { void w.refetch(); void p.refetch(); })
         .on("postgres_changes", { event: "*", schema: "public", table: "invoice_installments" }, () => { void w.refetch(); void p.refetch(); })
         .on("postgres_changes", { event: "*", schema: "public", table: "invoice_stakeholders", filter: `user_id=eq.${uid}` }, () => { void w.refetch(); void p.refetch(); })
@@ -81,7 +81,13 @@ function WalletPage() {
         } : null,
       }});
     },
-    onSuccess: () => { toast.success("Withdrawal requested"); setModal(null); setAmount(""); void wr.refetch(); void w.refetch(); },
+    onSuccess: () => { toast.success("Withdrawal requested"); setModal(null); setAmount(""); void wr.refetch(); void w.refetch(); void p.refetch(); },
+    onError: (e) => toast.error((e as Error).message),
+  });
+
+  const doCancel = useMutation({
+    mutationFn: async (id: string) => { await cancelReq({ data: { id } }); },
+    onSuccess: () => { toast.success("Request cancelled"); void wr.refetch(); void w.refetch(); void p.refetch(); },
     onError: (e) => toast.error((e as Error).message),
   });
 
