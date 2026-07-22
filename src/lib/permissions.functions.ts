@@ -61,9 +61,13 @@ export const getMyPermissions = createServerFn({ method: "GET" })
         lead_delete: true,
         lead_manage: true,
         lead_assign: true,
+        customer_access: true,
+        customer_view_all: true,
+        customer_view_detail: true,
         isSuperAdmin,
       };
     }
+
 
     const { data } = await context.supabase
       .from("user_permissions")
