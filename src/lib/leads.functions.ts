@@ -1026,6 +1026,15 @@ export const addLeadContact = createServerFn({ method: "POST" })
       .select("*")
       .single();
     if (error) throw new Error(error.message);
+    const label = data.name || data.email || data.phone || "contact";
+    await context.supabase.from("lead_activities").insert({
+      lead_id: data.leadId,
+      actor_id: context.userId,
+      kind: "note",
+      body: `Contact added — ${label}${data.isPrimary ? " (primary)" : ""}`,
+      meta: { event: "contact_added", contact_id: (row as { id: string }).id, email: data.email, phone: data.phone ?? null },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any);
     return row as LeadContactRow;
   });
 
