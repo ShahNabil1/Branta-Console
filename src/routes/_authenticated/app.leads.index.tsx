@@ -411,8 +411,89 @@ function LeadsPage() {
         )}
       </div>
 
+      {isSuperAdmin && selected.size > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-sm border border-primary/40 bg-primary/5 px-3 py-2 text-[12.5px]">
+          <div className="flex items-center gap-2 font-medium text-foreground">
+            <span className="rounded-sm bg-primary px-1.5 py-0.5 text-[11px] font-semibold text-primary-foreground">
+              {selected.size}
+            </span>
+            selected
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 rounded-sm px-2 text-[11.5px] text-muted-foreground"
+              onClick={clearSelection}
+            >
+              <X className="mr-1 size-3" /> Clear
+            </Button>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 rounded-sm text-[12px]"
+              onClick={() => {
+                setAssignTo("unassigned");
+                setAssignOpen(true);
+              }}
+            >
+              <UserCog className="mr-1.5 size-3.5" />
+              Assign / Reassign
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 rounded-sm border-red-200 text-[12px] text-red-600 hover:bg-red-50 hover:text-red-700"
+              disabled={bulkDeleteM.isPending}
+              onClick={async () => {
+                const ok = await confirm({
+                  tone: "danger",
+                  title: `Delete ${selected.size} lead(s)?`,
+                  description:
+                    "This permanently removes the selected leads along with their contacts, emails, meetings, notes, social links, and activity history. This action cannot be undone.",
+                  confirmLabel: `Delete ${selected.size}`,
+                });
+                if (ok) bulkDeleteM.mutate();
+              }}
+            >
+              {bulkDeleteM.isPending ? (
+                <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+              ) : (
+                <Trash2 className="mr-1.5 size-3.5" />
+              )}
+              Delete
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div className="flex-1 overflow-hidden rounded-sm border border-border bg-card">
-        <div className="grid grid-cols-[110px_1.4fr_1.2fr_170px_180px_170px_130px] items-center border-b border-border bg-muted/40 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+        <div
+          className={cn(
+            "grid items-center border-b border-border bg-muted/40 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground",
+            isSuperAdmin
+              ? "grid-cols-[32px_110px_1.4fr_1.2fr_170px_180px_170px_130px]"
+              : "grid-cols-[110px_1.4fr_1.2fr_170px_180px_170px_130px]",
+          )}
+        >
+          {isSuperAdmin && (
+            <div className="flex items-center">
+              <Checkbox
+                checked={
+                  paged.length > 0 &&
+                  paged.every((r) => selected.has(r.id))
+                }
+                onCheckedChange={(v) => {
+                  setSelected((prev) => {
+                    const next = new Set(prev);
+                    if (v) paged.forEach((r) => next.add(r.id));
+                    else paged.forEach((r) => next.delete(r.id));
+                    return next;
+                  });
+                }}
+              />
+            </div>
+          )}
           <div>Code</div>
           <div>Lead</div>
           <div>Company</div>
