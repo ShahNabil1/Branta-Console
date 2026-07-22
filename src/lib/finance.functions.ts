@@ -122,7 +122,17 @@ export interface WithdrawalRow {
   amount: number;
   currency: Currency;
   payment_method_id: string | null;
-  payment_method_snapshot: { kind?: string; label?: string; account?: string } | null;
+  payment_method_snapshot: {
+    kind?: string;
+    label?: string;
+    account?: string;
+    bank_name?: string | null;
+    account_holder?: string | null;
+    account_number?: string | null;
+    branch?: string | null;
+    mfs_provider?: string | null;
+    mfs_number?: string | null;
+  } | null;
   status: WithdrawalStatus;
   requested_at: string;
   decided_at: string | null;
