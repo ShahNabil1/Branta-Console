@@ -1628,6 +1628,13 @@ export function LeadDetail({
           <DocumentsTab lead={lead} />
         </TabsContent>
       </Tabs>
+      <RequestTransferDialog
+        leadId={lead.id}
+        currentOwnerId={lead.owner_id ?? null}
+        users={users}
+        open={transferOpen}
+        onOpenChange={setTransferOpen}
+      />
     </div>
   );
 }
