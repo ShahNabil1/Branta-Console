@@ -366,10 +366,10 @@ function CompanyWalletPage() {
                 </td>
                 <td className="px-3 py-2 text-muted-foreground">{r.notes ?? "—"}</td>
                 <td className="px-3 py-2 text-right">
-                  {r.status === "available" && (
-                    <Button variant="ghost" size="sm" onClick={() => delManual(r.id)}
+                  {(r.status === "available" || r.status === "paid") && (r.amount ?? 0) >= 0 && (
+                    <Button variant="ghost" size="sm" onClick={() => revokeManual({ id: r.id, status: r.status, amount: r.amount })}
                       className="h-7 rounded-sm text-[11px] text-rose-600 hover:bg-rose-50">
-                      <Trash2 className="size-3" />
+                      <Undo2 className="mr-1 size-3" /> Revoke
                     </Button>
                   )}
                 </td>
