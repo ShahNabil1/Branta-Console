@@ -802,7 +802,7 @@ export const updateLead = createServerFn({ method: "POST" })
     }
 
     if (activityRows.length > 0) {
-      await context.supabase.from("lead_activities").insert(activityRows);
+      await context.supabase.from("lead_activities").insert(activityRows as never);
     }
     const base = { ...(row as LeadRow), email: null };
     const [withEmail] = await attachPrimaryEmails(context.supabase, [base]);
