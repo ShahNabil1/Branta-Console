@@ -435,14 +435,15 @@ export const markInstallmentPaid = createServerFn({ method: "POST" })
       .eq("id", data.installment_id)
       .maybeSingle();
     const inst = instBefore as { invoice_id: string; sequence: number; label: string; amount: number } | null;
-    let priorInv: { slug: string; currency: string; status: string; total_amount: number; paid_amount: number } | null = null;
+    type PriorInvFull = { slug: string; currency: string; status: string; total_amount: number; paid_amount: number };
+    let priorInv: PriorInvFull | null = null;
     if (inst) {
       const { data: pi } = await context.supabase
         .from("invoices")
         .select("slug, currency, status, total_amount, paid_amount")
         .eq("id", inst.invoice_id)
         .maybeSingle();
-      priorInv = (pi as unknown) as typeof priorInv;
+      priorInv = (pi as unknown) as PriorInvFull;
     }
 
     const { error } = await context.supabase
@@ -520,14 +521,15 @@ export const revertInstallment = createServerFn({ method: "POST" })
       .eq("id", data.installment_id)
       .maybeSingle();
     const inst = instBefore as { invoice_id: string; sequence: number; label: string; amount: number; paid_amount: number | null } | null;
-    let priorInv: { slug: string; currency: string; status: string } | null = null;
+    type PriorInvShort = { slug: string; currency: string; status: string };
+    let priorInv: PriorInvShort | null = null;
     if (inst) {
       const { data: pi } = await context.supabase
         .from("invoices")
         .select("slug, currency, status")
         .eq("id", inst.invoice_id)
         .maybeSingle();
-      priorInv = (pi as unknown) as typeof priorInv;
+      priorInv = (pi as unknown) as PriorInvShort;
     }
 
     const { error } = await context.supabase
