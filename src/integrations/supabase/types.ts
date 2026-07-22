@@ -1518,6 +1518,36 @@ export type Database = {
         }
         Relationships: []
       }
+      user_permissions: {
+        Row: {
+          created_at: string
+          lead_assign: boolean
+          lead_delete: boolean
+          lead_edit: boolean
+          lead_manage: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          lead_assign?: boolean
+          lead_delete?: boolean
+          lead_edit?: boolean
+          lead_manage?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          lead_assign?: boolean
+          lead_delete?: boolean
+          lead_edit?: boolean
+          lead_manage?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -1670,6 +1700,10 @@ export type Database = {
         Returns: undefined
       }
       generate_employee_code: { Args: never; Returns: string }
+      has_permission: {
+        Args: { _perm: string; _user_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
