@@ -8,14 +8,16 @@ import {
   listMyPayouts,
   listMyWithdrawals,
   requestWithdrawal,
+  cancelMyWithdrawal,
   type Currency,
   type WalletBalance,
+  type WithdrawalRow,
 } from "@/lib/finance.functions";
 import { getMyProfile, type PaymentMethod } from "@/lib/profile.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Wallet, Send, Lock, Unlock, Loader2 } from "lucide-react";
+import { Wallet, Send, Lock, Unlock, Loader2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/app/profile/wallet")({
@@ -33,6 +35,7 @@ function WalletPage() {
   const payouts = useServerFn(listMyPayouts);
   const withdrawals = useServerFn(listMyWithdrawals);
   const request = useServerFn(requestWithdrawal);
+  const cancelReq = useServerFn(cancelMyWithdrawal);
   const profile = useServerFn(getMyProfile);
 
   const w = useQuery({ queryKey: ["wallet"], queryFn: () => wallet(), staleTime: 15_000 });
@@ -48,8 +51,7 @@ function WalletPage() {
       if (!uid || cancelled) return;
       ch = supabase.channel(`wallet:${uid}`)
         .on("postgres_changes", { event: "*", schema: "public", table: "invoice_payouts", filter: `user_id=eq.${uid}` }, () => { void w.refetch(); void p.refetch(); })
-        .on("postgres_changes", { event: "*", schema: "public", table: "withdrawal_requests", filter: `user_id=eq.${uid}` }, () => void wr.refetch())
-        // Invoice-level changes affect lock/unlock and totals; refetch on any invoice or installment change the user is a stakeholder on.
+        .on("postgres_changes", { event: "*", schema: "public", table: "withdrawal_requests", filter: `user_id=eq.${uid}` }, () => { void wr.refetch(); void w.refetch(); })
         .on("postgres_changes", { event: "*", schema: "public", table: "invoices" }, () => { void w.refetch(); void p.refetch(); })
         .on("postgres_changes", { event: "*", schema: "public", table: "invoice_installments" }, () => { void w.refetch(); void p.refetch(); })
         .on("postgres_changes", { event: "*", schema: "public", table: "invoice_stakeholders", filter: `user_id=eq.${uid}` }, () => { void w.refetch(); void p.refetch(); })
@@ -79,7 +81,13 @@ function WalletPage() {
         } : null,
       }});
     },
-    onSuccess: () => { toast.success("Withdrawal requested"); setModal(null); setAmount(""); void wr.refetch(); void w.refetch(); },
+    onSuccess: () => { toast.success("Withdrawal requested"); setModal(null); setAmount(""); void wr.refetch(); void w.refetch(); void p.refetch(); },
+    onError: (e) => toast.error((e as Error).message),
+  });
+
+  const doCancel = useMutation({
+    mutationFn: async (id: string) => { await cancelReq({ data: { id } }); },
+    onSuccess: () => { toast.success("Request cancelled"); void wr.refetch(); void w.refetch(); void p.refetch(); },
     onError: (e) => toast.error((e as Error).message),
   });
 
@@ -158,12 +166,13 @@ function WalletPage() {
               <th className="px-3 py-2">Method</th>
               <th className="px-3 py-2">Status</th>
               <th className="px-3 py-2">Ref</th>
+              <th className="px-3 py-2 text-right">Action</th>
             </tr>
           </thead>
           <tbody>
             {(wr.data ?? []).length === 0 ? (
-              <tr><td colSpan={5} className="px-3 py-10 text-center text-muted-foreground">No withdrawal requests yet.</td></tr>
-            ) : wr.data?.map((r) => (
+              <tr><td colSpan={6} className="px-3 py-10 text-center text-muted-foreground">No withdrawal requests yet.</td></tr>
+            ) : (wr.data as WithdrawalRow[]).map((r) => (
               <tr key={r.id} className="border-t border-border">
                 <td className="px-3 py-2 text-muted-foreground">{new Date(r.requested_at).toLocaleString()}</td>
                 <td className="px-3 py-2 text-right font-mono">{fmt(r.amount, r.currency)}</td>
@@ -180,6 +189,21 @@ function WalletPage() {
                   </span>
                 </td>
                 <td className="px-3 py-2 font-mono text-muted-foreground">{r.transfer_ref ?? "—"}</td>
+                <td className="px-3 py-2 text-right">
+                  {r.status === "pending" ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={doCancel.isPending}
+                      onClick={() => doCancel.mutate(r.id)}
+                      className="h-7 rounded-sm text-[11px] text-rose-700 hover:bg-rose-50"
+                    >
+                      <X className="mr-1 size-3" /> Cancel
+                    </Button>
+                  ) : (
+                    <span className="text-[11px] text-muted-foreground">—</span>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
