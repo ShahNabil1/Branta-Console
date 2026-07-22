@@ -193,6 +193,38 @@ async function ensureFinanceAdmin(supabase: {
   if (!data) throw new Error("Forbidden — finance role required");
 }
 
+// Log an activity on the lead that backs an invoice's customer, so all
+// invoice/payment events surface in the Lead/Customer Activity Logs feed.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function logInvoiceActivity(supabase: any, invoiceId: string, actorId: string, kind: string, body: string, meta: Record<string, unknown> = {}) {
+  const { data: inv } = await supabase
+    .from("invoices")
+    .select("customer_id, slug")
+    .eq("id", invoiceId)
+    .maybeSingle();
+  const customerId = (inv as { customer_id?: string } | null)?.customer_id;
+  const slug = (inv as { slug?: string } | null)?.slug ?? null;
+  if (!customerId) return;
+  const { data: cust } = await supabase
+    .from("customers")
+    .select("converted_from_lead_id")
+    .eq("id", customerId)
+    .maybeSingle();
+  const leadId = (cust as { converted_from_lead_id: string | null } | null)?.converted_from_lead_id ?? null;
+  if (!leadId) return;
+  await supabase.from("lead_activities").insert({
+    lead_id: leadId,
+    actor_id: actorId,
+    kind,
+    body,
+    meta: { ...meta, invoice_id: invoiceId, invoice_slug: slug },
+  });
+}
+
+function fmtMoney(n: number | null | undefined, cur: string): string {
+  return `${cur} ${Number(n ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
 export const listInvoices = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<InvoiceRow[]> => {
@@ -355,6 +387,24 @@ export const deleteInvoice = createServerFn({ method: "POST" })
   .inputValidator((d: { id: string }) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     await ensureFinanceAdmin(context.supabase as never, context.userId);
+    // Snapshot invoice details BEFORE deletion so we can log a meaningful
+    // "cancelled" event on the underlying lead.
+    const { data: inv } = await context.supabase
+      .from("invoices")
+      .select("id, slug, title, currency, total_amount, paid_amount, status")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (inv) {
+      const r = inv as { slug: string; title: string; currency: string; total_amount: number; paid_amount: number; status: string };
+      await logInvoiceActivity(
+        context.supabase,
+        data.id,
+        context.userId,
+        "note",
+        `Invoice ${r.slug} cancelled — ${r.title} (${fmtMoney(r.total_amount, r.currency)}, was ${r.status})`,
+        { event: "invoice_cancelled", prior_status: r.status, total: r.total_amount, paid: r.paid_amount },
+      );
+    }
     const { error } = await context.supabase.from("invoices").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true as const };
@@ -377,6 +427,25 @@ export const markInstallmentPaid = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await ensureFinanceAdmin(context.supabase as never, context.userId);
+
+    // Snapshot installment + invoice prior state for a rich activity log.
+    const { data: instBefore } = await context.supabase
+      .from("invoice_installments")
+      .select("id, invoice_id, sequence, label, amount")
+      .eq("id", data.installment_id)
+      .maybeSingle();
+    const inst = instBefore as { invoice_id: string; sequence: number; label: string; amount: number } | null;
+    type PriorInvFull = { slug: string; currency: string; status: string; total_amount: number; paid_amount: number };
+    let priorInv: PriorInvFull | null = null;
+    if (inst) {
+      const { data: pi } = await context.supabase
+        .from("invoices")
+        .select("slug, currency, status, total_amount, paid_amount")
+        .eq("id", inst.invoice_id)
+        .maybeSingle();
+      priorInv = (pi as unknown) as PriorInvFull;
+    }
+
     const { error } = await context.supabase
       .from("invoice_installments")
       .update({
@@ -389,6 +458,52 @@ export const markInstallmentPaid = createServerFn({ method: "POST" })
       } as any)
       .eq("id", data.installment_id);
     if (error) throw new Error(error.message);
+
+    // Log payment received + any resulting invoice status change (partially_paid → paid).
+    if (inst && priorInv) {
+      const amt = data.paid_amount ?? inst.amount;
+      const cur = priorInv.currency;
+      const parts = [
+        `Payment received — installment #${inst.sequence} ${inst.label} (${fmtMoney(amt, cur)})`,
+      ];
+      if (data.payment_method) parts.push(`method: ${data.payment_method}`);
+      if (data.payment_ref) parts.push(`ref: ${data.payment_ref}`);
+      await logInvoiceActivity(
+        context.supabase,
+        inst.invoice_id,
+        context.userId,
+        "note",
+        parts.join(" · "),
+        {
+          event: "payment_received",
+          installment_id: data.installment_id,
+          installment_label: inst.label,
+          installment_sequence: inst.sequence,
+          amount: amt,
+          currency: cur,
+          payment_method: data.payment_method ?? null,
+          payment_ref: data.payment_ref ?? null,
+        },
+      );
+
+      // Recompute status trigger already ran — read invoice again to detect change.
+      const { data: invAfter } = await context.supabase
+        .from("invoices")
+        .select("status, paid_amount, total_amount")
+        .eq("id", inst.invoice_id)
+        .maybeSingle();
+      const after = invAfter as { status: string; paid_amount: number; total_amount: number } | null;
+      if (after && after.status !== priorInv.status) {
+        await logInvoiceActivity(
+          context.supabase,
+          inst.invoice_id,
+          context.userId,
+          "status_change",
+          `Invoice ${priorInv.slug} status: ${priorInv.status} → ${after.status} (${fmtMoney(after.paid_amount, cur)} / ${fmtMoney(after.total_amount, cur)})`,
+          { event: "invoice_status_change", from: priorInv.status, to: after.status, paid: after.paid_amount, total: after.total_amount, currency: cur },
+        );
+      }
+    }
     return { ok: true as const };
   });
 
@@ -399,11 +514,58 @@ export const revertInstallment = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await ensureFinanceAdmin(context.supabase as never, context.userId);
+
+    const { data: instBefore } = await context.supabase
+      .from("invoice_installments")
+      .select("id, invoice_id, sequence, label, amount, paid_amount")
+      .eq("id", data.installment_id)
+      .maybeSingle();
+    const inst = instBefore as { invoice_id: string; sequence: number; label: string; amount: number; paid_amount: number | null } | null;
+    type PriorInvShort = { slug: string; currency: string; status: string };
+    let priorInv: PriorInvShort | null = null;
+    if (inst) {
+      const { data: pi } = await context.supabase
+        .from("invoices")
+        .select("slug, currency, status")
+        .eq("id", inst.invoice_id)
+        .maybeSingle();
+      priorInv = (pi as unknown) as PriorInvShort;
+    }
+
     const { error } = await context.supabase
       .from("invoice_installments")
       .update({ status: "pending", paid_at: null, paid_amount: null } as never)
       .eq("id", data.installment_id);
     if (error) throw new Error(error.message);
+
+    if (inst && priorInv) {
+      const amt = inst.paid_amount ?? inst.amount;
+      await logInvoiceActivity(
+        context.supabase,
+        inst.invoice_id,
+        context.userId,
+        "note",
+        `Payment reverted — installment #${inst.sequence} ${inst.label} (${fmtMoney(amt, priorInv.currency)})`,
+        { event: "payment_reverted", installment_id: data.installment_id, amount: amt, currency: priorInv.currency },
+      );
+
+      const { data: invAfter } = await context.supabase
+        .from("invoices")
+        .select("status, paid_amount, total_amount")
+        .eq("id", inst.invoice_id)
+        .maybeSingle();
+      const after = invAfter as { status: string; paid_amount: number; total_amount: number } | null;
+      if (after && after.status !== priorInv.status) {
+        await logInvoiceActivity(
+          context.supabase,
+          inst.invoice_id,
+          context.userId,
+          "status_change",
+          `Invoice ${priorInv.slug} status: ${priorInv.status} → ${after.status} (${fmtMoney(after.paid_amount, priorInv.currency)} / ${fmtMoney(after.total_amount, priorInv.currency)})`,
+          { event: "invoice_status_change", from: priorInv.status, to: after.status, paid: after.paid_amount, total: after.total_amount, currency: priorInv.currency },
+        );
+      }
+    }
     return { ok: true as const };
   });
 

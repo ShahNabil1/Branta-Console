@@ -1026,6 +1026,15 @@ export const addLeadContact = createServerFn({ method: "POST" })
       .select("*")
       .single();
     if (error) throw new Error(error.message);
+    const label = data.name || data.email || data.phone || "contact";
+    await context.supabase.from("lead_activities").insert({
+      lead_id: data.leadId,
+      actor_id: context.userId,
+      kind: "note",
+      body: `Contact added — ${label}${data.isPrimary ? " (primary)" : ""}`,
+      meta: { event: "contact_added", contact_id: (row as { id: string }).id, email: data.email, phone: data.phone ?? null },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any);
     return row as LeadContactRow;
   });
 
@@ -1033,16 +1042,32 @@ const UpdateContactInput = ContactFields.partial().extend({
   id: z.string().uuid(),
 });
 
+const CONTACT_FIELD_LABELS: Record<string, string> = {
+  name: "Name",
+  role: "Role",
+  email: "Email",
+  label: "Label",
+  email_label: "Email label",
+  alt_email: "Alt email",
+  alt_email_label: "Alt email label",
+  phone: "Phone",
+  phone_label: "Phone label",
+  alt_phone: "Alt phone",
+  alt_phone_label: "Alt phone label",
+  contact_preference: "Contact preference",
+};
+
 export const updateLeadContact = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => UpdateContactInput.parse(d))
   .handler(async ({ data, context }): Promise<LeadContactRow> => {
-    // Resolve owning lead so the dup check can exclude it.
-    const { data: owner } = await context.supabase
+    // Snapshot the row before update so we can build a field-level diff.
+    const { data: before } = await context.supabase
       .from("lead_contacts")
-      .select("lead_id")
+      .select("*")
       .eq("id", data.id)
       .maybeSingle();
+    const beforeRow = before as (Record<string, unknown> & { lead_id: string }) | null;
     await throwIfDuplicate(
       context.supabase,
       {
@@ -1051,7 +1076,7 @@ export const updateLeadContact = createServerFn({ method: "POST" })
         phone: data.phone ?? null,
         alt_phone: data.alt_phone ?? null,
       },
-      owner?.lead_id ?? null,
+      beforeRow?.lead_id ?? null,
     );
     const patch: Record<string, unknown> = {};
     const keys: (keyof typeof data)[] = [
@@ -1082,6 +1107,34 @@ export const updateLeadContact = createServerFn({ method: "POST" })
       .select("*")
       .single();
     if (error) throw new Error(error.message);
+
+    // Field-level diff → activity log entries on the underlying lead.
+    if (beforeRow) {
+      const contactLabel =
+        (beforeRow.name as string | null) ||
+        (beforeRow.email as string | null) ||
+        (beforeRow.phone as string | null) ||
+        "contact";
+      const activityRows: Array<Record<string, unknown>> = [];
+      for (const [k, next] of Object.entries(patch)) {
+        const label = CONTACT_FIELD_LABELS[k];
+        if (!label) continue;
+        const prev = beforeRow[k] ?? null;
+        const nextNorm = next ?? null;
+        if ((prev ?? "") === (nextNorm ?? "")) continue;
+        activityRows.push({
+          lead_id: beforeRow.lead_id,
+          actor_id: context.userId,
+          kind: "note",
+          body: `Contact “${contactLabel}” — ${label}: ${prev === null || prev === "" ? "—" : String(prev)} → ${nextNorm === null || nextNorm === "" ? "—" : String(nextNorm)}`,
+          meta: { event: "contact_updated", contact_id: data.id, field: k, from: prev, to: nextNorm },
+        });
+      }
+      if (activityRows.length > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await context.supabase.from("lead_activities").insert(activityRows as any);
+      }
+    }
     return row as LeadContactRow;
   });
 
@@ -1094,7 +1147,7 @@ export const setPrimaryLeadContact = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<{ ok: true }> => {
     const { data: c, error: e1 } = await context.supabase
       .from("lead_contacts")
-      .select("lead_id")
+      .select("lead_id, name, email, phone")
       .eq("id", data.id)
       .maybeSingle();
     if (e1) throw new Error(e1.message);
@@ -1108,6 +1161,15 @@ export const setPrimaryLeadContact = createServerFn({ method: "POST" })
       .update({ is_primary: true })
       .eq("id", data.id);
     if (error) throw new Error(error.message);
+    const label = (c.name as string | null) || (c.email as string | null) || (c.phone as string | null) || "contact";
+    await context.supabase.from("lead_activities").insert({
+      lead_id: c.lead_id,
+      actor_id: context.userId,
+      kind: "note",
+      body: `Primary contact set — ${label}`,
+      meta: { event: "contact_primary_set", contact_id: data.id },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any);
     return { ok: true };
   });
 
@@ -1117,10 +1179,26 @@ export const deleteLeadContact = createServerFn({ method: "POST" })
     z.object({ id: z.string().uuid() }).parse(d),
   )
   .handler(async ({ data, context }): Promise<{ ok: true }> => {
+    const { data: before } = await context.supabase
+      .from("lead_contacts")
+      .select("lead_id, name, email, phone")
+      .eq("id", data.id)
+      .maybeSingle();
     const { error } = await context.supabase
       .from("lead_contacts")
       .delete()
       .eq("id", data.id);
     if (error) throw new Error(error.message);
+    if (before) {
+      const label = (before.name as string | null) || (before.email as string | null) || (before.phone as string | null) || "contact";
+      await context.supabase.from("lead_activities").insert({
+        lead_id: before.lead_id,
+        actor_id: context.userId,
+        kind: "note",
+        body: `Contact removed — ${label}`,
+        meta: { event: "contact_removed", contact_id: data.id },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
+    }
     return { ok: true };
   });
