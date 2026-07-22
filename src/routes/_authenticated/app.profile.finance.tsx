@@ -134,47 +134,9 @@ function FinanceTab() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-4 px-6 py-8">
-      {/* Wallet placeholder */}
-      <section className="overflow-hidden rounded-md border border-border bg-gradient-to-br from-brand/5 to-transparent">
-        <div className="flex items-start justify-between gap-4 border-b border-border bg-card px-5 py-3">
-          <div>
-            <h2 className="text-[13px] font-semibold text-foreground">Wallet</h2>
-            <p className="mt-0.5 text-[12px] text-muted-foreground">
-              Your Branta Tech wallet — coming next. Withdrawals will route to
-              the primary account below.
-            </p>
-          </div>
-          <div className="inline-flex items-center gap-1.5 rounded-sm border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wider text-amber-800">
-            Coming soon
-          </div>
-        </div>
-        <div className="grid grid-cols-1 gap-4 p-5 md:grid-cols-3">
-          <div className="rounded-md border border-border bg-card p-4">
-            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              <Wallet className="size-3" /> Available balance
-            </div>
-            <div className="mt-1 font-mono text-[22px] font-semibold text-foreground">
-              ৳ 0.00
-            </div>
-          </div>
-          <div className="rounded-md border border-border bg-card p-4">
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Pending withdrawals
-            </div>
-            <div className="mt-1 font-mono text-[22px] font-semibold text-muted-foreground">
-              ৳ 0.00
-            </div>
-          </div>
-          <div className="rounded-md border border-border bg-card p-4">
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Payout to
-            </div>
-            <div className="mt-1 truncate text-[13.5px] font-medium text-foreground">
-              {primaryLabel}
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* My Wallet — moved from the removed My Wallet tab */}
+      <MyWalletPanel />
+
 
       {/* Payment Methods */}
       <section className="rounded-md border border-border bg-card">
