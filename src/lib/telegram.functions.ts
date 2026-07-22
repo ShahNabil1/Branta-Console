@@ -118,17 +118,21 @@ export const getEmployeeTelegramStatus = createServerFn({ method: "GET" })
     z.object({ userId: z.string().uuid() }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const [su, ad] = await Promise.all([
-      context.supabase.rpc("has_role", {
-        _user_id: context.userId,
-        _role: "super_admin",
-      }),
-      context.supabase.rpc("has_role", {
-        _user_id: context.userId,
-        _role: "admin",
-      }),
-    ]);
-    if (!su.data && !ad.data) throw new Error("Forbidden: admin role required");
+    // Employees may always look up their own Telegram link status; only
+    // cross-user lookups require admin/super_admin.
+    if (data.userId !== context.userId) {
+      const [su, ad] = await Promise.all([
+        context.supabase.rpc("has_role", {
+          _user_id: context.userId,
+          _role: "super_admin",
+        }),
+        context.supabase.rpc("has_role", {
+          _user_id: context.userId,
+          _role: "admin",
+        }),
+      ]);
+      if (!su.data && !ad.data) throw new Error("Forbidden: admin role required");
+    }
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
     );
