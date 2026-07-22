@@ -99,6 +99,7 @@ import {
 } from "@/lib/lead-docs.functions";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SocialLinksSection } from "@/components/leads/social-links-section";
+import { ActivityLinkPreview } from "@/components/leads/activity-link-preview";
 import {
   Dialog,
   DialogContent,
@@ -1539,30 +1540,10 @@ export function LeadDetail({
                             const invSlug = m?.invoice_slug as string | undefined;
                             const custCode = m?.customer_code as string | undefined;
                             if (invSlug) {
-                              return (
-                                <div className="mt-1">
-                                  <Link
-                                    to="/app/finance/invoices/$slug"
-                                    params={{ slug: invSlug }}
-                                    className="inline-flex items-center gap-1 rounded-sm border border-border bg-muted/40 px-1.5 py-0.5 font-mono text-[11px] text-brand hover:bg-muted"
-                                  >
-                                    Open {invSlug} →
-                                  </Link>
-                                </div>
-                              );
+                              return <ActivityLinkPreview kind="invoice" slug={invSlug} />;
                             }
                             if (ev === "customer_created" && custCode) {
-                              return (
-                                <div className="mt-1">
-                                  <Link
-                                    to="/app/customers/$code"
-                                    params={{ code: custCode }}
-                                    className="inline-flex items-center gap-1 rounded-sm border border-border bg-muted/40 px-1.5 py-0.5 font-mono text-[11px] text-brand hover:bg-muted"
-                                  >
-                                    Open {custCode} →
-                                  </Link>
-                                </div>
-                              );
+                              return <ActivityLinkPreview kind="customer" code={custCode} />;
                             }
                             return null;
                           })()}
