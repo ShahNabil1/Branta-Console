@@ -54,7 +54,7 @@ function NewInvoicePage() {
   ]);
 
   const customerItems: SearchableItem[] = useMemo(
-    () => (custs.data ?? []).map((c) => ({
+    () => (custs.data ?? []).map((c: { id: string; customer_code: string; name: string; company: string | null; email: string | null; phone: string | null }) => ({
       value: c.id,
       label: `${c.customer_code} · ${c.name}`,
       hint: c.company ?? c.email ?? c.phone ?? undefined,
@@ -62,6 +62,7 @@ function NewInvoicePage() {
     })),
     [custs.data],
   );
+
 
   const employeeItems: SearchableItem[] = useMemo(
     () => (emps.data ?? []).map((e) => ({
