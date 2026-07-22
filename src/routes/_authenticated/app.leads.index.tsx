@@ -384,20 +384,22 @@ function LeadsPage() {
             ))}
           </SelectContent>
         </Select>
-        <Select value={ownerFilter} onValueChange={setOwnerFilter}>
-          <SelectTrigger className="h-9 w-[200px] rounded-sm text-[12.5px]">
-            <SelectValue placeholder="Assigned to" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All owners</SelectItem>
-            <SelectItem value="unassigned">Unassigned</SelectItem>
-            {(usersQuery.data ?? []).map((u) => (
-              <SelectItem key={u.user_id} value={u.user_id}>
-                {u.full_name || u.user_id.slice(0, 8)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {isSuperAdmin && (
+          <Select value={ownerFilter} onValueChange={setOwnerFilter}>
+            <SelectTrigger className="h-9 w-[200px] rounded-sm text-[12.5px]">
+              <SelectValue placeholder="Assigned to" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All owners</SelectItem>
+              <SelectItem value="unassigned">Unassigned</SelectItem>
+              {(usersQuery.data ?? []).map((u) => (
+                <SelectItem key={u.user_id} value={u.user_id}>
+                  {u.full_name || u.user_id.slice(0, 8)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
         {activeFilterCount > 0 && (
           <Button
             variant="ghost"
