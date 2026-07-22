@@ -8,14 +8,16 @@ import {
   listMyPayouts,
   listMyWithdrawals,
   requestWithdrawal,
+  cancelMyWithdrawal,
   type Currency,
   type WalletBalance,
+  type WithdrawalRow,
 } from "@/lib/finance.functions";
 import { getMyProfile, type PaymentMethod } from "@/lib/profile.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Wallet, Send, Lock, Unlock, Loader2 } from "lucide-react";
+import { Wallet, Send, Lock, Unlock, Loader2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/app/profile/wallet")({
