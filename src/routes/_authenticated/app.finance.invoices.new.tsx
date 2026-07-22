@@ -9,7 +9,7 @@ import {
   type Currency,
   type StakeholderRole,
 } from "@/lib/finance.functions";
-import { listCustomers } from "@/lib/customers.functions";
+import { listCustomersForPicker } from "@/lib/customers.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
