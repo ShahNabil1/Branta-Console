@@ -10,6 +10,10 @@ import {
   addCompanyLedgerEntry,
   deleteCompanyLedgerEntry,
   isFinanceAdminCheck,
+  listManualEmployeePayouts,
+  addManualEmployeePayout,
+  deleteManualEmployeePayout,
+  listEmployeesForFinance,
   type Currency,
   type CompanyWalletCurrency,
 } from "@/lib/finance.functions";
@@ -19,7 +23,7 @@ import { Input } from "@/components/ui/input";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
   Building2, Wallet, Clock, Sigma, Users, TrendingUp, TrendingDown,
-  PlusCircle, Trash2, Loader2, Banknote, Lock,
+  PlusCircle, Trash2, Loader2, Banknote, Lock, HandCoins,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -42,6 +46,10 @@ function CompanyWalletPage() {
   const ledgerFn = useServerFn(listCompanyLedger);
   const addFn = useServerFn(addCompanyLedgerEntry);
   const delFn = useServerFn(deleteCompanyLedgerEntry);
+  const manualListFn = useServerFn(listManualEmployeePayouts);
+  const manualAddFn = useServerFn(addManualEmployeePayout);
+  const manualDelFn = useServerFn(deleteManualEmployeePayout);
+  const empsFn = useServerFn(listEmployeesForFinance);
   const confirm = useConfirm();
 
   const isAdmin = useQuery({ queryKey: ["is-finance-admin"], queryFn: () => check(), staleTime: 60_000 });
@@ -50,25 +58,38 @@ function CompanyWalletPage() {
   const w = useQuery({ queryKey: ["company-wallet"], queryFn: () => walletFn(), enabled, staleTime: 10_000 });
   const invs = useQuery({ queryKey: ["company-wallet-invoices"], queryFn: () => invsFn(), enabled, staleTime: 10_000 });
   const ledger = useQuery({ queryKey: ["company-ledger"], queryFn: () => ledgerFn(), enabled, staleTime: 10_000 });
+  const manuals = useQuery({ queryKey: ["manual-employee-payouts"], queryFn: () => manualListFn(), enabled, staleTime: 10_000 });
+  const emps = useQuery({ queryKey: ["employees-for-finance"], queryFn: () => empsFn(), enabled, staleTime: 60_000 });
 
   useEffect(() => {
     if (!enabled) return;
     const ch = supabase.channel("company-wallet")
       .on("postgres_changes", { event: "*", schema: "public", table: "invoices" }, () => { void w.refetch(); void invs.refetch(); })
       .on("postgres_changes", { event: "*", schema: "public", table: "invoice_installments" }, () => { void w.refetch(); void invs.refetch(); })
-      .on("postgres_changes", { event: "*", schema: "public", table: "invoice_payouts" }, () => void w.refetch())
+      .on("postgres_changes", { event: "*", schema: "public", table: "invoice_payouts" }, () => { void w.refetch(); void manuals.refetch(); })
       .on("postgres_changes", { event: "*", schema: "public", table: "expenses" }, () => void w.refetch())
       .on("postgres_changes", { event: "*", schema: "public", table: "company_ledger" }, () => { void w.refetch(); void ledger.refetch(); })
       .subscribe();
     return () => { void supabase.removeChannel(ch); };
-  }, [enabled, w, invs, ledger]);
+  }, [enabled, w, invs, ledger, manuals]);
 
   const [cur, setCur] = useState<Currency>("BDT");
   const [addOpen, setAddOpen] = useState(false);
+  const [payOpen, setPayOpen] = useState(false);
 
   const add = useMutation({
     mutationFn: addFn,
     onSuccess: () => { toast.success("Ledger entry added"); setAddOpen(false); void w.refetch(); void ledger.refetch(); },
+    onError: (e) => toast.error((e as Error).message),
+  });
+
+  const addManual = useMutation({
+    mutationFn: manualAddFn,
+    onSuccess: () => {
+      toast.success("Payout credited to employee wallet");
+      setPayOpen(false);
+      void w.refetch(); void manuals.refetch();
+    },
     onError: (e) => toast.error((e as Error).message),
   });
 
@@ -99,6 +120,22 @@ function CompanyWalletPage() {
   const c: CompanyWalletCurrency | undefined = w.data?.[cur];
   const invsInCur = (invs.data ?? []).filter((i) => i.currency === cur);
   const ledgerInCur = (ledger.data ?? []).filter((l) => l.currency === cur);
+  const manualsInCur = (manuals.data ?? []).filter((m) => m.currency === cur);
+
+  const delManual = async (id: string) => {
+    const ok = await confirm({
+      title: "Remove manual payout",
+      description: "This reverses the credit from the employee wallet. Only allowed while it is still 'available'.",
+      tone: "danger",
+      confirmLabel: "Remove",
+    });
+    if (!ok) return;
+    try {
+      await manualDelFn({ data: { id } });
+      toast.success("Removed");
+      void w.refetch(); void manuals.refetch();
+    } catch (e) { toast.error((e as Error).message); }
+  };
 
   return (
     <div className="mx-auto max-w-7xl space-y-5 px-6 py-6">
@@ -119,6 +156,9 @@ function CompanyWalletPage() {
               </button>
             ))}
           </div>
+          <Button onClick={() => setPayOpen(true)} variant="outline" className="h-9 rounded-sm border-emerald-300 text-emerald-700 hover:bg-emerald-50">
+            <HandCoins className="mr-1.5 size-3.5" /> Pay employee
+          </Button>
           <Button onClick={() => setAddOpen(true)} className="h-9 rounded-sm bg-primary hover:bg-brand-700">
             <PlusCircle className="mr-1.5 size-3.5" /> Add ledger entry
           </Button>
@@ -273,19 +313,88 @@ function CompanyWalletPage() {
         </table>
       </section>
 
+      {/* Manual employee payouts */}
+      <section className="rounded-md border border-border bg-card">
+        <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
+          <div>
+            <h2 className="flex items-center gap-1.5 text-[13px] font-semibold">
+              <HandCoins className="size-3.5 text-emerald-700" /> Manual Employee Payouts ({cur})
+            </h2>
+            <p className="text-[11px] text-muted-foreground">
+              Salary, bonus, profit share, reimbursements or one-off adjustments. Credited straight to the employee wallet as available for withdrawal.
+            </p>
+          </div>
+          <Button onClick={() => setPayOpen(true)} size="sm"
+            className="h-8 rounded-sm bg-emerald-600 text-white hover:bg-emerald-700">
+            <HandCoins className="mr-1.5 size-3.5" /> Pay employee
+          </Button>
+        </div>
+        <table className="w-full text-[12.5px]">
+          <thead className="text-left text-[10.5px] uppercase tracking-wider text-muted-foreground">
+            <tr>
+              <th className="px-3 py-2">Date</th>
+              <th className="px-3 py-2">Employee</th>
+              <th className="px-3 py-2">Reason</th>
+              <th className="px-3 py-2 text-right">Amount</th>
+              <th className="px-3 py-2">Status</th>
+              <th className="px-3 py-2">Notes</th>
+              <th className="px-3 py-2 text-right"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {manualsInCur.length === 0 ? (
+              <tr><td colSpan={7} className="px-3 py-10 text-center text-muted-foreground">No manual payouts in {cur} yet.</td></tr>
+            ) : manualsInCur.map((r) => (
+              <tr key={r.id} className="border-t border-border">
+                <td className="px-3 py-2 text-muted-foreground">{r.created_at.slice(0, 10)}</td>
+                <td className="px-3 py-2">{r.user_name ?? r.user_id.slice(0, 8)}</td>
+                <td className="px-3 py-2 capitalize">{(r.kind ?? "—").replace("_", " ")}</td>
+                <td className="px-3 py-2 text-right font-mono font-semibold text-emerald-700">{fmt(r.amount, cur)}</td>
+                <td className="px-3 py-2">
+                  <span className={cn(
+                    "inline-flex rounded-sm border px-1.5 py-0.5 text-[10.5px] font-semibold uppercase",
+                    r.status === "available" ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                    : r.status === "requested" ? "border-amber-200 bg-amber-50 text-amber-700"
+                    : r.status === "paid" ? "border-slate-200 bg-slate-50 text-slate-700"
+                    : "border-slate-200 bg-slate-50 text-slate-700",
+                  )}>
+                    {r.status}
+                  </span>
+                </td>
+                <td className="px-3 py-2 text-muted-foreground">{r.notes ?? "—"}</td>
+                <td className="px-3 py-2 text-right">
+                  {r.status === "available" && (
+                    <Button variant="ghost" size="sm" onClick={() => delManual(r.id)}
+                      className="h-7 rounded-sm text-[11px] text-rose-600 hover:bg-rose-50">
+                      <Trash2 className="size-3" />
+                    </Button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+
       <div className="rounded-md border border-dashed border-border bg-muted/30 p-4 text-[11.5px] text-muted-foreground">
         <div className="flex items-center gap-2 font-semibold text-foreground"><Banknote className="size-3.5" /> How the numbers connect</div>
         <ul className="mt-2 list-disc space-y-0.5 pl-5">
           <li><strong>Real Balance</strong> = Received + Ledger − Expenses. Grows only when invoice installments are marked paid or a ledger entry is added; shrinks with expenses.</li>
           <li><strong>Pending</strong> = installments still owed by clients. Fully separate from Real Balance until marked paid.</li>
           <li><strong>Estimated Total</strong> ignores payment terms — the full contract value across every active invoice.</li>
-          <li><strong>Employee payouts unlock only after the entire invoice is fully paid</strong>. Locked payouts sit under "Locked" until then.</li>
-          <li><strong>Company Net Cash</strong> = Real Balance − amounts already earmarked for employees (ready + withdrawal pending). Can go negative if expenses exceed inflow.</li>
+          <li><strong>Invoice payouts unlock only after the entire invoice is fully paid</strong>. Manual payouts (salary, bonus, etc.) unlock instantly.</li>
+          <li><strong>Company Net Cash</strong> = Real Balance − amounts already earmarked for employees (ready + withdrawal pending). Cash actually leaves only when a withdrawal is marked paid.</li>
         </ul>
       </div>
 
       {addOpen && <AddLedgerModal cur={cur} onClose={() => setAddOpen(false)}
         submitting={add.isPending} onSubmit={(d) => add.mutate({ data: d })} />}
+      {payOpen && <PayEmployeeModal
+        cur={cur}
+        employees={emps.data ?? []}
+        onClose={() => setPayOpen(false)}
+        submitting={addManual.isPending}
+        onSubmit={(d) => addManual.mutate({ data: d })} />}
     </div>
   );
 }
@@ -390,6 +499,132 @@ function AddLedgerModal({ cur, onClose, onSubmit, submitting }: {
           <Button onClick={submit} disabled={submitting} className="h-9 rounded-sm bg-primary hover:bg-brand-700">
             {submitting && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
             Add entry
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type PayoutKind = "salary" | "bonus" | "profit_share" | "reimbursement" | "adjustment" | "other";
+interface EmpOption { user_id: string; full_name: string | null; employee_code: string | null; job_role?: string | null; email?: string | null }
+
+function PayEmployeeModal({ cur, employees, onClose, onSubmit, submitting }: {
+  cur: Currency;
+  employees: EmpOption[];
+  onClose: () => void;
+  submitting: boolean;
+  onSubmit: (d: { user_id: string; currency: Currency; amount: number; kind: PayoutKind; notes: string | null }) => void;
+}) {
+  const [q, setQ] = useState("");
+  const [userId, setUserId] = useState<string>("");
+  const [currency, setCurrency] = useState<Currency>(cur);
+  const [kind, setKind] = useState<PayoutKind>("salary");
+  const [amount, setAmount] = useState("");
+  const [notes, setNotes] = useState("");
+
+  const filtered = employees.filter((e) => {
+    const s = q.trim().toLowerCase();
+    if (!s) return true;
+    return (
+      (e.full_name ?? "").toLowerCase().includes(s) ||
+      (e.employee_code ?? "").toLowerCase().includes(s) ||
+      (e.email ?? "").toLowerCase().includes(s)
+    );
+  }).slice(0, 50);
+
+  const selected = employees.find((e) => e.user_id === userId);
+
+  const submit = () => {
+    if (!userId) return toast.error("Select an employee");
+    const n = Number(amount);
+    if (!n || n <= 0) return toast.error("Amount must be greater than 0");
+    onSubmit({ user_id: userId, currency, amount: n, kind, notes: notes.trim() || null });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 p-4">
+      <div className="w-full max-w-lg rounded-md border border-border bg-card p-5 shadow-lg">
+        <h3 className="flex items-center gap-2 text-[14px] font-semibold">
+          <HandCoins className="size-4 text-emerald-700" /> Pay employee
+        </h3>
+        <p className="mt-1 text-[11.5px] text-muted-foreground">
+          Credit an employee wallet directly. The amount becomes withdrawable immediately. Company cash leaves only when the employee's withdrawal is marked paid.
+        </p>
+
+        <div className="mt-4 space-y-3">
+          <div>
+            <label className="text-[11px] font-semibold uppercase text-muted-foreground">Employee</label>
+            <Input value={q} onChange={(e) => setQ(e.target.value)}
+              placeholder="Search by name, code or email…"
+              className="mt-1 h-9 rounded-sm" />
+            <div className="mt-2 max-h-40 overflow-y-auto rounded-sm border border-border">
+              {filtered.length === 0 ? (
+                <div className="px-3 py-2 text-[12px] text-muted-foreground">No matches</div>
+              ) : filtered.map((e) => (
+                <button key={e.user_id} type="button"
+                  onClick={() => setUserId(e.user_id)}
+                  className={cn(
+                    "flex w-full items-center justify-between border-b border-border px-3 py-1.5 text-left text-[12.5px] last:border-b-0 hover:bg-muted/60",
+                    userId === e.user_id && "bg-emerald-50",
+                  )}>
+                  <span>
+                    <span className="font-medium">{e.full_name ?? "—"}</span>
+                    {e.email && <span className="ml-2 text-muted-foreground">{e.email}</span>}
+                  </span>
+                  <span className="font-mono text-[11px] text-muted-foreground">{e.employee_code ?? ""}</span>
+                </button>
+              ))}
+            </div>
+            {selected && (
+              <div className="mt-1.5 text-[11.5px] text-emerald-700">
+                Selected: <strong>{selected.full_name}</strong> {selected.employee_code ? `· ${selected.employee_code}` : ""}
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="text-[11px] font-semibold uppercase text-muted-foreground">Reason</label>
+              <select value={kind} onChange={(e) => setKind(e.target.value as PayoutKind)}
+                className="mt-1 h-9 w-full rounded-sm border border-input bg-background px-2 text-[13px]">
+                <option value="salary">Salary</option>
+                <option value="bonus">Bonus</option>
+                <option value="profit_share">Profit share</option>
+                <option value="reimbursement">Reimbursement</option>
+                <option value="adjustment">Adjustment</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-[11px] font-semibold uppercase text-muted-foreground">Currency</label>
+              <select value={currency} onChange={(e) => setCurrency(e.target.value as Currency)}
+                className="mt-1 h-9 w-full rounded-sm border border-input bg-background px-2 text-[13px]">
+                <option value="BDT">BDT</option>
+                <option value="USD">USD</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-[11px] font-semibold uppercase text-muted-foreground">Amount</label>
+              <Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)}
+                className="mt-1 h-9 rounded-sm font-mono" placeholder="e.g. 25000" />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[11px] font-semibold uppercase text-muted-foreground">Notes</label>
+            <Input value={notes} onChange={(e) => setNotes(e.target.value)}
+              placeholder="Optional — month, reference, reason…"
+              className="mt-1 h-9 rounded-sm" />
+          </div>
+        </div>
+
+        <div className="mt-5 flex justify-end gap-2">
+          <Button variant="ghost" onClick={onClose} className="h-9 rounded-sm">Cancel</Button>
+          <Button onClick={submit} disabled={submitting}
+            className="h-9 rounded-sm bg-emerald-600 text-white hover:bg-emerald-700">
+            {submitting && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
+            Credit employee wallet
           </Button>
         </div>
       </div>

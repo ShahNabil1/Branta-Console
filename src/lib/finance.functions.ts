@@ -94,14 +94,17 @@ export interface StakeholderRow {
 
 export interface PayoutRow {
   id: string;
-  invoice_id: string;
-  installment_id: string;
-  stakeholder_id: string;
+  invoice_id: string | null;
+  installment_id: string | null;
+  stakeholder_id: string | null;
   user_id: string;
   role: StakeholderRole;
   currency: Currency;
   amount: number;
   status: PayoutStatus;
+  source: "invoice" | "manual";
+  kind: string | null;
+  notes: string | null;
   unlocked_at: string | null;
   requested_at: string | null;
   paid_at: string | null;
@@ -593,8 +596,12 @@ export const listMyPayouts = createServerFn({ method: "GET" })
       .limit(500);
     if (error) throw new Error(error.message);
     const rows = (data ?? []) as unknown as PayoutRow[];
-    const invIds = Array.from(new Set(rows.map((r) => r.invoice_id)));
-    const instIds = Array.from(new Set(rows.map((r) => r.installment_id)));
+    const invIds = Array.from(
+      new Set(rows.map((r) => r.invoice_id).filter((x): x is string => !!x)),
+    );
+    const instIds = Array.from(
+      new Set(rows.map((r) => r.installment_id).filter((x): x is string => !!x)),
+    );
     const [{ data: invs }, { data: insts }] = await Promise.all([
       invIds.length
         ? context.supabase.from("invoices").select("id, slug").in("id", invIds)
@@ -614,9 +621,9 @@ export const listMyPayouts = createServerFn({ method: "GET" })
     );
     return rows.map((r) => ({
       ...r,
-      invoice_slug: invMap.get(r.invoice_id),
-      installment_label: instMap.get(r.installment_id)?.label,
-      installment_due: instMap.get(r.installment_id)?.due_date,
+      invoice_slug: r.invoice_id ? invMap.get(r.invoice_id) : undefined,
+      installment_label: r.installment_id ? instMap.get(r.installment_id)?.label : undefined,
+      installment_due: r.installment_id ? instMap.get(r.installment_id)?.due_date : undefined,
     }));
   });
 
@@ -639,21 +646,31 @@ async function revertRequestedPayoutsToAvailable(
 ) {
   const { data: prev } = await supabase
     .from("invoice_payouts")
-    .select("id, invoice_id")
+    .select("id, invoice_id, source")
     .eq("withdrawal_request_id", requestId);
   if (!prev || prev.length === 0) return;
-  // Re-derive availability from invoice status: a fully paid invoice keeps
-  // payouts 'available', otherwise they fall back to 'locked'.
-  const invIds = Array.from(new Set((prev as { invoice_id: string }[]).map((p) => p.invoice_id)));
-  const { data: invs } = await supabase
-    .from("invoices").select("id, status").in("id", invIds);
+  // A fully paid invoice keeps its payouts 'available'; otherwise they
+  // fall back to 'locked'. Manual payouts (no invoice) are always 'available'.
+  const invIds = Array.from(
+    new Set(
+      (prev as { invoice_id: string | null }[])
+        .map((p) => p.invoice_id)
+        .filter((x): x is string => !!x),
+    ),
+  );
+  const { data: invs } = invIds.length
+    ? await supabase.from("invoices").select("id, status").in("id", invIds)
+    : { data: [] as { id: string; status: string }[] };
   const paidInv = new Set<string>(
     ((invs ?? []) as { id: string; status: string }[])
       .filter((i) => i.status === "paid").map((i) => i.id),
   );
   const nowIso = new Date().toISOString();
-  for (const p of prev as { id: string; invoice_id: string }[]) {
-    const restore = paidInv.has(p.invoice_id) ? "available" : "locked";
+  for (const p of prev as { id: string; invoice_id: string | null; source: string }[]) {
+    const restore =
+      p.source === "manual" || (p.invoice_id && paidInv.has(p.invoice_id))
+        ? "available"
+        : "locked";
     await supabase
       .from("invoice_payouts")
       .update({
@@ -1217,6 +1234,111 @@ export const deleteCompanyLedgerEntry = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await ensureFinanceAdmin(context.supabase as never, context.userId);
     const { error } = await context.supabase.from("company_ledger").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
+// ==================== Manual Employee Payouts ====================
+// Salary, bonus, profit-share, reimbursements, adjustments — money the
+// company gives to an employee outside of any invoice. Inserted as an
+// already-available payout so the standard withdrawal flow can pay it out.
+
+export interface ManualPayoutRow {
+  id: string;
+  user_id: string;
+  currency: Currency;
+  amount: number;
+  kind: string;
+  notes: string | null;
+  status: PayoutStatus;
+  created_at: string;
+  unlocked_at: string | null;
+  user_name?: string | null;
+  user_email?: string | null;
+  created_by?: string | null;
+}
+
+export const listManualEmployeePayouts = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<ManualPayoutRow[]> => {
+    await ensureFinanceAdmin(context.supabase as never, context.userId);
+    const { data, error } = await context.supabase
+      .from("invoice_payouts")
+      .select("id, user_id, currency, amount, kind, notes, status, created_at, unlocked_at")
+      .eq("source", "manual")
+      .order("created_at", { ascending: false })
+      .limit(500);
+    if (error) throw new Error(error.message);
+    const rows = (data ?? []) as unknown as ManualPayoutRow[];
+    const uids = Array.from(new Set(rows.map((r) => r.user_id)));
+    if (uids.length) {
+      const { data: profs } = await context.supabase
+        .from("profiles").select("user_id, full_name").in("user_id", uids);
+      const nm = new Map<string, string>();
+      (profs ?? []).forEach((p: { user_id: string; full_name: string | null }) =>
+        nm.set(p.user_id, p.full_name ?? ""),
+      );
+      rows.forEach((r) => (r.user_name = nm.get(r.user_id) ?? null));
+    }
+    return rows;
+  });
+
+export const addManualEmployeePayout = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({
+      user_id: z.string().uuid(),
+      currency: z.enum(["BDT", "USD"]),
+      amount: z.number().positive(),
+      kind: z.enum(["salary", "bonus", "profit_share", "reimbursement", "adjustment", "other"]),
+      notes: z.string().trim().max(500).nullable().optional(),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await ensureFinanceAdmin(context.supabase as never, context.userId);
+
+    // Confirm the target user exists as an employee profile.
+    const { data: prof } = await context.supabase
+      .from("profiles").select("user_id, full_name").eq("user_id", data.user_id).maybeSingle();
+    if (!prof) throw new Error("Employee not found");
+
+    // Determine the stakeholder role for reporting — use 'worker' as a
+    // generic bucket; manual payouts are not truly a stakeholder role.
+    const nowIso = new Date().toISOString();
+    const { data: row, error } = await context.supabase
+      .from("invoice_payouts")
+      .insert({
+        user_id: data.user_id,
+        role: "worker",
+        currency: data.currency,
+        amount: data.amount,
+        status: "available",
+        source: "manual",
+        kind: data.kind,
+        notes: data.notes ?? null,
+        unlocked_at: nowIso,
+      } as never)
+      .select("*").single();
+    if (error) throw new Error(error.message);
+    return row as unknown as ManualPayoutRow;
+  });
+
+export const deleteManualEmployeePayout = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string }) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await ensureFinanceAdmin(context.supabase as never, context.userId);
+    const { data: existing } = await context.supabase
+      .from("invoice_payouts")
+      .select("id, source, status")
+      .eq("id", data.id)
+      .maybeSingle();
+    const row = existing as { source: string; status: PayoutStatus } | null;
+    if (!row) throw new Error("Payout not found");
+    if (row.source !== "manual") throw new Error("Only manual payouts can be removed here");
+    if (row.status !== "available")
+      throw new Error("This payout has already been requested or paid — it cannot be removed");
+    const { error } = await context.supabase.from("invoice_payouts").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true as const };
   });

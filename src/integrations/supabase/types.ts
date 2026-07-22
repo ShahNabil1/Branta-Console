@@ -416,12 +416,15 @@ export type Database = {
           created_at: string
           currency: string
           id: string
-          installment_id: string
-          invoice_id: string
+          installment_id: string | null
+          invoice_id: string | null
+          kind: string | null
+          notes: string | null
           paid_at: string | null
           requested_at: string | null
           role: Database["public"]["Enums"]["stakeholder_role"]
-          stakeholder_id: string
+          source: string
+          stakeholder_id: string | null
           status: Database["public"]["Enums"]["payout_status"]
           unlocked_at: string | null
           updated_at: string
@@ -433,12 +436,15 @@ export type Database = {
           created_at?: string
           currency?: string
           id?: string
-          installment_id: string
-          invoice_id: string
+          installment_id?: string | null
+          invoice_id?: string | null
+          kind?: string | null
+          notes?: string | null
           paid_at?: string | null
           requested_at?: string | null
           role: Database["public"]["Enums"]["stakeholder_role"]
-          stakeholder_id: string
+          source?: string
+          stakeholder_id?: string | null
           status?: Database["public"]["Enums"]["payout_status"]
           unlocked_at?: string | null
           updated_at?: string
@@ -450,12 +456,15 @@ export type Database = {
           created_at?: string
           currency?: string
           id?: string
-          installment_id?: string
-          invoice_id?: string
+          installment_id?: string | null
+          invoice_id?: string | null
+          kind?: string | null
+          notes?: string | null
           paid_at?: string | null
           requested_at?: string | null
           role?: Database["public"]["Enums"]["stakeholder_role"]
-          stakeholder_id?: string
+          source?: string
+          stakeholder_id?: string | null
           status?: Database["public"]["Enums"]["payout_status"]
           unlocked_at?: string | null
           updated_at?: string
