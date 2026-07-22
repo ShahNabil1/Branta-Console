@@ -596,8 +596,12 @@ export const listMyPayouts = createServerFn({ method: "GET" })
       .limit(500);
     if (error) throw new Error(error.message);
     const rows = (data ?? []) as unknown as PayoutRow[];
-    const invIds = Array.from(new Set(rows.map((r) => r.invoice_id)));
-    const instIds = Array.from(new Set(rows.map((r) => r.installment_id)));
+    const invIds = Array.from(
+      new Set(rows.map((r) => r.invoice_id).filter((x): x is string => !!x)),
+    );
+    const instIds = Array.from(
+      new Set(rows.map((r) => r.installment_id).filter((x): x is string => !!x)),
+    );
     const [{ data: invs }, { data: insts }] = await Promise.all([
       invIds.length
         ? context.supabase.from("invoices").select("id, slug").in("id", invIds)
@@ -617,9 +621,9 @@ export const listMyPayouts = createServerFn({ method: "GET" })
     );
     return rows.map((r) => ({
       ...r,
-      invoice_slug: invMap.get(r.invoice_id),
-      installment_label: instMap.get(r.installment_id)?.label,
-      installment_due: instMap.get(r.installment_id)?.due_date,
+      invoice_slug: r.invoice_id ? invMap.get(r.invoice_id) : undefined,
+      installment_label: r.installment_id ? instMap.get(r.installment_id)?.label : undefined,
+      installment_due: r.installment_id ? instMap.get(r.installment_id)?.due_date : undefined,
     }));
   });
 
