@@ -707,9 +707,24 @@ function EmployeeDetailPage() {
         <TabBtn active={tab === "wallet"} onClick={() => setTab("wallet")} icon={Wallet}>
           Wallet
         </TabBtn>
+        {canSuperAdmin && (
+          <TabBtn
+            active={tab === "permissions"}
+            onClick={() => setTab("permissions")}
+            icon={ShieldCheck}
+          >
+            Permissions
+          </TabBtn>
+        )}
       </div>
 
-      {tab === "profile" ? <ProfileTab e={e} /> : <WalletTab userId={userId} walletFn={walletFn} />}
+      {tab === "profile" ? (
+        <ProfileTab e={e} />
+      ) : tab === "wallet" ? (
+        <WalletTab userId={userId} walletFn={walletFn} />
+      ) : (
+        <PermissionsTab userId={userId} />
+      )}
 
       {/* Sessions */}
       <SessionsSection
