@@ -106,13 +106,21 @@ export const setUserPermission = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
     );
-    const patch: Record<string, boolean> = { [data.key]: data.value };
-    const { error } = await supabaseAdmin
+    // Ensure a row exists with defaults, without clobbering existing values.
+    // Insert-if-missing: ignore conflict so an existing row is untouched.
+    const { error: insertErr } = await supabaseAdmin
       .from("user_permissions")
       .upsert(
-        { user_id: data.userId, ...DEFAULTS, ...patch },
-        { onConflict: "user_id" },
+        { user_id: data.userId, ...DEFAULTS },
+        { onConflict: "user_id", ignoreDuplicates: true },
       );
+    if (insertErr) throw new Error(insertErr.message);
+    // Then update only the single toggled column.
+    const { error } = await supabaseAdmin
+      .from("user_permissions")
+      .update({ [data.key]: data.value })
+      .eq("user_id", data.userId);
+
     if (error) throw new Error(error.message);
     return { ok: true as const };
   });
