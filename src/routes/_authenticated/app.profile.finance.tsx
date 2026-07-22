@@ -12,7 +12,6 @@ import {
   Star,
   Landmark,
   Smartphone,
-  Wallet,
 } from "lucide-react";
 import {
   getMyProfile,
@@ -24,6 +23,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { MyWalletPanel } from "@/components/profile/my-wallet-panel";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/app/profile/finance")({
