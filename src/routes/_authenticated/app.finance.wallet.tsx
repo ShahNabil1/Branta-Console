@@ -48,7 +48,7 @@ function CompanyWalletPage() {
   const delFn = useServerFn(deleteCompanyLedgerEntry);
   const manualListFn = useServerFn(listManualEmployeePayouts);
   const manualAddFn = useServerFn(addManualEmployeePayout);
-  const manualDelFn = useServerFn(deleteManualEmployeePayout);
+  const manualRevokeFn = useServerFn(revokeManualEmployeePayout);
   const empsFn = useServerFn(listEmployeesForFinance);
   const confirm = useConfirm();
 
