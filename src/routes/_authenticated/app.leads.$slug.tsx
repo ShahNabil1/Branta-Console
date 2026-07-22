@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
@@ -37,6 +37,7 @@ function LeadDetailPage() {
   const getFn = useServerFn(getLeadBySlug);
   const listUsers = useServerFn(listAssignableUsers);
   const logView = useServerFn(logLeadView);
+  const qc = useQueryClient();
 
   const leadQ = useQuery({
     queryKey: ["leads", "by-slug", slug],
@@ -75,8 +76,14 @@ function LeadDetailPage() {
   useEffect(() => {
     const leadId = leadQ.data?.id;
     if (!leadId || isNew) return;
-    logView({ data: { leadId } }).catch(() => {});
-  }, [leadQ.data?.id, isNew, logView]);
+    logView({ data: { leadId } })
+      .then((res) => {
+        if (res?.logged) {
+          qc.invalidateQueries({ queryKey: ["leads", "activities", leadId] });
+        }
+      })
+      .catch(() => {});
+  }, [leadQ.data?.id, isNew, logView, qc]);
 
   if (leadQ.isLoading) {
     return (
