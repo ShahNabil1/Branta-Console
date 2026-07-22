@@ -9,6 +9,9 @@ export const PERMISSION_KEYS = [
   "lead_delete",
   "lead_manage",
   "lead_assign",
+  "customer_access",
+  "customer_view_all",
+  "customer_view_detail",
 ] as const;
 export type PermissionKey = (typeof PERMISSION_KEYS)[number];
 
@@ -17,13 +20,20 @@ export interface UserPermissions {
   lead_delete: boolean;
   lead_manage: boolean;
   lead_assign: boolean;
+  customer_access: boolean;
+  customer_view_all: boolean;
+  customer_view_detail: boolean;
 }
 
 const DEFAULTS: Omit<UserPermissions, "user_id"> = {
   lead_delete: false,
   lead_manage: true,
   lead_assign: false,
+  customer_access: true,
+  customer_view_all: true,
+  customer_view_detail: true,
 };
+
 
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
