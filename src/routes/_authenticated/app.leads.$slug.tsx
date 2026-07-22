@@ -76,8 +76,14 @@ function LeadDetailPage() {
   useEffect(() => {
     const leadId = leadQ.data?.id;
     if (!leadId || isNew) return;
-    logView({ data: { leadId } }).catch(() => {});
-  }, [leadQ.data?.id, isNew, logView]);
+    logView({ data: { leadId } })
+      .then((res) => {
+        if (res?.logged) {
+          qc.invalidateQueries({ queryKey: ["leads", "activities", leadId] });
+        }
+      })
+      .catch(() => {});
+  }, [leadQ.data?.id, isNew, logView, qc]);
 
   if (leadQ.isLoading) {
     return (
