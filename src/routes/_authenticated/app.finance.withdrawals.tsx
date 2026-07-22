@@ -154,8 +154,10 @@ function WithdrawalsPage() {
                 <td className="px-3 py-2 font-medium">{r.user_name ?? r.user_id.slice(0, 8)}</td>
                 <td className="px-3 py-2 text-right font-mono">{fmt(r.amount, r.currency)}</td>
                 <td className="px-3 py-2 text-muted-foreground">
-                  {r.payment_method_snapshot?.label ?? "—"}
-                  {r.payment_method_snapshot?.account && <> · <span className="font-mono">{r.payment_method_snapshot.account}</span></>}
+                  <button onClick={() => setMethodView(r.payment_method_snapshot as MethodSnap)} className="text-left hover:text-foreground hover:underline">
+                    {r.payment_method_snapshot?.label ?? "—"}
+                    {r.payment_method_snapshot?.account && <> · <span className="font-mono">{r.payment_method_snapshot.account}</span></>}
+                  </button>
                 </td>
                 <td className="px-3 py-2 text-muted-foreground">{new Date(r.requested_at).toLocaleString()}</td>
                 <td className="px-3 py-2">
