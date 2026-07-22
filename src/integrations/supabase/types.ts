@@ -1574,6 +1574,9 @@ export type Database = {
       user_permissions: {
         Row: {
           created_at: string
+          customer_access: boolean
+          customer_view_all: boolean
+          customer_view_detail: boolean
           lead_assign: boolean
           lead_delete: boolean
           lead_manage: boolean
@@ -1582,6 +1585,9 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          customer_access?: boolean
+          customer_view_all?: boolean
+          customer_view_detail?: boolean
           lead_assign?: boolean
           lead_delete?: boolean
           lead_manage?: boolean
@@ -1590,6 +1596,9 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          customer_access?: boolean
+          customer_view_all?: boolean
+          customer_view_detail?: boolean
           lead_assign?: boolean
           lead_delete?: boolean
           lead_manage?: boolean
