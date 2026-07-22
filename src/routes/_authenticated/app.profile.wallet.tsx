@@ -78,6 +78,12 @@ function WalletPage() {
           kind: pm.kind,
           label: pm.kind === "bank" ? (pm.bank_name ?? "Bank") : (pm.mfs_provider ?? "MFS"),
           account: pm.kind === "bank" ? (pm.account_number ?? "") : (pm.mfs_number ?? ""),
+          bank_name: pm.bank_name ?? null,
+          account_holder: pm.account_holder ?? null,
+          account_number: pm.account_number ?? null,
+          branch: pm.branch ?? null,
+          mfs_provider: pm.mfs_provider ?? null,
+          mfs_number: pm.mfs_number ?? null,
         } : null,
       }});
     },
