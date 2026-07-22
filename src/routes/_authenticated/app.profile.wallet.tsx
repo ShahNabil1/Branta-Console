@@ -166,12 +166,13 @@ function WalletPage() {
               <th className="px-3 py-2">Method</th>
               <th className="px-3 py-2">Status</th>
               <th className="px-3 py-2">Ref</th>
+              <th className="px-3 py-2 text-right">Action</th>
             </tr>
           </thead>
           <tbody>
             {(wr.data ?? []).length === 0 ? (
-              <tr><td colSpan={5} className="px-3 py-10 text-center text-muted-foreground">No withdrawal requests yet.</td></tr>
-            ) : wr.data?.map((r) => (
+              <tr><td colSpan={6} className="px-3 py-10 text-center text-muted-foreground">No withdrawal requests yet.</td></tr>
+            ) : (wr.data as WithdrawalRow[]).map((r) => (
               <tr key={r.id} className="border-t border-border">
                 <td className="px-3 py-2 text-muted-foreground">{new Date(r.requested_at).toLocaleString()}</td>
                 <td className="px-3 py-2 text-right font-mono">{fmt(r.amount, r.currency)}</td>
@@ -188,6 +189,21 @@ function WalletPage() {
                   </span>
                 </td>
                 <td className="px-3 py-2 font-mono text-muted-foreground">{r.transfer_ref ?? "—"}</td>
+                <td className="px-3 py-2 text-right">
+                  {r.status === "pending" ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={doCancel.isPending}
+                      onClick={() => doCancel.mutate(r.id)}
+                      className="h-7 rounded-sm text-[11px] text-rose-700 hover:bg-rose-50"
+                    >
+                      <X className="mr-1 size-3" /> Cancel
+                    </Button>
+                  ) : (
+                    <span className="text-[11px] text-muted-foreground">—</span>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
