@@ -48,7 +48,7 @@ export function TopBar() {
                   </span>
                 ) : (
                   <Link
-                    to={c.href}
+                    to={c.href as unknown as "/app"}
                     className="cursor-pointer text-muted-foreground transition-colors hover:text-foreground hover:underline"
                   >
                     {labelFor(c.seg)}
