@@ -75,6 +75,20 @@ function CustomerDetailPage() {
     };
   }, [leadQ]);
 
+  // Log a "viewed" activity when opening the customer (mirrors lead detail).
+  useEffect(() => {
+    const leadId = leadQ.data?.id;
+    if (!leadId) return;
+    logView({ data: { leadId } })
+      .then((res) => {
+        if (res?.logged) {
+          qc.invalidateQueries({ queryKey: ["leads", "activities", leadId] });
+        }
+      })
+      .catch(() => {});
+  }, [leadQ.data?.id, logView, qc]);
+
+
   if (customerQ.isLoading || (leadSlug && leadQ.isLoading)) {
     return (
       <div className="grid h-full place-items-center p-16 text-[12.5px] text-muted-foreground">
