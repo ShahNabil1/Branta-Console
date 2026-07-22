@@ -1083,6 +1083,59 @@ export type Database = {
         }
         Relationships: []
       }
+      lead_transfer_requests: {
+        Row: {
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          from_user_id: string | null
+          id: string
+          lead_id: string
+          note: string | null
+          requester_id: string
+          status: string
+          to_user_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          from_user_id?: string | null
+          id?: string
+          lead_id: string
+          note?: string | null
+          requester_id: string
+          status?: string
+          to_user_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          from_user_id?: string | null
+          id?: string
+          lead_id?: string
+          note?: string | null
+          requester_id?: string
+          status?: string
+          to_user_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_transfer_requests_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           alt_email: string | null

@@ -16,6 +16,7 @@ import {
   Banknote,
   Receipt,
   PiggyBank,
+  ArrowLeftRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import brandLogo from "@/assets/brand-logo.png.asset.json";
@@ -54,6 +55,7 @@ const NAV: NavGroup[] = [
     label: "Admin",
     items: [
       { label: "Employees", to: "/app/employees", icon: UserPlus },
+      { label: "Transfers", to: "/app/transfers", icon: ArrowLeftRight },
       { label: "Mail queue", to: "/app/mail-queue", icon: Send },
       { label: "Settings", to: "/app/settings", icon: Settings },
       { label: "Security", to: "/app/settings", icon: Shield },

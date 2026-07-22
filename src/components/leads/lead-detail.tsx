@@ -100,6 +100,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { SocialLinksSection } from "@/components/leads/social-links-section";
 import { ActivityLinkPreview } from "@/components/leads/activity-link-preview";
+import { RequestTransferDialog } from "@/components/leads/request-transfer-dialog";
 import {
   Dialog,
   DialogContent,
@@ -694,6 +695,7 @@ export function LeadDetail({
   const [statusChangeNote, setStatusChangeNote] = useState("");
   // Details section lock — read-only by default, unlocks on Edit click.
   const [editing, setEditing] = useState(initialEdit);
+  const [transferOpen, setTransferOpen] = useState(false);
   const confirm = useConfirm();
 
   useEffect(() => {
@@ -973,24 +975,44 @@ export function LeadDetail({
               <div className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
                 ASSIGNED TO&nbsp;
               </div>
-              <Select
-                value={form.owner_id || "none"}
-                onValueChange={(v) =>
-                  setForm({ ...form, owner_id: v === "none" ? "" : v })
-                }
-              >
-                <SelectTrigger className="h-9 rounded-sm text-[12.5px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Unassigned</SelectItem>
-                  {users.map((u) => (
-                    <SelectItem key={u.user_id} value={u.user_id}>
-                      {u.full_name || u.user_id.slice(0, 8)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {myPermsQ.data?.lead_assign ? (
+                <Select
+                  value={form.owner_id || "none"}
+                  onValueChange={(v) =>
+                    setForm({ ...form, owner_id: v === "none" ? "" : v })
+                  }
+                >
+                  <SelectTrigger className="h-9 rounded-sm text-[12.5px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Unassigned</SelectItem>
+                    {users.map((u) => (
+                      <SelectItem key={u.user_id} value={u.user_id}>
+                        {u.full_name || u.user_id.slice(0, 8)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <>
+                  <div className="flex h-9 items-center rounded-sm border border-border bg-muted/30 px-3 text-[12.5px]">
+                    {(() => {
+                      const owner = users.find(
+                        (u) => u.user_id === form.owner_id,
+                      );
+                      return owner?.full_name || (form.owner_id ? "You" : "Unassigned");
+                    })()}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setTransferOpen(true)}
+                    className="mt-1 text-[11.5px] font-medium text-brand hover:underline"
+                  >
+                    Request transfer →
+                  </button>
+                </>
+              )}
             </div>
           </div>
           {statusChanged && (
@@ -1606,6 +1628,13 @@ export function LeadDetail({
           <DocumentsTab lead={lead} />
         </TabsContent>
       </Tabs>
+      <RequestTransferDialog
+        leadId={lead.id}
+        currentOwnerId={lead.owner_id ?? null}
+        users={users}
+        open={transferOpen}
+        onOpenChange={setTransferOpen}
+      />
     </div>
   );
 }

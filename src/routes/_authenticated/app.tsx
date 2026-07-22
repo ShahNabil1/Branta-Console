@@ -8,6 +8,7 @@ import { TopBar } from "@/components/branta/top-bar";
 import { CommandPalette } from "@/components/branta/command-palette";
 import { EmailFailureNotifier } from "@/components/branta/email-failure-notifier";
 import { InboxNotifier } from "@/components/branta/inbox-notifier";
+import { TransferNotifier } from "@/components/branta/transfer-notifier";
 import { ImpersonationBanner } from "@/components/branta/impersonation-banner";
 import { getOnboardingStatus } from "@/lib/onboarding.functions";
 
@@ -68,6 +69,7 @@ function AppShell() {
       <CommandPalette />
       <EmailFailureNotifier />
       <InboxNotifier />
+      <TransferNotifier />
     </div>
   );
 }
