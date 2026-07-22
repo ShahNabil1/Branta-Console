@@ -23,7 +23,7 @@ import { Input } from "@/components/ui/input";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
   Building2, Wallet, Clock, Sigma, Users, TrendingUp, TrendingDown,
-  PlusCircle, Trash2, Loader2, Banknote, Lock, HandCoins,
+  PlusCircle, Trash2, Loader2, Banknote, Lock, HandCoins, Undo2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
