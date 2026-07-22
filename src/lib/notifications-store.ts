@@ -15,8 +15,14 @@ export interface Notification {
   read: boolean;
 }
 
-const STORAGE_KEY = "branta.notifications.v1";
+const STORAGE_PREFIX = "branta.notifications.v1";
 const MAX = 50;
+
+let scope: string | null = null;
+
+function storageKey(): string {
+  return `${STORAGE_PREFIX}:${scope ?? "anon"}`;
+}
 
 let items: Notification[] = load();
 const listeners = new Set<() => void>();
@@ -24,7 +30,7 @@ const listeners = new Set<() => void>();
 function load(): Notification[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = window.localStorage.getItem(storageKey());
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed.slice(0, MAX) : [];
@@ -36,7 +42,7 @@ function load(): Notification[] {
 function persist() {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    window.localStorage.setItem(storageKey(), JSON.stringify(items));
   } catch {
     /* ignore quota */
   }
