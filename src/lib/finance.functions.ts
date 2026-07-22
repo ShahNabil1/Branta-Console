@@ -592,6 +592,7 @@ export const listMyPayouts = createServerFn({ method: "GET" })
       .from("invoice_payouts")
       .select("*")
       .eq("user_id", context.userId)
+      .neq("role", "company")
       .order("created_at", { ascending: false })
       .limit(500);
     if (error) throw new Error(error.message);
