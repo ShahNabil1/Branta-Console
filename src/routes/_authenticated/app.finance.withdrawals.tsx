@@ -11,8 +11,68 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, CheckCircle2, XCircle, Banknote } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, Banknote, Copy, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+type MethodSnap = {
+  kind?: string;
+  label?: string;
+  account?: string;
+  bank_name?: string | null;
+  account_holder?: string | null;
+  account_number?: string | null;
+  branch?: string | null;
+  mfs_provider?: string | null;
+  mfs_number?: string | null;
+} | null;
+
+function MethodDetailsDialog({ snap, onClose }: { snap: MethodSnap; onClose: () => void }) {
+  const [copied, setCopied] = useState<string | null>(null);
+  const copy = async (key: string, val: string) => {
+    try { await navigator.clipboard.writeText(val); setCopied(key); setTimeout(() => setCopied((c) => (c === key ? null : c)), 1200); }
+    catch { toast.error("Copy failed"); }
+  };
+  if (!snap) return null;
+  const isBank = snap.kind === "bank";
+  const rows: Array<{ k: string; label: string; value: string | null | undefined }> = isBank
+    ? [
+        { k: "bank_name", label: "Bank", value: snap.bank_name ?? snap.label },
+        { k: "account_holder", label: "Account holder", value: snap.account_holder },
+        { k: "account_number", label: "Account number", value: snap.account_number ?? snap.account },
+        { k: "branch", label: "Branch", value: snap.branch },
+      ]
+    : [
+        { k: "mfs_provider", label: "Provider", value: snap.mfs_provider ?? snap.label },
+        { k: "mfs_number", label: "Number", value: snap.mfs_number ?? snap.account },
+        { k: "account_holder", label: "Account holder", value: snap.account_holder },
+      ];
+  const filled = rows.filter((r) => r.value && String(r.value).trim().length > 0);
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 p-4" onClick={onClose}>
+      <div className="w-full max-w-md rounded-md border border-border bg-card p-5 shadow-lg" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h3 className="text-[14px] font-semibold">Payment method details</h3>
+          <button onClick={onClose} className="rounded-sm p-1 text-muted-foreground hover:bg-muted"><X className="size-4" /></button>
+        </div>
+        <div className="mt-3 space-y-2">
+          {filled.length === 0 ? (
+            <p className="text-[12.5px] text-muted-foreground">No details available.</p>
+          ) : filled.map((r) => (
+            <div key={r.k} className="rounded-sm border border-border bg-muted/30 px-3 py-2">
+              <div className="text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground">{r.label}</div>
+              <div className="mt-0.5 flex items-center justify-between gap-2">
+                <span className="truncate font-mono text-[12.5px] text-foreground">{r.value}</span>
+                <button onClick={() => copy(r.k, String(r.value))} className="inline-flex shrink-0 items-center gap-1 rounded-sm border border-border bg-card px-2 py-1 text-[11px] hover:bg-muted">
+                  {copied === r.k ? <><Check className="size-3 text-emerald-600" /> Copied</> : <><Copy className="size-3" /> Copy</>}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export const Route = createFileRoute("/_authenticated/app/finance/withdrawals")({
   head: () => ({ meta: [{ title: "Withdrawals · Finance · Branta" }] }),
