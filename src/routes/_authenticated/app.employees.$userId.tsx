@@ -1614,11 +1614,6 @@ const PERMISSION_ROWS: {
     hint: "Create new leads and sync with the Google Sheet (push & pull).",
   },
   {
-    key: "lead_edit",
-    label: "Edit lead details",
-    hint: "Change name, company, status, notes and other fields on leads they own.",
-  },
-  {
     key: "lead_assign",
     label: "Reassign leads",
     hint: "Move leads to another employee without super-admin help.",

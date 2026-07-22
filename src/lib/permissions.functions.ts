@@ -8,7 +8,6 @@ import { z } from "zod";
 export const PERMISSION_KEYS = [
   "lead_delete",
   "lead_manage",
-  "lead_edit",
   "lead_assign",
 ] as const;
 export type PermissionKey = (typeof PERMISSION_KEYS)[number];
@@ -17,16 +16,15 @@ export interface UserPermissions {
   user_id: string;
   lead_delete: boolean;
   lead_manage: boolean;
-  lead_edit: boolean;
   lead_assign: boolean;
 }
 
 const DEFAULTS: Omit<UserPermissions, "user_id"> = {
   lead_delete: false,
   lead_manage: true,
-  lead_edit: true,
   lead_assign: false,
 };
+
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function assertSuperAdmin(supabase: any, userId: string) {
@@ -52,11 +50,11 @@ export const getMyPermissions = createServerFn({ method: "GET" })
         user_id: context.userId,
         lead_delete: true,
         lead_manage: true,
-        lead_edit: true,
         lead_assign: true,
         isSuperAdmin,
       };
     }
+
     const { data } = await context.supabase
       .from("user_permissions")
       .select("*")
@@ -108,13 +106,22 @@ export const setUserPermission = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
     );
-    const patch: Record<string, boolean> = { [data.key]: data.value };
-    const { error } = await supabaseAdmin
+    // Ensure a row exists with defaults, without clobbering existing values.
+    // Insert-if-missing: ignore conflict so an existing row is untouched.
+    const { error: insertErr } = await supabaseAdmin
       .from("user_permissions")
       .upsert(
-        { user_id: data.userId, ...DEFAULTS, ...patch },
-        { onConflict: "user_id" },
+        { user_id: data.userId, ...DEFAULTS },
+        { onConflict: "user_id", ignoreDuplicates: true },
       );
+    if (insertErr) throw new Error(insertErr.message);
+    // Then update only the single toggled column.
+    const { error } = await supabaseAdmin
+      .from("user_permissions")
+      .update({ [data.key]: data.value } as never)
+      .eq("user_id", data.userId);
+
+
     if (error) throw new Error(error.message);
     return { ok: true as const };
   });
