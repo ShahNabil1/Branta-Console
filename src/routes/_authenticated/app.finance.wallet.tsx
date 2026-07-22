@@ -12,7 +12,7 @@ import {
   isFinanceAdminCheck,
   listManualEmployeePayouts,
   addManualEmployeePayout,
-  deleteManualEmployeePayout,
+  revokeManualEmployeePayout,
   listEmployeesForFinance,
   type Currency,
   type CompanyWalletCurrency,
