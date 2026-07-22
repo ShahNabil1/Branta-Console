@@ -1,6 +1,7 @@
 // Bridges lead_transfer_requests into the client-side notifications store.
 // - Super admins: get a notification on every new pending request.
 // - Requesters: get a notification when their request is approved/rejected.
+// - Target users (to_user_id): get a notification when a lead is transferred TO them.
 import { useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,6 +10,7 @@ import { getMyPermissions } from "@/lib/permissions.functions";
 import {
   listAllTransferRequests,
   listMyTransferRequests,
+  listMyIncomingTransfers,
 } from "@/lib/lead-transfers.functions";
 import { useQuery } from "@tanstack/react-query";
 
@@ -22,8 +24,16 @@ export function TransferNotifier() {
 
   const listAll = useServerFn(listAllTransferRequests);
   const listMine = useServerFn(listMyTransferRequests);
+  const listIncoming = useServerFn(listMyIncomingTransfers);
 
   const isSuper = !!permsQ.data?.isSuperAdmin;
+  const uid = permsQ.data?.user_id ?? null;
+
+  // Scope the notifications store per-user so notifications don't leak across
+  // accounts on the same browser.
+  useEffect(() => {
+    notifications.setScope(uid);
+  }, [uid]);
 
   // Seed on mount so nothing is missed across sessions.
   useEffect(() => {
@@ -57,14 +67,41 @@ export function TransferNotifier() {
                 title: `Transfer ${r.status} · ${r.lead_slug ?? "Lead"}`,
                 description:
                   r.status === "approved"
-                    ? `Reassigned to ${r.to_user_name ?? "teammate"}`
-                    : `Rejected${r.decided_by_name ? ` by ${r.decided_by_name}` : ""}`,
+                    ? `Reassigned to ${r.to_user_name ?? "teammate"}${
+                        r.note ? ` · Note: ${r.note}` : ""
+                      }`
+                    : `Rejected${
+                        r.decided_by_name ? ` by ${r.decided_by_name}` : ""
+                      }${r.decision_note ? ` · ${r.decision_note}` : ""}`,
                 href: r.lead_slug
                   ? `/app/leads/${r.lead_slug}`
                   : "/app/leads",
               });
             });
         }
+
+        // For every user (super admin or not): incoming transfers assigned TO
+        // them. Skip self-requested ones — the requester already gets the
+        // "Transfer approved" notification above.
+        const incoming = await listIncoming();
+        if (cancelled) return;
+        incoming
+          .filter((r) => r.requester_id !== uid)
+          .forEach((r) => {
+            notifications.push({
+              id: `transfer-in:${r.id}`,
+              kind: "success",
+              title: `Lead assigned to you · ${r.lead_slug ?? "Lead"}`,
+              description: `${
+                r.requester_name ?? r.from_user_name ?? "A teammate"
+              } transferred ${r.lead_slug ?? "a lead"}${
+                r.lead_name ? ` (${r.lead_name})` : ""
+              } to you${r.note ? ` · Note: ${r.note}` : ""}`,
+              href: r.lead_slug
+                ? `/app/leads/${r.lead_slug}`
+                : "/app/leads",
+            });
+          });
       } catch {
         /* ignore */
       }
@@ -72,12 +109,13 @@ export function TransferNotifier() {
     return () => {
       cancelled = true;
     };
-  }, [permsQ.data, isSuper, listAll, listMine]);
+  }, [permsQ.data, isSuper, uid, listAll, listMine, listIncoming]);
 
-  // Realtime — super admins listen for INSERT, requesters for UPDATE on their own rows.
+  // Realtime — super admins listen for INSERT (new pending requests);
+  // requesters listen for UPDATE on their own rows;
+  // target users listen for UPDATE where they are the to_user_id.
   useEffect(() => {
-    if (!permsQ.data) return;
-    const uid = permsQ.data.user_id;
+    if (!permsQ.data || !uid) return;
     const channel = supabase.channel(`transfers-${uid}`);
 
     if (isSuper) {
@@ -115,19 +153,50 @@ export function TransferNotifier() {
             title: `Transfer ${row.status}`,
             description:
               row.status === "approved"
-                ? "Your transfer request was approved"
-                : "Your transfer request was rejected",
+                ? `Your transfer request was approved${
+                    row.note ? ` · Note: ${row.note}` : ""
+                  }`
+                : `Your transfer request was rejected${
+                    row.decision_note ? ` · ${row.decision_note}` : ""
+                  }`,
             href: "/app/transfers",
           });
         },
       );
     }
 
+    // Target-user listener — fires for everyone (including super admins) when
+    // a lead is transferred TO them.
+    channel.on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "lead_transfer_requests",
+        filter: `to_user_id=eq.${uid}`,
+      },
+      (payload) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const row = payload.new as any;
+        if (row.status !== "approved") return;
+        if (row.requester_id === uid) return; // self-request, already notified
+        notifications.push({
+          id: `transfer-in:${row.id}`,
+          kind: "success",
+          title: `Lead assigned to you`,
+          description: `A teammate transferred a lead to you${
+            row.note ? ` · Note: ${row.note}` : ""
+          }`,
+          href: "/app/leads",
+        });
+      },
+    );
+
     channel.subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [permsQ.data, isSuper]);
+  }, [permsQ.data, isSuper, uid]);
 
   return null;
 }

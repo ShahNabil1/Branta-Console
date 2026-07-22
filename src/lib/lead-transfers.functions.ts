@@ -181,6 +181,20 @@ export const listMyTransferRequests = createServerFn({ method: "GET" })
     return hydrate(context.supabase, data ?? []);
   });
 
+export const listMyIncomingTransfers = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<TransferRequestRow[]> => {
+    const { data, error } = await context.supabase
+      .from("lead_transfer_requests")
+      .select("*")
+      .eq("to_user_id", context.userId)
+      .eq("status", "approved")
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (error) throw new Error(error.message);
+    return hydrate(context.supabase, data ?? []);
+  });
+
 export const listAllTransferRequests = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
