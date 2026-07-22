@@ -53,6 +53,12 @@ function emit() {
 }
 
 export const notifications = {
+  setScope(userId: string | null) {
+    if (scope === userId) return;
+    scope = userId;
+    items = load();
+    emit();
+  },
   push(n: Omit<Notification, "createdAt" | "read"> & { read?: boolean }) {
     if (items.some((x) => x.id === n.id)) return;
     items = [
