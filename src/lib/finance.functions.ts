@@ -94,14 +94,17 @@ export interface StakeholderRow {
 
 export interface PayoutRow {
   id: string;
-  invoice_id: string;
-  installment_id: string;
-  stakeholder_id: string;
+  invoice_id: string | null;
+  installment_id: string | null;
+  stakeholder_id: string | null;
   user_id: string;
   role: StakeholderRole;
   currency: Currency;
   amount: number;
   status: PayoutStatus;
+  source: "invoice" | "manual";
+  kind: string | null;
+  notes: string | null;
   unlocked_at: string | null;
   requested_at: string | null;
   paid_at: string | null;
