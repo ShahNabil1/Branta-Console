@@ -1523,7 +1523,6 @@ export type Database = {
           created_at: string
           lead_assign: boolean
           lead_delete: boolean
-          lead_edit: boolean
           lead_manage: boolean
           updated_at: string
           user_id: string
@@ -1532,7 +1531,6 @@ export type Database = {
           created_at?: string
           lead_assign?: boolean
           lead_delete?: boolean
-          lead_edit?: boolean
           lead_manage?: boolean
           updated_at?: string
           user_id: string
@@ -1541,7 +1539,6 @@ export type Database = {
           created_at?: string
           lead_assign?: boolean
           lead_delete?: boolean
-          lead_edit?: boolean
           lead_manage?: boolean
           updated_at?: string
           user_id?: string
