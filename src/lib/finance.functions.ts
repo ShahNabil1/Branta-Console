@@ -193,6 +193,38 @@ async function ensureFinanceAdmin(supabase: {
   if (!data) throw new Error("Forbidden — finance role required");
 }
 
+// Log an activity on the lead that backs an invoice's customer, so all
+// invoice/payment events surface in the Lead/Customer Activity Logs feed.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function logInvoiceActivity(supabase: any, invoiceId: string, actorId: string, kind: string, body: string, meta: Record<string, unknown> = {}) {
+  const { data: inv } = await supabase
+    .from("invoices")
+    .select("customer_id, slug")
+    .eq("id", invoiceId)
+    .maybeSingle();
+  const customerId = (inv as { customer_id?: string } | null)?.customer_id;
+  const slug = (inv as { slug?: string } | null)?.slug ?? null;
+  if (!customerId) return;
+  const { data: cust } = await supabase
+    .from("customers")
+    .select("converted_from_lead_id")
+    .eq("id", customerId)
+    .maybeSingle();
+  const leadId = (cust as { converted_from_lead_id: string | null } | null)?.converted_from_lead_id ?? null;
+  if (!leadId) return;
+  await supabase.from("lead_activities").insert({
+    lead_id: leadId,
+    actor_id: actorId,
+    kind,
+    body,
+    meta: { ...meta, invoice_id: invoiceId, invoice_slug: slug },
+  });
+}
+
+function fmtMoney(n: number | null | undefined, cur: string): string {
+  return `${cur} ${Number(n ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
 export const listInvoices = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<InvoiceRow[]> => {
