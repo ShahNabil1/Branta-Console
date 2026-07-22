@@ -49,12 +49,19 @@ async function assertSuperAdmin(supabase: any, userId: string) {
 /** Called by any signed-in user to learn their own effective toggles. */
 export const getMyPermissions = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<UserPermissions & { isSuperAdmin: boolean }> => {
-    const { data: su } = await context.supabase.rpc("has_role", {
-      _user_id: context.userId,
-      _role: "super_admin",
-    });
-    const isSuperAdmin = !!su;
+  .handler(async ({ context }): Promise<UserPermissions & { isSuperAdmin: boolean; isAdmin: boolean }> => {
+    const [suRes, adRes] = await Promise.all([
+      context.supabase.rpc("has_role", {
+        _user_id: context.userId,
+        _role: "super_admin",
+      }),
+      context.supabase.rpc("has_role", {
+        _user_id: context.userId,
+        _role: "admin",
+      }),
+    ]);
+    const isSuperAdmin = !!suRes.data;
+    const isAdmin = isSuperAdmin || !!adRes.data;
     if (isSuperAdmin) {
       return {
         user_id: context.userId,
@@ -65,6 +72,7 @@ export const getMyPermissions = createServerFn({ method: "GET" })
         customer_view_all: true,
         customer_view_detail: true,
         isSuperAdmin,
+        isAdmin,
       };
     }
 
@@ -79,7 +87,8 @@ export const getMyPermissions = createServerFn({ method: "GET" })
       ...DEFAULTS,
       ...(data ?? {}),
       isSuperAdmin,
-    } as UserPermissions & { isSuperAdmin: boolean };
+      isAdmin,
+    } as UserPermissions & { isSuperAdmin: boolean; isAdmin: boolean };
   });
 
 export const getUserPermissions = createServerFn({ method: "GET" })
