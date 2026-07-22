@@ -122,17 +122,20 @@ function CompanyWalletPage() {
   const ledgerInCur = (ledger.data ?? []).filter((l) => l.currency === cur);
   const manualsInCur = (manuals.data ?? []).filter((m) => m.currency === cur);
 
-  const delManual = async (id: string) => {
+  const revokeManual = async (r: { id: string; status: string; amount: number }) => {
+    const isPaid = r.status === "paid";
     const ok = await confirm({
-      title: "Remove manual payout",
-      description: "This reverses the credit from the employee wallet. Only allowed while it is still 'available'.",
+      title: isPaid ? "Revoke paid payout" : "Revoke payout",
+      description: isPaid
+        ? "This employee has already withdrawn this amount. A clawback will be posted so their available balance drops by this amount (it can go negative) and will auto-net against future credits."
+        : "This reverses the credit from the employee wallet.",
       tone: "danger",
-      confirmLabel: "Remove",
+      confirmLabel: "Revoke",
     });
     if (!ok) return;
     try {
-      await manualDelFn({ data: { id } });
-      toast.success("Removed");
+      await manualRevokeFn({ data: { id: r.id } });
+      toast.success(isPaid ? "Clawback posted" : "Payout revoked");
       void w.refetch(); void manuals.refetch();
     } catch (e) { toast.error((e as Error).message); }
   };
