@@ -1591,3 +1591,145 @@ function AssignLeadsPanel({
     </div>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Permissions tab — super_admin only. Fine-grained toggles per employee.
+// ---------------------------------------------------------------------------
+import {
+  getUserPermissions,
+  setUserPermission,
+  type PermissionKey,
+  type UserPermissions,
+} from "@/lib/permissions.functions";
+import { Switch } from "@/components/ui/switch";
+
+const PERMISSION_ROWS: {
+  key: PermissionKey;
+  label: string;
+  hint: string;
+}[] = [
+  {
+    key: "lead_manage",
+    label: "Add / Pull / Push leads",
+    hint: "Create new leads and sync with the Google Sheet (push & pull).",
+  },
+  {
+    key: "lead_edit",
+    label: "Edit lead details",
+    hint: "Change name, company, status, notes and other fields on leads they own.",
+  },
+  {
+    key: "lead_assign",
+    label: "Reassign leads",
+    hint: "Move leads to another employee without super-admin help.",
+  },
+  {
+    key: "lead_delete",
+    label: "Delete leads",
+    hint: "Permanently delete leads they own. Off by default.",
+  },
+];
+
+function PermissionsTab({ userId }: { userId: string }) {
+  const qc = useQueryClient();
+  const getFn = useServerFn(getUserPermissions);
+  const setFn = useServerFn(setUserPermission);
+
+  const q = useQuery({
+    queryKey: ["employee.permissions", userId],
+    queryFn: () => getFn({ data: { userId } }),
+    staleTime: 15_000,
+  });
+
+  const mut = useMutation({
+    mutationFn: (v: { key: PermissionKey; value: boolean }) =>
+      setFn({ data: { userId, key: v.key, value: v.value } }),
+    onMutate: async (v) => {
+      await qc.cancelQueries({ queryKey: ["employee.permissions", userId] });
+      const prev = qc.getQueryData<UserPermissions>([
+        "employee.permissions",
+        userId,
+      ]);
+      if (prev) {
+        qc.setQueryData(["employee.permissions", userId], {
+          ...prev,
+          [v.key]: v.value,
+        });
+      }
+      return { prev };
+    },
+    onError: (e, _v, ctx) => {
+      if (ctx?.prev) {
+        qc.setQueryData(["employee.permissions", userId], ctx.prev);
+      }
+      toast.error(e instanceof Error ? e.message : "Failed to update");
+    },
+    onSuccess: () => toast.success("Permission updated"),
+  });
+
+  if (q.isLoading) {
+    return (
+      <div className="flex items-center gap-2 p-6 text-sm text-muted-foreground">
+        <Loader2 className="size-4 animate-spin" /> Loading permissions…
+      </div>
+    );
+  }
+  if (q.isError || !q.data) {
+    return (
+      <div className="p-6 text-sm text-rose-600">
+        {q.error instanceof Error ? q.error.message : "Failed to load"}
+      </div>
+    );
+  }
+
+  const perms = q.data;
+
+  return (
+    <section className="rounded-sm border border-border bg-card p-4">
+      <div className="mb-3 flex items-center gap-2">
+        <ShieldCheck className="size-4 text-brand" strokeWidth={2} />
+        <h2 className="text-[13px] font-semibold">Lead permissions</h2>
+      </div>
+      <p className="mb-4 text-[11.5px] text-muted-foreground">
+        Only super admins can change these. Toggles apply on top of the
+        employee&apos;s existing role and only affect the leads they already
+        own.
+      </p>
+
+      <ul className="divide-y divide-border rounded-sm border border-border">
+        {PERMISSION_ROWS.map((row) => {
+          const value = perms[row.key];
+          const pending =
+            mut.isPending && mut.variables?.key === row.key;
+          return (
+            <li
+              key={row.key}
+              className="flex items-start justify-between gap-4 px-3 py-3"
+            >
+              <div className="min-w-0">
+                <div className="text-[12.5px] font-semibold text-foreground">
+                  {row.label}
+                </div>
+                <div className="mt-0.5 text-[11px] text-muted-foreground">
+                  {row.hint}
+                </div>
+              </div>
+              <div className="flex items-center gap-2 pt-1">
+                {pending && (
+                  <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
+                )}
+                <Switch
+                  checked={value}
+                  disabled={mut.isPending}
+                  onCheckedChange={(v) =>
+                    mut.mutate({ key: row.key, value: !!v })
+                  }
+                />
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
