@@ -977,3 +977,182 @@ export const isFinanceAdminCheck = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     return { isAdmin: Boolean(data) };
   });
+
+// ==================== Company Wallet ====================
+export interface CompanyLedgerRow {
+  id: string;
+  kind: "seed" | "other_income" | "adjustment";
+  currency: Currency;
+  amount: number;
+  notes: string | null;
+  occurred_on: string;
+  created_by: string | null;
+  created_at: string;
+  created_by_name?: string | null;
+}
+
+export interface CompanyWalletCurrency {
+  currency: Currency;
+  received: number;
+  ledger_total: number;
+  expenses_total: number;
+  real_balance: number;
+  pending: number;
+  estimated_total: number;
+  employees_locked: number;
+  employees_available: number;
+  employees_requested: number;
+  employees_owed: number;
+  company_net: number;
+}
+
+export interface CompanyWalletInvoiceRow {
+  invoice_id: string;
+  slug: string;
+  customer_name: string | null;
+  currency: Currency;
+  total: number;
+  paid: number;
+  outstanding: number;
+  status: InvoiceStatus;
+  next_due: string | null;
+}
+
+export const getCompanyWallet = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await ensureFinanceAdmin(context.supabase as never, context.userId);
+    const [{ data: invs }, { data: insts }, { data: ledger }, { data: exps }, { data: payouts }] = await Promise.all([
+      context.supabase.from("invoices").select("id, currency, total_amount, paid_amount, status").not("status", "eq", "void"),
+      context.supabase.from("invoice_installments").select("invoice_id, amount, paid_amount, status, due_date"),
+      context.supabase.from("company_ledger").select("currency, amount"),
+      context.supabase.from("expenses").select("currency, amount"),
+      context.supabase.from("invoice_payouts").select("currency, amount, status"),
+    ]);
+    const invRows = (invs ?? []) as { id: string; currency: Currency; total_amount: number; paid_amount: number; status: InvoiceStatus }[];
+    const currencyByInvoice = new Map(invRows.map((r) => [r.id, r.currency] as const));
+    const empty = (cur: Currency): CompanyWalletCurrency => ({
+      currency: cur, received: 0, ledger_total: 0, expenses_total: 0, real_balance: 0,
+      pending: 0, estimated_total: 0,
+      employees_locked: 0, employees_available: 0, employees_requested: 0, employees_owed: 0, company_net: 0,
+    });
+    const map: Record<Currency, CompanyWalletCurrency> = { BDT: empty("BDT"), USD: empty("USD") };
+    invRows.forEach((r) => { map[r.currency].estimated_total += Number(r.total_amount); });
+    (insts ?? []).forEach((row) => {
+      const r = row as { invoice_id: string; amount: number; paid_amount: number | null; status: string };
+      const cur = currencyByInvoice.get(r.invoice_id);
+      if (!cur) return;
+      if (r.status === "paid") map[cur].received += Number(r.paid_amount ?? r.amount);
+      else if (r.status !== "cancelled") map[cur].pending += Number(r.amount);
+    });
+    (ledger ?? []).forEach((row) => {
+      const r = row as { currency: Currency; amount: number };
+      if (map[r.currency]) map[r.currency].ledger_total += Number(r.amount);
+    });
+    (exps ?? []).forEach((row) => {
+      const r = row as { currency: Currency; amount: number };
+      if (map[r.currency]) map[r.currency].expenses_total += Number(r.amount);
+    });
+    (payouts ?? []).forEach((row) => {
+      const r = row as { currency: Currency; amount: number; status: PayoutStatus };
+      if (!map[r.currency]) return;
+      if (r.status === "locked") map[r.currency].employees_locked += Number(r.amount);
+      else if (r.status === "available") map[r.currency].employees_available += Number(r.amount);
+      else if (r.status === "requested") map[r.currency].employees_requested += Number(r.amount);
+    });
+    (Object.keys(map) as Currency[]).forEach((cur) => {
+      const c = map[cur];
+      c.real_balance = c.received + c.ledger_total - c.expenses_total;
+      c.employees_owed = c.employees_locked + c.employees_available + c.employees_requested;
+      c.company_net = c.real_balance - (c.employees_available + c.employees_requested);
+    });
+    return { BDT: map.BDT, USD: map.USD };
+  });
+
+export const listCompanyWalletInvoices = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<CompanyWalletInvoiceRow[]> => {
+    await ensureFinanceAdmin(context.supabase as never, context.userId);
+    const { data: invs, error } = await context.supabase
+      .from("invoices")
+      .select("id, slug, customer_id, currency, total_amount, paid_amount, status")
+      .not("status", "eq", "void")
+      .order("created_at", { ascending: false })
+      .limit(500);
+    if (error) throw new Error(error.message);
+    const rows = (invs ?? []) as { id: string; slug: string; customer_id: string; currency: Currency; total_amount: number; paid_amount: number; status: InvoiceStatus }[];
+    const custIds = Array.from(new Set(rows.map((r) => r.customer_id)));
+    const { data: custs } = custIds.length
+      ? await context.supabase.from("customers").select("id, name").in("id", custIds)
+      : { data: [] as { id: string; name: string }[] };
+    const custMap = new Map<string, string>();
+    (custs ?? []).forEach((c) => custMap.set((c as { id: string }).id, (c as { name: string }).name));
+    const invIds = rows.map((r) => r.id);
+    const { data: insts } = invIds.length
+      ? await context.supabase.from("invoice_installments").select("invoice_id, due_date, status").in("invoice_id", invIds)
+      : { data: [] as { invoice_id: string; due_date: string; status: string }[] };
+    const nextDueMap = new Map<string, string>();
+    ((insts ?? []) as { invoice_id: string; due_date: string; status: string }[])
+      .filter((i) => i.status !== "paid" && i.status !== "cancelled")
+      .sort((a, b) => a.due_date.localeCompare(b.due_date))
+      .forEach((i) => { if (!nextDueMap.has(i.invoice_id)) nextDueMap.set(i.invoice_id, i.due_date); });
+    return rows.map((r) => ({
+      invoice_id: r.id, slug: r.slug,
+      customer_name: custMap.get(r.customer_id) ?? null,
+      currency: r.currency, total: Number(r.total_amount), paid: Number(r.paid_amount),
+      outstanding: Math.max(0, Number(r.total_amount) - Number(r.paid_amount)),
+      status: r.status, next_due: nextDueMap.get(r.id) ?? null,
+    }));
+  });
+
+export const listCompanyLedger = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<CompanyLedgerRow[]> => {
+    await ensureFinanceAdmin(context.supabase as never, context.userId);
+    const { data, error } = await context.supabase
+      .from("company_ledger").select("*").order("occurred_on", { ascending: false }).limit(500);
+    if (error) throw new Error(error.message);
+    const rows = (data ?? []) as unknown as CompanyLedgerRow[];
+    const uids = Array.from(new Set(rows.map((r) => r.created_by).filter(Boolean) as string[]));
+    if (uids.length) {
+      const { data: profs } = await context.supabase.from("profiles").select("user_id, full_name").in("user_id", uids);
+      const nm = new Map<string, string>();
+      (profs ?? []).forEach((p: { user_id: string; full_name: string | null }) => nm.set(p.user_id, p.full_name ?? ""));
+      rows.forEach((r) => { if (r.created_by) r.created_by_name = nm.get(r.created_by) ?? null; });
+    }
+    return rows;
+  });
+
+export const addCompanyLedgerEntry = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({
+    kind: z.enum(["seed", "other_income", "adjustment"]),
+    currency: z.enum(["BDT", "USD"]),
+    amount: z.number().refine((n) => n !== 0, "Amount must be non-zero"),
+    notes: z.string().trim().max(500).nullable().optional(),
+    occurred_on: z.string().optional(),
+  }).parse(d))
+  .handler(async ({ data, context }) => {
+    await ensureFinanceAdmin(context.supabase as never, context.userId);
+    const { data: row, error } = await context.supabase
+      .from("company_ledger")
+      .insert({
+        kind: data.kind, currency: data.currency, amount: data.amount,
+        notes: data.notes ?? null,
+        occurred_on: data.occurred_on ?? new Date().toISOString().slice(0, 10),
+        created_by: context.userId,
+      } as never)
+      .select("*").single();
+    if (error) throw new Error(error.message);
+    return row as unknown as CompanyLedgerRow;
+  });
+
+export const deleteCompanyLedgerEntry = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string }) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await ensureFinanceAdmin(context.supabase as never, context.userId);
+    const { error } = await context.supabase.from("company_ledger").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
