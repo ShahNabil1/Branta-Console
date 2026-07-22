@@ -313,19 +313,88 @@ function CompanyWalletPage() {
         </table>
       </section>
 
+      {/* Manual employee payouts */}
+      <section className="rounded-md border border-border bg-card">
+        <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
+          <div>
+            <h2 className="flex items-center gap-1.5 text-[13px] font-semibold">
+              <HandCoins className="size-3.5 text-emerald-700" /> Manual Employee Payouts ({cur})
+            </h2>
+            <p className="text-[11px] text-muted-foreground">
+              Salary, bonus, profit share, reimbursements or one-off adjustments. Credited straight to the employee wallet as available for withdrawal.
+            </p>
+          </div>
+          <Button onClick={() => setPayOpen(true)} size="sm"
+            className="h-8 rounded-sm bg-emerald-600 text-white hover:bg-emerald-700">
+            <HandCoins className="mr-1.5 size-3.5" /> Pay employee
+          </Button>
+        </div>
+        <table className="w-full text-[12.5px]">
+          <thead className="text-left text-[10.5px] uppercase tracking-wider text-muted-foreground">
+            <tr>
+              <th className="px-3 py-2">Date</th>
+              <th className="px-3 py-2">Employee</th>
+              <th className="px-3 py-2">Reason</th>
+              <th className="px-3 py-2 text-right">Amount</th>
+              <th className="px-3 py-2">Status</th>
+              <th className="px-3 py-2">Notes</th>
+              <th className="px-3 py-2 text-right"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {manualsInCur.length === 0 ? (
+              <tr><td colSpan={7} className="px-3 py-10 text-center text-muted-foreground">No manual payouts in {cur} yet.</td></tr>
+            ) : manualsInCur.map((r) => (
+              <tr key={r.id} className="border-t border-border">
+                <td className="px-3 py-2 text-muted-foreground">{r.created_at.slice(0, 10)}</td>
+                <td className="px-3 py-2">{r.user_name ?? r.user_id.slice(0, 8)}</td>
+                <td className="px-3 py-2 capitalize">{(r.kind ?? "—").replace("_", " ")}</td>
+                <td className="px-3 py-2 text-right font-mono font-semibold text-emerald-700">{fmt(r.amount, cur)}</td>
+                <td className="px-3 py-2">
+                  <span className={cn(
+                    "inline-flex rounded-sm border px-1.5 py-0.5 text-[10.5px] font-semibold uppercase",
+                    r.status === "available" ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                    : r.status === "requested" ? "border-amber-200 bg-amber-50 text-amber-700"
+                    : r.status === "paid" ? "border-slate-200 bg-slate-50 text-slate-700"
+                    : "border-slate-200 bg-slate-50 text-slate-700",
+                  )}>
+                    {r.status}
+                  </span>
+                </td>
+                <td className="px-3 py-2 text-muted-foreground">{r.notes ?? "—"}</td>
+                <td className="px-3 py-2 text-right">
+                  {r.status === "available" && (
+                    <Button variant="ghost" size="sm" onClick={() => delManual(r.id)}
+                      className="h-7 rounded-sm text-[11px] text-rose-600 hover:bg-rose-50">
+                      <Trash2 className="size-3" />
+                    </Button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+
       <div className="rounded-md border border-dashed border-border bg-muted/30 p-4 text-[11.5px] text-muted-foreground">
         <div className="flex items-center gap-2 font-semibold text-foreground"><Banknote className="size-3.5" /> How the numbers connect</div>
         <ul className="mt-2 list-disc space-y-0.5 pl-5">
           <li><strong>Real Balance</strong> = Received + Ledger − Expenses. Grows only when invoice installments are marked paid or a ledger entry is added; shrinks with expenses.</li>
           <li><strong>Pending</strong> = installments still owed by clients. Fully separate from Real Balance until marked paid.</li>
           <li><strong>Estimated Total</strong> ignores payment terms — the full contract value across every active invoice.</li>
-          <li><strong>Employee payouts unlock only after the entire invoice is fully paid</strong>. Locked payouts sit under "Locked" until then.</li>
-          <li><strong>Company Net Cash</strong> = Real Balance − amounts already earmarked for employees (ready + withdrawal pending). Can go negative if expenses exceed inflow.</li>
+          <li><strong>Invoice payouts unlock only after the entire invoice is fully paid</strong>. Manual payouts (salary, bonus, etc.) unlock instantly.</li>
+          <li><strong>Company Net Cash</strong> = Real Balance − amounts already earmarked for employees (ready + withdrawal pending). Cash actually leaves only when a withdrawal is marked paid.</li>
         </ul>
       </div>
 
       {addOpen && <AddLedgerModal cur={cur} onClose={() => setAddOpen(false)}
         submitting={add.isPending} onSubmit={(d) => add.mutate({ data: d })} />}
+      {payOpen && <PayEmployeeModal
+        cur={cur}
+        employees={emps.data ?? []}
+        onClose={() => setPayOpen(false)}
+        submitting={addManual.isPending}
+        onSubmit={(d) => addManual.mutate({ data: d })} />}
     </div>
   );
 }
