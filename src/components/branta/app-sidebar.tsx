@@ -1,5 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
 import {
   LayoutDashboard,
   Users,
@@ -21,9 +23,11 @@ import {
 import { cn } from "@/lib/utils";
 import brandLogo from "@/assets/brand-logo.png.asset.json";
 import type { LucideIcon } from "lucide-react";
+import { getMyPermissions } from "@/lib/permissions.functions";
 
 type NavItem = { label: string; to: string; icon: LucideIcon };
 type NavGroup = { label: string; items: NavItem[] };
+
 
 const NAV: NavGroup[] = [
   {
@@ -69,6 +73,13 @@ export function AppSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
+  const permsFn = useServerFn(getMyPermissions);
+  const permsQ = useQuery({
+    queryKey: ["my-permissions"],
+    queryFn: () => permsFn(),
+    staleTime: 60_000,
+  });
+
   useEffect(() => {
     setCollapsed(localStorage.getItem(COLLAPSE_KEY) === "1");
   }, []);
@@ -78,6 +89,20 @@ export function AppSidebar() {
     setCollapsed(next);
     localStorage.setItem(COLLAPSE_KEY, next ? "1" : "0");
   };
+
+  const nav = useMemo<NavGroup[]>(() => {
+    const perms = permsQ.data;
+    if (!perms) return NAV;
+    return NAV.map((g) => ({
+      ...g,
+      items: g.items.filter((it) => {
+        if (it.to === "/app/customers" && !perms.customer_access) return false;
+        return true;
+      }),
+    })).filter((g) => g.items.length > 0);
+  }, [permsQ.data]);
+
+
 
   return (
     <aside
@@ -108,7 +133,7 @@ export function AppSidebar() {
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto p-2">
-        {NAV.map((group) => (
+        {nav.map((group) => (
           <div key={group.label} className="mb-4">
             {!collapsed && (
               <div className="px-2 pb-1.5 pt-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">

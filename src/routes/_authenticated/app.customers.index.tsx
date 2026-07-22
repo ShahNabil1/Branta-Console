@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
@@ -27,8 +27,10 @@ import {
   listCustomers,
   type CustomerRow,
 } from "@/lib/customers.functions";
+import { getMyPermissions } from "@/lib/permissions.functions";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { cn } from "@/lib/utils";
+
 
 export const Route = createFileRoute("/_authenticated/app/customers/")({
   component: CustomersPage,
@@ -62,6 +64,14 @@ function CustomersPage() {
   const create = useServerFn(createCustomer);
   const remove = useServerFn(deleteCustomer);
   const confirm = useConfirm();
+
+  const permsFn = useServerFn(getMyPermissions);
+  const permsQ = useQuery({
+    queryKey: ["my-permissions"],
+    queryFn: () => permsFn(),
+    staleTime: 60_000,
+  });
+
 
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
@@ -136,7 +146,19 @@ function CustomersPage() {
     );
   }, [rows, q]);
 
+  if (permsQ.isLoading) {
+    return (
+      <div className="grid h-full place-items-center text-[12px] text-muted-foreground">
+        <Loader2 className="size-4 animate-spin" />
+      </div>
+    );
+  }
+  if (permsQ.data && !permsQ.data.customer_access) {
+    return <Navigate to="/app" replace />;
+  }
+
   return (
+
     <div className="flex h-full flex-col">
       <header className="hairline-b flex items-center gap-3 px-4 py-3">
         <Building2 className="size-4 text-muted-foreground" />
