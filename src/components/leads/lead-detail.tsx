@@ -99,6 +99,7 @@ import {
 } from "@/lib/lead-docs.functions";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SocialLinksSection } from "@/components/leads/social-links-section";
+import { ActivityLinkPreview } from "@/components/leads/activity-link-preview";
 import {
   Dialog,
   DialogContent,
