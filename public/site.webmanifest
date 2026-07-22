@@ -1,0 +1,12 @@
+{
+  "name": "Branta Tech Console",
+  "short_name": "Branta",
+  "icons": [
+    { "src": "/web-app-manifest-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/web-app-manifest-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "theme_color": "#e56a17",
+  "background_color": "#f9fafb",
+  "display": "standalone",
+  "start_url": "/"
+}
