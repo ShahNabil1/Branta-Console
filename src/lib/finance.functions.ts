@@ -941,7 +941,10 @@ export const getFinanceReport = createServerFn({ method: "GET" })
 export const listEmployeesForFinance = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await ensureFinanceAdmin(context.supabase as never, context.userId);
+    // Any authenticated user can list employees for the stakeholder picker
+    // (invoice creators may have `finance_invoice` permission without the
+    // finance role). Only non-sensitive profile fields are returned.
+
     const { data, error } = await context.supabase
       .from("profiles")
       .select("user_id, full_name, employee_code, job_role")
