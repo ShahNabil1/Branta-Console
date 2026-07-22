@@ -69,6 +69,7 @@ function AppShell() {
       <CommandPalette />
       <EmailFailureNotifier />
       <InboxNotifier />
+      <TransferNotifier />
     </div>
   );
 }
