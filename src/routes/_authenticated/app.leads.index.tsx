@@ -17,6 +17,9 @@ import {
   ExternalLink,
   ChevronLeft,
   ChevronRight,
+  Trash2,
+  UserCog,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -56,6 +59,11 @@ import {
   type SheetDuplicate,
 } from "@/lib/leads-sheets.functions";
 import {
+  getMyPermissions,
+  bulkAssignLeads,
+  bulkDeleteLeads,
+} from "@/lib/permissions.functions";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -64,6 +72,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 const PAGE_SIZE_OPTIONS = [50, 100, 150, 200] as const;
 const leadsSearchSchema = z.object({
