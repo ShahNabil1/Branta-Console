@@ -179,6 +179,14 @@ function CustomersPage() {
                 "#F59E0B", // amber
               ];
               const accent = palette[(r.customer_code.charCodeAt(r.customer_code.length - 1) || idx) % palette.length];
+              const primaryLabel = r.company?.trim() || r.name;
+              const attribution = fromLead
+                ? r.converter_name
+                  ? `Converted by ${r.converter_name}`
+                  : "Converted from lead"
+                : r.creator_name
+                  ? `Created by ${r.creator_name}`
+                  : "Manually created";
               return (
                 <div
                   key={r.id}
@@ -192,7 +200,6 @@ function CustomersPage() {
                     "hover:shadow-[0_12px_32px_-16px_color-mix(in_oklab,var(--card-accent)_60%,transparent)]",
                   )}
                 >
-                  {/* colored top accent bar */}
                   <span
                     aria-hidden
                     className="absolute inset-x-0 top-0 h-1 transition-all duration-300 group-hover:h-1.5"
@@ -200,7 +207,6 @@ function CustomersPage() {
                       background: `linear-gradient(90deg, var(--card-accent), color-mix(in oklab, var(--card-accent) 40%, transparent))`,
                     }}
                   />
-                  {/* soft radial glow on hover */}
                   <span
                     aria-hidden
                     className="pointer-events-none absolute -right-8 -top-8 size-32 rounded-full opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-40"
@@ -240,7 +246,7 @@ function CustomersPage() {
                         background: `linear-gradient(135deg, var(--card-accent), color-mix(in oklab, var(--card-accent) 45%, #000))`,
                       }}
                     >
-                      {r.name
+                      {primaryLabel
                         .split(/\s+/)
                         .map((p) => p[0]?.toUpperCase())
                         .join("")
@@ -252,32 +258,12 @@ function CustomersPage() {
                         params={{ code: r.customer_code }}
                         className="block truncate text-[14px] font-semibold text-foreground transition-colors group-hover:text-[color:var(--card-accent)]"
                       >
-                        {r.name}
+                        {primaryLabel}
                       </Link>
-                      {r.company && (
-                        <div className="truncate text-[12px] text-muted-foreground">
-                          {r.company}
-                        </div>
-                      )}
+                      <div className="truncate text-[12px] text-muted-foreground">
+                        {attribution}
+                      </div>
                     </div>
-                  </div>
-
-                  <div className="mt-3 space-y-1 text-[12.5px]">
-                    {r.email && (
-                      <div className="truncate text-muted-foreground">
-                        <span className="text-foreground/70">✉</span> {r.email}
-                      </div>
-                    )}
-                    {r.phone && (
-                      <div className="truncate text-muted-foreground">
-                        <span className="text-foreground/70">☏</span> {r.phone}
-                      </div>
-                    )}
-                    {r.source && (
-                      <div className="truncate text-muted-foreground">
-                        <span className="text-foreground/70">◎</span> {r.source}
-                      </div>
-                    )}
                   </div>
 
                   <div className="mt-auto flex items-center justify-between gap-2 pt-4 text-[11px] text-muted-foreground">
@@ -289,13 +275,18 @@ function CustomersPage() {
                           : "border-border bg-muted/60",
                       )}
                     >
-                      {fromLead ? "From lead" : "Manual"}
+                      {fromLead
+                        ? r.converted_from_lead_slug
+                          ? `From ${r.converted_from_lead_slug}`
+                          : "From lead"
+                        : "Manual"}
                     </span>
                     <span className="font-mono">{relTime(r.created_at)}</span>
                   </div>
                 </div>
               );
             })}
+
           </div>
         )}
       </div>
