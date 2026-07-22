@@ -120,7 +120,7 @@ export function ProfileMenu() {
             View profile
           </Link>
           <Link
-            to="/app/finance/wallet"
+            to="/app/profile/wallet"
             onClick={() => setOpen(false)}
             className={itemClass}
           >
