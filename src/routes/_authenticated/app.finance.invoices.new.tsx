@@ -9,7 +9,7 @@ import {
   type Currency,
   type StakeholderRole,
 } from "@/lib/finance.functions";
-import { listCustomers } from "@/lib/customers.functions";
+import { listCustomersForPicker } from "@/lib/customers.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -30,7 +30,7 @@ export const Route = createFileRoute("/_authenticated/app/finance/invoices/new")
 function NewInvoicePage() {
   const navigate = useNavigate();
   const create = useServerFn(createInvoice);
-  const listCust = useServerFn(listCustomers);
+  const listCust = useServerFn(listCustomersForPicker);
   const listEmp = useServerFn(listEmployeesForFinance);
 
   const custs = useQuery({ queryKey: ["customers"], queryFn: () => listCust(), staleTime: 30_000 });
@@ -54,7 +54,7 @@ function NewInvoicePage() {
   ]);
 
   const customerItems: SearchableItem[] = useMemo(
-    () => (custs.data ?? []).map((c) => ({
+    () => (custs.data ?? []).map((c: { id: string; customer_code: string; name: string; company: string | null; email: string | null; phone: string | null }) => ({
       value: c.id,
       label: `${c.customer_code} · ${c.name}`,
       hint: c.company ?? c.email ?? c.phone ?? undefined,
@@ -62,6 +62,7 @@ function NewInvoicePage() {
     })),
     [custs.data],
   );
+
 
   const employeeItems: SearchableItem[] = useMemo(
     () => (emps.data ?? []).map((e) => ({

@@ -1623,7 +1623,23 @@ const PERMISSION_ROWS: {
     label: "Delete leads",
     hint: "Permanently delete leads they own. Off by default.",
   },
+  {
+    key: "customer_access",
+    label: "Access customers page",
+    hint: "Show the Customers menu and let them open the customers list.",
+  },
+  {
+    key: "customer_view_all",
+    label: "View all customers",
+    hint: "Off means they only see customers they created or converted themselves.",
+  },
+  {
+    key: "customer_view_detail",
+    label: "Open customer detail page",
+    hint: "Off means cards are visible but they cannot open the full customer page.",
+  },
 ];
+
 
 function PermissionsTab({ userId }: { userId: string }) {
   const qc = useQueryClient();
