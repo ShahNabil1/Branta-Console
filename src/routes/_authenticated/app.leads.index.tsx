@@ -669,6 +669,63 @@ function LeadsPage() {
       )}
 
 
+      <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
+        <DialogContent className="max-w-md rounded-sm">
+          <DialogHeader>
+            <DialogTitle className="text-[14px]">
+              Assign {selected.size} lead(s)
+            </DialogTitle>
+            <DialogDescription className="text-[12px]">
+              Reassign the selected leads to another employee, or leave them
+              unassigned.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-2 py-2">
+            <label className="text-[11.5px] font-medium uppercase tracking-wide text-muted-foreground">
+              Assign to
+            </label>
+            <Select value={assignTo} onValueChange={setAssignTo}>
+              <SelectTrigger className="h-9 rounded-sm text-[12.5px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="unassigned">Unassigned</SelectItem>
+                {(usersQuery.data ?? []).map((u) => (
+                  <SelectItem key={u.user_id} value={u.user_id}>
+                    {u.full_name ?? u.user_id}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 rounded-sm text-[12.5px]"
+              onClick={() => setAssignOpen(false)}
+              disabled={bulkAssignM.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              className="h-9 rounded-sm bg-primary text-[12.5px] text-primary-foreground hover:bg-brand-700"
+              disabled={bulkAssignM.isPending}
+              onClick={() =>
+                bulkAssignM.mutate(
+                  assignTo === "unassigned" ? null : assignTo,
+                )
+              }
+            >
+              {bulkAssignM.isPending ? (
+                <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+              ) : null}
+              Apply
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
