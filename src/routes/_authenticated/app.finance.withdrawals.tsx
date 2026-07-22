@@ -227,6 +227,7 @@ function WithdrawalsPage() {
           </div>
         </div>
       )}
+      {methodView && <MethodDetailsDialog snap={methodView} onClose={() => setMethodView(null)} />}
     </div>
   );
 }
