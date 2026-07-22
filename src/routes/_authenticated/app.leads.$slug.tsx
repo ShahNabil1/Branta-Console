@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   getLeadBySlug,
   listAssignableUsers,
+  logLeadView,
   DRAFT_LEAD_NAME,
 } from "@/lib/leads.functions";
 import { LeadDetail } from "@/components/leads/lead-detail";
@@ -35,6 +36,7 @@ function LeadDetailPage() {
   const navigate = useNavigate();
   const getFn = useServerFn(getLeadBySlug);
   const listUsers = useServerFn(listAssignableUsers);
+  const logView = useServerFn(logLeadView);
 
   const leadQ = useQuery({
     queryKey: ["leads", "by-slug", slug],
@@ -67,6 +69,14 @@ function LeadDetailPage() {
       supabase.removeChannel(ch);
     };
   }, [leadQ]);
+
+  // Log a "viewed" activity when opening the lead (skipped for freshly
+  // created draft leads to avoid double-logging alongside "created").
+  useEffect(() => {
+    const leadId = leadQ.data?.id;
+    if (!leadId || isNew) return;
+    logView({ data: { leadId } }).catch(() => {});
+  }, [leadQ.data?.id, isNew, logView]);
 
   if (leadQ.isLoading) {
     return (
