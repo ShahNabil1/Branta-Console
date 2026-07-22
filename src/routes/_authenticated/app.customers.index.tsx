@@ -65,6 +65,14 @@ function CustomersPage() {
   const remove = useServerFn(deleteCustomer);
   const confirm = useConfirm();
 
+  const permsFn = useServerFn(getMyPermissions);
+  const permsQ = useQuery({
+    queryKey: ["my-permissions"],
+    queryFn: () => permsFn(),
+    staleTime: 60_000,
+  });
+
+
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
