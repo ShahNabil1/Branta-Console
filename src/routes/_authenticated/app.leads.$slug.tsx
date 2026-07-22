@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   getLeadBySlug,
   listAssignableUsers,
+  logLeadView,
   DRAFT_LEAD_NAME,
 } from "@/lib/leads.functions";
 import { LeadDetail } from "@/components/leads/lead-detail";
