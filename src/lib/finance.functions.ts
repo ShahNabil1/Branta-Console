@@ -809,12 +809,39 @@ export const listWithdrawals = createServerFn({ method: "GET" })
     const uids = Array.from(new Set(rows.map((r) => r.user_id)));
     if (uids.length) {
       const { data: profs } = await context.supabase
-        .from("profiles").select("user_id, full_name").in("user_id", uids);
+        .from("profiles").select("user_id, full_name, payment_methods").in("user_id", uids);
       const nm = new Map<string, string>();
-      (profs ?? []).forEach((p: { user_id: string; full_name: string | null }) =>
-        nm.set(p.user_id, p.full_name ?? ""),
-      );
-      rows.forEach((r) => (r.user_name = nm.get(r.user_id) ?? null));
+      const pmMap = new Map<string, Array<Record<string, unknown>>>();
+      (profs ?? []).forEach((p: { user_id: string; full_name: string | null; payment_methods: unknown }) => {
+        nm.set(p.user_id, p.full_name ?? "");
+        pmMap.set(p.user_id, Array.isArray(p.payment_methods) ? (p.payment_methods as Array<Record<string, unknown>>) : []);
+      });
+      rows.forEach((r) => {
+        r.user_name = nm.get(r.user_id) ?? null;
+        // Hydrate snapshot with full details from the user's current payment methods
+        // when the stored snapshot is thin (older rows) or the method still exists.
+        const methods = pmMap.get(r.user_id) ?? [];
+        const match = r.payment_method_id
+          ? methods.find((m) => (m as { id?: string }).id === r.payment_method_id)
+          : undefined;
+        if (match) {
+          const snap = (r.payment_method_snapshot ?? {}) as Record<string, unknown>;
+          const merged = { ...match, ...snap } as Record<string, unknown>;
+          // Ensure kind/label/account fallbacks exist for the table cell
+          if (!merged.kind && (match as { kind?: string }).kind) merged.kind = (match as { kind?: string }).kind;
+          if (!merged.label) {
+            merged.label = merged.kind === "bank"
+              ? ((match as { bank_name?: string }).bank_name ?? "Bank")
+              : ((match as { mfs_provider?: string }).mfs_provider ?? "MFS");
+          }
+          if (!merged.account) {
+            merged.account = merged.kind === "bank"
+              ? ((match as { account_number?: string }).account_number ?? "")
+              : ((match as { mfs_number?: string }).mfs_number ?? "");
+          }
+          r.payment_method_snapshot = merged as WithdrawalRow["payment_method_snapshot"];
+        }
+      });
     }
     return rows;
   });
