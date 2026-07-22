@@ -73,6 +73,13 @@ export function AppSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
+  const permsFn = useServerFn(getMyPermissions);
+  const permsQ = useQuery({
+    queryKey: ["my-permissions"],
+    queryFn: () => permsFn(),
+    staleTime: 60_000,
+  });
+
   useEffect(() => {
     setCollapsed(localStorage.getItem(COLLAPSE_KEY) === "1");
   }, []);
@@ -82,6 +89,20 @@ export function AppSidebar() {
     setCollapsed(next);
     localStorage.setItem(COLLAPSE_KEY, next ? "1" : "0");
   };
+
+  const nav = useMemo<NavGroup[]>(() => {
+    const perms = permsQ.data;
+    if (!perms) return NAV;
+    return NAV.map((g) => ({
+      ...g,
+      items: g.items.filter((it) => {
+        if (it.to === "/app/customers" && !perms.customer_access) return false;
+        return true;
+      }),
+    })).filter((g) => g.items.length > 0);
+  }, [permsQ.data]);
+
+
 
   return (
     <aside
