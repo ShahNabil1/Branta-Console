@@ -320,7 +320,7 @@ function LeadsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <SheetSyncButton />
+          {canManageLeads && <SheetSyncButton />}
           <Button
             variant="outline"
             size="sm"
@@ -339,19 +339,21 @@ function LeadsPage() {
             )}
             Refresh
           </Button>
-          <Button
-            size="sm"
-            className="h-9 rounded-sm bg-primary text-[12.5px] text-primary-foreground hover:bg-brand-700"
-            disabled={createDraftM.isPending}
-            onClick={onNewLead}
-          >
-            {createDraftM.isPending ? (
-              <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-            ) : (
-              <Plus className="mr-1.5 size-3.5" />
-            )}
-            New lead
-          </Button>
+          {canManageLeads && (
+            <Button
+              size="sm"
+              className="h-9 rounded-sm bg-primary text-[12.5px] text-primary-foreground hover:bg-brand-700"
+              disabled={createDraftM.isPending}
+              onClick={onNewLead}
+            >
+              {createDraftM.isPending ? (
+                <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+              ) : (
+                <Plus className="mr-1.5 size-3.5" />
+              )}
+              New lead
+            </Button>
+          )}
         </div>
       </div>
 
