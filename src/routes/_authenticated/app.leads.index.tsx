@@ -195,6 +195,54 @@ function LeadsPage() {
   });
   const onNewLead = () => createDraftM.mutate();
 
+  // ---- Super-admin bulk selection / actions --------------------------------
+  const confirm = useConfirm();
+  const getMyPermsFn = useServerFn(getMyPermissions);
+  const bulkAssignFn = useServerFn(bulkAssignLeads);
+  const bulkDeleteFn = useServerFn(bulkDeleteLeads);
+  const myPermsQ = useQuery({
+    queryKey: ["my-permissions"],
+    queryFn: () => getMyPermsFn(),
+    staleTime: 60_000,
+  });
+  const isSuperAdmin = !!myPermsQ.data?.isSuperAdmin;
+
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [assignTo, setAssignTo] = useState<string>("unassigned");
+  const toggleRow = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const clearSelection = () => setSelected(new Set());
+
+  const bulkAssignM = useMutation({
+    mutationFn: (ownerId: string | null) =>
+      bulkAssignFn({ data: { leadIds: Array.from(selected), ownerId } }),
+    onSuccess: (r) => {
+      toast.success(`Updated ${r.count} lead(s)`);
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      clearSelection();
+      setAssignOpen(false);
+    },
+    onError: (e: unknown) =>
+      toast.error(e instanceof Error ? e.message : "Assign failed"),
+  });
+  const bulkDeleteM = useMutation({
+    mutationFn: () => bulkDeleteFn({ data: { leadIds: Array.from(selected) } }),
+    onSuccess: (r) => {
+      toast.success(`Deleted ${r.count} lead(s)`);
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      clearSelection();
+    },
+    onError: (e: unknown) =>
+      toast.error(e instanceof Error ? e.message : "Delete failed"),
+  });
+
+
 
   const filtered = useMemo(() => {
     const rows = leadsQuery.data ?? [];
