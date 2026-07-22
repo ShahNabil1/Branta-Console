@@ -8,7 +8,6 @@ import { z } from "zod";
 export const PERMISSION_KEYS = [
   "lead_delete",
   "lead_manage",
-  "lead_edit",
   "lead_assign",
 ] as const;
 export type PermissionKey = (typeof PERMISSION_KEYS)[number];
@@ -17,16 +16,15 @@ export interface UserPermissions {
   user_id: string;
   lead_delete: boolean;
   lead_manage: boolean;
-  lead_edit: boolean;
   lead_assign: boolean;
 }
 
 const DEFAULTS: Omit<UserPermissions, "user_id"> = {
   lead_delete: false,
   lead_manage: true,
-  lead_edit: true,
   lead_assign: false,
 };
+
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function assertSuperAdmin(supabase: any, userId: string) {
