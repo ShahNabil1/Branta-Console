@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      company_ledger: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          currency: string
+          id: string
+          kind: string
+          notes: string | null
+          occurred_on: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          kind: string
+          notes?: string | null
+          occurred_on?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          kind?: string
+          notes?: string | null
+          occurred_on?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       customers: {
         Row: {
           company: string | null
