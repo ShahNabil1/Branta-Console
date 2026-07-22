@@ -375,6 +375,7 @@ export const createInvoice = createServerFn({ method: "POST" })
         actor_id: context.userId,
         kind: "note",
         body: `Invoice ${slug} created — ${data.title} (${cur} ${amt})`,
+        meta: { event: "invoice_created", invoice_id: invoiceId, invoice_slug: slug },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
     }
