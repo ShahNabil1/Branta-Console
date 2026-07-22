@@ -878,6 +878,36 @@ export const addLeadActivity = createServerFn({ method: "POST" })
     return row as LeadActivityRow;
   });
 
+// Log a lead view — deduped: skip if the same actor logged a view on the
+// same lead in the last 30 minutes (avoids spam from refreshes / remounts).
+export const logLeadView = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z.object({ leadId: z.string().uuid() }).parse(data),
+  )
+  .handler(async ({ data, context }): Promise<{ logged: boolean }> => {
+    const since = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    const { data: recent } = await context.supabase
+      .from("lead_activities")
+      .select("id")
+      .eq("lead_id", data.leadId)
+      .eq("actor_id", context.userId)
+      .eq("kind", "viewed")
+      .gte("created_at", since)
+      .limit(1);
+    if (recent && recent.length > 0) return { logged: false };
+    const { error } = await context.supabase
+      .from("lead_activities")
+      .insert({
+        lead_id: data.leadId,
+        actor_id: context.userId,
+        kind: "viewed",
+        body: "Lead viewed",
+      } as never);
+    if (error) return { logged: false };
+    return { logged: true };
+  });
+
 export interface AssignableUser {
   user_id: string;
   full_name: string | null;
