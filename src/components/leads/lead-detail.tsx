@@ -66,6 +66,7 @@ import {
   type LeadRow,
   type LeadStatusDB,
 } from "@/lib/leads.functions";
+import { getMyPermissions } from "@/lib/permissions.functions";
 
 import {
   drainEmailQueue,
