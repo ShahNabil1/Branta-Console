@@ -1,4 +1,4 @@
-import { useRouterState } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { ProfileMenu } from "@/components/branta/profile-menu";
 import { NotificationsBell } from "@/components/branta/notifications-bell";
 
@@ -17,39 +17,50 @@ const UUID_RE =
 
 export function TopBar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const segments = pathname
-    .split("/")
-    .filter(Boolean)
-    // Hide raw UUIDs / long opaque IDs from the breadcrumb — they're never
-    // meaningful to a reader. The page itself renders a human title.
-    .filter((seg) => !UUID_RE.test(seg));
+
+  // Build (label, href) pairs. Href accumulates ALL original segments so
+  // deep-nested routes still resolve; UUID-like segments are hidden from
+  // the visible crumb list but remain part of the href for anything nested
+  // below them.
+  const rawSegments = pathname.split("/").filter(Boolean);
+  const crumbs: { seg: string; href: string }[] = [];
+  let acc = "";
+  for (const seg of rawSegments) {
+    acc += "/" + seg;
+    if (UUID_RE.test(seg)) continue;
+    crumbs.push({ seg, href: acc });
+  }
 
   return (
     <header className="hairline-b flex h-14 shrink-0 items-center justify-between bg-card px-6">
       {/* Breadcrumbs */}
       <nav className="flex items-center gap-2 text-[13px]" aria-label="Breadcrumb">
-        {segments.length === 0 ? (
+        {crumbs.length === 0 ? (
           <span className="font-medium text-foreground">Workspace</span>
         ) : (
-          segments.map((seg, i) => {
-            const isLast = i === segments.length - 1;
+          crumbs.map((c, i) => {
+            const isLast = i === crumbs.length - 1;
             return (
               <span key={i} className="flex items-center gap-2">
-                <span
-                  className={
-                    isLast
-                      ? "font-medium text-foreground"
-                      : "text-muted-foreground"
-                  }
-                >
-                  {labelFor(seg)}
-                </span>
+                {isLast ? (
+                  <span className="font-medium text-foreground">
+                    {labelFor(c.seg)}
+                  </span>
+                ) : (
+                  <Link
+                    to={c.href as unknown as "/app"}
+                    className="cursor-pointer text-muted-foreground transition-colors hover:text-foreground hover:underline"
+                  >
+                    {labelFor(c.seg)}
+                  </Link>
+                )}
                 {!isLast && <span className="text-border">/</span>}
               </span>
             );
           })
         )}
       </nav>
+
 
 
       {/* Cmd-K + notifications */}
