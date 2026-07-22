@@ -98,6 +98,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { name: "robots", content: "noindex, nofollow, noarchive, nosnippet" },
       { name: "googlebot", content: "noindex, nofollow, noarchive, nosnippet" },
+      // Prevent Chrome/Edge auto-translate from mutating the DOM under React,
+      // which causes intermittent "removeChild ... not a child of this node" crashes.
+      { name: "google", content: "notranslate" },
       { property: "og:title", content: "Branta Tech · Console" },
       {
         property: "og:description",
@@ -133,11 +136,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" translate="no" className="notranslate">
       <head>
         <HeadContent />
       </head>
-      <body>
+      <body translate="no" className="notranslate">
         {children}
         <Scripts />
       </body>
