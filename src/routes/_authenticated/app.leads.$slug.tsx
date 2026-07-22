@@ -70,6 +70,14 @@ function LeadDetailPage() {
     };
   }, [leadQ]);
 
+  // Log a "viewed" activity when opening the lead (skipped for freshly
+  // created draft leads to avoid double-logging alongside "created").
+  useEffect(() => {
+    const leadId = leadQ.data?.id;
+    if (!leadId || isNew) return;
+    logView({ data: { leadId } }).catch(() => {});
+  }, [leadQ.data?.id, isNew, logView]);
+
   if (leadQ.isLoading) {
     return (
       <div className="grid h-full place-items-center p-16 text-[12.5px] text-muted-foreground">
