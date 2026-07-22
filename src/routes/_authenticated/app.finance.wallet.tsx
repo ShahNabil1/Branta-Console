@@ -12,7 +12,7 @@ import {
   isFinanceAdminCheck,
   listManualEmployeePayouts,
   addManualEmployeePayout,
-  deleteManualEmployeePayout,
+  revokeManualEmployeePayout,
   listEmployeesForFinance,
   type Currency,
   type CompanyWalletCurrency,
@@ -23,7 +23,7 @@ import { Input } from "@/components/ui/input";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
   Building2, Wallet, Clock, Sigma, Users, TrendingUp, TrendingDown,
-  PlusCircle, Trash2, Loader2, Banknote, Lock, HandCoins,
+  PlusCircle, Trash2, Loader2, Banknote, Lock, HandCoins, Undo2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -48,7 +48,7 @@ function CompanyWalletPage() {
   const delFn = useServerFn(deleteCompanyLedgerEntry);
   const manualListFn = useServerFn(listManualEmployeePayouts);
   const manualAddFn = useServerFn(addManualEmployeePayout);
-  const manualDelFn = useServerFn(deleteManualEmployeePayout);
+  const manualRevokeFn = useServerFn(revokeManualEmployeePayout);
   const empsFn = useServerFn(listEmployeesForFinance);
   const confirm = useConfirm();
 
@@ -122,17 +122,20 @@ function CompanyWalletPage() {
   const ledgerInCur = (ledger.data ?? []).filter((l) => l.currency === cur);
   const manualsInCur = (manuals.data ?? []).filter((m) => m.currency === cur);
 
-  const delManual = async (id: string) => {
+  const revokeManual = async (r: { id: string; status: string; amount: number }) => {
+    const isPaid = r.status === "paid";
     const ok = await confirm({
-      title: "Remove manual payout",
-      description: "This reverses the credit from the employee wallet. Only allowed while it is still 'available'.",
+      title: isPaid ? "Revoke paid payout" : "Revoke payout",
+      description: isPaid
+        ? "This employee has already withdrawn this amount. A clawback will be posted so their available balance drops by this amount (it can go negative) and will auto-net against future credits."
+        : "This reverses the credit from the employee wallet.",
       tone: "danger",
-      confirmLabel: "Remove",
+      confirmLabel: "Revoke",
     });
     if (!ok) return;
     try {
-      await manualDelFn({ data: { id } });
-      toast.success("Removed");
+      await manualRevokeFn({ data: { id: r.id } });
+      toast.success(isPaid ? "Clawback posted" : "Payout revoked");
       void w.refetch(); void manuals.refetch();
     } catch (e) { toast.error((e as Error).message); }
   };
@@ -363,10 +366,10 @@ function CompanyWalletPage() {
                 </td>
                 <td className="px-3 py-2 text-muted-foreground">{r.notes ?? "—"}</td>
                 <td className="px-3 py-2 text-right">
-                  {r.status === "available" && (
-                    <Button variant="ghost" size="sm" onClick={() => delManual(r.id)}
+                  {(r.status === "available" || r.status === "paid") && (r.amount ?? 0) >= 0 && (
+                    <Button variant="ghost" size="sm" onClick={() => revokeManual({ id: r.id, status: r.status, amount: r.amount })}
                       className="h-7 rounded-sm text-[11px] text-rose-600 hover:bg-rose-50">
-                      <Trash2 className="size-3" />
+                      <Undo2 className="mr-1 size-3" /> Revoke
                     </Button>
                   )}
                 </td>

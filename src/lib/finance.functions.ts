@@ -1335,22 +1335,65 @@ export const addManualEmployeePayout = createServerFn({ method: "POST" })
     return row as unknown as ManualPayoutRow;
   });
 
-export const deleteManualEmployeePayout = createServerFn({ method: "POST" })
+export const revokeManualEmployeePayout = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { id: string }) => z.object({ id: z.string().uuid() }).parse(d))
+  .inputValidator((d: { id: string; notes?: string | null }) =>
+    z.object({ id: z.string().uuid(), notes: z.string().trim().max(500).nullable().optional() }).parse(d),
+  )
   .handler(async ({ data, context }) => {
     await ensureFinanceAdmin(context.supabase as never, context.userId);
     const { data: existing } = await context.supabase
       .from("invoice_payouts")
-      .select("id, source, status")
+      .select("id, source, status, user_id, currency, amount, kind, notes")
       .eq("id", data.id)
       .maybeSingle();
-    const row = existing as { source: string; status: PayoutStatus } | null;
+    const row = existing as {
+      id: string; source: string; status: PayoutStatus; user_id: string;
+      currency: Currency; amount: number; kind: string | null; notes: string | null;
+    } | null;
     if (!row) throw new Error("Payout not found");
-    if (row.source !== "manual") throw new Error("Only manual payouts can be removed here");
-    if (row.status !== "available")
-      throw new Error("This payout has already been requested or paid — it cannot be removed");
-    const { error } = await context.supabase.from("invoice_payouts").delete().eq("id", data.id);
-    if (error) throw new Error(error.message);
-    return { ok: true as const };
+    if (row.source !== "manual") throw new Error("Only manual payouts can be revoked here");
+
+    if (row.status === "available") {
+      // Still sitting in the employee wallet — just cancel it so it stops
+      // counting toward their available balance.
+      const { error } = await context.supabase
+        .from("invoice_payouts")
+        .update({ status: "cancelled" } as never)
+        .eq("id", row.id);
+      if (error) throw new Error(error.message);
+      return { ok: true as const, mode: "cancelled" as const };
+    }
+
+    if (row.status === "requested") {
+      throw new Error(
+        "This payout is part of an active withdrawal request. Reject or cancel the withdrawal first, then revoke it.",
+      );
+    }
+
+    if (row.status === "paid") {
+      // Money already left the company via a withdrawal. Post a clawback
+      // row so the employee's available balance is reduced by the same
+      // amount — it can go negative and will auto-net against the next
+      // credit. Company Net Cash rises immediately because `employees_owed`
+      // drops by the clawback amount.
+      const { error } = await context.supabase
+        .from("invoice_payouts")
+        .insert({
+          user_id: row.user_id,
+          role: "worker",
+          currency: row.currency,
+          amount: -Number(row.amount),
+          status: "available",
+          source: "manual",
+          kind: "clawback",
+          notes: data.notes?.trim()
+            || `Revoked from payout ${row.id.slice(0, 8)}${row.notes ? ` · ${row.notes}` : ""}`,
+          unlocked_at: new Date().toISOString(),
+        } as never);
+      if (error) throw new Error(error.message);
+      return { ok: true as const, mode: "clawback" as const };
+    }
+
+    throw new Error("This payout can no longer be revoked");
   });
