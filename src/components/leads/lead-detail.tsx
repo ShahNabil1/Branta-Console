@@ -1015,13 +1015,23 @@ export function LeadDetail({
                       return owner?.full_name || (form.owner_id ? "You" : "Unassigned");
                     })()}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setTransferOpen(true)}
-                    className="mt-1 text-[11.5px] font-medium text-brand hover:underline"
-                  >
-                    Request transfer →
-                  </button>
+                  {pendingTransfer ? (
+                    <div className="mt-1 text-[11.5px] text-muted-foreground">
+                      Transfer request pending
+                      {pendingTransfer.to_user_name
+                        ? ` → ${pendingTransfer.to_user_name}`
+                        : ""}
+                      {" · awaiting super admin"}
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setTransferOpen(true)}
+                      className="mt-1 text-[11.5px] font-medium text-brand hover:underline"
+                    >
+                      Request transfer →
+                    </button>
+                  )}
                 </>
               )}
             </div>
