@@ -33,13 +33,13 @@ import { Route as AuthenticatedAppCustomersIndexRouteImport } from './routes/_au
 import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram.webhook'
 import { Route as ApiPublicResendWebhookRouteImport } from './routes/api/public/resend.webhook'
 import { Route as ApiPublicBrevoWebhookRouteImport } from './routes/api/public/brevo.webhook'
+import { Route as AuthenticatedAppProfileWalletRouteImport } from './routes/_authenticated/app.profile.wallet'
 import { Route as AuthenticatedAppProfileSecurityRouteImport } from './routes/_authenticated/app.profile.security'
 import { Route as AuthenticatedAppProfilePersonalRouteImport } from './routes/_authenticated/app.profile.personal'
 import { Route as AuthenticatedAppProfileFinanceRouteImport } from './routes/_authenticated/app.profile.finance'
 import { Route as AuthenticatedAppProfileActivityRouteImport } from './routes/_authenticated/app.profile.activity'
 import { Route as AuthenticatedAppLeadsSlugRouteImport } from './routes/_authenticated/app.leads.$slug'
 import { Route as AuthenticatedAppFinanceWithdrawalsRouteImport } from './routes/_authenticated/app.finance.withdrawals'
-import { Route as AuthenticatedAppFinanceWalletRouteImport } from './routes/_authenticated/app.finance.wallet'
 import { Route as AuthenticatedAppFinanceExpensesRouteImport } from './routes/_authenticated/app.finance.expenses'
 import { Route as AuthenticatedAppEmployeesUserIdRouteImport } from './routes/_authenticated/app.employees.$userId'
 import { Route as AuthenticatedAppCustomersCodeRouteImport } from './routes/_authenticated/app.customers.$code'
@@ -178,6 +178,12 @@ const ApiPublicBrevoWebhookRoute = ApiPublicBrevoWebhookRouteImport.update({
   path: '/api/public/brevo/webhook',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedAppProfileWalletRoute =
+  AuthenticatedAppProfileWalletRouteImport.update({
+    id: '/wallet',
+    path: '/wallet',
+    getParentRoute: () => AuthenticatedAppProfileRoute,
+  } as any)
 const AuthenticatedAppProfileSecurityRoute =
   AuthenticatedAppProfileSecurityRouteImport.update({
     id: '/security',
@@ -212,12 +218,6 @@ const AuthenticatedAppFinanceWithdrawalsRoute =
   AuthenticatedAppFinanceWithdrawalsRouteImport.update({
     id: '/withdrawals',
     path: '/withdrawals',
-    getParentRoute: () => AuthenticatedAppFinanceRoute,
-  } as any)
-const AuthenticatedAppFinanceWalletRoute =
-  AuthenticatedAppFinanceWalletRouteImport.update({
-    id: '/wallet',
-    path: '/wallet',
     getParentRoute: () => AuthenticatedAppFinanceRoute,
   } as any)
 const AuthenticatedAppFinanceExpensesRoute =
@@ -276,13 +276,13 @@ export interface FileRoutesByFullPath {
   '/app/customers/$code': typeof AuthenticatedAppCustomersCodeRoute
   '/app/employees/$userId': typeof AuthenticatedAppEmployeesUserIdRoute
   '/app/finance/expenses': typeof AuthenticatedAppFinanceExpensesRoute
-  '/app/finance/wallet': typeof AuthenticatedAppFinanceWalletRoute
   '/app/finance/withdrawals': typeof AuthenticatedAppFinanceWithdrawalsRoute
   '/app/leads/$slug': typeof AuthenticatedAppLeadsSlugRoute
   '/app/profile/activity': typeof AuthenticatedAppProfileActivityRoute
   '/app/profile/finance': typeof AuthenticatedAppProfileFinanceRoute
   '/app/profile/personal': typeof AuthenticatedAppProfilePersonalRoute
   '/app/profile/security': typeof AuthenticatedAppProfileSecurityRoute
+  '/app/profile/wallet': typeof AuthenticatedAppProfileWalletRoute
   '/api/public/brevo/webhook': typeof ApiPublicBrevoWebhookRoute
   '/api/public/resend/webhook': typeof ApiPublicResendWebhookRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
@@ -309,13 +309,13 @@ export interface FileRoutesByTo {
   '/app/customers/$code': typeof AuthenticatedAppCustomersCodeRoute
   '/app/employees/$userId': typeof AuthenticatedAppEmployeesUserIdRoute
   '/app/finance/expenses': typeof AuthenticatedAppFinanceExpensesRoute
-  '/app/finance/wallet': typeof AuthenticatedAppFinanceWalletRoute
   '/app/finance/withdrawals': typeof AuthenticatedAppFinanceWithdrawalsRoute
   '/app/leads/$slug': typeof AuthenticatedAppLeadsSlugRoute
   '/app/profile/activity': typeof AuthenticatedAppProfileActivityRoute
   '/app/profile/finance': typeof AuthenticatedAppProfileFinanceRoute
   '/app/profile/personal': typeof AuthenticatedAppProfilePersonalRoute
   '/app/profile/security': typeof AuthenticatedAppProfileSecurityRoute
+  '/app/profile/wallet': typeof AuthenticatedAppProfileWalletRoute
   '/api/public/brevo/webhook': typeof ApiPublicBrevoWebhookRoute
   '/api/public/resend/webhook': typeof ApiPublicResendWebhookRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
@@ -349,13 +349,13 @@ export interface FileRoutesById {
   '/_authenticated/app/customers/$code': typeof AuthenticatedAppCustomersCodeRoute
   '/_authenticated/app/employees/$userId': typeof AuthenticatedAppEmployeesUserIdRoute
   '/_authenticated/app/finance/expenses': typeof AuthenticatedAppFinanceExpensesRoute
-  '/_authenticated/app/finance/wallet': typeof AuthenticatedAppFinanceWalletRoute
   '/_authenticated/app/finance/withdrawals': typeof AuthenticatedAppFinanceWithdrawalsRoute
   '/_authenticated/app/leads/$slug': typeof AuthenticatedAppLeadsSlugRoute
   '/_authenticated/app/profile/activity': typeof AuthenticatedAppProfileActivityRoute
   '/_authenticated/app/profile/finance': typeof AuthenticatedAppProfileFinanceRoute
   '/_authenticated/app/profile/personal': typeof AuthenticatedAppProfilePersonalRoute
   '/_authenticated/app/profile/security': typeof AuthenticatedAppProfileSecurityRoute
+  '/_authenticated/app/profile/wallet': typeof AuthenticatedAppProfileWalletRoute
   '/api/public/brevo/webhook': typeof ApiPublicBrevoWebhookRoute
   '/api/public/resend/webhook': typeof ApiPublicResendWebhookRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
@@ -389,13 +389,13 @@ export interface FileRouteTypes {
     | '/app/customers/$code'
     | '/app/employees/$userId'
     | '/app/finance/expenses'
-    | '/app/finance/wallet'
     | '/app/finance/withdrawals'
     | '/app/leads/$slug'
     | '/app/profile/activity'
     | '/app/profile/finance'
     | '/app/profile/personal'
     | '/app/profile/security'
+    | '/app/profile/wallet'
     | '/api/public/brevo/webhook'
     | '/api/public/resend/webhook'
     | '/api/public/telegram/webhook'
@@ -422,13 +422,13 @@ export interface FileRouteTypes {
     | '/app/customers/$code'
     | '/app/employees/$userId'
     | '/app/finance/expenses'
-    | '/app/finance/wallet'
     | '/app/finance/withdrawals'
     | '/app/leads/$slug'
     | '/app/profile/activity'
     | '/app/profile/finance'
     | '/app/profile/personal'
     | '/app/profile/security'
+    | '/app/profile/wallet'
     | '/api/public/brevo/webhook'
     | '/api/public/resend/webhook'
     | '/api/public/telegram/webhook'
@@ -461,13 +461,13 @@ export interface FileRouteTypes {
     | '/_authenticated/app/customers/$code'
     | '/_authenticated/app/employees/$userId'
     | '/_authenticated/app/finance/expenses'
-    | '/_authenticated/app/finance/wallet'
     | '/_authenticated/app/finance/withdrawals'
     | '/_authenticated/app/leads/$slug'
     | '/_authenticated/app/profile/activity'
     | '/_authenticated/app/profile/finance'
     | '/_authenticated/app/profile/personal'
     | '/_authenticated/app/profile/security'
+    | '/_authenticated/app/profile/wallet'
     | '/api/public/brevo/webhook'
     | '/api/public/resend/webhook'
     | '/api/public/telegram/webhook'
@@ -661,6 +661,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicBrevoWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/app/profile/wallet': {
+      id: '/_authenticated/app/profile/wallet'
+      path: '/wallet'
+      fullPath: '/app/profile/wallet'
+      preLoaderRoute: typeof AuthenticatedAppProfileWalletRouteImport
+      parentRoute: typeof AuthenticatedAppProfileRoute
+    }
     '/_authenticated/app/profile/security': {
       id: '/_authenticated/app/profile/security'
       path: '/security'
@@ -701,13 +708,6 @@ declare module '@tanstack/react-router' {
       path: '/withdrawals'
       fullPath: '/app/finance/withdrawals'
       preLoaderRoute: typeof AuthenticatedAppFinanceWithdrawalsRouteImport
-      parentRoute: typeof AuthenticatedAppFinanceRoute
-    }
-    '/_authenticated/app/finance/wallet': {
-      id: '/_authenticated/app/finance/wallet'
-      path: '/wallet'
-      fullPath: '/app/finance/wallet'
-      preLoaderRoute: typeof AuthenticatedAppFinanceWalletRouteImport
       parentRoute: typeof AuthenticatedAppFinanceRoute
     }
     '/_authenticated/app/finance/expenses': {
@@ -773,7 +773,6 @@ const AuthenticatedAppCustomersRouteWithChildren =
 
 interface AuthenticatedAppFinanceRouteChildren {
   AuthenticatedAppFinanceExpensesRoute: typeof AuthenticatedAppFinanceExpensesRoute
-  AuthenticatedAppFinanceWalletRoute: typeof AuthenticatedAppFinanceWalletRoute
   AuthenticatedAppFinanceWithdrawalsRoute: typeof AuthenticatedAppFinanceWithdrawalsRoute
   AuthenticatedAppFinanceIndexRoute: typeof AuthenticatedAppFinanceIndexRoute
   AuthenticatedAppFinanceInvoicesSlugRoute: typeof AuthenticatedAppFinanceInvoicesSlugRoute
@@ -784,7 +783,6 @@ interface AuthenticatedAppFinanceRouteChildren {
 const AuthenticatedAppFinanceRouteChildren: AuthenticatedAppFinanceRouteChildren =
   {
     AuthenticatedAppFinanceExpensesRoute: AuthenticatedAppFinanceExpensesRoute,
-    AuthenticatedAppFinanceWalletRoute: AuthenticatedAppFinanceWalletRoute,
     AuthenticatedAppFinanceWithdrawalsRoute:
       AuthenticatedAppFinanceWithdrawalsRoute,
     AuthenticatedAppFinanceIndexRoute: AuthenticatedAppFinanceIndexRoute,
@@ -821,6 +819,7 @@ interface AuthenticatedAppProfileRouteChildren {
   AuthenticatedAppProfileFinanceRoute: typeof AuthenticatedAppProfileFinanceRoute
   AuthenticatedAppProfilePersonalRoute: typeof AuthenticatedAppProfilePersonalRoute
   AuthenticatedAppProfileSecurityRoute: typeof AuthenticatedAppProfileSecurityRoute
+  AuthenticatedAppProfileWalletRoute: typeof AuthenticatedAppProfileWalletRoute
   AuthenticatedAppProfileIndexRoute: typeof AuthenticatedAppProfileIndexRoute
 }
 
@@ -830,6 +829,7 @@ const AuthenticatedAppProfileRouteChildren: AuthenticatedAppProfileRouteChildren
     AuthenticatedAppProfileFinanceRoute: AuthenticatedAppProfileFinanceRoute,
     AuthenticatedAppProfilePersonalRoute: AuthenticatedAppProfilePersonalRoute,
     AuthenticatedAppProfileSecurityRoute: AuthenticatedAppProfileSecurityRoute,
+    AuthenticatedAppProfileWalletRoute: AuthenticatedAppProfileWalletRoute,
     AuthenticatedAppProfileIndexRoute: AuthenticatedAppProfileIndexRoute,
   }
 
