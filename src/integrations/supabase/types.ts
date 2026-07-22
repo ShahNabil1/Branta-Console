@@ -1678,6 +1678,7 @@ export type Database = {
         Returns: boolean
       }
       is_finance_admin: { Args: { _user_id?: string }; Returns: boolean }
+      is_lead_owner: { Args: { _lead_id: string }; Returns: boolean }
       is_super_admin: { Args: { _user_id?: string }; Returns: boolean }
       validate_branta_email: { Args: { _email: string }; Returns: boolean }
     }
