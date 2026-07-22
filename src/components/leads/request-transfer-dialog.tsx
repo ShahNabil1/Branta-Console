@@ -54,6 +54,7 @@ export function RequestTransferDialog({
       setToUser("");
       setNote("");
       qc.invalidateQueries({ queryKey: ["leads", "activities"] });
+      qc.invalidateQueries({ queryKey: ["transfers", "mine"] });
       onOpenChange(false);
     },
     onError: (e: unknown) =>

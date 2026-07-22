@@ -101,6 +101,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { SocialLinksSection } from "@/components/leads/social-links-section";
 import { ActivityLinkPreview } from "@/components/leads/activity-link-preview";
 import { RequestTransferDialog } from "@/components/leads/request-transfer-dialog";
+import { listMyTransferRequests } from "@/lib/lead-transfers.functions";
 import {
   Dialog,
   DialogContent,
@@ -696,6 +697,16 @@ export function LeadDetail({
   // Details section lock — read-only by default, unlocks on Edit click.
   const [editing, setEditing] = useState(initialEdit);
   const [transferOpen, setTransferOpen] = useState(false);
+  const listMineFn = useServerFn(listMyTransferRequests);
+  const myTransfersQ = useQuery({
+    queryKey: ["transfers", "mine", lead.id],
+    queryFn: () => listMineFn(),
+    enabled: !myPermsQ.data?.lead_assign,
+    staleTime: 15_000,
+  });
+  const pendingTransfer = (myTransfersQ.data ?? []).find(
+    (r) => r.lead_id === lead.id && r.status === "pending",
+  );
   const confirm = useConfirm();
 
   useEffect(() => {
@@ -1004,13 +1015,23 @@ export function LeadDetail({
                       return owner?.full_name || (form.owner_id ? "You" : "Unassigned");
                     })()}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setTransferOpen(true)}
-                    className="mt-1 text-[11.5px] font-medium text-brand hover:underline"
-                  >
-                    Request transfer →
-                  </button>
+                  {pendingTransfer ? (
+                    <div className="mt-1 text-[11.5px] text-muted-foreground">
+                      Transfer request pending
+                      {pendingTransfer.to_user_name
+                        ? ` → ${pendingTransfer.to_user_name}`
+                        : ""}
+                      {" · awaiting super admin"}
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setTransferOpen(true)}
+                      className="mt-1 text-[11.5px] font-medium text-brand hover:underline"
+                    >
+                      Request transfer →
+                    </button>
+                  )}
                 </>
               )}
             </div>
