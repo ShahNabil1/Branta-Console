@@ -114,6 +114,17 @@ export const createCustomer = createServerFn({ method: "POST" })
       .eq("id", leadId);
     if (updErr) throw new Error(updErr.message);
 
+    // Activity log — mirrors lead "created" so the Customer's Activity Logs
+    // panel shows the origin event even when created directly (not converted
+    // from an existing lead).
+    await context.supabase.from("lead_activities").insert({
+      lead_id: leadId,
+      actor_id: context.userId,
+      kind: "created",
+      body: "Customer created",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any);
+
     // Trigger inserted the customer; fetch and return it.
     const { data: cust, error: custErr } = await context.supabase
       .from("customers")
