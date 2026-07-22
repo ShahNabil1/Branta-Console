@@ -326,6 +326,27 @@ export const createInvoice = createServerFn({ method: "POST" })
     );
     if (iErr) throw new Error(iErr.message);
 
+    // Activity log on the customer's underlying lead so it surfaces in the
+    // Customer / Lead detail Activity Logs feed.
+    const { data: custRow } = await context.supabase
+      .from("customers")
+      .select("converted_from_lead_id, customer_code, name")
+      .eq("id", data.customer_id)
+      .maybeSingle();
+    const linkedLeadId = (custRow as { converted_from_lead_id: string | null } | null)
+      ?.converted_from_lead_id ?? null;
+    if (linkedLeadId) {
+      const cur = data.currency;
+      const amt = data.total_amount.toLocaleString();
+      await context.supabase.from("lead_activities").insert({
+        lead_id: linkedLeadId,
+        actor_id: context.userId,
+        kind: "note",
+        body: `Invoice ${slug} created — ${data.title} (${cur} ${amt})`,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
+    }
+
     return { id: invoiceId, slug };
   });
 
