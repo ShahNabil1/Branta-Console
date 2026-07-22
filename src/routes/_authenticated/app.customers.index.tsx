@@ -146,7 +146,19 @@ function CustomersPage() {
     );
   }, [rows, q]);
 
+  if (permsQ.isLoading) {
+    return (
+      <div className="grid h-full place-items-center text-[12px] text-muted-foreground">
+        <Loader2 className="size-4 animate-spin" />
+      </div>
+    );
+  }
+  if (permsQ.data && !permsQ.data.customer_access) {
+    return <Navigate to="/app" replace />;
+  }
+
   return (
+
     <div className="flex h-full flex-col">
       <header className="hairline-b flex items-center gap-3 px-4 py-3">
         <Building2 className="size-4 text-muted-foreground" />
