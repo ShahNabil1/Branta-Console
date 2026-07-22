@@ -20,8 +20,14 @@ import {
 } from "@/lib/lead-transfers.functions";
 import { getMyPermissions } from "@/lib/permissions.functions";
 
+import { RequireSuperAdmin } from "@/components/branta/require-super-admin";
+
 export const Route = createFileRoute("/_authenticated/app/transfers")({
-  component: TransfersPage,
+  component: () => (
+    <RequireSuperAdmin>
+      <TransfersPage />
+    </RequireSuperAdmin>
+  ),
   head: () => ({
     meta: [
       { title: "Transfer requests · Branta Tech Console" },

@@ -93,13 +93,17 @@ export function AppSidebar() {
   const nav = useMemo<NavGroup[]>(() => {
     const perms = permsQ.data;
     if (!perms) return NAV;
-    return NAV.map((g) => ({
-      ...g,
-      items: g.items.filter((it) => {
-        if (it.to === "/app/customers" && !perms.customer_access) return false;
-        return true;
-      }),
-    })).filter((g) => g.items.length > 0);
+    const isSuperAdmin = perms.isSuperAdmin;
+    return NAV.map((g) => {
+      if (g.label === "Admin" && !isSuperAdmin) return { ...g, items: [] };
+      return {
+        ...g,
+        items: g.items.filter((it) => {
+          if (it.to === "/app/customers" && !perms.customer_access) return false;
+          return true;
+        }),
+      };
+    }).filter((g) => g.items.length > 0);
   }, [permsQ.data]);
 
 

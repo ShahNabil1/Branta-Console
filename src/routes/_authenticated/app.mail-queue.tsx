@@ -27,9 +27,15 @@ import {
 } from "@/lib/lead-email.functions";
 import { cn } from "@/lib/utils";
 
+import { RequireSuperAdmin } from "@/components/branta/require-super-admin";
+
 export const Route = createFileRoute("/_authenticated/app/mail-queue")({
   ssr: false,
-  component: MailQueuePage,
+  component: () => (
+    <RequireSuperAdmin>
+      <MailQueuePage />
+    </RequireSuperAdmin>
+  ),
 });
 
 function relTime(iso: string | null) {
