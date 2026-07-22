@@ -46,6 +46,10 @@ function CompanyWalletPage() {
   const ledgerFn = useServerFn(listCompanyLedger);
   const addFn = useServerFn(addCompanyLedgerEntry);
   const delFn = useServerFn(deleteCompanyLedgerEntry);
+  const manualListFn = useServerFn(listManualEmployeePayouts);
+  const manualAddFn = useServerFn(addManualEmployeePayout);
+  const manualDelFn = useServerFn(deleteManualEmployeePayout);
+  const empsFn = useServerFn(listEmployeesForFinance);
   const confirm = useConfirm();
 
   const isAdmin = useQuery({ queryKey: ["is-finance-admin"], queryFn: () => check(), staleTime: 60_000 });
@@ -54,25 +58,38 @@ function CompanyWalletPage() {
   const w = useQuery({ queryKey: ["company-wallet"], queryFn: () => walletFn(), enabled, staleTime: 10_000 });
   const invs = useQuery({ queryKey: ["company-wallet-invoices"], queryFn: () => invsFn(), enabled, staleTime: 10_000 });
   const ledger = useQuery({ queryKey: ["company-ledger"], queryFn: () => ledgerFn(), enabled, staleTime: 10_000 });
+  const manuals = useQuery({ queryKey: ["manual-employee-payouts"], queryFn: () => manualListFn(), enabled, staleTime: 10_000 });
+  const emps = useQuery({ queryKey: ["employees-for-finance"], queryFn: () => empsFn(), enabled, staleTime: 60_000 });
 
   useEffect(() => {
     if (!enabled) return;
     const ch = supabase.channel("company-wallet")
       .on("postgres_changes", { event: "*", schema: "public", table: "invoices" }, () => { void w.refetch(); void invs.refetch(); })
       .on("postgres_changes", { event: "*", schema: "public", table: "invoice_installments" }, () => { void w.refetch(); void invs.refetch(); })
-      .on("postgres_changes", { event: "*", schema: "public", table: "invoice_payouts" }, () => void w.refetch())
+      .on("postgres_changes", { event: "*", schema: "public", table: "invoice_payouts" }, () => { void w.refetch(); void manuals.refetch(); })
       .on("postgres_changes", { event: "*", schema: "public", table: "expenses" }, () => void w.refetch())
       .on("postgres_changes", { event: "*", schema: "public", table: "company_ledger" }, () => { void w.refetch(); void ledger.refetch(); })
       .subscribe();
     return () => { void supabase.removeChannel(ch); };
-  }, [enabled, w, invs, ledger]);
+  }, [enabled, w, invs, ledger, manuals]);
 
   const [cur, setCur] = useState<Currency>("BDT");
   const [addOpen, setAddOpen] = useState(false);
+  const [payOpen, setPayOpen] = useState(false);
 
   const add = useMutation({
     mutationFn: addFn,
     onSuccess: () => { toast.success("Ledger entry added"); setAddOpen(false); void w.refetch(); void ledger.refetch(); },
+    onError: (e) => toast.error((e as Error).message),
+  });
+
+  const addManual = useMutation({
+    mutationFn: manualAddFn,
+    onSuccess: () => {
+      toast.success("Payout credited to employee wallet");
+      setPayOpen(false);
+      void w.refetch(); void manuals.refetch();
+    },
     onError: (e) => toast.error((e as Error).message),
   });
 
