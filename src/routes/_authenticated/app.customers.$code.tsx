@@ -1,11 +1,11 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { ArrowLeft, Building2, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getCustomerByCode } from "@/lib/customers.functions";
-import { getLeadBySlug, listAssignableUsers } from "@/lib/leads.functions";
+import { getLeadBySlug, listAssignableUsers, logLeadView } from "@/lib/leads.functions";
 import { LeadDetail } from "@/components/leads/lead-detail";
 
 export const Route = createFileRoute("/_authenticated/app/customers/$code")({
