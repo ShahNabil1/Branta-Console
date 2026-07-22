@@ -30,7 +30,7 @@ export const Route = createFileRoute("/_authenticated/app/finance/invoices/new")
 function NewInvoicePage() {
   const navigate = useNavigate();
   const create = useServerFn(createInvoice);
-  const listCust = useServerFn(listCustomers);
+  const listCust = useServerFn(listCustomersForPicker);
   const listEmp = useServerFn(listEmployeesForFinance);
 
   const custs = useQuery({ queryKey: ["customers"], queryFn: () => listCust(), staleTime: 30_000 });
