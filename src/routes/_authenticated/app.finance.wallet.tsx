@@ -10,6 +10,10 @@ import {
   addCompanyLedgerEntry,
   deleteCompanyLedgerEntry,
   isFinanceAdminCheck,
+  listManualEmployeePayouts,
+  addManualEmployeePayout,
+  deleteManualEmployeePayout,
+  listEmployeesForFinance,
   type Currency,
   type CompanyWalletCurrency,
 } from "@/lib/finance.functions";
@@ -19,7 +23,7 @@ import { Input } from "@/components/ui/input";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
   Building2, Wallet, Clock, Sigma, Users, TrendingUp, TrendingDown,
-  PlusCircle, Trash2, Loader2, Banknote, Lock,
+  PlusCircle, Trash2, Loader2, Banknote, Lock, HandCoins,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
