@@ -656,11 +656,23 @@ export const updateLead = createServerFn({ method: "POST" })
     );
 
 
+    // Snapshot prior values for all fields we might update, to log field-level diffs.
     const { data: prior } = await context.supabase
       .from("leads")
-      .select("status")
+      .select("*")
       .eq("id", data.id)
       .maybeSingle();
+
+    // Snapshot prior primary email (stored in lead_contacts).
+    let priorEmail: string | null = null;
+    if (typeof emailPatch === "string") {
+      const { data: pc } = await context.supabase
+        .from("lead_contacts")
+        .select("email, is_primary")
+        .eq("lead_id", data.id);
+      const rows = (pc ?? []) as { email: string; is_primary: boolean }[];
+      priorEmail = rows.find((r) => r.is_primary)?.email ?? rows[0]?.email ?? null;
+    }
 
     let row: unknown;
     if (Object.keys(patch).length > 0) {
@@ -687,18 +699,110 @@ export const updateLead = createServerFn({ method: "POST" })
       await upsertPrimaryContact(context.supabase, data.id, emailPatch.trim(), context.userId);
     }
 
-    if (patch.status && prior && prior.status !== patch.status) {
+    const FIELD_LABELS: Record<string, string> = {
+      name: "Name",
+      role: "Role",
+      company: "Company",
+      email: "Email",
+      email_label: "Email label",
+      alt_email: "Alt email",
+      alt_email_label: "Alt email label",
+      phone: "Phone",
+      phone_label: "Phone label",
+      alt_phone: "Alt phone",
+      alt_phone_label: "Alt phone label",
+      contact_preference: "Contact preference",
+      source: "Source",
+      source_other: "Source (other)",
+      service: "Service",
+      service_other: "Service (other)",
+      owner_id: "Owner",
+      value_usd: "Value",
+      currency: "Currency",
+      next_action: "Next action",
+      notes: "Notes",
+    };
+    const fmt = (v: unknown): string => {
+      if (v === null || v === undefined || v === "") return "—";
+      return String(v);
+    };
+
+    // Resolve owner_id → name for readable diffs.
+    const ownerIdsToResolve = new Set<string>();
+    if ("owner_id" in patch) {
+      const before = (prior as Record<string, unknown> | null)?.owner_id;
+      const after = patch.owner_id;
+      if (typeof before === "string") ownerIdsToResolve.add(before);
+      if (typeof after === "string") ownerIdsToResolve.add(after);
+    }
+    const ownerNames = new Map<string, string>();
+    if (ownerIdsToResolve.size > 0) {
+      const { data: profs } = await context.supabase
+        .from("profiles")
+        .select("user_id, full_name")
+        .in("user_id", Array.from(ownerIdsToResolve));
+      (profs ?? []).forEach((p: { user_id: string; full_name: string | null }) =>
+        ownerNames.set(p.user_id, p.full_name ?? p.user_id),
+      );
+    }
+    const resolveOwner = (v: unknown) =>
+      typeof v === "string" ? ownerNames.get(v) ?? v : v;
+
+    const activityRows: Array<{
+      lead_id: string;
+      actor_id: string;
+      kind: string;
+      body: string;
+      meta: Record<string, unknown>;
+    }> = [];
+
+    if (patch.status && prior && (prior as { status?: string }).status !== patch.status) {
       const note = data.statusChangeNote?.trim();
-      const body = note
-        ? `Status: ${prior.status} → ${String(patch.status)} — ${note}`
-        : `Status: ${prior.status} → ${String(patch.status)}`;
-      await context.supabase.from("lead_activities").insert({
+      const from = (prior as { status: string }).status;
+      const to = String(patch.status);
+      activityRows.push({
         lead_id: data.id,
         actor_id: context.userId,
         kind: "status_change",
-        body,
-        meta: { from: prior.status, to: String(patch.status), note: note ?? null },
+        body: note ? `Status: ${from} → ${to} — ${note}` : `Status: ${from} → ${to}`,
+        meta: { field: "status", from, to, note: note ?? null },
       });
+    }
+
+    for (const key of Object.keys(patch)) {
+      if (key === "status") continue;
+      if (!(key in FIELD_LABELS)) continue;
+      const label = FIELD_LABELS[key];
+      let before: unknown =
+        key === "email" ? priorEmail : (prior as Record<string, unknown> | null)?.[key] ?? null;
+      let after: unknown =
+        key === "email" ? emailPatch ?? null : (patch as Record<string, unknown>)[key];
+      if (key === "owner_id") {
+        before = resolveOwner(before);
+        after = resolveOwner(after);
+      }
+      const b = before === "" ? null : before;
+      const a = after === "" ? null : after;
+      if (JSON.stringify(b ?? null) === JSON.stringify(a ?? null)) continue;
+      const hadB = b !== null && b !== undefined;
+      const hasA = a !== null && a !== undefined;
+      const body =
+        hadB && hasA
+          ? `${label} updated from ${fmt(b)} to ${fmt(a)}`
+          : !hadB && hasA
+            ? `${label} set to ${fmt(a)}`
+            : `${label} cleared (was ${fmt(b)})`;
+      activityRows.push({
+        lead_id: data.id,
+        actor_id: context.userId,
+        kind: "field_change",
+        body,
+        meta: { field: key, from: b ?? null, to: a ?? null },
+      });
+    }
+
+    if (activityRows.length > 0) {
+      await context.supabase.from("lead_activities").insert(activityRows as never);
     }
     const base = { ...(row as LeadRow), email: null };
     const [withEmail] = await attachPrimaryEmails(context.supabase, [base]);

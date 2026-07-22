@@ -764,6 +764,13 @@ async function insertLeadFromRec(
   if (emailFromSheet) {
     await upsertPrimaryContact(supabase, inserted.id, emailFromSheet, userId);
   }
+  await supabase.from("lead_activities").insert({
+    lead_id: inserted.id,
+    actor_id: userId,
+    kind: "created",
+    body: "Lead pulled from Google Sheets",
+    meta: { source: "google_sheets" },
+  } as never);
   // Social links (up to 5 slots)
   const socialInserts: {
     lead_id: string;
