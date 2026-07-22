@@ -9,7 +9,8 @@ export const Route = createFileRoute("/_authenticated/app/profile")({
 
 const TABS = [
   { to: "/app/profile/personal", label: "Personal Information", icon: User },
-  { to: "/app/profile/finance", label: "Finance & Wallet", icon: Wallet },
+  { to: "/app/profile/finance", label: "Finance & Payment", icon: Wallet },
+  { to: "/app/profile/wallet", label: "My Wallet", icon: Wallet },
   { to: "/app/profile/security", label: "Security & Notification", icon: ShieldCheck },
   { to: "/app/profile/activity", label: "My Activity", icon: Activity },
 ] as const;
