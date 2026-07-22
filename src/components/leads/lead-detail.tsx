@@ -626,6 +626,13 @@ export function LeadDetail({
   const qc = useQueryClient();
   const update = useServerFn(updateLead);
   const del = useServerFn(deleteLead);
+  const getMyPermsFn = useServerFn(getMyPermissions);
+  const myPermsQ = useQuery({
+    queryKey: ["my-permissions"],
+    queryFn: () => getMyPermsFn(),
+    staleTime: 60_000,
+  });
+  const canDeleteLead = !!myPermsQ.data?.lead_delete;
   const listAct = useServerFn(listLeadActivities);
   const addAct = useServerFn(addLeadActivity);
 
