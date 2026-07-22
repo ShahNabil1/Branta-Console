@@ -206,6 +206,7 @@ function LeadsPage() {
     staleTime: 60_000,
   });
   const isSuperAdmin = !!myPermsQ.data?.isSuperAdmin;
+  const canManageLeads = !!myPermsQ.data?.lead_manage;
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [assignOpen, setAssignOpen] = useState(false);
