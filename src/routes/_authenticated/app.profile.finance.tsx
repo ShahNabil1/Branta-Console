@@ -115,13 +115,6 @@ function FinanceTab() {
     onError: (err) => toast.error((err as Error).message),
   });
 
-  const primary = methods.find((m) => m.is_primary);
-  const primaryLabel =
-    primary
-      ? primary.kind === "bank"
-        ? `${primary.bank_name ?? "Bank"} · ${primary.account_number ?? ""}`
-        : `${primary.mfs_provider ?? "MFS"} · ${primary.mfs_number ?? ""}`
-      : "No primary account";
 
   if (q.isLoading) {
     return (
