@@ -1618,12 +1618,6 @@ const PERMISSION_ROWS: {
     label: "Reassign leads",
     hint: "Move leads to another employee without super-admin help.",
   },
-
-  {
-    key: "lead_assign",
-    label: "Reassign leads",
-    hint: "Move leads to another employee without super-admin help.",
-  },
   {
     key: "lead_delete",
     label: "Delete leads",
