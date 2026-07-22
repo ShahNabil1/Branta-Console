@@ -133,7 +133,7 @@ export function AppSidebar() {
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto p-2">
-        {NAV.map((group) => (
+        {nav.map((group) => (
           <div key={group.label} className="mb-4">
             {!collapsed && (
               <div className="px-2 pb-1.5 pt-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
