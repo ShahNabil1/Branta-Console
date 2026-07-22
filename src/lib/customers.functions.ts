@@ -53,32 +53,92 @@ const CreateInput = z.object({
 export const listCustomers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<CustomerRow[]> => {
-    const { data, error } = await context.supabase
+    // Gate: must have customer_access permission.
+    const { data: canAccess } = await context.supabase.rpc("has_permission", {
+      _user_id: context.userId,
+      _perm: "customer_access",
+    });
+    if (!canAccess) throw new Error("Forbidden: customer_access required");
+
+    const { data: viewAll } = await context.supabase.rpc("has_permission", {
+      _user_id: context.userId,
+      _perm: "customer_view_all",
+    });
+
+    let q = context.supabase
       .from("customers")
       .select("*")
       .order("created_at", { ascending: false })
       .limit(1000);
+    if (!viewAll) {
+      q = q.or(`owner_id.eq.${context.userId},created_by.eq.${context.userId}`);
+    }
+    const { data, error } = await q;
     if (error) throw new Error(error.message);
     const rows = (data ?? []) as unknown as CustomerRow[];
-    const ownerIds = Array.from(
-      new Set(rows.map((r) => r.owner_id).filter(Boolean) as string[]),
+
+    // Enrich: owner (converter), creator, lead slug for converted rows.
+    const userIds = Array.from(
+      new Set(
+        rows
+          .flatMap((r) => [r.owner_id, r.created_by])
+          .filter(Boolean) as string[],
+      ),
     );
-    if (ownerIds.length) {
+    const nameByUser = new Map<string, string | null>();
+    if (userIds.length) {
       const { data: profs } = await context.supabase
         .from("profiles")
         .select("user_id, full_name")
-        .in("user_id", ownerIds);
-      const nameByUser = new Map<string, string | null>();
+        .in("user_id", userIds);
       (profs ?? []).forEach((p: { user_id: string; full_name: string | null }) =>
         nameByUser.set(p.user_id, p.full_name),
       );
-      return rows.map((r) => ({
-        ...r,
-        owner_name: r.owner_id ? nameByUser.get(r.owner_id) ?? null : null,
-      }));
     }
-    return rows;
+    const leadIds = Array.from(
+      new Set(rows.map((r) => r.converted_from_lead_id).filter(Boolean) as string[]),
+    );
+    const slugByLead = new Map<string, string | null>();
+    if (leadIds.length) {
+      const { data: leads } = await context.supabase
+        .from("leads")
+        .select("id, slug")
+        .in("id", leadIds);
+      (leads ?? []).forEach((l: { id: string; slug: string | null }) =>
+        slugByLead.set(l.id, l.slug),
+      );
+    }
+    return rows.map((r) => ({
+      ...r,
+      owner_name: r.owner_id ? nameByUser.get(r.owner_id) ?? null : null,
+      creator_name: r.created_by ? nameByUser.get(r.created_by) ?? null : null,
+      converter_name: r.owner_id ? nameByUser.get(r.owner_id) ?? null : null,
+      converted_from_lead_slug: r.converted_from_lead_id
+        ? slugByLead.get(r.converted_from_lead_id) ?? null
+        : null,
+    }));
   });
+
+/**
+ * Minimal customer list for pickers (e.g. invoice creation).
+ * Any authenticated user can call this — it deliberately bypasses
+ * customer_access so users with invoice access but no customer page
+ * access can still select/search customers when creating invoices.
+ * Returns only safe display fields.
+ */
+export const listCustomersForPicker = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async (): Promise<CustomerPickerItem[]> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await supabaseAdmin
+      .from("customers")
+      .select("id, customer_code, name, company, email, phone, currency")
+      .order("created_at", { ascending: false })
+      .limit(1000);
+    if (error) throw new Error(error.message);
+    return (data ?? []) as unknown as CustomerPickerItem[];
+  });
+
 
 export const createCustomer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
