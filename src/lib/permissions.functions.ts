@@ -118,8 +118,9 @@ export const setUserPermission = createServerFn({ method: "POST" })
     // Then update only the single toggled column.
     const { error } = await supabaseAdmin
       .from("user_permissions")
-      .update({ [data.key]: data.value })
+      .update({ [data.key]: data.value } as never)
       .eq("user_id", data.userId);
+
 
     if (error) throw new Error(error.message);
     return { ok: true as const };
