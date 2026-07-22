@@ -639,21 +639,31 @@ async function revertRequestedPayoutsToAvailable(
 ) {
   const { data: prev } = await supabase
     .from("invoice_payouts")
-    .select("id, invoice_id")
+    .select("id, invoice_id, source")
     .eq("withdrawal_request_id", requestId);
   if (!prev || prev.length === 0) return;
-  // Re-derive availability from invoice status: a fully paid invoice keeps
-  // payouts 'available', otherwise they fall back to 'locked'.
-  const invIds = Array.from(new Set((prev as { invoice_id: string }[]).map((p) => p.invoice_id)));
-  const { data: invs } = await supabase
-    .from("invoices").select("id, status").in("id", invIds);
+  // A fully paid invoice keeps its payouts 'available'; otherwise they
+  // fall back to 'locked'. Manual payouts (no invoice) are always 'available'.
+  const invIds = Array.from(
+    new Set(
+      (prev as { invoice_id: string | null }[])
+        .map((p) => p.invoice_id)
+        .filter((x): x is string => !!x),
+    ),
+  );
+  const { data: invs } = invIds.length
+    ? await supabase.from("invoices").select("id, status").in("id", invIds)
+    : { data: [] as { id: string; status: string }[] };
   const paidInv = new Set<string>(
     ((invs ?? []) as { id: string; status: string }[])
       .filter((i) => i.status === "paid").map((i) => i.id),
   );
   const nowIso = new Date().toISOString();
-  for (const p of prev as { id: string; invoice_id: string }[]) {
-    const restore = paidInv.has(p.invoice_id) ? "available" : "locked";
+  for (const p of prev as { id: string; invoice_id: string | null; source: string }[]) {
+    const restore =
+      p.source === "manual" || (p.invoice_id && paidInv.has(p.invoice_id))
+        ? "available"
+        : "locked";
     await supabase
       .from("invoice_payouts")
       .update({
