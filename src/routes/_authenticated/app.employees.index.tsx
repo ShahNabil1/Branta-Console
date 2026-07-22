@@ -38,9 +38,15 @@ import {
 } from "@/lib/employees.functions";
 import { cn } from "@/lib/utils";
 
+import { RequireSuperAdmin } from "@/components/branta/require-super-admin";
+
 export const Route = createFileRoute("/_authenticated/app/employees/")({
   head: () => ({ meta: [{ title: "Employees · Branta Tech" }] }),
-  component: EmployeesPage,
+  component: () => (
+    <RequireSuperAdmin>
+      <EmployeesPage />
+    </RequireSuperAdmin>
+  ),
 });
 
 type Role = "super_admin" | "admin" | "manager" | "user";
