@@ -19,7 +19,7 @@ import { Wallet, Send, Lock, Unlock, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/app/profile/wallet")({
-  head: () => ({ meta: [{ title: "My Wallet · Finance · Branta" }] }),
+  head: () => ({ meta: [{ title: "My Wallet · Profile · Branta" }] }),
   component: WalletPage,
 });
 
