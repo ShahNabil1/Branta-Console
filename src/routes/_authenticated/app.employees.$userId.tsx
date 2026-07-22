@@ -254,7 +254,7 @@ function EmployeeDetailPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
 
-  const [tab, setTab] = useState<"profile" | "wallet">("profile");
+  const [tab, setTab] = useState<"profile" | "wallet" | "permissions">("profile");
   const [avatarOpen, setAvatarOpen] = useState(false);
 
   if (admin.isLoading || detail.isLoading) {
