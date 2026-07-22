@@ -386,7 +386,7 @@ export const deleteInvoice = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { id: string }) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    await ensureFinanceAdmin(context.supabase as never, context.invoiceId ?? context.userId);
+    await ensureFinanceAdmin(context.supabase as never, context.userId);
     // Snapshot invoice details BEFORE deletion so we can log a meaningful
     // "cancelled" event on the underlying lead.
     const { data: inv } = await context.supabase
@@ -442,7 +442,7 @@ export const markInstallmentPaid = createServerFn({ method: "POST" })
         .select("slug, currency, status, total_amount, paid_amount")
         .eq("id", inst.invoice_id)
         .maybeSingle();
-      priorInv = pi as typeof priorInv;
+      priorInv = (pi as unknown) as typeof priorInv;
     }
 
     const { error } = await context.supabase
@@ -527,7 +527,7 @@ export const revertInstallment = createServerFn({ method: "POST" })
         .select("slug, currency, status")
         .eq("id", inst.invoice_id)
         .maybeSingle();
-      priorInv = pi as typeof priorInv;
+      priorInv = (pi as unknown) as typeof priorInv;
     }
 
     const { error } = await context.supabase
