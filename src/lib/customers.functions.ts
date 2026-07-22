@@ -114,17 +114,6 @@ export const createCustomer = createServerFn({ method: "POST" })
       .eq("id", leadId);
     if (updErr) throw new Error(updErr.message);
 
-    // Activity log — mirrors lead "created" so the Customer's Activity Logs
-    // panel shows the origin event even when created directly (not converted
-    // from an existing lead).
-    await context.supabase.from("lead_activities").insert({
-      lead_id: leadId,
-      actor_id: context.userId,
-      kind: "created",
-      body: "Customer created",
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any);
-
     // Trigger inserted the customer; fetch and return it.
     const { data: cust, error: custErr } = await context.supabase
       .from("customers")
@@ -133,7 +122,20 @@ export const createCustomer = createServerFn({ method: "POST" })
       .maybeSingle();
     if (custErr) throw new Error(custErr.message);
     if (!cust) throw new Error("Customer row was not created");
-    return cust as unknown as CustomerRow;
+
+    // Activity log — include the customer code so the Activity Logs feed can
+    // link directly to the customer detail page.
+    const custRow = cust as unknown as CustomerRow;
+    await context.supabase.from("lead_activities").insert({
+      lead_id: leadId,
+      actor_id: context.userId,
+      kind: "created",
+      body: `Customer created — ${custRow.customer_code}`,
+      meta: { event: "customer_created", customer_id: custRow.id, customer_code: custRow.customer_code },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any);
+
+    return custRow;
   });
 
 export const getCustomerByCode = createServerFn({ method: "GET" })
