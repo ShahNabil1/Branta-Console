@@ -24,6 +24,8 @@ function CustomerDetailPage() {
   const getCustomer = useServerFn(getCustomerByCode);
   const getLead = useServerFn(getLeadBySlug);
   const listUsers = useServerFn(listAssignableUsers);
+  const logView = useServerFn(logLeadView);
+  const qc = useQueryClient();
 
   const customerQ = useQuery({
     queryKey: ["customers", "by-code", code],
