@@ -21,7 +21,21 @@ export interface CustomerRow {
   created_at: string;
   updated_at: string;
   owner_name?: string | null;
+  creator_name?: string | null;
+  converter_name?: string | null;
+  converted_from_lead_slug?: string | null;
 }
+
+export interface CustomerPickerItem {
+  id: string;
+  customer_code: string;
+  name: string;
+  company: string | null;
+  email: string | null;
+  phone: string | null;
+  currency: "BDT" | "USD";
+}
+
 
 const CreateInput = z.object({
   name: z.string().trim().min(1).max(160),
