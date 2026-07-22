@@ -728,6 +728,7 @@ export const requestWithdrawal = createServerFn({ method: "POST" })
       .eq("user_id", context.userId)
       .eq("currency", data.currency)
       .eq("status", "available")
+      .neq("role", "company")
       .order("unlocked_at", { ascending: true });
     const nowIso = new Date().toISOString();
     let remaining = Number(data.amount);
