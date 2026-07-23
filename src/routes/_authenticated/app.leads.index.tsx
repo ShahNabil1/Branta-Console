@@ -21,6 +21,10 @@ import {
   UserCog,
   X,
   FileText,
+  PencilLine,
+  CheckCircle2,
+  AlertCircle,
+  CloudUpload,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
