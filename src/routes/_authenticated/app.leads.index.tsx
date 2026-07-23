@@ -62,6 +62,7 @@ import {
   pushLeadsToSheet,
   pullLeadsFromSheet,
   overwritePullDuplicates,
+  retryLeadSheetSync,
   type SheetDuplicate,
 } from "@/lib/leads-sheets.functions";
 import {
