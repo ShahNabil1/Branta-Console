@@ -43,6 +43,10 @@ export interface LeadRow {
   updated_at: string;
   owner_name?: string | null;
   owner_avatar_url?: string | null;
+  sheet_source?: "manual" | "google_sheets" | null;
+  sheet_sync_status?: "pending" | "syncing" | "synced" | "failed" | null;
+  sheet_synced_at?: string | null;
+  sheet_sync_error?: string | null;
 }
 
 
