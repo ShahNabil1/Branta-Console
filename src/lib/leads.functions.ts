@@ -38,11 +38,13 @@ export interface LeadRow {
   notes: string | null;
   last_activity_at: string;
   created_by: string | null;
+  is_draft: boolean;
   created_at: string;
   updated_at: string;
   owner_name?: string | null;
   owner_avatar_url?: string | null;
 }
+
 
 export interface LeadContactRow {
   id: string;
