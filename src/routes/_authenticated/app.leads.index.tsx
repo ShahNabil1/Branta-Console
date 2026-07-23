@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
@@ -20,7 +20,9 @@ import {
   Trash2,
   UserCog,
   X,
+  FileText,
 } from "lucide-react";
+
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
