@@ -881,6 +881,67 @@ export function LeadDetail({
       toast.error(e instanceof Error ? e.message : "Update failed"),
   });
 
+  // ---- Draft autosave -----------------------------------------------------
+  const isDraft = !!lead.is_draft;
+  const [autosaveState, setAutosaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  useEffect(() => {
+    if (!isDraft || !editing) return;
+    if (hasDupBlocking) return;
+    // Skip if nothing meaningful yet — avoid empty saves right after opening.
+    const t = setTimeout(async () => {
+      setAutosaveState("saving");
+      try {
+        await update({
+          data: {
+            id: lead.id,
+            patch: {
+              name: form.name.trim(),
+              role: form.role.trim() || null,
+              company: form.company.trim() || null,
+              email: form.email.trim() || null,
+              email_label: form.email_label.trim() || null,
+              alt_email: form.alt_email.trim() || null,
+              alt_email_label: form.alt_email_label.trim() || null,
+              phone: form.phone.trim() || null,
+              phone_label: form.phone_label.trim() || null,
+              alt_phone: form.alt_phone.trim() || null,
+              alt_phone_label: form.alt_phone_label.trim() || null,
+              contact_preference: form.contact_preference.trim() || null,
+              status: form.status,
+              source: form.source.trim() || null,
+              source_other: sourceNeedsDetail ? form.source_other.trim() || null : null,
+              service: form.service.trim() || null,
+              service_other: serviceNeedsDetail ? form.service_other.trim() || null : null,
+              owner_id: form.owner_id || null,
+              next_action: form.next_action.trim() || null,
+              notes: form.notes.trim() || null,
+            },
+          },
+        });
+        setAutosaveState("saved");
+        setLastSavedAt(new Date());
+      } catch {
+        setAutosaveState("error");
+      }
+    }, 800);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDraft, editing, hasDupBlocking, JSON.stringify(form), lead.id]);
+
+  const finalize = useServerFn(finalizeLead);
+  const finalizeM = useMutation({
+    mutationFn: () => finalize({ data: { id: lead.id } }),
+    onSuccess: () => {
+      toast.success("Lead created");
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["leads", "activities", lead.id] });
+    },
+    onError: (e: unknown) =>
+      toast.error(e instanceof Error ? e.message : "Failed to create lead"),
+  });
+
+
   // Dedicated quick-update for the header Status control.
   // Persists only status (+ optional note → Activity Logs), independent of form edits.
   const statusUpdateM = useMutation({
