@@ -110,7 +110,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Eye } from "lucide-react";
+import { Eye, Plus } from "lucide-react";
 import {
   listLeadServiceOptions,
   listLeadSourceOptions,
