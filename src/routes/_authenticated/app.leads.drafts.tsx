@@ -227,10 +227,11 @@ function DraftsPage() {
                             title: `Delete draft ${r.slug}?`,
                             description:
                               "The slug will be released and can be reused by the next new lead. This cannot be undone.",
-                            confirmText: "Delete draft",
-                            destructive: true,
+                            confirmLabel: "Delete draft",
+                            tone: "danger",
                           });
                           if (ok) delM.mutate(r.id);
+
                         }}
                       >
                         <Trash2 className="mr-1 size-3.5" />
