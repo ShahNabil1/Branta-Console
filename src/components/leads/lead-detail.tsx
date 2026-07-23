@@ -59,7 +59,9 @@ import {
   listLeadActivities,
   listLeadContacts,
   setPrimaryLeadContact,
+  finalizeLead,
   updateLead,
+
   updateLeadContact,
   type DupConflict,
   type LeadContactRow,
