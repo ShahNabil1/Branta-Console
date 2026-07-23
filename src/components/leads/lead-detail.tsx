@@ -1492,7 +1492,7 @@ export function LeadDetail({
               ) : (
                 <span />
               )}
-              {editing && (
+              {editing && !isDraft && (
                 <Button
                   size="sm"
                   className="h-8 rounded-sm bg-primary text-[12px] text-primary-foreground hover:bg-brand-700"
@@ -1513,6 +1513,59 @@ export function LeadDetail({
                   Save changes
                 </Button>
               )}
+              {isDraft && (
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-muted-foreground">
+                    {autosaveState === "saving"
+                      ? "Saving draft…"
+                      : autosaveState === "error"
+                        ? "Autosave failed"
+                        : lastSavedAt
+                          ? `Draft saved · ${lastSavedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                          : "Draft"}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 rounded-sm text-[12px]"
+                    onClick={() => {
+                      toast.success("Draft saved");
+                      onDeleted?.();
+                    }}
+                  >
+                    Save draft
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="h-8 rounded-sm bg-primary text-[12px] text-primary-foreground hover:bg-brand-700"
+                    disabled={
+                      finalizeM.isPending ||
+                      autosaveState === "saving" ||
+                      !form.name.trim() ||
+                      !form.email.trim() ||
+                      (sourceNeedsDetail && !form.source_other.trim()) ||
+                      (serviceNeedsDetail && !form.service_other.trim()) ||
+                      hasDupBlocking
+                    }
+                    title={
+                      !form.name.trim()
+                        ? "Name is required"
+                        : !form.email.trim()
+                          ? "Email is required"
+                          : undefined
+                    }
+                    onClick={() => finalizeM.mutate()}
+                  >
+                    {finalizeM.isPending ? (
+                      <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                    ) : (
+                      <Plus className="mr-1.5 size-3.5" />
+                    )}
+                    Create lead
+                  </Button>
+                </div>
+              )}
+
             </div>
           </section>
 
