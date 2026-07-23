@@ -597,6 +597,12 @@ export const createLead = createServerFn({ method: "POST" })
       kind: "created",
       body: `Lead created`,
     });
+    try {
+      const { autoSyncLead } = await import("@/lib/leads-sheets.server");
+      await autoSyncLead(context.supabase, row.id);
+    } catch (e) {
+      console.warn("[createLead] auto-sync failed", e);
+    }
     return { ...(row as unknown as LeadRow), email };
   });
 
