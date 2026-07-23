@@ -43,6 +43,10 @@ export interface LeadRow {
   updated_at: string;
   owner_name?: string | null;
   owner_avatar_url?: string | null;
+  sheet_source?: "manual" | "google_sheets" | null;
+  sheet_sync_status?: "pending" | "syncing" | "synced" | "failed" | null;
+  sheet_synced_at?: string | null;
+  sheet_sync_error?: string | null;
 }
 
 
@@ -593,6 +597,12 @@ export const createLead = createServerFn({ method: "POST" })
       kind: "created",
       body: `Lead created`,
     });
+    try {
+      const { autoSyncLead } = await import("@/lib/leads-sheets.server");
+      await autoSyncLead(context.supabase, row.id);
+    } catch (e) {
+      console.warn("[createLead] auto-sync failed", e);
+    }
     return { ...(row as unknown as LeadRow), email };
   });
 
@@ -674,7 +684,17 @@ export const finalizeLead = createServerFn({ method: "POST" })
       body: "Lead created",
     });
 
-    const base = { ...(updated as unknown as LeadRow), email: primaryEmail };
+    // Auto-push to Google Sheet — never blocks lead creation.
+    try {
+      const { autoSyncLead } = await import("@/lib/leads-sheets.server");
+      await autoSyncLead(context.supabase, data.id);
+    } catch (e) {
+      console.warn("[finalizeLead] auto-sync failed", e);
+    }
+
+    const { data: fresh } = await context.supabase
+      .from("leads").select("*").eq("id", data.id).maybeSingle();
+    const base = { ...((fresh ?? updated) as unknown as LeadRow), email: primaryEmail };
     const [withOwner] = await attachOwnerNames(context.supabase, [base]);
     return withOwner;
   });

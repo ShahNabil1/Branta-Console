@@ -1207,6 +1207,10 @@ export type Database = {
           service: string | null
           service_other: string | null
           sheet_row_id: string | null
+          sheet_source: string
+          sheet_sync_error: string | null
+          sheet_sync_status: string
+          sheet_synced_at: string | null
           slug: string
           source: string | null
           source_other: string | null
@@ -1240,6 +1244,10 @@ export type Database = {
           service?: string | null
           service_other?: string | null
           sheet_row_id?: string | null
+          sheet_source?: string
+          sheet_sync_error?: string | null
+          sheet_sync_status?: string
+          sheet_synced_at?: string | null
           slug: string
           source?: string | null
           source_other?: string | null
@@ -1273,6 +1281,10 @@ export type Database = {
           service?: string | null
           service_other?: string | null
           sheet_row_id?: string | null
+          sheet_source?: string
+          sheet_sync_error?: string | null
+          sheet_sync_status?: string
+          sheet_synced_at?: string | null
           slug?: string
           source?: string | null
           source_other?: string | null

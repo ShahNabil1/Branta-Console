@@ -754,7 +754,15 @@ async function insertLeadFromRec(
   const { data: inserted, error } = await supabase
     .from("leads")
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .insert({ ...leadPatch, created_by: userId, is_draft: false } as any)
+    .insert({
+      ...leadPatch,
+      created_by: userId,
+      is_draft: false,
+      sheet_source: "google_sheets",
+      sheet_sync_status: "synced",
+      sheet_synced_at: new Date().toISOString(),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any)
     .select("id, slug, lead_code")
     .single();
   if (error || !inserted?.id) {
@@ -1013,3 +1021,41 @@ export const findLeadDuplicate = createServerFn({ method: "POST" })
       };
     },
   );
+
+// ---------- Single-lead auto sync + retry ----------
+
+/**
+ * Retry pushing a single lead's row to the Google Sheet. Available to users
+ * with lead_manage permission (or super_admin). Updates leads.sheet_sync_*.
+ */
+export const retryLeadSheetSync = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ leadId: z.string().uuid() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: canManage } = await context.supabase.rpc("has_permission", {
+      _user_id: context.userId,
+      _perm: "lead_manage",
+    });
+    if (!canManage) {
+      const { data: isSA } = await context.supabase.rpc("has_role", {
+        _user_id: context.userId,
+        _role: "super_admin",
+      });
+      if (!isSA) throw new Error("Forbidden: lead_manage required");
+    }
+    const { autoSyncLead } = await import("@/lib/leads-sheets.server");
+    await autoSyncLead(context.supabase, data.leadId);
+    const { data: row } = await context.supabase
+      .from("leads")
+      .select("sheet_sync_status, sheet_synced_at, sheet_sync_error")
+      .eq("id", data.leadId)
+      .maybeSingle();
+    return (row ?? { sheet_sync_status: "failed" }) as {
+      sheet_sync_status: string;
+      sheet_synced_at: string | null;
+      sheet_sync_error: string | null;
+    };
+  });
+
