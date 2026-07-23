@@ -46,7 +46,7 @@ function DraftsPage() {
     queryFn: () => permsFn(),
     staleTime: 60_000,
   });
-  const canManage = !!permsQ.data?.canManageLeads;
+  const canManage = !!permsQ.data?.lead_manage;
   const isSuperAdmin = !!permsQ.data?.isSuperAdmin;
 
   const [ownerFilter, setOwnerFilter] = useState<string>("all");
