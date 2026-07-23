@@ -678,7 +678,17 @@ export const finalizeLead = createServerFn({ method: "POST" })
       body: "Lead created",
     });
 
-    const base = { ...(updated as unknown as LeadRow), email: primaryEmail };
+    // Auto-push to Google Sheet — never blocks lead creation.
+    try {
+      const { autoSyncLead } = await import("@/lib/leads-sheets.server");
+      await autoSyncLead(context.supabase, data.id);
+    } catch (e) {
+      console.warn("[finalizeLead] auto-sync failed", e);
+    }
+
+    const { data: fresh } = await context.supabase
+      .from("leads").select("*").eq("id", data.id).maybeSingle();
+    const base = { ...((fresh ?? updated) as unknown as LeadRow), email: primaryEmail };
     const [withOwner] = await attachOwnerNames(context.supabase, [base]);
     return withOwner;
   });
