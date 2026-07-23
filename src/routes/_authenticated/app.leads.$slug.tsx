@@ -114,10 +114,12 @@ function LeadDetailPage() {
     );
   }
 
-  // For a freshly created draft lead, render all fields as empty placeholders
-  // by masking the sentinel "Untitled lead" name to "".
+  // For a freshly created draft lead, render name field as empty placeholder
+  // by masking the sentinel "Untitled lead" name to "". Drafts always open
+  // in edit mode with autosave.
+  const isDraftLead = !!leadQ.data.is_draft;
   const effectiveLead =
-    isNew && leadQ.data.name === DRAFT_LEAD_NAME
+    (isNew || isDraftLead) && leadQ.data.name === DRAFT_LEAD_NAME
       ? { ...leadQ.data, name: "" }
       : leadQ.data;
 
@@ -125,8 +127,9 @@ function LeadDetailPage() {
     <LeadDetail
       lead={effectiveLead}
       users={usersQ.data ?? []}
-      initialEdit={isNew}
+      initialEdit={isNew || isDraftLead}
       onDeleted={() => navigate({ to: "/app/leads" })}
     />
   );
 }
+
