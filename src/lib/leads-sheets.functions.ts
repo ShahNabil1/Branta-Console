@@ -754,7 +754,7 @@ async function insertLeadFromRec(
   const { data: inserted, error } = await supabase
     .from("leads")
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .insert({ ...leadPatch, created_by: userId } as any)
+    .insert({ ...leadPatch, created_by: userId, is_draft: false } as any)
     .select("id, slug, lead_code")
     .single();
   if (error || !inserted?.id) {
