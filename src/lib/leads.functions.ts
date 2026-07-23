@@ -606,6 +606,7 @@ export const createDraftLead = createServerFn({ method: "POST" })
         currency: "BDT",
         owner_id: context.userId,
         created_by: context.userId,
+        is_draft: true,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any)
       .select("*")
@@ -615,10 +616,107 @@ export const createDraftLead = createServerFn({ method: "POST" })
       lead_id: row.id,
       actor_id: context.userId,
       kind: "created",
-      body: "Lead created (draft)",
+      body: "Draft started",
     });
     return { ...(row as unknown as LeadRow), email: null };
   });
+
+/**
+ * Finalize a draft lead → require Name + primary Email, then set is_draft=false.
+ * Called by the "Create lead" button on a draft.
+ */
+export const finalizeLead = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { id: string }) => z.object({ id: z.string().uuid() }).parse(data))
+  .handler(async ({ data, context }): Promise<LeadRow> => {
+    const { data: cur, error: getErr } = await context.supabase
+      .from("leads")
+      .select("*")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (getErr) throw new Error(getErr.message);
+    if (!cur) throw new Error("Lead not found");
+    const curRow = cur as unknown as LeadRow;
+
+    const trimmedName = (curRow.name ?? "").trim();
+    if (!trimmedName || trimmedName === DRAFT_LEAD_NAME) {
+      throw new Error("Name is required to create the lead.");
+    }
+
+    const { data: pc } = await context.supabase
+      .from("lead_contacts")
+      .select("email, is_primary")
+      .eq("lead_id", data.id);
+    const contacts = (pc ?? []) as { email: string; is_primary: boolean }[];
+    const primaryEmail =
+      contacts.find((c) => c.is_primary)?.email ?? contacts[0]?.email ?? null;
+    if (!primaryEmail) {
+      throw new Error("Email is required to create the lead.");
+    }
+
+    const { data: updated, error } = await context.supabase
+      .from("leads")
+      .update({ is_draft: false } as never)
+      .eq("id", data.id)
+      .select("*")
+      .single();
+    if (error) throw new Error(error.message);
+
+    await context.supabase.from("lead_activities").insert({
+      lead_id: data.id,
+      actor_id: context.userId,
+      kind: "created",
+      body: "Lead created",
+    });
+
+    const base = { ...(updated as unknown as LeadRow), email: primaryEmail };
+    const [withOwner] = await attachOwnerNames(context.supabase, [base]);
+    return withOwner;
+  });
+
+/**
+ * List draft leads. Non-admins see only their own drafts; super admins see all
+ * (or filter by a specific creator via ownerFilter='<uuid>').
+ */
+export const listDraftLeads = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        ownerFilter: z
+          .union([z.literal("me"), z.literal("all"), z.string().uuid()])
+          .optional(),
+      })
+      .parse(data ?? {}),
+  )
+  .handler(async ({ data, context }): Promise<LeadRow[]> => {
+    const { data: isSA } = await context.supabase.rpc("has_role", {
+      _user_id: context.userId,
+      _role: "super_admin",
+    });
+    const isSuperAdmin = !!isSA;
+
+    let q = context.supabase
+      .from("leads")
+      .select("*")
+      .eq("is_draft", true)
+      .order("updated_at", { ascending: false })
+      .limit(500);
+
+    if (!isSuperAdmin) {
+      q = q.eq("created_by", context.userId);
+    } else if (data.ownerFilter && data.ownerFilter !== "all") {
+      const uid = data.ownerFilter === "me" ? context.userId : data.ownerFilter;
+      q = q.eq("created_by", uid);
+    }
+
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+    const base = ((rows ?? []) as unknown as LeadRow[]).map((r) => ({ ...r, email: null }));
+    const withEmails = await attachPrimaryEmails(context.supabase, base);
+    return attachOwnerNames(context.supabase, withEmails);
+  });
+
 
 
 export const updateLead = createServerFn({ method: "POST" })
