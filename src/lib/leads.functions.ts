@@ -116,7 +116,10 @@ const CreateInput = z.object({
 
 const UpdateInput = z.object({
   id: z.string().uuid(),
-  patch: CreateInput.partial(),
+  // Allow empty name in patches — drafts autosave partial data before finalize.
+  patch: CreateInput.partial().extend({
+    name: z.string().trim().max(160).optional().nullable(),
+  }),
   statusChangeNote: z.string().trim().max(1000).optional(),
 });
 
