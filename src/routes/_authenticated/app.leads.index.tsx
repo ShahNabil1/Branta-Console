@@ -342,6 +342,19 @@ function LeadsPage() {
           </Button>
           {canManageLeads && (
             <Button
+              asChild
+              size="sm"
+              variant="outline"
+              className="h-9 rounded-sm text-[12.5px]"
+            >
+              <Link to="/app/leads/drafts">
+                <FileText className="mr-1.5 size-3.5" />
+                Drafts
+              </Link>
+            </Button>
+          )}
+          {canManageLeads && (
+            <Button
               size="sm"
               className="h-9 rounded-sm bg-primary text-[12.5px] text-primary-foreground hover:bg-brand-700"
               disabled={createDraftM.isPending}
@@ -355,6 +368,7 @@ function LeadsPage() {
               New lead
             </Button>
           )}
+
         </div>
       </div>
 
