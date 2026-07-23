@@ -754,7 +754,15 @@ async function insertLeadFromRec(
   const { data: inserted, error } = await supabase
     .from("leads")
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .insert({ ...leadPatch, created_by: userId, is_draft: false } as any)
+    .insert({
+      ...leadPatch,
+      created_by: userId,
+      is_draft: false,
+      sheet_source: "google_sheets",
+      sheet_sync_status: "synced",
+      sheet_synced_at: new Date().toISOString(),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any)
     .select("id, slug, lead_code")
     .single();
   if (error || !inserted?.id) {
