@@ -842,6 +842,85 @@ function LeadsPage() {
   );
 }
 
+function SourceBadge({ source }: { source?: string | null }) {
+  const isSheet = source === "google_sheets";
+  const Icon = isSheet ? SheetIcon : PencilLine;
+  const label = isSheet ? "Pulled from Google Sheet" : "Created manually";
+  return (
+    <span
+      title={label}
+      aria-label={label}
+      className={cn(
+        "grid size-4 shrink-0 place-items-center rounded-sm",
+        isSheet
+          ? "bg-emerald-50 text-emerald-600"
+          : "bg-muted text-muted-foreground",
+      )}
+    >
+      <Icon className="size-2.5" />
+    </span>
+  );
+}
+
+function SyncIndicator({
+  leadId,
+  status,
+  syncedAt,
+  error,
+  canRetry,
+}: {
+  leadId: string;
+  status?: string | null;
+  syncedAt?: string | null;
+  error?: string | null;
+  canRetry: boolean;
+}) {
+  const retryFn = useServerFn(retryLeadSheetSync);
+  const qc = useQueryClient();
+  const m = useMutation({
+    mutationFn: () => retryFn({ data: { leadId } }),
+    onSuccess: (r) => {
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      if (r.sheet_sync_status === "synced") toast.success("Synced to Google Sheet");
+      else toast.error(r.sheet_sync_error ?? "Sync failed");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Retry failed"),
+  });
+  const s = status ?? "pending";
+  const tone =
+    s === "synced"
+      ? { cls: "text-emerald-600", Icon: CheckCircle2, label: `Synced${syncedAt ? " · " + relTime(syncedAt) : ""}` }
+      : s === "failed"
+        ? { cls: "text-red-600", Icon: AlertCircle, label: error ? `Sync failed — ${error}` : "Sync failed" }
+        : s === "syncing"
+          ? { cls: "text-amber-600 animate-pulse", Icon: Loader2, label: "Syncing…" }
+          : { cls: "text-amber-600", Icon: CloudUpload, label: "Waiting to sync" };
+  if (s === "failed" && canRetry) {
+    return (
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); m.mutate(); }}
+        disabled={m.isPending}
+        title={tone.label + " · Click to retry"}
+        aria-label="Retry sync"
+        className="grid size-4 shrink-0 place-items-center rounded-sm text-red-600 hover:bg-red-50"
+      >
+        {m.isPending ? <Loader2 className="size-2.5 animate-spin" /> : <AlertCircle className="size-2.5" />}
+      </button>
+    );
+  }
+  return (
+    <span
+      title={tone.label}
+      aria-label={tone.label}
+      className={cn("grid size-4 shrink-0 place-items-center", tone.cls)}
+    >
+      <tone.Icon className={cn("size-2.5", s === "syncing" && "animate-spin")} />
+    </span>
+  );
+}
+
+
 function EmptyState({
   onCreate,
   busy,
