@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
@@ -20,7 +20,9 @@ import {
   Trash2,
   UserCog,
   X,
+  FileText,
 } from "lucide-react";
+
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -342,6 +344,19 @@ function LeadsPage() {
           </Button>
           {canManageLeads && (
             <Button
+              asChild
+              size="sm"
+              variant="outline"
+              className="h-9 rounded-sm text-[12.5px]"
+            >
+              <Link to="/app/leads/drafts">
+                <FileText className="mr-1.5 size-3.5" />
+                Drafts
+              </Link>
+            </Button>
+          )}
+          {canManageLeads && (
+            <Button
               size="sm"
               className="h-9 rounded-sm bg-primary text-[12.5px] text-primary-foreground hover:bg-brand-700"
               disabled={createDraftM.isPending}
@@ -355,6 +370,7 @@ function LeadsPage() {
               New lead
             </Button>
           )}
+
         </div>
       </div>
 

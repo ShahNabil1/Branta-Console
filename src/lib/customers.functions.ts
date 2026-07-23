@@ -163,8 +163,10 @@ export const createCustomer = createServerFn({ method: "POST" })
         notes: data.notes ?? null,
         owner_id: data.owner_id ?? context.userId,
         created_by: context.userId,
+        is_draft: false,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any)
+
       .select("id")
       .single();
     if (leadErr || !leadRow) throw new Error(leadErr?.message ?? "Failed to create lead");

@@ -1194,6 +1194,7 @@ export type Database = {
           currency: string
           email_label: string | null
           id: string
+          is_draft: boolean
           last_activity_at: string
           lead_code: string
           name: string
@@ -1226,6 +1227,7 @@ export type Database = {
           currency?: string
           email_label?: string | null
           id?: string
+          is_draft?: boolean
           last_activity_at?: string
           lead_code?: string
           name: string
@@ -1258,6 +1260,7 @@ export type Database = {
           currency?: string
           email_label?: string | null
           id?: string
+          is_draft?: boolean
           last_activity_at?: string
           lead_code?: string
           name?: string

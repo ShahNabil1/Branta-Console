@@ -38,6 +38,7 @@ import { Route as AuthenticatedAppProfileSecurityRouteImport } from './routes/_a
 import { Route as AuthenticatedAppProfilePersonalRouteImport } from './routes/_authenticated/app.profile.personal'
 import { Route as AuthenticatedAppProfileFinanceRouteImport } from './routes/_authenticated/app.profile.finance'
 import { Route as AuthenticatedAppProfileActivityRouteImport } from './routes/_authenticated/app.profile.activity'
+import { Route as AuthenticatedAppLeadsDraftsRouteImport } from './routes/_authenticated/app.leads.drafts'
 import { Route as AuthenticatedAppLeadsSlugRouteImport } from './routes/_authenticated/app.leads.$slug'
 import { Route as AuthenticatedAppFinanceWithdrawalsRouteImport } from './routes/_authenticated/app.finance.withdrawals'
 import { Route as AuthenticatedAppFinanceWalletRouteImport } from './routes/_authenticated/app.finance.wallet'
@@ -209,6 +210,12 @@ const AuthenticatedAppProfileActivityRoute =
     path: '/activity',
     getParentRoute: () => AuthenticatedAppProfileRoute,
   } as any)
+const AuthenticatedAppLeadsDraftsRoute =
+  AuthenticatedAppLeadsDraftsRouteImport.update({
+    id: '/drafts',
+    path: '/drafts',
+    getParentRoute: () => AuthenticatedAppLeadsRoute,
+  } as any)
 const AuthenticatedAppLeadsSlugRoute =
   AuthenticatedAppLeadsSlugRouteImport.update({
     id: '/$slug',
@@ -286,6 +293,7 @@ export interface FileRoutesByFullPath {
   '/app/finance/wallet': typeof AuthenticatedAppFinanceWalletRoute
   '/app/finance/withdrawals': typeof AuthenticatedAppFinanceWithdrawalsRoute
   '/app/leads/$slug': typeof AuthenticatedAppLeadsSlugRoute
+  '/app/leads/drafts': typeof AuthenticatedAppLeadsDraftsRoute
   '/app/profile/activity': typeof AuthenticatedAppProfileActivityRoute
   '/app/profile/finance': typeof AuthenticatedAppProfileFinanceRoute
   '/app/profile/personal': typeof AuthenticatedAppProfilePersonalRoute
@@ -320,6 +328,7 @@ export interface FileRoutesByTo {
   '/app/finance/wallet': typeof AuthenticatedAppFinanceWalletRoute
   '/app/finance/withdrawals': typeof AuthenticatedAppFinanceWithdrawalsRoute
   '/app/leads/$slug': typeof AuthenticatedAppLeadsSlugRoute
+  '/app/leads/drafts': typeof AuthenticatedAppLeadsDraftsRoute
   '/app/profile/activity': typeof AuthenticatedAppProfileActivityRoute
   '/app/profile/finance': typeof AuthenticatedAppProfileFinanceRoute
   '/app/profile/personal': typeof AuthenticatedAppProfilePersonalRoute
@@ -361,6 +370,7 @@ export interface FileRoutesById {
   '/_authenticated/app/finance/wallet': typeof AuthenticatedAppFinanceWalletRoute
   '/_authenticated/app/finance/withdrawals': typeof AuthenticatedAppFinanceWithdrawalsRoute
   '/_authenticated/app/leads/$slug': typeof AuthenticatedAppLeadsSlugRoute
+  '/_authenticated/app/leads/drafts': typeof AuthenticatedAppLeadsDraftsRoute
   '/_authenticated/app/profile/activity': typeof AuthenticatedAppProfileActivityRoute
   '/_authenticated/app/profile/finance': typeof AuthenticatedAppProfileFinanceRoute
   '/_authenticated/app/profile/personal': typeof AuthenticatedAppProfilePersonalRoute
@@ -402,6 +412,7 @@ export interface FileRouteTypes {
     | '/app/finance/wallet'
     | '/app/finance/withdrawals'
     | '/app/leads/$slug'
+    | '/app/leads/drafts'
     | '/app/profile/activity'
     | '/app/profile/finance'
     | '/app/profile/personal'
@@ -436,6 +447,7 @@ export interface FileRouteTypes {
     | '/app/finance/wallet'
     | '/app/finance/withdrawals'
     | '/app/leads/$slug'
+    | '/app/leads/drafts'
     | '/app/profile/activity'
     | '/app/profile/finance'
     | '/app/profile/personal'
@@ -476,6 +488,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/finance/wallet'
     | '/_authenticated/app/finance/withdrawals'
     | '/_authenticated/app/leads/$slug'
+    | '/_authenticated/app/leads/drafts'
     | '/_authenticated/app/profile/activity'
     | '/_authenticated/app/profile/finance'
     | '/_authenticated/app/profile/personal'
@@ -709,6 +722,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppProfileActivityRouteImport
       parentRoute: typeof AuthenticatedAppProfileRoute
     }
+    '/_authenticated/app/leads/drafts': {
+      id: '/_authenticated/app/leads/drafts'
+      path: '/drafts'
+      fullPath: '/app/leads/drafts'
+      preLoaderRoute: typeof AuthenticatedAppLeadsDraftsRouteImport
+      parentRoute: typeof AuthenticatedAppLeadsRoute
+    }
     '/_authenticated/app/leads/$slug': {
       id: '/_authenticated/app/leads/$slug'
       path: '/$slug'
@@ -823,11 +843,13 @@ const AuthenticatedAppFinanceRouteWithChildren =
 
 interface AuthenticatedAppLeadsRouteChildren {
   AuthenticatedAppLeadsSlugRoute: typeof AuthenticatedAppLeadsSlugRoute
+  AuthenticatedAppLeadsDraftsRoute: typeof AuthenticatedAppLeadsDraftsRoute
   AuthenticatedAppLeadsIndexRoute: typeof AuthenticatedAppLeadsIndexRoute
 }
 
 const AuthenticatedAppLeadsRouteChildren: AuthenticatedAppLeadsRouteChildren = {
   AuthenticatedAppLeadsSlugRoute: AuthenticatedAppLeadsSlugRoute,
+  AuthenticatedAppLeadsDraftsRoute: AuthenticatedAppLeadsDraftsRoute,
   AuthenticatedAppLeadsIndexRoute: AuthenticatedAppLeadsIndexRoute,
 }
 
@@ -918,13 +940,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
