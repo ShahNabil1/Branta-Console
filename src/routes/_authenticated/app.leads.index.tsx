@@ -494,12 +494,13 @@ function LeadsPage() {
       )}
 
       <div className="flex-1 overflow-hidden rounded-sm border border-border bg-card">
+        {/* Header row — desktop only */}
         <div
           className={cn(
-            "grid items-center border-b border-border bg-muted/40 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground",
+            "hidden items-center border-b border-border bg-muted/40 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground md:grid",
             isSuperAdmin
-              ? "grid-cols-[32px_110px_1.4fr_1.2fr_170px_180px_170px_130px]"
-              : "grid-cols-[110px_1.4fr_1.2fr_170px_180px_170px_130px]",
+              ? "grid-cols-[32px_120px_minmax(0,1.4fr)_minmax(0,1.2fr)_150px_minmax(0,170px)_120px] xl:grid-cols-[32px_130px_minmax(0,1.4fr)_minmax(0,1.2fr)_160px_minmax(0,180px)_150px_120px]"
+              : "grid-cols-[120px_minmax(0,1.4fr)_minmax(0,1.2fr)_150px_minmax(0,170px)_120px] xl:grid-cols-[130px_minmax(0,1.4fr)_minmax(0,1.2fr)_160px_minmax(0,180px)_150px_120px]",
           )}
         >
           {isSuperAdmin && (
@@ -525,7 +526,7 @@ function LeadsPage() {
           <div>Company</div>
           <div>Status</div>
           <div>Assigned to</div>
-          <div>Service</div>
+          <div className="hidden xl:block">Service</div>
           <div className="text-right">Last activity</div>
         </div>
         <div className="max-h-[calc(100vh-260px)] overflow-y-auto">
@@ -541,17 +542,19 @@ function LeadsPage() {
               const accent = `var(${statusColorVar(row.status, statusOptions)})`;
               const service = row.service === "Other" ? row.service_other : row.service;
               const isSel = selected.has(row.id);
+              const goToLead = () =>
+                navigate({
+                  to: "/app/leads/$slug",
+                  params: { slug: row.slug ?? row.lead_code },
+                });
               return (
                 <div
                   key={row.id}
-                  className={cn(
-                    "relative",
-                    isSel && "bg-primary/5",
-                  )}
+                  className={cn("relative", isSel && "bg-primary/5")}
                 >
                   {isSuperAdmin && (
                     <div
-                      className="absolute left-2 top-1/2 z-10 -translate-y-1/2"
+                      className="absolute left-2 top-1/2 z-10 hidden -translate-y-1/2 md:block"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <Checkbox
@@ -560,55 +563,64 @@ function LeadsPage() {
                       />
                     </div>
                   )}
+                  {/* Desktop row */}
                   <button
-                    onClick={() =>
-                      navigate({
-                        to: "/app/leads/$slug",
-                        params: { slug: row.slug ?? row.lead_code },
-                      })
-                    }
+                    onClick={goToLead}
                     style={{
                       animationDelay: `${Math.min(idx, 12) * 24}ms`,
                       ["--row-accent" as string]: accent,
                     }}
                     className={cn(
-                      "group relative grid w-full animate-fade-in items-center border-b border-border/60 px-3 py-2.5 text-left text-[13px] transition-all duration-200",
+                      "group relative hidden w-full animate-fade-in items-center border-b border-border/60 px-3 py-2.5 text-left text-[13px] transition-all duration-200 md:grid",
                       isSuperAdmin
-                        ? "grid-cols-[32px_110px_1.4fr_1.2fr_170px_180px_170px_130px]"
-                        : "grid-cols-[110px_1.4fr_1.2fr_170px_180px_170px_130px]",
+                        ? "grid-cols-[32px_120px_minmax(0,1.4fr)_minmax(0,1.2fr)_150px_minmax(0,170px)_120px] xl:grid-cols-[32px_130px_minmax(0,1.4fr)_minmax(0,1.2fr)_160px_minmax(0,180px)_150px_120px]"
+                        : "grid-cols-[120px_minmax(0,1.4fr)_minmax(0,1.2fr)_150px_minmax(0,170px)_120px] xl:grid-cols-[130px_minmax(0,1.4fr)_minmax(0,1.2fr)_160px_minmax(0,180px)_150px_120px]",
                       "hover:z-[1] hover:-translate-y-[1px] hover:bg-[linear-gradient(90deg,color-mix(in_oklab,var(--row-accent)_10%,transparent),transparent_55%)] hover:shadow-[0_4px_14px_-8px_color-mix(in_oklab,var(--row-accent)_60%,transparent)]",
                       "before:absolute before:left-0 before:top-1/2 before:h-6 before:w-[3px] before:-translate-y-1/2 before:rounded-r-full before:bg-[var(--row-accent)] before:opacity-70 before:transition-all before:duration-200 hover:before:h-[80%] hover:before:opacity-100",
                     )}
                   >
                     {isSuperAdmin && <div />}
-                    <div className="font-mono text-[11.5px] font-semibold text-primary">
-                      {row.slug ?? row.lead_code}
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <span className="font-mono text-[11.5px] font-semibold text-primary">
+                        {row.slug ?? row.lead_code}
+                      </span>
+                      <SourceBadge source={row.sheet_source} />
+                      <SyncIndicator
+                        leadId={row.id}
+                        status={row.sheet_sync_status}
+                        syncedAt={row.sheet_synced_at}
+                        error={row.sheet_sync_error}
+                        canRetry={canManageLeads}
+                      />
                     </div>
                     <div className="min-w-0">
-                      <div className="truncate font-medium text-foreground transition-colors group-hover:text-primary">
+                      <div
+                        className="truncate font-medium text-foreground transition-colors group-hover:text-primary"
+                        title={row.name ?? ""}
+                      >
                         {row.name}
                       </div>
                       {row.email && (
-                        <div className="truncate text-[11.5px] text-muted-foreground">
+                        <div className="truncate text-[11.5px] text-muted-foreground" title={row.email}>
                           {row.email}
                         </div>
                       )}
                     </div>
-                    <div className="truncate text-foreground">{row.company ?? "—"}</div>
-                    <div>
+                    <div className="truncate text-foreground" title={row.company ?? ""}>
+                      {row.company ?? "—"}
+                    </div>
+                    <div className="min-w-0">
                       <span
-                        className="inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11.5px] font-medium transition-transform duration-200 group-hover:scale-[1.03]"
+                        className="inline-flex max-w-full items-center gap-1.5 truncate whitespace-nowrap rounded-full border px-2 py-0.5 text-[11.5px] font-medium transition-transform duration-200 group-hover:scale-[1.03]"
                         style={{
                           color: accent,
                           borderColor: `color-mix(in oklab, ${accent} 45%, transparent)`,
                           background: `color-mix(in oklab, ${accent} 12%, transparent)`,
                         }}
+                        title={statusLabel(row.status, statusOptions)}
                       >
-                        <span
-                          className="size-1.5 rounded-full"
-                          style={{ background: accent }}
-                        />
-                        {statusLabel(row.status, statusOptions)}
+                        <span className="size-1.5 shrink-0 rounded-full" style={{ background: accent }} />
+                        <span className="truncate">{statusLabel(row.status, statusOptions)}</span>
                       </span>
                     </div>
                     <div className="flex min-w-0 items-center gap-2">
@@ -628,15 +640,88 @@ function LeadsPage() {
                           {initialsOf(row.owner_name)}
                         </span>
                       )}
-                      <span className="truncate text-[12.5px] text-foreground">
+                      <span className="truncate text-[12.5px] text-foreground" title={row.owner_name ?? "Unassigned"}>
                         {row.owner_name ?? "Unassigned"}
                       </span>
                     </div>
-                    <div className="truncate text-[12.5px] text-muted-foreground">
+                    <div className="hidden truncate text-[12.5px] text-muted-foreground xl:block" title={service ?? ""}>
                       {service ?? "—"}
                     </div>
                     <div className="text-right font-mono text-[11.5px] text-muted-foreground">
                       {relTime(row.last_activity_at)}
+                    </div>
+                  </button>
+
+                  {/* Mobile card */}
+                  <button
+                    onClick={goToLead}
+                    style={{ ["--row-accent" as string]: accent }}
+                    className="group relative flex w-full flex-col gap-2 border-b border-border/60 px-3 py-3 text-left transition-colors hover:bg-muted/50 md:hidden"
+                  >
+                    <span
+                      className="absolute left-0 top-3 h-8 w-[3px] rounded-r-full"
+                      style={{ background: accent }}
+                    />
+                    <div className="flex items-start justify-between gap-2 pl-2">
+                      <div className="flex min-w-0 flex-1 items-center gap-2">
+                        <span className="font-mono text-[11.5px] font-semibold text-primary">
+                          {row.slug ?? row.lead_code}
+                        </span>
+                        <SourceBadge source={row.sheet_source} />
+                        <SyncIndicator
+                          leadId={row.id}
+                          status={row.sheet_sync_status}
+                          syncedAt={row.sheet_synced_at}
+                          error={row.sheet_sync_error}
+                          canRetry={canManageLeads}
+                        />
+                      </div>
+                      <span
+                        className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-medium"
+                        style={{
+                          color: accent,
+                          borderColor: `color-mix(in oklab, ${accent} 45%, transparent)`,
+                          background: `color-mix(in oklab, ${accent} 12%, transparent)`,
+                        }}
+                      >
+                        <span className="size-1.5 rounded-full" style={{ background: accent }} />
+                        {statusLabel(row.status, statusOptions)}
+                      </span>
+                    </div>
+                    <div className="min-w-0 pl-2">
+                      <div className="truncate text-[13.5px] font-medium text-foreground">
+                        {row.name || "—"}
+                      </div>
+                      {row.email && (
+                        <div className="truncate text-[12px] text-muted-foreground">
+                          {row.email}
+                        </div>
+                      )}
+                      {row.company && (
+                        <div className="truncate text-[12px] text-muted-foreground">
+                          {row.company}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between gap-2 pl-2 text-[11.5px] text-muted-foreground">
+                      <div className="flex min-w-0 items-center gap-1.5">
+                        {row.owner_avatar_url ? (
+                          <img
+                            src={row.owner_avatar_url}
+                            alt={row.owner_name ?? "Assigned"}
+                            className="size-5 shrink-0 rounded-full object-cover ring-1 ring-border"
+                          />
+                        ) : (
+                          <span
+                            className="grid size-5 shrink-0 place-items-center rounded-full text-[9px] font-bold text-primary-foreground"
+                            style={{ background: `linear-gradient(135deg, ${accent}, color-mix(in oklab, ${accent} 55%, #000))` }}
+                          >
+                            {initialsOf(row.owner_name)}
+                          </span>
+                        )}
+                        <span className="truncate">{row.owner_name ?? "Unassigned"}</span>
+                      </div>
+                      <span className="shrink-0 font-mono">{relTime(row.last_activity_at)}</span>
                     </div>
                   </button>
                 </div>
@@ -645,6 +730,7 @@ function LeadsPage() {
           )}
         </div>
       </div>
+
 
       {filtered.length > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-sm border border-border bg-card px-3 py-2 text-[12.5px]">
