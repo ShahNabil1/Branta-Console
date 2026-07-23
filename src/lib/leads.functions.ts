@@ -486,27 +486,11 @@ export const checkLeadDuplicates = createServerFn({ method: "POST" })
 export const listLeads = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<LeadRow[]> => {
-    // Sweep abandoned "Untitled lead" drafts (older than 2 min, no meaningful
-    // data). This keeps the list clean when a user clicks New lead and walks
-    // away without saving anything.
-    const cutoff = new Date(Date.now() - 2 * 60_000).toISOString();
-    await context.supabase
-      .from("leads")
-      .delete()
-      .eq("name", DRAFT_LEAD_NAME)
-      .lt("created_at", cutoff)
-      .is("company", null)
-      .is("phone", null)
-      .is("alt_email", null)
-      .is("alt_phone", null)
-      .is("next_action", null)
-      .is("notes", null);
-
     const { data, error } = await context.supabase
       .from("leads")
       .select("*")
       .neq("status", "converted")
-      .neq("name", DRAFT_LEAD_NAME)
+      .eq("is_draft", false)
       .order("last_activity_at", { ascending: false })
       .limit(500);
     if (error) throw new Error(error.message);
@@ -514,6 +498,7 @@ export const listLeads = createServerFn({ method: "GET" })
     const withEmails = await attachPrimaryEmails(context.supabase, rows);
     return attachOwnerNames(context.supabase, withEmails);
   });
+
 
 
 export const getLead = createServerFn({ method: "GET" })
