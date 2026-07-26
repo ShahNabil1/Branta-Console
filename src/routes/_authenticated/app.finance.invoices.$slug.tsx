@@ -51,6 +51,9 @@ function InvoiceDetail() {
   const markPaid = useServerFn(markInstallmentPaid);
   const revert = useServerFn(revertInstallment);
   const del = useServerFn(deleteInvoice);
+  const listRecips = useServerFn(listInvoiceRecipients);
+  const listEvents = useServerFn(listInvoiceEmailEvents);
+  const sendEmail = useServerFn(sendInvoiceEmail);
 
   const q = useQuery({
     queryKey: ["finance", "invoice", slug],
@@ -58,18 +61,33 @@ function InvoiceDetail() {
     staleTime: 15_000,
   });
 
+  const events = useQuery({
+    queryKey: ["finance", "invoice", slug, "events"],
+    queryFn: () => listEvents({ data: { slug } }),
+    staleTime: 5_000,
+  });
+
+  const recipients = useQuery({
+    queryKey: ["finance", "invoice", slug, "recipients"],
+    queryFn: () => listRecips({ data: { slug } }),
+    staleTime: 60_000,
+  });
+
   useEffect(() => {
     const ch = supabase.channel(`finance:invoice:${slug}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "invoice_installments" }, () => void q.refetch())
       .on("postgres_changes", { event: "*", schema: "public", table: "invoice_payouts" }, () => void q.refetch())
       .on("postgres_changes", { event: "*", schema: "public", table: "invoices" }, () => void q.refetch())
+      .on("postgres_changes", { event: "*", schema: "public", table: "invoice_email_events" }, () => void events.refetch())
       .subscribe();
     return () => { void supabase.removeChannel(ch); };
-  }, [slug, q]);
+  }, [slug, q, events]);
 
   const [payModal, setPayModal] = useState<InstallmentRow | null>(null);
   const [payRef, setPayRef] = useState("");
   const [payMethod, setPayMethod] = useState("");
+  const [sendOpen, setSendOpen] = useState(false);
+  const [selectedEmails, setSelectedEmails] = useState<Record<string, boolean>>({});
 
   const doPay = useMutation({
     mutationFn: async () => {
