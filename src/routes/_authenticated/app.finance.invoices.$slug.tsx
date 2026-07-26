@@ -300,6 +300,22 @@ function InvoiceDetail() {
         </table>
       </div>
 
+      {/* Delivery */}
+      <DeliveryPanel events={events.data ?? []} loading={events.isLoading} />
+
+      {/* Send dialog */}
+      {sendOpen && (
+        <SendInvoiceDialog
+          recipients={recipients.data ?? []}
+          selected={selectedEmails}
+          onSelectedChange={setSelectedEmails}
+          sending={sendMutation.isPending}
+          onClose={() => setSendOpen(false)}
+          onSend={() => sendMutation.mutate()}
+        />
+      )}
+
+
       {payModal && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 p-4">
           <div className="w-full max-w-md rounded-md border border-border bg-card p-5 shadow-lg">
