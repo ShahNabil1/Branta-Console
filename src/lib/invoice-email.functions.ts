@@ -1,7 +1,7 @@
 // Invoice email delivery — Resend-only, branded, attaches signed PDF.
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { getRequest } from "@tanstack/react-start/server";
+
 import { z } from "zod";
 
 export interface InvoiceEmailEventRow {
@@ -179,6 +179,7 @@ export async function internalSendInvoiceEmail(opts: {
   // Build a signed public URL for the CTA. Fall back to request origin.
   let origin = "";
   try {
+    const { getRequest } = await import("@tanstack/react-start/server");
     const req = getRequest();
     origin = new URL(req.url).origin;
   } catch { /* not in a request */ }
