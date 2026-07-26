@@ -56,6 +56,24 @@ const ROLE_COLORS: Record<string, string> = {
   company: "bg-amber-50 text-amber-700 border-amber-200",
 };
 
+type EditInstallment = { label: string; amount: number; due_date: string };
+type EditStakeholder = { user_id: string; role: StakeholderRole; percent: number };
+type UpdateInvoicePayload = {
+  id: string;
+  customer_id: string;
+  title: string;
+  description: string | null;
+  project_type: "one_time" | "monthly_retainer";
+  starts_on: string | null;
+  ends_on: string | null;
+  currency: Currency;
+  total_amount: number;
+  notes: string | null;
+  internal_notes: string | null;
+  installments: EditInstallment[];
+  stakeholders: EditStakeholder[];
+};
+
 function InvoiceDetail() {
   const { slug } = useParams({ from: "/_authenticated/app/finance/invoices/$slug" });
   const navigate = useNavigate();
@@ -149,21 +167,7 @@ function InvoiceDetail() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async (payload: {
-      id: string;
-      customer_id: string;
-      title: string;
-      description: string | null;
-      project_type: "one_time" | "monthly_retainer";
-      starts_on: string | null;
-      ends_on: string | null;
-      currency: Currency;
-      total_amount: number;
-      notes: string | null;
-      internal_notes: string | null;
-      installments: { label: string; amount: number; due_date: string }[];
-      stakeholders: { user_id: string; role: StakeholderRole; percent: number }[];
-    }) => update({ data: payload }),
+    mutationFn: async (payload: UpdateInvoicePayload) => update({ data: payload }),
     onSuccess: () => {
       toast.success("Invoice updated");
       setEditOpen(false);
@@ -410,7 +414,7 @@ function InvoiceDetail() {
           employees={employees.data ?? []}
           saving={updateMutation.isPending}
           onClose={() => setEditOpen(false)}
-          onSave={(payload) => updateMutation.mutate(payload)}
+          onSave={(payload: UpdateInvoicePayload) => updateMutation.mutate(payload)}
         />
       )}
 
@@ -546,6 +550,172 @@ function DeliveryChip({ status }: { status: string }) {
   );
 }
 
+function EditInvoiceDialog({
+  invoice,
+  installments,
+  stakeholders,
+  customers,
+  employees,
+  saving,
+  onClose,
+  onSave,
+}: {
+  invoice: InvoiceRow;
+  installments: InstallmentRow[];
+  stakeholders: StakeholderRow[];
+  customers: Array<{ id: string; customer_code: string; name: string; company: string | null; email: string | null; phone: string | null }>;
+  employees: Array<{ user_id: string; full_name: string | null; employee_code: string | null; job_role: string | null; email?: string | null }>;
+  saving: boolean;
+  onClose: () => void;
+  onSave: (payload: UpdateInvoicePayload) => void;
+}) {
+  const [customerId, setCustomerId] = useState(invoice.customer_id);
+  const [title, setTitle] = useState(invoice.title);
+  const [description, setDescription] = useState(invoice.description ?? "");
+  const [projectType, setProjectType] = useState<"one_time" | "monthly_retainer">(invoice.project_type);
+  const [currency, setCurrency] = useState<Currency>(invoice.currency);
+  const [total, setTotal] = useState(String(invoice.total_amount));
+  const [startsOn, setStartsOn] = useState(invoice.starts_on ?? "");
+  const [endsOn, setEndsOn] = useState(invoice.ends_on ?? "");
+  const [notes, setNotes] = useState(invoice.notes ?? "");
+  const [internalNotes, setInternalNotes] = useState(invoice.internal_notes ?? "");
+  const [editInstallments, setEditInstallments] = useState<EditInstallment[]>(
+    installments.map((i) => ({ label: i.label, amount: Number(i.amount), due_date: i.due_date })),
+  );
+  const [editStakeholders, setEditStakeholders] = useState<EditStakeholder[]>(
+    stakeholders.map((s) => ({ user_id: s.user_id, role: s.role, percent: Number(s.percent) })),
+  );
+
+  const customerItems: SearchableItem[] = customers.map((c) => ({
+    value: c.id,
+    label: `${c.customer_code} · ${c.name}`,
+    hint: c.company ?? c.email ?? c.phone ?? undefined,
+    keywords: [c.name, c.customer_code, c.email, c.phone, c.company],
+  }));
+  const employeeItems: SearchableItem[] = employees.map((e) => ({
+    value: e.user_id,
+    label: e.full_name ?? e.user_id.slice(0, 8),
+    hint: e.employee_code ?? e.email ?? undefined,
+    keywords: [e.full_name, e.employee_code, e.job_role, e.email],
+  }));
+  const totalNum = Number(total) || 0;
+  const instSum = editInstallments.reduce((a, i) => a + Number(i.amount || 0), 0);
+  const pctSum = editStakeholders.reduce((a, s) => a + Number(s.percent || 0), 0);
+  const canSave =
+    !!customerId && !!title.trim() && totalNum > 0 &&
+    Math.abs(instSum - totalNum) < 0.01 && Math.abs(pctSum - 100) < 0.01 &&
+    editInstallments.every((i) => i.label.trim() && i.due_date && Number(i.amount) > 0) &&
+    editStakeholders.every((s) => s.user_id && Number(s.percent) > 0);
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 p-4">
+      <div className="max-h-[92vh] w-full max-w-4xl overflow-auto rounded-md border border-border bg-card shadow-lg">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-card px-5 py-3">
+          <h3 className="flex items-center gap-1.5 text-[14px] font-semibold"><Pencil className="size-3.5" /> Edit invoice {invoice.slug}</h3>
+          <div className="flex gap-2">
+            <Button variant="ghost" onClick={onClose} className="h-8 rounded-sm text-[12px]">Cancel</Button>
+            <Button
+              onClick={() => onSave({
+                id: invoice.id,
+                customer_id: customerId,
+                title: title.trim(),
+                description: description.trim() || null,
+                project_type: projectType,
+                starts_on: startsOn || null,
+                ends_on: endsOn || null,
+                currency,
+                total_amount: totalNum,
+                notes: notes.trim() || null,
+                internal_notes: internalNotes.trim() || null,
+                installments: editInstallments.map((i) => ({ label: i.label.trim(), amount: Number(i.amount), due_date: i.due_date })),
+                stakeholders: editStakeholders.map((s) => ({ user_id: s.user_id, role: s.role, percent: Number(s.percent) })),
+              })}
+              disabled={!canSave || saving}
+              className="h-8 rounded-sm bg-primary text-[12px] text-primary-foreground hover:bg-brand-700"
+            >
+              {saving && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
+              Save changes
+            </Button>
+          </div>
+        </div>
+        <div className="grid gap-4 p-5">
+          <section className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <div className="md:col-span-2">
+              <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Customer *</Label>
+              <div className="mt-1"><SearchableSelect items={customerItems} value={customerId} onChange={setCustomerId} placeholder="— Choose customer —" emptyText="No customer matches" /></div>
+            </div>
+            <div className="md:col-span-2">
+              <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Title *</Label>
+              <Input value={title} onChange={(e) => setTitle(e.target.value)} className="mt-1 h-9 rounded-sm" />
+            </div>
+            <div>
+              <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Project type</Label>
+              <select value={projectType} onChange={(e) => setProjectType(e.target.value as "one_time" | "monthly_retainer")} className="mt-1 h-9 w-full rounded-sm border border-input bg-background px-2 text-[13px]">
+                <option value="one_time">One-time</option>
+                <option value="monthly_retainer">Monthly retainer</option>
+              </select>
+            </div>
+            <div>
+              <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Currency</Label>
+              <select value={currency} onChange={(e) => setCurrency(e.target.value as Currency)} className="mt-1 h-9 w-full rounded-sm border border-input bg-background px-2 text-[13px]">
+                <option value="BDT">BDT (৳)</option>
+                <option value="USD">USD ($)</option>
+              </select>
+            </div>
+            <div>
+              <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Total amount *</Label>
+              <Input type="number" value={total} onChange={(e) => setTotal(e.target.value)} className="mt-1 h-9 rounded-sm font-mono" />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div><Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Starts</Label><Input type="date" value={startsOn} onChange={(e) => setStartsOn(e.target.value)} className="mt-1 h-9 rounded-sm" /></div>
+              <div><Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Ends</Label><Input type="date" value={endsOn} onChange={(e) => setEndsOn(e.target.value)} className="mt-1 h-9 rounded-sm" /></div>
+            </div>
+            <div className="md:col-span-2"><Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Description</Label><Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="mt-1 rounded-sm text-[13px]" /></div>
+          </section>
+
+          <section className="rounded-sm border border-border p-3">
+            <div className="mb-2 flex items-center justify-between"><h4 className="text-[13px] font-semibold">Installments</h4><span className={cn("font-mono text-[11px]", Math.abs(instSum - totalNum) < 0.01 ? "text-emerald-600" : "text-rose-600")}>{instSum.toFixed(2)} / {totalNum.toFixed(2)}</span></div>
+            <div className="space-y-2">
+              {editInstallments.map((i, idx) => (
+                <div key={idx} className="grid grid-cols-12 gap-2">
+                  <div className="col-span-1 grid place-items-center font-mono text-[11px] text-muted-foreground">#{idx + 1}</div>
+                  <Input value={i.label} onChange={(e) => setEditInstallments(editInstallments.map((x, k) => k === idx ? { ...x, label: e.target.value } : x))} className="col-span-4 h-8 rounded-sm text-[12px]" />
+                  <Input type="date" value={i.due_date} onChange={(e) => setEditInstallments(editInstallments.map((x, k) => k === idx ? { ...x, due_date: e.target.value } : x))} className="col-span-3 h-8 rounded-sm text-[12px]" />
+                  <Input type="number" value={i.amount} onChange={(e) => setEditInstallments(editInstallments.map((x, k) => k === idx ? { ...x, amount: Number(e.target.value) } : x))} className="col-span-3 h-8 rounded-sm font-mono text-[12px]" />
+                  <button type="button" onClick={() => setEditInstallments(editInstallments.filter((_, k) => k !== idx))} disabled={editInstallments.length === 1} className="col-span-1 grid place-items-center rounded-sm text-rose-600 hover:bg-rose-50"><Trash2 className="size-3.5" /></button>
+                </div>
+              ))}
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setEditInstallments([...editInstallments, { label: "", amount: 0, due_date: new Date().toISOString().slice(0, 10) }])} className="mt-2 h-7 rounded-sm text-[11px]"><Plus className="mr-1 size-3" /> Add installment</Button>
+          </section>
+
+          <section className="rounded-sm border border-border p-3">
+            <div className="mb-2 flex items-center justify-between"><h4 className="text-[13px] font-semibold">Stakeholders</h4><span className={cn("font-mono text-[11px]", Math.abs(pctSum - 100) < 0.01 ? "text-emerald-600" : "text-rose-600")}>{pctSum.toFixed(2)}%</span></div>
+            <div className="space-y-2">
+              {editStakeholders.map((s, idx) => (
+                <div key={idx} className="grid grid-cols-12 gap-2">
+                  <div className="col-span-5"><SearchableSelect items={employeeItems} value={s.user_id} onChange={(v) => setEditStakeholders(editStakeholders.map((x, k) => k === idx ? { ...x, user_id: v } : x))} placeholder="— Employee —" emptyText="No employee matches" className="h-8 text-[12px]" /></div>
+                  <select value={s.role} onChange={(e) => setEditStakeholders(editStakeholders.map((x, k) => k === idx ? { ...x, role: e.target.value as StakeholderRole } : x))} className="col-span-4 h-8 rounded-sm border border-input bg-background px-2 text-[12px] capitalize">
+                    <option value="outreach">Outreach</option><option value="lead_closer">Lead closer</option><option value="worker">Worker</option><option value="company">Company</option>
+                  </select>
+                  <Input type="number" value={s.percent} onChange={(e) => setEditStakeholders(editStakeholders.map((x, k) => k === idx ? { ...x, percent: Number(e.target.value) } : x))} className="col-span-2 h-8 rounded-sm font-mono text-[12px]" />
+                  <button type="button" onClick={() => setEditStakeholders(editStakeholders.filter((_, k) => k !== idx))} disabled={editStakeholders.length === 1} className="col-span-1 grid place-items-center rounded-sm text-rose-600 hover:bg-rose-50"><Trash2 className="size-3.5" /></button>
+                </div>
+              ))}
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setEditStakeholders([...editStakeholders, { user_id: "", role: "worker", percent: 0 }])} className="mt-2 h-7 rounded-sm text-[11px]"><Plus className="mr-1 size-3" /> Add stakeholder</Button>
+          </section>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            <div><Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Invoice notes</Label><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="mt-1 rounded-sm text-[13px]" /></div>
+            <div><Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Internal notes</Label><Textarea value={internalNotes} onChange={(e) => setInternalNotes(e.target.value)} rows={2} className="mt-1 rounded-sm text-[13px]" /></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SendInvoiceDialog({
   recipients, selected, onSelectedChange, onClose, onSend, sending,
 }: {
@@ -578,7 +748,7 @@ function SendInvoiceDialog({
                 <div className="truncate text-[12.5px] font-medium">{r.name || r.email.split("@")[0]}</div>
                 <div className="truncate text-[11px] text-muted-foreground">{r.email}</div>
               </div>
-              <span className="text-[10px] font-semibold uppercase text-muted-foreground">{r.is_primary ? "Primary" : r.role || r.source}</span>
+              <span className="text-[10px] font-semibold uppercase text-muted-foreground">{r.label ?? (r.is_primary ? "Primary" : r.role || r.source)}</span>
             </label>
           ))}
         </div>
