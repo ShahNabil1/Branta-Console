@@ -144,7 +144,35 @@ function InvoiceDetail() {
               · Created {new Date(invoice.created_at).toLocaleDateString()}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                const url = `/app/finance/invoices/${invoice.slug}/download`;
+                try {
+                  const r = await fetch(`/api/public/invoices/${invoice.slug}.pdf?redirect=1`, { method: "HEAD" }).catch(() => null);
+                  void r;
+                } catch { /* noop */ }
+                window.open(url, "_blank");
+              }}
+              className="h-8 rounded-sm text-[12px]"
+              title="Download PDF"
+            >
+              <Download className="mr-1.5 size-3.5" /> PDF
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                const map: Record<string, boolean> = {};
+                (recipients.data ?? []).forEach((r) => { if (r.is_primary) map[r.email] = true; });
+                setSelectedEmails(map);
+                setSendOpen(true);
+              }}
+              className="h-8 rounded-sm bg-brand text-[12px] text-white hover:bg-brand/90"
+            >
+              <Send className="mr-1.5 size-3.5" /> Send invoice
+            </Button>
             <Button variant="outline" size="sm" onClick={doDelete} className="h-8 rounded-sm text-[12px] text-rose-600 hover:bg-rose-50">
               <Trash2 className="mr-1.5 size-3.5" /> Delete
             </Button>
