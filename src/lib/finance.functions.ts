@@ -162,6 +162,22 @@ export interface ExpenseRow {
   paid_by_name?: string | null;
 }
 
+export interface InvoiceActivityLogRow {
+  id: string;
+  invoice_id: string | null;
+  invoice_slug: string;
+  actor_id: string | null;
+  action: string;
+  title: string;
+  body: string | null;
+  related_table: string | null;
+  related_id: string | null;
+  deep_link: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+  actor_name?: string | null;
+}
+
 export interface WalletBalance {
   user_id: string;
   currency: Currency;
@@ -197,6 +213,9 @@ const CreateInvoiceIn = z.object({
   installments: z.array(InstallmentIn).min(1).max(24),
   stakeholders: z.array(StakeholderIn).min(1).max(20),
 });
+const UpdateInvoiceIn = CreateInvoiceIn.extend({
+  id: z.string().uuid(),
+});
 
 async function ensureFinanceAdmin(supabase: {
   rpc: (name: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
@@ -217,6 +236,20 @@ async function logInvoiceActivity(supabase: any, invoiceId: string, actorId: str
     .maybeSingle();
   const customerId = (inv as { customer_id?: string } | null)?.customer_id;
   const slug = (inv as { slug?: string } | null)?.slug ?? null;
+  if (slug) {
+    await supabase.from("invoice_activity_logs").insert({
+      invoice_id: invoiceId,
+      invoice_slug: slug,
+      actor_id: actorId,
+      action: String(meta.event ?? kind),
+      title: body,
+      body: meta.body_detail ?? null,
+      related_table: meta.related_table ?? null,
+      related_id: meta.related_id ?? null,
+      deep_link: meta.deep_link ?? `/app/finance/invoices/${slug}#activity`,
+      metadata: meta,
+    });
+  }
   if (!customerId) return;
   const { data: cust } = await supabase
     .from("customers")
@@ -371,8 +404,7 @@ export const createInvoice = createServerFn({ method: "POST" })
     );
     if (iErr) throw new Error(iErr.message);
 
-    // Activity log on the customer's underlying lead so it surfaces in the
-    // Customer / Lead detail Activity Logs feed.
+    // Activity log on the invoice and the customer's underlying lead.
     const { data: custRow } = await context.supabase
       .from("customers")
       .select("converted_from_lead_id, customer_code, name")
@@ -392,6 +424,16 @@ export const createInvoice = createServerFn({ method: "POST" })
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
     }
+    await context.supabase.from("invoice_activity_logs").insert({
+      invoice_id: invoiceId,
+      invoice_slug: slug,
+      actor_id: context.userId,
+      action: "invoice_created",
+      title: `Invoice ${slug} created — ${data.title}`,
+      body: `${fmtMoney(data.total_amount, data.currency)} · ${data.installments.length} installment(s) · ${data.stakeholders.length} stakeholder(s)`,
+      deep_link: `/app/finance/invoices/${slug}`,
+      metadata: { event: "invoice_created", total: data.total_amount, currency: data.currency },
+    } as never);
 
     // Auto-email the invoice PDF to the customer (respects settings toggle).
     try {
@@ -406,6 +448,92 @@ export const createInvoice = createServerFn({ method: "POST" })
     }
 
     return { id: invoiceId, slug };
+  });
+
+export const updateInvoice = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => UpdateInvoiceIn.parse(data))
+  .handler(async ({ data, context }) => {
+    await ensureFinanceAdmin(context.supabase as never, context.userId);
+    const pctSum = data.stakeholders.reduce((a, s) => a + s.percent, 0);
+    if (Math.abs(pctSum - 100) > 0.01)
+      throw new Error(`Stakeholder percentages must sum to 100 (got ${pctSum})`);
+    const instSum = data.installments.reduce((a, i) => a + i.amount, 0);
+    if (Math.abs(instSum - data.total_amount) > 0.01)
+      throw new Error(`Installment amounts must sum to total (got ${instSum})`);
+
+    const [{ data: before }, { data: paidInst }, { data: activeWithdrawals }] = await Promise.all([
+      context.supabase.from("invoices").select("id, slug, title, currency, total_amount").eq("id", data.id).maybeSingle(),
+      context.supabase.from("invoice_installments").select("id").eq("invoice_id", data.id).eq("status", "paid").limit(1),
+      context.supabase.from("invoice_payouts").select("id").eq("invoice_id", data.id).in("status", ["requested", "paid"]).limit(1),
+    ]);
+    if (!before) throw new Error("Invoice not found");
+    if ((paidInst ?? []).length || (activeWithdrawals ?? []).length) {
+      throw new Error("This invoice already has paid installments or withdrawal-linked payouts. Revert those before editing financial structure.");
+    }
+
+    const { error: invErr } = await context.supabase
+      .from("invoices")
+      .update({
+        customer_id: data.customer_id,
+        title: data.title,
+        description: data.description ?? null,
+        project_type: data.project_type,
+        starts_on: data.starts_on ?? null,
+        ends_on: data.ends_on ?? null,
+        currency: data.currency,
+        total_amount: data.total_amount,
+        notes: data.notes ?? null,
+        internal_notes: data.internal_notes ?? null,
+      } as never)
+      .eq("id", data.id);
+    if (invErr) throw new Error(invErr.message);
+
+    await context.supabase.from("invoice_payouts").delete().eq("invoice_id", data.id);
+    await context.supabase.from("invoice_installments").delete().eq("invoice_id", data.id);
+    await context.supabase.from("invoice_stakeholders").delete().eq("invoice_id", data.id);
+
+    const { error: sErr } = await context.supabase.from("invoice_stakeholders").insert(
+      data.stakeholders.map((s) => ({ invoice_id: data.id, user_id: s.user_id, role: s.role, percent: s.percent, note: s.note ?? null })) as never,
+    );
+    if (sErr) throw new Error(sErr.message);
+    const { error: iErr } = await context.supabase.from("invoice_installments").insert(
+      data.installments.map((i, idx) => ({ invoice_id: data.id, sequence: idx + 1, label: i.label, amount: i.amount, due_date: i.due_date })) as never,
+    );
+    if (iErr) throw new Error(iErr.message);
+
+    const prior = before as { slug: string; title: string; currency: string; total_amount: number };
+    await logInvoiceActivity(
+      context.supabase,
+      data.id,
+      context.userId,
+      "note",
+      `Invoice ${prior.slug} edited — ${prior.title} → ${data.title}`,
+      { event: "invoice_updated", before: { title: prior.title, total: prior.total_amount, currency: prior.currency }, after: { title: data.title, total: data.total_amount, currency: data.currency } },
+    );
+    return { ok: true as const, slug: prior.slug };
+  });
+
+export const listInvoiceActivityLogs = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { slug: string }) => z.object({ slug: z.string().min(1) }).parse(d))
+  .handler(async ({ data, context }): Promise<InvoiceActivityLogRow[]> => {
+    const { data: rows, error } = await context.supabase
+      .from("invoice_activity_logs")
+      .select("*")
+      .eq("invoice_slug", data.slug)
+      .order("created_at", { ascending: false })
+      .limit(300);
+    if (error) throw new Error(error.message);
+    const logs = (rows ?? []) as unknown as InvoiceActivityLogRow[];
+    const uids = Array.from(new Set(logs.map((l) => l.actor_id).filter(Boolean) as string[]));
+    if (uids.length) {
+      const { data: profs } = await context.supabase.from("profiles").select("user_id, full_name").in("user_id", uids);
+      const names = new Map<string, string>();
+      (profs ?? []).forEach((p: { user_id: string; full_name: string | null }) => names.set(p.user_id, p.full_name ?? ""));
+      logs.forEach((l) => { if (l.actor_id) l.actor_name = names.get(l.actor_id) ?? null; });
+    }
+    return logs;
   });
 
 export const deleteInvoice = createServerFn({ method: "POST" })
