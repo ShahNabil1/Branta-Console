@@ -29,6 +29,7 @@ export interface InvoiceRecipient {
   role: string | null;
   is_primary: boolean;
   source: "customer" | "lead" | "contact" | "employee";
+  label?: string | null;
 }
 
 type InvoiceRecipientWithLabel = InvoiceRecipient & { label?: string | null };
