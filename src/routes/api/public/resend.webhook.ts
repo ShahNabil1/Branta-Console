@@ -102,6 +102,44 @@ export const Route = createFileRoute("/api/public/resend/webhook")({
         const lead_id = pickTag(tags, "lead_id");
         const lead_slug = pickTag(tags, "lead_slug");
         const lead_email_id = pickTag(tags, "lead_email_id");
+        const invoice_id = pickTag(tags, "invoice_id");
+        const invoice_event_id = pickTag(tags, "invoice_event_id");
+
+        // Invoice-tagged events → update invoice_email_events row.
+        if (invoice_id && invoice_event_id) {
+          try {
+            const { supabaseAdmin } = await import(
+              "@/integrations/supabase/client.server"
+            );
+            const rawType = (payload.type ?? "").replace(/^email\./, "");
+            const statusMap: Record<string, string> = {
+              sent: "sent",
+              delivered: "delivered",
+              opened: "opened",
+              clicked: "opened",
+              bounced: "bounced",
+              complained: "complained",
+              failed: "failed",
+              delivery_delayed: "delivery_delayed",
+              suppressed: "suppressed",
+            };
+            const status = statusMap[rawType];
+            if (status) {
+              const patch: Record<string, unknown> = { status };
+              const now = payload.created_at ?? new Date().toISOString();
+              if (status === "delivered") patch.delivered_at = now;
+              if (status === "opened") patch.opened_at = now;
+              if (status === "bounced") patch.bounced_at = now;
+              await supabaseAdmin
+                .from("invoice_email_events")
+                .update(patch)
+                .eq("id", invoice_event_id);
+            }
+          } catch (e) {
+            console.error("[resend-webhook] invoice update failed:", e);
+          }
+          return new Response("ok", { status: 200 });
+        }
 
         if (!lead_id) {
           // Event not from a lead-tagged send — acknowledge quietly.
