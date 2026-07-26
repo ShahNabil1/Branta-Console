@@ -5,11 +5,20 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   getInvoiceBySlug,
+  updateInvoice,
   markInstallmentPaid,
   revertInstallment,
   deleteInvoice,
+  listInvoiceActivityLogs,
+  listEmployeesForFinance,
   type InstallmentRow,
+  type InvoiceActivityLogRow,
+  type InvoiceRow,
+  type StakeholderRow,
+  type StakeholderRole,
+  type Currency,
 } from "@/lib/finance.functions";
+import { listCustomersForPicker } from "@/lib/customers.functions";
 import {
   listInvoiceRecipients,
   listInvoiceEmailEvents,
@@ -21,8 +30,11 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { useConfirm } from "@/components/ui/confirm-dialog";
-import { Loader2, ArrowLeft, Trash2, CheckCircle2, RotateCcw, Send, Download, Mail, Clock, CheckCheck, MailOpen, AlertCircle } from "lucide-react";
+import { SearchableSelect, type SearchableItem } from "@/components/finance/searchable-select";
+import { Loader2, ArrowLeft, Trash2, CheckCircle2, RotateCcw, Send, Download, Mail, Clock, CheckCheck, MailOpen, AlertCircle, Pencil, Activity, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/app/finance/invoices/$slug")({
@@ -51,9 +63,13 @@ function InvoiceDetail() {
   const getFn = useServerFn(getInvoiceBySlug);
   const markPaid = useServerFn(markInstallmentPaid);
   const revert = useServerFn(revertInstallment);
+  const update = useServerFn(updateInvoice);
   const del = useServerFn(deleteInvoice);
   const listRecips = useServerFn(listInvoiceRecipients);
   const listEvents = useServerFn(listInvoiceEmailEvents);
+  const listActivity = useServerFn(listInvoiceActivityLogs);
+  const listCust = useServerFn(listCustomersForPicker);
+  const listEmp = useServerFn(listEmployeesForFinance);
   const sendEmail = useServerFn(sendInvoiceEmail);
   const getPdfUrl = useServerFn(getSignedInvoicePdfUrl);
 
@@ -75,20 +91,31 @@ function InvoiceDetail() {
     staleTime: 60_000,
   });
 
+  const activity = useQuery({
+    queryKey: ["finance", "invoice", slug, "activity"],
+    queryFn: () => listActivity({ data: { slug } }),
+    staleTime: 5_000,
+  });
+
+  const customers = useQuery({ queryKey: ["customers"], queryFn: () => listCust(), staleTime: 60_000 });
+  const employees = useQuery({ queryKey: ["finance-employees"], queryFn: () => listEmp(), staleTime: 60_000 });
+
   useEffect(() => {
     const ch = supabase.channel(`finance:invoice:${slug}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "invoice_installments" }, () => void q.refetch())
       .on("postgres_changes", { event: "*", schema: "public", table: "invoice_payouts" }, () => void q.refetch())
       .on("postgres_changes", { event: "*", schema: "public", table: "invoices" }, () => void q.refetch())
       .on("postgres_changes", { event: "*", schema: "public", table: "invoice_email_events" }, () => void events.refetch())
+      .on("postgres_changes", { event: "*", schema: "public", table: "invoice_activity_logs", filter: `invoice_slug=eq.${slug}` }, () => void activity.refetch())
       .subscribe();
     return () => { void supabase.removeChannel(ch); };
-  }, [slug, q, events]);
+  }, [slug, q, events, activity]);
 
   const [payModal, setPayModal] = useState<InstallmentRow | null>(null);
   const [payRef, setPayRef] = useState("");
   const [payMethod, setPayMethod] = useState("");
   const [sendOpen, setSendOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [selectedEmails, setSelectedEmails] = useState<Record<string, boolean>>({});
 
   const doPay = useMutation({
@@ -116,6 +143,32 @@ function InvoiceDetail() {
       toast.success(`Sent to ${res.sent} recipient(s)${res.failed ? `, ${res.failed} failed` : ""}`);
       setSendOpen(false);
       void events.refetch();
+      void activity.refetch();
+    },
+    onError: (e) => toast.error((e as Error).message),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async (payload: {
+      id: string;
+      customer_id: string;
+      title: string;
+      description: string | null;
+      project_type: "one_time" | "monthly_retainer";
+      starts_on: string | null;
+      ends_on: string | null;
+      currency: Currency;
+      total_amount: number;
+      notes: string | null;
+      internal_notes: string | null;
+      installments: { label: string; amount: number; due_date: string }[];
+      stakeholders: { user_id: string; role: StakeholderRole; percent: number }[];
+    }) => update({ data: payload }),
+    onSuccess: () => {
+      toast.success("Invoice updated");
+      setEditOpen(false);
+      void q.refetch();
+      void activity.refetch();
     },
     onError: (e) => toast.error((e as Error).message),
   });
@@ -169,6 +222,15 @@ function InvoiceDetail() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setEditOpen(true)}
+              className="h-8 rounded-sm text-[12px]"
+              title="Edit invoice"
+            >
+              <Pencil className="mr-1.5 size-3.5" /> Edit
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -325,6 +387,8 @@ function InvoiceDetail() {
       {/* Delivery */}
       <DeliveryPanel events={events.data ?? []} loading={events.isLoading} />
 
+      <ActivityPanel logs={activity.data ?? []} loading={activity.isLoading} />
+
       {/* Send dialog */}
       {sendOpen && (
         <SendInvoiceDialog
@@ -334,6 +398,19 @@ function InvoiceDetail() {
           sending={sendMutation.isPending}
           onClose={() => setSendOpen(false)}
           onSend={() => sendMutation.mutate()}
+        />
+      )}
+
+      {editOpen && (
+        <EditInvoiceDialog
+          invoice={invoice}
+          installments={installments}
+          stakeholders={stakeholders}
+          customers={customers.data ?? []}
+          employees={employees.data ?? []}
+          saving={updateMutation.isPending}
+          onClose={() => setEditOpen(false)}
+          onSave={(payload) => updateMutation.mutate(payload)}
         />
       )}
 
@@ -365,6 +442,38 @@ function InvoiceDetail() {
             </div>
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+function ActivityPanel({ logs, loading }: { logs: InvoiceActivityLogRow[]; loading: boolean }) {
+  return (
+    <div id="activity" className="rounded-md border border-border bg-card">
+      <div className="border-b border-border px-4 py-2.5">
+        <h2 className="flex items-center gap-1.5 text-[13px] font-semibold"><Activity className="size-3.5" /> Activity log</h2>
+      </div>
+      {loading ? (
+        <div className="p-6 text-center text-[12px] text-muted-foreground">Loading…</div>
+      ) : logs.length === 0 ? (
+        <div className="p-6 text-center text-[12px] text-muted-foreground">No invoice activity recorded yet.</div>
+      ) : (
+        <ol className="divide-y divide-border">
+          {logs.map((log) => (
+            <li key={log.id} className="grid gap-1 px-4 py-3 sm:grid-cols-[140px_1fr] sm:gap-4">
+              <div className="font-mono text-[10.5px] text-muted-foreground">{new Date(log.created_at).toLocaleString()}</div>
+              <div className="min-w-0">
+                <div className="truncate text-[12.5px] font-semibold text-foreground">{log.title}</div>
+                <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+                  <span>{log.actor_name ?? (log.actor_id ? log.actor_id.slice(0, 8) : "System")}</span>
+                  <span>·</span>
+                  <span className="font-mono uppercase">{log.action.replaceAll("_", " ")}</span>
+                  {log.body && <><span>·</span><span className="truncate">{log.body}</span></>}
+                </div>
+              </div>
+            </li>
+          ))}
+        </ol>
       )}
     </div>
   );
