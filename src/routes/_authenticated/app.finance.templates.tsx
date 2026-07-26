@@ -583,6 +583,61 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+function LogoUploader({ onUploaded }: { onUploaded: (url: string) => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const requestUpload = useServerFn(requestR2Upload);
+
+  async function handleFile(file: File) {
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Logo must be under 5MB");
+      return;
+    }
+    setBusy(true);
+    try {
+      const { url, publicUrl } = await requestUpload({
+        data: { filename: file.name, contentType: file.type || "application/octet-stream", scope: "branding" },
+      });
+      const put = await fetch(url, { method: "PUT", body: file, headers: { "Content-Type": file.type || "application/octet-stream" } });
+      if (!put.ok) throw new Error(`Upload failed (${put.status})`);
+      if (!publicUrl) throw new Error("R2 public base URL is not configured");
+      onUploaded(publicUrl);
+      toast.success("Logo uploaded");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setBusy(false);
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  }
+
+  return (
+    <>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp,image/svg+xml"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) void handleFile(f);
+        }}
+      />
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={busy}
+        onClick={() => inputRef.current?.click()}
+        className="h-9 gap-1.5"
+      >
+        {busy ? <Loader2 className="size-3.5 animate-spin" /> : <Upload className="size-3.5" />}
+        {busy ? "Uploading…" : "Upload"}
+      </Button>
+    </>
+  );
+}
+
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1">
