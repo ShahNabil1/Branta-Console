@@ -121,7 +121,7 @@ export const sendInvoiceEmail = createServerFn({ method: "POST" })
  * Server-only implementation. Callable from other server fns/routes without going
  * through the RPC boundary. Never import from client.
  */
-type InvoiceEmailTrigger = "manual" | "auto_created" | "auto_installment_paid" | "auto_fully_paid" | "resend";
+type InvoiceEmailTrigger = "manual" | "auto_created" | "auto_installment_paid" | "auto_fully_paid" | "resend" | "reminder";
 
 export async function internalSendInvoiceEmail(opts: {
   slug: string;
@@ -129,6 +129,8 @@ export async function internalSendInvoiceEmail(opts: {
   trigger: InvoiceEmailTrigger;
   installment_id?: string | null;
   subjectOverride?: string;
+  bodyOverride?: string;
+  extraVars?: Record<string, string>;
   actorId?: string | null;
 }) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
