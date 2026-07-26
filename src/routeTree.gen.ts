@@ -32,6 +32,7 @@ import { Route as AuthenticatedAppEmployeesIndexRouteImport } from './routes/_au
 import { Route as AuthenticatedAppCustomersIndexRouteImport } from './routes/_authenticated/app.customers.index'
 import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram.webhook'
 import { Route as ApiPublicResendWebhookRouteImport } from './routes/api/public/resend.webhook'
+import { Route as ApiPublicHooksInvoiceRemindersRouteImport } from './routes/api/public/hooks/invoice-reminders'
 import { Route as ApiPublicBrevoWebhookRouteImport } from './routes/api/public/brevo.webhook'
 import { Route as AuthenticatedAppProfileWalletRouteImport } from './routes/_authenticated/app.profile.wallet'
 import { Route as AuthenticatedAppProfileSecurityRouteImport } from './routes/_authenticated/app.profile.security'
@@ -177,6 +178,12 @@ const ApiPublicResendWebhookRoute = ApiPublicResendWebhookRouteImport.update({
   path: '/api/public/resend/webhook',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksInvoiceRemindersRoute =
+  ApiPublicHooksInvoiceRemindersRouteImport.update({
+    id: '/api/public/hooks/invoice-reminders',
+    path: '/api/public/hooks/invoice-reminders',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicBrevoWebhookRoute = ApiPublicBrevoWebhookRouteImport.update({
   id: '/api/public/brevo/webhook',
   path: '/api/public/brevo/webhook',
@@ -315,6 +322,7 @@ export interface FileRoutesByFullPath {
   '/app/profile/security': typeof AuthenticatedAppProfileSecurityRoute
   '/app/profile/wallet': typeof AuthenticatedAppProfileWalletRoute
   '/api/public/brevo/webhook': typeof ApiPublicBrevoWebhookRoute
+  '/api/public/hooks/invoice-reminders': typeof ApiPublicHooksInvoiceRemindersRoute
   '/api/public/resend/webhook': typeof ApiPublicResendWebhookRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
   '/app/customers/': typeof AuthenticatedAppCustomersIndexRoute
@@ -352,6 +360,7 @@ export interface FileRoutesByTo {
   '/app/profile/security': typeof AuthenticatedAppProfileSecurityRoute
   '/app/profile/wallet': typeof AuthenticatedAppProfileWalletRoute
   '/api/public/brevo/webhook': typeof ApiPublicBrevoWebhookRoute
+  '/api/public/hooks/invoice-reminders': typeof ApiPublicHooksInvoiceRemindersRoute
   '/api/public/resend/webhook': typeof ApiPublicResendWebhookRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
   '/app/customers': typeof AuthenticatedAppCustomersIndexRoute
@@ -396,6 +405,7 @@ export interface FileRoutesById {
   '/_authenticated/app/profile/security': typeof AuthenticatedAppProfileSecurityRoute
   '/_authenticated/app/profile/wallet': typeof AuthenticatedAppProfileWalletRoute
   '/api/public/brevo/webhook': typeof ApiPublicBrevoWebhookRoute
+  '/api/public/hooks/invoice-reminders': typeof ApiPublicHooksInvoiceRemindersRoute
   '/api/public/resend/webhook': typeof ApiPublicResendWebhookRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
   '/_authenticated/app/customers/': typeof AuthenticatedAppCustomersIndexRoute
@@ -440,6 +450,7 @@ export interface FileRouteTypes {
     | '/app/profile/security'
     | '/app/profile/wallet'
     | '/api/public/brevo/webhook'
+    | '/api/public/hooks/invoice-reminders'
     | '/api/public/resend/webhook'
     | '/api/public/telegram/webhook'
     | '/app/customers/'
@@ -477,6 +488,7 @@ export interface FileRouteTypes {
     | '/app/profile/security'
     | '/app/profile/wallet'
     | '/api/public/brevo/webhook'
+    | '/api/public/hooks/invoice-reminders'
     | '/api/public/resend/webhook'
     | '/api/public/telegram/webhook'
     | '/app/customers'
@@ -520,6 +532,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/profile/security'
     | '/_authenticated/app/profile/wallet'
     | '/api/public/brevo/webhook'
+    | '/api/public/hooks/invoice-reminders'
     | '/api/public/resend/webhook'
     | '/api/public/telegram/webhook'
     | '/_authenticated/app/customers/'
@@ -539,6 +552,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   ApiPublicR2HealthRoute: typeof ApiPublicR2HealthRoute
   ApiPublicBrevoWebhookRoute: typeof ApiPublicBrevoWebhookRoute
+  ApiPublicHooksInvoiceRemindersRoute: typeof ApiPublicHooksInvoiceRemindersRoute
   ApiPublicResendWebhookRoute: typeof ApiPublicResendWebhookRoute
   ApiPublicTelegramWebhookRoute: typeof ApiPublicTelegramWebhookRoute
   ApiPublicInvoicesSlugPdfRoute: typeof ApiPublicInvoicesSlugPdfRoute
@@ -705,6 +719,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/resend/webhook'
       fullPath: '/api/public/resend/webhook'
       preLoaderRoute: typeof ApiPublicResendWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/invoice-reminders': {
+      id: '/api/public/hooks/invoice-reminders'
+      path: '/api/public/hooks/invoice-reminders'
+      fullPath: '/api/public/hooks/invoice-reminders'
+      preLoaderRoute: typeof ApiPublicHooksInvoiceRemindersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/brevo/webhook': {
@@ -978,6 +999,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   ApiPublicR2HealthRoute: ApiPublicR2HealthRoute,
   ApiPublicBrevoWebhookRoute: ApiPublicBrevoWebhookRoute,
+  ApiPublicHooksInvoiceRemindersRoute: ApiPublicHooksInvoiceRemindersRoute,
   ApiPublicResendWebhookRoute: ApiPublicResendWebhookRoute,
   ApiPublicTelegramWebhookRoute: ApiPublicTelegramWebhookRoute,
   ApiPublicInvoicesSlugPdfRoute: ApiPublicInvoicesSlugPdfRoute,

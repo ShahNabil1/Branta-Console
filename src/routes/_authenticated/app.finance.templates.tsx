@@ -69,6 +69,11 @@ type EmailSettings = {
   auto_send_on_create: boolean;
   auto_send_on_installment_paid: boolean;
   auto_send_on_fully_paid: boolean;
+  reminders_enabled: boolean;
+  reminder_days_upcoming: string;
+  reminder_days_overdue: string;
+  reminder_subject_template: string;
+  reminder_body_html: string;
 };
 
 const SAMPLE_VARS: Record<string, string> = {
@@ -405,6 +410,13 @@ const EMAIL_DEFAULTS: EmailSettings = {
   auto_send_on_create: true,
   auto_send_on_installment_paid: true,
   auto_send_on_fully_paid: true,
+  reminders_enabled: true,
+  reminder_days_upcoming: "3,1",
+  reminder_days_overdue: "1,3,7,14",
+  reminder_subject_template:
+    "Reminder · Invoice {{invoice_slug}} — {{currency}} {{outstanding_amount}} due {{due_label}}",
+  reminder_body_html:
+    "<p style=\"margin:0 0 12px;font:400 14px/1.55 Inter,Arial,sans-serif;color:#111827\">Hi {{recipient_name}},</p><p style=\"margin:0 0 12px;font:400 14px/1.55 Inter,Arial,sans-serif;color:#111827\">This is a friendly reminder that installment <b>#{{installment_seq}}</b> of invoice <b>{{invoice_slug}}</b> ({{currency}} {{installment_amount}}) is {{due_label}}.</p><p style=\"margin:0;font:400 14px/1.55 Inter,Arial,sans-serif;color:#111827\">Outstanding: <b>{{currency}} {{outstanding_amount}}</b>.</p>",
 };
 
 function EmailEditor({ initial }: { initial: EmailSettings | null }) {
@@ -493,6 +505,28 @@ function EmailEditor({ initial }: { initial: EmailSettings | null }) {
             <ToggleRow label="Auto-send when invoice is fully paid" checked={form.auto_send_on_fully_paid} onChange={(v) => set("auto_send_on_fully_paid", v)} />
           </div>
         </Section>
+
+        <Section title="Payment reminders (daily cron)">
+          <ToggleRow label="Enable automated payment reminders" checked={form.reminders_enabled} onChange={(v) => set("reminders_enabled", v)} />
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Upcoming (days before due, comma-separated)">
+              <Input value={form.reminder_days_upcoming} onChange={(e) => set("reminder_days_upcoming", e.target.value)} placeholder="3,1" className="font-mono text-[12px]" />
+            </Field>
+            <Field label="Overdue (days after due, comma-separated)">
+              <Input value={form.reminder_days_overdue} onChange={(e) => set("reminder_days_overdue", e.target.value)} placeholder="1,3,7,14" className="font-mono text-[12px]" />
+            </Field>
+          </div>
+          <Field label="Reminder subject template">
+            <Input value={form.reminder_subject_template} onChange={(e) => set("reminder_subject_template", e.target.value)} className="font-mono text-[12px]" />
+          </Field>
+          <Field label="Reminder body HTML">
+            <Textarea rows={4} value={form.reminder_body_html} onChange={(e) => set("reminder_body_html", e.target.value)} className="font-mono text-[12px]" />
+          </Field>
+          <p className="text-[10.5px] text-muted-foreground">
+            Extra variables: <code>{"{{installment_seq}}"}</code> <code>{"{{installment_amount}}"}</code> <code>{"{{due_label}}"}</code> <code>{"{{days}}"}</code>. Runs once daily (09:00 UTC); duplicate sends are blocked per installment/day.
+          </p>
+        </Section>
+
 
         <div className="flex items-center justify-end gap-2 border-t border-border pt-4">
           <Button

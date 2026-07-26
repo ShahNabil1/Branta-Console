@@ -121,7 +121,7 @@ export const sendInvoiceEmail = createServerFn({ method: "POST" })
  * Server-only implementation. Callable from other server fns/routes without going
  * through the RPC boundary. Never import from client.
  */
-type InvoiceEmailTrigger = "manual" | "auto_created" | "auto_installment_paid" | "auto_fully_paid" | "resend";
+type InvoiceEmailTrigger = "manual" | "auto_created" | "auto_installment_paid" | "auto_fully_paid" | "resend" | "reminder";
 
 export async function internalSendInvoiceEmail(opts: {
   slug: string;
@@ -129,6 +129,8 @@ export async function internalSendInvoiceEmail(opts: {
   trigger: InvoiceEmailTrigger;
   installment_id?: string | null;
   subjectOverride?: string;
+  bodyOverride?: string;
+  extraVars?: Record<string, string>;
   actorId?: string | null;
 }) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -201,13 +203,14 @@ export async function internalSendInvoiceEmail(opts: {
       customer_name: payload.customer.name ?? "",
       status: payload.invoice.status,
       view_url: signedUrl,
+      ...(opts.extraVars ?? {}),
     };
 
     const subject = opts.subjectOverride
       ? renderVars(opts.subjectOverride, vars)
       : renderVars(settings.subject_template, vars);
     const header = renderVars(settings.header_html, vars);
-    const body = renderVars(settings.body_html, vars);
+    const body = renderVars(opts.bodyOverride ?? settings.body_html, vars);
     const footer = renderVars(settings.footer_html, vars);
 
     const html = `<!doctype html><html><body style="margin:0;padding:0;background:${settings.background_color};font-family:Inter,Arial,sans-serif;">
