@@ -2,13 +2,11 @@
 // URL: /api/public/invoices/BT-01.pdf?exp=...&sig=...
 import { createFileRoute } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/api/public/invoices/$slug/pdf")({
+export const Route = createFileRoute("/api/public/invoices/$slug.pdf")({
   server: {
     handlers: {
       GET: async ({ params, request }) => {
-        const rawSlug = params.slug;
-        // The route file name is `invoices.$slug.pdf.ts` → slug param includes `.pdf` at end.
-        const slug = rawSlug.endsWith(".pdf") ? rawSlug.slice(0, -4) : rawSlug;
+        const slug = (params as Record<string, string>)["slug.pdf"] ?? (params as Record<string, string>).slug;
         const url = new URL(request.url);
         const exp = Number(url.searchParams.get("exp") ?? "0");
         const sig = url.searchParams.get("sig") ?? "";
