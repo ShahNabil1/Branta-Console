@@ -218,8 +218,16 @@ function PdfEditor({ initial }: { initial: PdfSettings | null }) {
             </Field>
           </div>
           <Field label="Logo URL (PNG/JPG, transparent recommended)">
-            <Input value={form.logo_url ?? ""} onChange={(e) => set("logo_url", e.target.value || null)} placeholder="https://…" />
+            <div className="flex items-center gap-2">
+              <Input value={form.logo_url ?? ""} onChange={(e) => set("logo_url", e.target.value || null)} placeholder="https://…" className="flex-1" />
+              <LogoUploader onUploaded={(url) => set("logo_url", url)} />
+            </div>
+            {form.logo_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={form.logo_url} alt="Logo preview" className="mt-2 h-10 w-auto rounded-sm border border-border bg-white p-1" />
+            ) : null}
           </Field>
+
         </Section>
 
         <Section title="Header & Footer">
