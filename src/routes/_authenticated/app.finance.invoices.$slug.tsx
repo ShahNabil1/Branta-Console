@@ -1,7 +1,7 @@
 import { createFileRoute, useParams, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   getInvoiceBySlug,
@@ -10,11 +10,18 @@ import {
   deleteInvoice,
   type InstallmentRow,
 } from "@/lib/finance.functions";
+import {
+  listInvoiceRecipients,
+  listInvoiceEmailEvents,
+  sendInvoiceEmail,
+  type InvoiceEmailEventRow,
+  type InvoiceRecipient,
+} from "@/lib/invoice-email.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useConfirm } from "@/components/ui/confirm-dialog";
-import { Loader2, ArrowLeft, Trash2, CheckCircle2, RotateCcw } from "lucide-react";
+import { Loader2, ArrowLeft, Trash2, CheckCircle2, RotateCcw, Send, Download, Mail, Clock, CheckCheck, MailOpen, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/app/finance/invoices/$slug")({
