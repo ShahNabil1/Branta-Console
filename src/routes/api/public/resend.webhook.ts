@@ -132,7 +132,8 @@ export const Route = createFileRoute("/api/public/resend/webhook")({
               if (status === "bounced") patch.bounced_at = now;
               await supabaseAdmin
                 .from("invoice_email_events")
-                .update(patch)
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                .update(patch as any)
                 .eq("id", invoice_event_id);
             }
           } catch (e) {
