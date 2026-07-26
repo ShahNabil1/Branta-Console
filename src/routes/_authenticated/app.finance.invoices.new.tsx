@@ -116,7 +116,7 @@ function NewInvoicePage() {
           </Link>
           <div>
             <h1 className="text-[20px] font-semibold text-foreground">New Invoice</h1>
-            <p className="text-[12.5px] text-muted-foreground">Slug is auto-generated (BT-01, BT-02, …)</p>
+            <p className="text-[12.5px] text-muted-foreground">{"\n"}</p>
           </div>
         </div>
         <div className="flex gap-2">
