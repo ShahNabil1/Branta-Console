@@ -410,6 +410,13 @@ const EMAIL_DEFAULTS: EmailSettings = {
   auto_send_on_create: true,
   auto_send_on_installment_paid: true,
   auto_send_on_fully_paid: true,
+  reminders_enabled: true,
+  reminder_days_upcoming: "3,1",
+  reminder_days_overdue: "1,3,7,14",
+  reminder_subject_template:
+    "Reminder · Invoice {{invoice_slug}} — {{currency}} {{outstanding_amount}} due {{due_label}}",
+  reminder_body_html:
+    "<p style=\"margin:0 0 12px;font:400 14px/1.55 Inter,Arial,sans-serif;color:#111827\">Hi {{recipient_name}},</p><p style=\"margin:0 0 12px;font:400 14px/1.55 Inter,Arial,sans-serif;color:#111827\">This is a friendly reminder that installment <b>#{{installment_seq}}</b> of invoice <b>{{invoice_slug}}</b> ({{currency}} {{installment_amount}}) is {{due_label}}.</p><p style=\"margin:0;font:400 14px/1.55 Inter,Arial,sans-serif;color:#111827\">Outstanding: <b>{{currency}} {{outstanding_amount}}</b>.</p>",
 };
 
 function EmailEditor({ initial }: { initial: EmailSettings | null }) {
