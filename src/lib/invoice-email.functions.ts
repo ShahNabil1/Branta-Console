@@ -28,8 +28,10 @@ export interface InvoiceRecipient {
   name: string | null;
   role: string | null;
   is_primary: boolean;
-  source: "customer" | "contact";
+  source: "customer" | "lead" | "contact" | "employee";
 }
+
+type InvoiceRecipientWithLabel = InvoiceRecipient & { label?: string | null };
 
 function renderVars(template: string, vars: Record<string, string | null | undefined>): string {
   return template.replace(/\{\{\s*([a-zA-Z0-9_.]+)\s*\}\}/g, (_m, key: string) => {
@@ -48,23 +50,60 @@ export const listInvoiceRecipients = createServerFn({ method: "GET" })
   .inputValidator((d: { slug: string }) => z.object({ slug: z.string().min(1) }).parse(d))
   .handler(async ({ data, context }): Promise<InvoiceRecipient[]> => {
     const { data: inv } = await context.supabase
-      .from("invoices").select("customer_id").eq("slug", data.slug).maybeSingle();
+      .from("invoices").select("id, customer_id").eq("slug", data.slug).maybeSingle();
     if (!inv) return [];
-    const customerId = (inv as { customer_id: string }).customer_id;
+    const invoice = inv as { id: string; customer_id: string };
+    const customerId = invoice.customer_id;
     const { data: cust } = await context.supabase
       .from("customers").select("name, email, converted_from_lead_id")
       .eq("id", customerId).maybeSingle();
     const c = cust as { name: string; email: string | null; converted_from_lead_id: string | null } | null;
-    const out: InvoiceRecipient[] = [];
-    if (c?.email) out.push({ email: c.email, name: c.name ?? null, role: "Customer", is_primary: true, source: "customer" });
+    const out: InvoiceRecipientWithLabel[] = [];
+    const push = (row: InvoiceRecipientWithLabel) => {
+      const email = row.email.trim();
+      if (!email) return;
+      if (out.some((o) => o.email.toLowerCase() === email.toLowerCase())) return;
+      out.push({ ...row, email });
+    };
+    if (c?.email) push({ email: c.email, name: c.name ?? null, role: "Customer", is_primary: true, source: "customer", label: "primary" });
     if (c?.converted_from_lead_id) {
+      const { data: lead } = await context.supabase
+        .from("leads").select("name, email, email_label, alt_email, alt_email_label")
+        .eq("id", c.converted_from_lead_id).maybeSingle();
+      const l = lead as { name: string | null; email: string | null; email_label: string | null; alt_email: string | null; alt_email_label: string | null } | null;
+      if (l?.email) push({ email: l.email, name: l.name ?? c.name ?? null, role: "Lead", is_primary: false, source: "lead", label: l.email_label ?? "lead" });
+      if (l?.alt_email) push({ email: l.alt_email, name: l.name ?? c.name ?? null, role: "Lead", is_primary: false, source: "lead", label: l.alt_email_label ?? "alt" });
       const { data: contacts } = await context.supabase
-        .from("lead_contacts").select("name, email, role, is_primary")
+        .from("lead_contacts").select("name, email, email_label, alt_email, alt_email_label, role, is_primary")
         .eq("lead_id", c.converted_from_lead_id);
-      for (const row of (contacts ?? []) as Array<{ name: string | null; email: string | null; role: string | null; is_primary: boolean }>) {
-        if (!row.email) continue;
-        if (out.some((o) => o.email.toLowerCase() === row.email!.toLowerCase())) continue;
-        out.push({ email: row.email, name: row.name, role: row.role, is_primary: row.is_primary, source: "contact" });
+      for (const row of (contacts ?? []) as Array<{ name: string | null; email: string | null; email_label: string | null; alt_email: string | null; alt_email_label: string | null; role: string | null; is_primary: boolean }>) {
+        if (row.email) push({ email: row.email, name: row.name, role: row.role, is_primary: row.is_primary, source: "contact", label: row.email_label ?? (row.is_primary ? "primary" : "contact") });
+        if (row.alt_email) push({ email: row.alt_email, name: row.name, role: row.role, is_primary: false, source: "contact", label: row.alt_email_label ?? "alt" });
+      }
+    }
+    const { data: stakeholders } = await context.supabase
+      .from("invoice_stakeholders")
+      .select("user_id, role")
+      .eq("invoice_id", invoice.id);
+    const userIds = Array.from(new Set(((stakeholders ?? []) as Array<{ user_id: string }>).map((s) => s.user_id)));
+    if (userIds.length) {
+      const { data: profs } = await context.supabase
+        .from("profiles")
+        .select("user_id, full_name")
+        .in("user_id", userIds);
+      const nameByUser = new Map<string, string | null>();
+      (profs ?? []).forEach((p: { user_id: string; full_name: string | null }) => nameByUser.set(p.user_id, p.full_name));
+      try {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data: usersPage } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+        const emailByUser = new Map<string, string | null>();
+        (usersPage?.users ?? []).forEach((u) => emailByUser.set(u.id, u.email ?? null));
+        for (const s of (stakeholders ?? []) as Array<{ user_id: string; role: string }>) {
+          const email = emailByUser.get(s.user_id);
+          if (email) push({ email, name: nameByUser.get(s.user_id) ?? null, role: s.role, is_primary: false, source: "employee", label: "team" });
+        }
+      } catch {
+        // Auth email enrichment is best-effort; customer/contact recipients still work.
       }
     }
     return out;
@@ -271,6 +310,20 @@ export async function internalSendInvoiceEmail(opts: {
         status: "sent",
         provider_message_id: resp.id,
       }).eq("id", eventId);
+      await (supabaseAdmin as never as { from: (table: string) => { insert: (row: Record<string, unknown>) => Promise<unknown> } })
+        .from("invoice_activity_logs")
+        .insert({
+          invoice_id: payload.invoice.id,
+          invoice_slug: payload.invoice.slug,
+          actor_id: opts.actorId ?? null,
+          action: "invoice_email_sent",
+          title: `Invoice email sent to ${r.email}`,
+          body: subject,
+          related_table: "invoice_email_events",
+          related_id: eventId,
+          deep_link: `/app/finance/invoices/${payload.invoice.slug}#delivery`,
+          metadata: { recipient_email: r.email, recipient_name: r.name ?? null, trigger: opts.trigger, provider_message_id: resp.id },
+        });
       results.push({ email: r.email, ok: true, eventId });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -278,6 +331,20 @@ export async function internalSendInvoiceEmail(opts: {
         status: "failed",
         error_message: msg.slice(0, 500),
       }).eq("id", eventId);
+      await (supabaseAdmin as never as { from: (table: string) => { insert: (row: Record<string, unknown>) => Promise<unknown> } })
+        .from("invoice_activity_logs")
+        .insert({
+          invoice_id: payload.invoice.id,
+          invoice_slug: payload.invoice.slug,
+          actor_id: opts.actorId ?? null,
+          action: "invoice_email_failed",
+          title: `Invoice email failed for ${r.email}`,
+          body: msg.slice(0, 500),
+          related_table: "invoice_email_events",
+          related_id: eventId,
+          deep_link: `/app/finance/invoices/${payload.invoice.slug}#delivery`,
+          metadata: { recipient_email: r.email, recipient_name: r.name ?? null, trigger: opts.trigger },
+        });
       results.push({ email: r.email, ok: false, error: msg, eventId });
     }
   }
@@ -306,7 +373,8 @@ export async function autoSendInvoiceEmail(opts: {
     if (opts.trigger === "auto_installment_paid" && !s.auto_send_on_installment_paid) return;
     if (opts.trigger === "auto_fully_paid" && !s.auto_send_on_fully_paid) return;
 
-    // Resolve recipients: customer email + primary lead contact
+    // Resolve auto recipients: customer primary + any primary contact.
+    // Alt/contact/team emails remain manual-select only so finance can choose deliberately.
     const { data: inv } = await supabaseAdmin.from("invoices").select("customer_id").eq("slug", opts.slug).maybeSingle();
     if (!inv) return;
     const customerId = (inv as { customer_id: string }).customer_id;
