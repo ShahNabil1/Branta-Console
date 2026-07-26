@@ -55,6 +55,7 @@ function InvoiceDetail() {
   const listRecips = useServerFn(listInvoiceRecipients);
   const listEvents = useServerFn(listInvoiceEmailEvents);
   const sendEmail = useServerFn(sendInvoiceEmail);
+  const getPdfUrl = useServerFn(getSignedInvoicePdfUrl);
 
   const q = useQuery({
     queryKey: ["finance", "invoice", slug],
