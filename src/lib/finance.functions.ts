@@ -973,12 +973,12 @@ export const cancelMyWithdrawal = createServerFn({ method: "POST" })
     if (!row) throw new Error("Request not found");
     if (row.user_id !== context.userId) throw new Error("Forbidden");
     if (row.status !== "pending") throw new Error("Only pending requests can be cancelled");
-    await revertRequestedPayoutsToAvailable(context.supabase, row.id);
     const { data: linkedPayouts } = await context.supabase
       .from("invoice_payouts")
       .select("invoice_id")
       .eq("withdrawal_request_id", row.id);
     const invoiceIds = Array.from(new Set(((linkedPayouts ?? []) as Array<{ invoice_id: string | null }>).map((p) => p.invoice_id).filter((x): x is string => !!x)));
+    await revertRequestedPayoutsToAvailable(context.supabase, row.id);
     const { error } = await context.supabase
       .from("withdrawal_requests")
       .update({
