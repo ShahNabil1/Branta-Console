@@ -442,6 +442,11 @@ export type Database = {
           from_name: string
           header_html: string
           id: string
+          reminder_body_html: string
+          reminder_days_overdue: string
+          reminder_days_upcoming: string
+          reminder_subject_template: string
+          reminders_enabled: boolean
           reply_to: string | null
           subject_template: string
           updated_at: string
@@ -462,6 +467,11 @@ export type Database = {
           from_name?: string
           header_html?: string
           id?: string
+          reminder_body_html?: string
+          reminder_days_overdue?: string
+          reminder_days_upcoming?: string
+          reminder_subject_template?: string
+          reminders_enabled?: boolean
           reply_to?: string | null
           subject_template?: string
           updated_at?: string
@@ -482,6 +492,11 @@ export type Database = {
           from_name?: string
           header_html?: string
           id?: string
+          reminder_body_html?: string
+          reminder_days_overdue?: string
+          reminder_days_upcoming?: string
+          reminder_subject_template?: string
+          reminders_enabled?: boolean
           reply_to?: string | null
           subject_template?: string
           updated_at?: string
@@ -2082,6 +2097,7 @@ export type Database = {
         | "auto_installment_paid"
         | "auto_fully_paid"
         | "resend"
+        | "reminder"
       invoice_status:
         | "draft"
         | "sent"
@@ -2262,6 +2278,7 @@ export const Constants = {
         "auto_installment_paid",
         "auto_fully_paid",
         "resend",
+        "reminder",
       ],
       invoice_status: [
         "draft",
