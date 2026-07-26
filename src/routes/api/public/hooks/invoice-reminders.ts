@@ -109,7 +109,7 @@ async function handle(request: Request): Promise<Response> {
       .select("id, slug, customer_id")
       .eq("id", inst.invoice_id)
       .maybeSingle();
-    if (!inv) continue;
+    if (!inv || !inv.slug) continue;
 
     const { data: cust } = await supabaseAdmin
       .from("customers")
