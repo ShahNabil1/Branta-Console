@@ -42,6 +42,7 @@ import { Route as AuthenticatedAppLeadsDraftsRouteImport } from './routes/_authe
 import { Route as AuthenticatedAppLeadsSlugRouteImport } from './routes/_authenticated/app.leads.$slug'
 import { Route as AuthenticatedAppFinanceWithdrawalsRouteImport } from './routes/_authenticated/app.finance.withdrawals'
 import { Route as AuthenticatedAppFinanceWalletRouteImport } from './routes/_authenticated/app.finance.wallet'
+import { Route as AuthenticatedAppFinanceTemplatesRouteImport } from './routes/_authenticated/app.finance.templates'
 import { Route as AuthenticatedAppFinanceExpensesRouteImport } from './routes/_authenticated/app.finance.expenses'
 import { Route as AuthenticatedAppEmployeesUserIdRouteImport } from './routes/_authenticated/app.employees.$userId'
 import { Route as AuthenticatedAppCustomersCodeRouteImport } from './routes/_authenticated/app.customers.$code'
@@ -235,6 +236,12 @@ const AuthenticatedAppFinanceWalletRoute =
     path: '/wallet',
     getParentRoute: () => AuthenticatedAppFinanceRoute,
   } as any)
+const AuthenticatedAppFinanceTemplatesRoute =
+  AuthenticatedAppFinanceTemplatesRouteImport.update({
+    id: '/templates',
+    path: '/templates',
+    getParentRoute: () => AuthenticatedAppFinanceRoute,
+  } as any)
 const AuthenticatedAppFinanceExpensesRoute =
   AuthenticatedAppFinanceExpensesRouteImport.update({
     id: '/expenses',
@@ -297,6 +304,7 @@ export interface FileRoutesByFullPath {
   '/app/customers/$code': typeof AuthenticatedAppCustomersCodeRoute
   '/app/employees/$userId': typeof AuthenticatedAppEmployeesUserIdRoute
   '/app/finance/expenses': typeof AuthenticatedAppFinanceExpensesRoute
+  '/app/finance/templates': typeof AuthenticatedAppFinanceTemplatesRoute
   '/app/finance/wallet': typeof AuthenticatedAppFinanceWalletRoute
   '/app/finance/withdrawals': typeof AuthenticatedAppFinanceWithdrawalsRoute
   '/app/leads/$slug': typeof AuthenticatedAppLeadsSlugRoute
@@ -333,6 +341,7 @@ export interface FileRoutesByTo {
   '/app/customers/$code': typeof AuthenticatedAppCustomersCodeRoute
   '/app/employees/$userId': typeof AuthenticatedAppEmployeesUserIdRoute
   '/app/finance/expenses': typeof AuthenticatedAppFinanceExpensesRoute
+  '/app/finance/templates': typeof AuthenticatedAppFinanceTemplatesRoute
   '/app/finance/wallet': typeof AuthenticatedAppFinanceWalletRoute
   '/app/finance/withdrawals': typeof AuthenticatedAppFinanceWithdrawalsRoute
   '/app/leads/$slug': typeof AuthenticatedAppLeadsSlugRoute
@@ -376,6 +385,7 @@ export interface FileRoutesById {
   '/_authenticated/app/customers/$code': typeof AuthenticatedAppCustomersCodeRoute
   '/_authenticated/app/employees/$userId': typeof AuthenticatedAppEmployeesUserIdRoute
   '/_authenticated/app/finance/expenses': typeof AuthenticatedAppFinanceExpensesRoute
+  '/_authenticated/app/finance/templates': typeof AuthenticatedAppFinanceTemplatesRoute
   '/_authenticated/app/finance/wallet': typeof AuthenticatedAppFinanceWalletRoute
   '/_authenticated/app/finance/withdrawals': typeof AuthenticatedAppFinanceWithdrawalsRoute
   '/_authenticated/app/leads/$slug': typeof AuthenticatedAppLeadsSlugRoute
@@ -419,6 +429,7 @@ export interface FileRouteTypes {
     | '/app/customers/$code'
     | '/app/employees/$userId'
     | '/app/finance/expenses'
+    | '/app/finance/templates'
     | '/app/finance/wallet'
     | '/app/finance/withdrawals'
     | '/app/leads/$slug'
@@ -455,6 +466,7 @@ export interface FileRouteTypes {
     | '/app/customers/$code'
     | '/app/employees/$userId'
     | '/app/finance/expenses'
+    | '/app/finance/templates'
     | '/app/finance/wallet'
     | '/app/finance/withdrawals'
     | '/app/leads/$slug'
@@ -497,6 +509,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/customers/$code'
     | '/_authenticated/app/employees/$userId'
     | '/_authenticated/app/finance/expenses'
+    | '/_authenticated/app/finance/templates'
     | '/_authenticated/app/finance/wallet'
     | '/_authenticated/app/finance/withdrawals'
     | '/_authenticated/app/leads/$slug'
@@ -764,6 +777,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppFinanceWalletRouteImport
       parentRoute: typeof AuthenticatedAppFinanceRoute
     }
+    '/_authenticated/app/finance/templates': {
+      id: '/_authenticated/app/finance/templates'
+      path: '/templates'
+      fullPath: '/app/finance/templates'
+      preLoaderRoute: typeof AuthenticatedAppFinanceTemplatesRouteImport
+      parentRoute: typeof AuthenticatedAppFinanceRoute
+    }
     '/_authenticated/app/finance/expenses': {
       id: '/_authenticated/app/finance/expenses'
       path: '/expenses'
@@ -834,6 +854,7 @@ const AuthenticatedAppCustomersRouteWithChildren =
 
 interface AuthenticatedAppFinanceRouteChildren {
   AuthenticatedAppFinanceExpensesRoute: typeof AuthenticatedAppFinanceExpensesRoute
+  AuthenticatedAppFinanceTemplatesRoute: typeof AuthenticatedAppFinanceTemplatesRoute
   AuthenticatedAppFinanceWalletRoute: typeof AuthenticatedAppFinanceWalletRoute
   AuthenticatedAppFinanceWithdrawalsRoute: typeof AuthenticatedAppFinanceWithdrawalsRoute
   AuthenticatedAppFinanceIndexRoute: typeof AuthenticatedAppFinanceIndexRoute
@@ -845,6 +866,8 @@ interface AuthenticatedAppFinanceRouteChildren {
 const AuthenticatedAppFinanceRouteChildren: AuthenticatedAppFinanceRouteChildren =
   {
     AuthenticatedAppFinanceExpensesRoute: AuthenticatedAppFinanceExpensesRoute,
+    AuthenticatedAppFinanceTemplatesRoute:
+      AuthenticatedAppFinanceTemplatesRoute,
     AuthenticatedAppFinanceWalletRoute: AuthenticatedAppFinanceWalletRoute,
     AuthenticatedAppFinanceWithdrawalsRoute:
       AuthenticatedAppFinanceWithdrawalsRoute,
