@@ -272,6 +272,39 @@ function fmtMoney(n: number | null | undefined, cur: string): string {
   return `${cur} ${Number(n ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function logInvoicePayoutLocks(supabase: any, invoiceId: string, actorId: string, event: string) {
+  const { data: payouts } = await supabase
+    .from("invoice_payouts")
+    .select("id, user_id, role, currency, amount, status, installment_id")
+    .eq("invoice_id", invoiceId)
+    .eq("status", "locked");
+  const rows = (payouts ?? []) as Array<{ id: string; user_id: string; role: string; currency: string; amount: number; status: string; installment_id: string | null }>;
+  if (!rows.length) return;
+  const userIds = Array.from(new Set(rows.map((r) => r.user_id)));
+  const { data: profs } = await supabase.from("profiles").select("user_id, full_name").in("user_id", userIds);
+  const names = new Map<string, string | null>();
+  (profs ?? []).forEach((p: { user_id: string; full_name: string | null }) => names.set(p.user_id, p.full_name));
+  const byUser = new Map<string, { name: string | null; role: string; currency: string; total: number; count: number }>();
+  rows.forEach((p) => {
+    const key = `${p.user_id}:${p.currency}:${p.role}`;
+    const cur = byUser.get(key) ?? { name: names.get(p.user_id) ?? null, role: p.role, currency: p.currency, total: 0, count: 0 };
+    cur.total += Number(p.amount);
+    cur.count += 1;
+    byUser.set(key, cur);
+  });
+  for (const row of byUser.values()) {
+    await logInvoiceActivity(
+      supabase,
+      invoiceId,
+      actorId,
+      "note",
+      `Wallet locked — ${row.name ?? row.role} ${fmtMoney(row.total, row.currency)}`,
+      { event, wallet_role: row.role, amount: row.total, currency: row.currency, payout_count: row.count },
+    );
+  }
+}
+
 export const listInvoices = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<InvoiceRow[]> => {
@@ -435,6 +468,7 @@ export const createInvoice = createServerFn({ method: "POST" })
       deep_link: `/app/finance/invoices/${slug}`,
       metadata: { event: "invoice_created", total: data.total_amount, currency: data.currency },
     } as never);
+    await logInvoicePayoutLocks(context.supabase, invoiceId, context.userId, "payout_locked");
 
     // Auto-email the invoice PDF to the customer (respects settings toggle).
     try {
@@ -502,6 +536,7 @@ export const updateInvoice = createServerFn({ method: "POST" })
       data.installments.map((i, idx) => ({ invoice_id: data.id, sequence: idx + 1, label: i.label, amount: i.amount, due_date: i.due_date })) as never,
     );
     if (iErr) throw new Error(iErr.message);
+    await logInvoicePayoutLocks(context.supabase, data.id, context.userId, "payout_relocked_after_edit");
 
     const prior = before as { slug: string; title: string; currency: string; total_amount: number };
     await logInvoiceActivity(
@@ -910,6 +945,21 @@ export const requestWithdrawal = createServerFn({ method: "POST" })
         .eq("id", p.id);
       remaining -= Number(p.amount);
     }
+    const { data: linkedPayouts } = await context.supabase
+      .from("invoice_payouts")
+      .select("invoice_id")
+      .eq("withdrawal_request_id", row.id);
+    const invoiceIds = Array.from(new Set(((linkedPayouts ?? []) as Array<{ invoice_id: string | null }>).map((p) => p.invoice_id).filter((x): x is string => !!x)));
+    for (const invoiceId of invoiceIds) {
+      await logInvoiceActivity(
+        context.supabase,
+        invoiceId,
+        context.userId,
+        "note",
+        `Withdrawal requested — ${fmtMoney(row.amount, row.currency)}`,
+        { event: "withdrawal_requested", withdrawal_request_id: row.id, payment_method_id: row.payment_method_id ?? null },
+      );
+    }
     return row;
   });
 
@@ -924,6 +974,11 @@ export const cancelMyWithdrawal = createServerFn({ method: "POST" })
     if (row.user_id !== context.userId) throw new Error("Forbidden");
     if (row.status !== "pending") throw new Error("Only pending requests can be cancelled");
     await revertRequestedPayoutsToAvailable(context.supabase, row.id);
+    const { data: linkedPayouts } = await context.supabase
+      .from("invoice_payouts")
+      .select("invoice_id")
+      .eq("withdrawal_request_id", row.id);
+    const invoiceIds = Array.from(new Set(((linkedPayouts ?? []) as Array<{ invoice_id: string | null }>).map((p) => p.invoice_id).filter((x): x is string => !!x)));
     const { error } = await context.supabase
       .from("withdrawal_requests")
       .update({
@@ -934,6 +989,16 @@ export const cancelMyWithdrawal = createServerFn({ method: "POST" })
       } as never)
       .eq("id", row.id);
     if (error) throw new Error(error.message);
+    for (const invoiceId of invoiceIds) {
+      await logInvoiceActivity(
+        context.supabase,
+        invoiceId,
+        context.userId,
+        "note",
+        `Withdrawal cancelled — ${fmtMoney(row.amount, row.currency)}`,
+        { event: "withdrawal_cancelled", withdrawal_request_id: row.id },
+      );
+    }
     return { ok: true as const };
   });
 
