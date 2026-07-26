@@ -375,3 +375,19 @@ export const updateInvoiceEmailSettings = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true as const };
   });
+
+export const getSignedInvoicePdfUrl = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { slug: string }) => z.object({ slug: z.string().min(1) }).parse(d))
+  .handler(async ({ data, context }) => {
+    // Verify user can see this invoice (RLS on invoices).
+    const { data: inv } = await context.supabase
+      .from("invoices").select("id").eq("slug", data.slug).maybeSingle();
+    if (!inv) throw new Error("Invoice not found");
+    const { getRequest } = await import("@tanstack/react-start/server");
+    const { buildSignedInvoiceUrl } = await import("@/lib/invoice-pdf-signing.server");
+    let origin = "";
+    try { origin = new URL(getRequest().url).origin; } catch { /* */ }
+    if (!origin) origin = process.env.PUBLIC_BASE_URL || "https://console.brantatech.com";
+    return { url: buildSignedInvoiceUrl(origin, data.slug) };
+  });
