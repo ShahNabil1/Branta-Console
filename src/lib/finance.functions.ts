@@ -39,6 +39,7 @@ export type ExpenseCategory =
   | "tax"
   | "refund";
 export type Currency = "BDT" | "USD";
+export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
 export interface InvoiceRow {
   id: string;
@@ -173,7 +174,7 @@ export interface InvoiceActivityLogRow {
   related_table: string | null;
   related_id: string | null;
   deep_link: string | null;
-  metadata: Record<string, unknown> | null;
+  metadata: { [key: string]: JsonValue } | null;
   created_at: string;
   actor_name?: string | null;
 }
