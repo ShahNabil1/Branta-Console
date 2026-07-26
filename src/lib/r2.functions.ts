@@ -15,7 +15,7 @@ export const requestR2Upload = createServerFn({ method: "POST" })
       .object({
         filename: z.string().min(1).max(200),
         contentType: z.string().min(1).max(200),
-        scope: z.enum(["avatar", "attachment", "document", "lead"]),
+        scope: z.enum(["avatar", "attachment", "document", "lead", "branding"]),
       })
       .parse(data),
   )
