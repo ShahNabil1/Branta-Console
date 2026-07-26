@@ -179,13 +179,10 @@ export async function internalSendInvoiceEmail(opts: {
   const pdfBase64 = Buffer.from(pdfBytes).toString("base64");
 
   // Build a signed public URL for the CTA. Fall back to request origin.
-  let origin = "";
-  try {
-    const { getRequest } = await import("@tanstack/react-start/server");
-    const req = getRequest();
-    origin = new URL(req.url).origin;
-  } catch { /* not in a request */ }
+  const { getRequestOrigin } = await import("@/lib/invoice-request-origin.server");
+  let origin = await getRequestOrigin();
   if (!origin) origin = process.env.PUBLIC_BASE_URL || "https://console.brantatech.com";
+
   const signedUrl = buildSignedInvoiceUrl(origin, opts.slug);
 
   const outstanding = Math.max(0, Number(payload.invoice.total_amount) - Number(payload.invoice.paid_amount));
@@ -388,10 +385,9 @@ export const getSignedInvoicePdfUrl = createServerFn({ method: "GET" })
     const { data: inv } = await context.supabase
       .from("invoices").select("id").eq("slug", data.slug).maybeSingle();
     if (!inv) throw new Error("Invoice not found");
-    const { getRequest } = await import("@tanstack/react-start/server");
+    const { getRequestOrigin } = await import("@/lib/invoice-request-origin.server");
     const { buildSignedInvoiceUrl } = await import("@/lib/invoice-pdf-signing.server");
-    let origin = "";
-    try { origin = new URL(getRequest().url).origin; } catch { /* */ }
+    let origin = await getRequestOrigin();
     if (!origin) origin = process.env.PUBLIC_BASE_URL || "https://console.brantatech.com";
     return { url: buildSignedInvoiceUrl(origin, data.slug) };
   });
