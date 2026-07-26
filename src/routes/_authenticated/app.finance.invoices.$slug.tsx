@@ -151,12 +151,10 @@ function InvoiceDetail() {
               variant="outline"
               size="sm"
               onClick={async () => {
-                const url = `/app/finance/invoices/${invoice.slug}/download`;
                 try {
-                  const r = await fetch(`/api/public/invoices/${invoice.slug}.pdf?redirect=1`, { method: "HEAD" }).catch(() => null);
-                  void r;
-                } catch { /* noop */ }
-                window.open(url, "_blank");
+                  const { url } = await getPdfUrl({ data: { slug: invoice.slug } });
+                  window.open(url, "_blank");
+                } catch (e) { toast.error((e as Error).message); }
               }}
               className="h-8 rounded-sm text-[12px]"
               title="Download PDF"
