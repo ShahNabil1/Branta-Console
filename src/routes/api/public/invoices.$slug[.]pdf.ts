@@ -2,7 +2,7 @@
 // URL: /api/public/invoices/BT-01.pdf?exp=...&sig=...
 import { createFileRoute } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/api/public/invoices/$slug/pdf")({
+export const Route = createFileRoute("/api/public/invoices/$slug.pdf")({
   server: {
     handlers: {
       GET: async ({ params, request }) => {
