@@ -118,6 +118,9 @@ function InvoiceDetail() {
       void events.refetch();
     },
     onError: (e) => toast.error((e as Error).message),
+  });
+
+
 
   const doDelete = async () => {
     if (!q.data) return;
