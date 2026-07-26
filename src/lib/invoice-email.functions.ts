@@ -126,7 +126,7 @@ type InvoiceEmailTrigger = "manual" | "auto_created" | "auto_installment_paid" |
 export async function internalSendInvoiceEmail(opts: {
   slug: string;
   recipients: Array<{ email: string; name?: string | null }>;
-  trigger: string;
+  trigger: InvoiceEmailTrigger;
   installment_id?: string | null;
   subjectOverride?: string;
   actorId?: string | null;
