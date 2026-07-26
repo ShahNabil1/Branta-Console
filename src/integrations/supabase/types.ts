@@ -351,6 +351,59 @@ export type Database = {
         }
         Relationships: []
       }
+      invoice_activity_logs: {
+        Row: {
+          action: string
+          actor_id: string | null
+          body: string | null
+          created_at: string
+          deep_link: string | null
+          id: string
+          invoice_id: string | null
+          invoice_slug: string
+          metadata: Json
+          related_id: string | null
+          related_table: string | null
+          title: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          body?: string | null
+          created_at?: string
+          deep_link?: string | null
+          id?: string
+          invoice_id?: string | null
+          invoice_slug: string
+          metadata?: Json
+          related_id?: string | null
+          related_table?: string | null
+          title: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          body?: string | null
+          created_at?: string
+          deep_link?: string | null
+          id?: string
+          invoice_id?: string | null
+          invoice_slug?: string
+          metadata?: Json
+          related_id?: string | null
+          related_table?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_activity_logs_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_email_events: {
         Row: {
           bounced_at: string | null

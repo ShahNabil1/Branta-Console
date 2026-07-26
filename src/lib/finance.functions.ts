@@ -39,6 +39,7 @@ export type ExpenseCategory =
   | "tax"
   | "refund";
 export type Currency = "BDT" | "USD";
+export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
 export interface InvoiceRow {
   id: string;
@@ -162,6 +163,22 @@ export interface ExpenseRow {
   paid_by_name?: string | null;
 }
 
+export interface InvoiceActivityLogRow {
+  id: string;
+  invoice_id: string | null;
+  invoice_slug: string;
+  actor_id: string | null;
+  action: string;
+  title: string;
+  body: string | null;
+  related_table: string | null;
+  related_id: string | null;
+  deep_link: string | null;
+  metadata: { [key: string]: JsonValue } | null;
+  created_at: string;
+  actor_name?: string | null;
+}
+
 export interface WalletBalance {
   user_id: string;
   currency: Currency;
@@ -197,6 +214,9 @@ const CreateInvoiceIn = z.object({
   installments: z.array(InstallmentIn).min(1).max(24),
   stakeholders: z.array(StakeholderIn).min(1).max(20),
 });
+const UpdateInvoiceIn = CreateInvoiceIn.extend({
+  id: z.string().uuid(),
+});
 
 async function ensureFinanceAdmin(supabase: {
   rpc: (name: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
@@ -217,6 +237,20 @@ async function logInvoiceActivity(supabase: any, invoiceId: string, actorId: str
     .maybeSingle();
   const customerId = (inv as { customer_id?: string } | null)?.customer_id;
   const slug = (inv as { slug?: string } | null)?.slug ?? null;
+  if (slug) {
+    await supabase.from("invoice_activity_logs").insert({
+      invoice_id: invoiceId,
+      invoice_slug: slug,
+      actor_id: actorId,
+      action: String(meta.event ?? kind),
+      title: body,
+      body: meta.body_detail ?? null,
+      related_table: meta.related_table ?? null,
+      related_id: meta.related_id ?? null,
+      deep_link: meta.deep_link ?? `/app/finance/invoices/${slug}#activity`,
+      metadata: meta,
+    });
+  }
   if (!customerId) return;
   const { data: cust } = await supabase
     .from("customers")
@@ -236,6 +270,39 @@ async function logInvoiceActivity(supabase: any, invoiceId: string, actorId: str
 
 function fmtMoney(n: number | null | undefined, cur: string): string {
   return `${cur} ${Number(n ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function logInvoicePayoutLocks(supabase: any, invoiceId: string, actorId: string, event: string) {
+  const { data: payouts } = await supabase
+    .from("invoice_payouts")
+    .select("id, user_id, role, currency, amount, status, installment_id")
+    .eq("invoice_id", invoiceId)
+    .eq("status", "locked");
+  const rows = (payouts ?? []) as Array<{ id: string; user_id: string; role: string; currency: string; amount: number; status: string; installment_id: string | null }>;
+  if (!rows.length) return;
+  const userIds = Array.from(new Set(rows.map((r) => r.user_id)));
+  const { data: profs } = await supabase.from("profiles").select("user_id, full_name").in("user_id", userIds);
+  const names = new Map<string, string | null>();
+  (profs ?? []).forEach((p: { user_id: string; full_name: string | null }) => names.set(p.user_id, p.full_name));
+  const byUser = new Map<string, { name: string | null; role: string; currency: string; total: number; count: number }>();
+  rows.forEach((p) => {
+    const key = `${p.user_id}:${p.currency}:${p.role}`;
+    const cur = byUser.get(key) ?? { name: names.get(p.user_id) ?? null, role: p.role, currency: p.currency, total: 0, count: 0 };
+    cur.total += Number(p.amount);
+    cur.count += 1;
+    byUser.set(key, cur);
+  });
+  for (const row of byUser.values()) {
+    await logInvoiceActivity(
+      supabase,
+      invoiceId,
+      actorId,
+      "note",
+      `Wallet locked — ${row.name ?? row.role} ${fmtMoney(row.total, row.currency)}`,
+      { event, wallet_role: row.role, amount: row.total, currency: row.currency, payout_count: row.count },
+    );
+  }
 }
 
 export const listInvoices = createServerFn({ method: "GET" })
@@ -371,8 +438,7 @@ export const createInvoice = createServerFn({ method: "POST" })
     );
     if (iErr) throw new Error(iErr.message);
 
-    // Activity log on the customer's underlying lead so it surfaces in the
-    // Customer / Lead detail Activity Logs feed.
+    // Activity log on the invoice and the customer's underlying lead.
     const { data: custRow } = await context.supabase
       .from("customers")
       .select("converted_from_lead_id, customer_code, name")
@@ -392,6 +458,17 @@ export const createInvoice = createServerFn({ method: "POST" })
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
     }
+    await context.supabase.from("invoice_activity_logs").insert({
+      invoice_id: invoiceId,
+      invoice_slug: slug,
+      actor_id: context.userId,
+      action: "invoice_created",
+      title: `Invoice ${slug} created — ${data.title}`,
+      body: `${fmtMoney(data.total_amount, data.currency)} · ${data.installments.length} installment(s) · ${data.stakeholders.length} stakeholder(s)`,
+      deep_link: `/app/finance/invoices/${slug}`,
+      metadata: { event: "invoice_created", total: data.total_amount, currency: data.currency },
+    } as never);
+    await logInvoicePayoutLocks(context.supabase, invoiceId, context.userId, "payout_locked");
 
     // Auto-email the invoice PDF to the customer (respects settings toggle).
     try {
@@ -406,6 +483,93 @@ export const createInvoice = createServerFn({ method: "POST" })
     }
 
     return { id: invoiceId, slug };
+  });
+
+export const updateInvoice = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => UpdateInvoiceIn.parse(data))
+  .handler(async ({ data, context }) => {
+    await ensureFinanceAdmin(context.supabase as never, context.userId);
+    const pctSum = data.stakeholders.reduce((a, s) => a + s.percent, 0);
+    if (Math.abs(pctSum - 100) > 0.01)
+      throw new Error(`Stakeholder percentages must sum to 100 (got ${pctSum})`);
+    const instSum = data.installments.reduce((a, i) => a + i.amount, 0);
+    if (Math.abs(instSum - data.total_amount) > 0.01)
+      throw new Error(`Installment amounts must sum to total (got ${instSum})`);
+
+    const [{ data: before }, { data: paidInst }, { data: activeWithdrawals }] = await Promise.all([
+      context.supabase.from("invoices").select("id, slug, title, currency, total_amount").eq("id", data.id).maybeSingle(),
+      context.supabase.from("invoice_installments").select("id").eq("invoice_id", data.id).eq("status", "paid").limit(1),
+      context.supabase.from("invoice_payouts").select("id").eq("invoice_id", data.id).in("status", ["requested", "paid"]).limit(1),
+    ]);
+    if (!before) throw new Error("Invoice not found");
+    if ((paidInst ?? []).length || (activeWithdrawals ?? []).length) {
+      throw new Error("This invoice already has paid installments or withdrawal-linked payouts. Revert those before editing financial structure.");
+    }
+
+    const { error: invErr } = await context.supabase
+      .from("invoices")
+      .update({
+        customer_id: data.customer_id,
+        title: data.title,
+        description: data.description ?? null,
+        project_type: data.project_type,
+        starts_on: data.starts_on ?? null,
+        ends_on: data.ends_on ?? null,
+        currency: data.currency,
+        total_amount: data.total_amount,
+        notes: data.notes ?? null,
+        internal_notes: data.internal_notes ?? null,
+      } as never)
+      .eq("id", data.id);
+    if (invErr) throw new Error(invErr.message);
+
+    await context.supabase.from("invoice_payouts").delete().eq("invoice_id", data.id);
+    await context.supabase.from("invoice_installments").delete().eq("invoice_id", data.id);
+    await context.supabase.from("invoice_stakeholders").delete().eq("invoice_id", data.id);
+
+    const { error: sErr } = await context.supabase.from("invoice_stakeholders").insert(
+      data.stakeholders.map((s) => ({ invoice_id: data.id, user_id: s.user_id, role: s.role, percent: s.percent, note: s.note ?? null })) as never,
+    );
+    if (sErr) throw new Error(sErr.message);
+    const { error: iErr } = await context.supabase.from("invoice_installments").insert(
+      data.installments.map((i, idx) => ({ invoice_id: data.id, sequence: idx + 1, label: i.label, amount: i.amount, due_date: i.due_date })) as never,
+    );
+    if (iErr) throw new Error(iErr.message);
+    await logInvoicePayoutLocks(context.supabase, data.id, context.userId, "payout_relocked_after_edit");
+
+    const prior = before as { slug: string; title: string; currency: string; total_amount: number };
+    await logInvoiceActivity(
+      context.supabase,
+      data.id,
+      context.userId,
+      "note",
+      `Invoice ${prior.slug} edited — ${prior.title} → ${data.title}`,
+      { event: "invoice_updated", before: { title: prior.title, total: prior.total_amount, currency: prior.currency }, after: { title: data.title, total: data.total_amount, currency: data.currency } },
+    );
+    return { ok: true as const, slug: prior.slug };
+  });
+
+export const listInvoiceActivityLogs = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { slug: string }) => z.object({ slug: z.string().min(1) }).parse(d))
+  .handler(async ({ data, context }): Promise<InvoiceActivityLogRow[]> => {
+    const { data: rows, error } = await context.supabase
+      .from("invoice_activity_logs")
+      .select("*")
+      .eq("invoice_slug", data.slug)
+      .order("created_at", { ascending: false })
+      .limit(300);
+    if (error) throw new Error(error.message);
+    const logs = (rows ?? []) as unknown as InvoiceActivityLogRow[];
+    const uids = Array.from(new Set(logs.map((l) => l.actor_id).filter(Boolean) as string[]));
+    if (uids.length) {
+      const { data: profs } = await context.supabase.from("profiles").select("user_id, full_name").in("user_id", uids);
+      const names = new Map<string, string>();
+      (profs ?? []).forEach((p: { user_id: string; full_name: string | null }) => names.set(p.user_id, p.full_name ?? ""));
+      logs.forEach((l) => { if (l.actor_id) l.actor_name = names.get(l.actor_id) ?? null; });
+    }
+    return logs;
   });
 
 export const deleteInvoice = createServerFn({ method: "POST" })
@@ -781,6 +945,21 @@ export const requestWithdrawal = createServerFn({ method: "POST" })
         .eq("id", p.id);
       remaining -= Number(p.amount);
     }
+    const { data: linkedPayouts } = await context.supabase
+      .from("invoice_payouts")
+      .select("invoice_id")
+      .eq("withdrawal_request_id", row.id);
+    const invoiceIds = Array.from(new Set(((linkedPayouts ?? []) as Array<{ invoice_id: string | null }>).map((p) => p.invoice_id).filter((x): x is string => !!x)));
+    for (const invoiceId of invoiceIds) {
+      await logInvoiceActivity(
+        context.supabase,
+        invoiceId,
+        context.userId,
+        "note",
+        `Withdrawal requested — ${fmtMoney(row.amount, row.currency)}`,
+        { event: "withdrawal_requested", withdrawal_request_id: row.id, payment_method_id: row.payment_method_id ?? null },
+      );
+    }
     return row;
   });
 
@@ -794,6 +973,11 @@ export const cancelMyWithdrawal = createServerFn({ method: "POST" })
     if (!row) throw new Error("Request not found");
     if (row.user_id !== context.userId) throw new Error("Forbidden");
     if (row.status !== "pending") throw new Error("Only pending requests can be cancelled");
+    const { data: linkedPayouts } = await context.supabase
+      .from("invoice_payouts")
+      .select("invoice_id")
+      .eq("withdrawal_request_id", row.id);
+    const invoiceIds = Array.from(new Set(((linkedPayouts ?? []) as Array<{ invoice_id: string | null }>).map((p) => p.invoice_id).filter((x): x is string => !!x)));
     await revertRequestedPayoutsToAvailable(context.supabase, row.id);
     const { error } = await context.supabase
       .from("withdrawal_requests")
@@ -805,6 +989,16 @@ export const cancelMyWithdrawal = createServerFn({ method: "POST" })
       } as never)
       .eq("id", row.id);
     if (error) throw new Error(error.message);
+    for (const invoiceId of invoiceIds) {
+      await logInvoiceActivity(
+        context.supabase,
+        invoiceId,
+        context.userId,
+        "note",
+        `Withdrawal cancelled — ${fmtMoney(row.amount, row.currency)}`,
+        { event: "withdrawal_cancelled", withdrawal_request_id: row.id },
+      );
+    }
     return { ok: true as const };
   });
 
@@ -901,6 +1095,11 @@ export const decideWithdrawal = createServerFn({ method: "POST" })
     if (data.action === "approve" && row.status !== "pending")
       throw new Error("Only pending requests can be approved");
 
+    const { data: linkedPayouts } = await context.supabase
+      .from("invoice_payouts")
+      .select("id, invoice_id, amount, currency, user_id")
+      .eq("withdrawal_request_id", row.id);
+
     const nowIso = new Date().toISOString();
     const update: Record<string, unknown> = { admin_note: data.note ?? row.admin_note ?? null };
     if (data.action === "approve") {
@@ -937,6 +1136,18 @@ export const decideWithdrawal = createServerFn({ method: "POST" })
       .update(update as never)
       .eq("id", data.id);
     if (error) throw new Error(error.message);
+
+    const invoiceIds = Array.from(new Set(((linkedPayouts ?? []) as Array<{ invoice_id: string | null }>).map((p) => p.invoice_id).filter((x): x is string => !!x)));
+    for (const invoiceId of invoiceIds) {
+      await logInvoiceActivity(
+        context.supabase,
+        invoiceId,
+        context.userId,
+        "note",
+        `Withdrawal ${data.action} — ${fmtMoney(row.amount, row.currency)}`,
+        { event: `withdrawal_${data.action}`, withdrawal_request_id: row.id, transfer_ref: data.transfer_ref ?? null, admin_note: data.note ?? null },
+      );
+    }
 
     return { ok: true as const };
   });
@@ -990,6 +1201,17 @@ export const createExpense = createServerFn({ method: "POST" })
       .insert({ ...data, created_by: context.userId } as never)
       .select("*").single();
     if (error) throw new Error(error.message);
+    const expense = row as unknown as ExpenseRow;
+    if (expense.linked_invoice_id) {
+      await logInvoiceActivity(
+        context.supabase,
+        expense.linked_invoice_id,
+        context.userId,
+        "note",
+        `Expense added — ${expense.category} ${fmtMoney(expense.amount, expense.currency)}`,
+        { event: "expense_created", expense_id: expense.id, category: expense.category, vendor: expense.vendor ?? null, related_table: "expenses", related_id: expense.id },
+      );
+    }
     return row as unknown as ExpenseRow;
   });
 
@@ -998,8 +1220,24 @@ export const deleteExpense = createServerFn({ method: "POST" })
   .inputValidator((d: { id: string }) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     await ensureFinanceAdmin(context.supabase as never, context.userId);
+    const { data: existing } = await context.supabase
+      .from("expenses")
+      .select("id, category, amount, currency, linked_invoice_id, vendor")
+      .eq("id", data.id)
+      .maybeSingle();
     const { error } = await context.supabase.from("expenses").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
+    const expense = existing as { id: string; category: string; amount: number; currency: string; linked_invoice_id: string | null; vendor: string | null } | null;
+    if (expense?.linked_invoice_id) {
+      await logInvoiceActivity(
+        context.supabase,
+        expense.linked_invoice_id,
+        context.userId,
+        "note",
+        `Expense deleted — ${expense.category} ${fmtMoney(expense.amount, expense.currency)}`,
+        { event: "expense_deleted", expense_id: expense.id, category: expense.category, vendor: expense.vendor, related_table: "expenses", related_id: expense.id },
+      );
+    }
     return { ok: true as const };
   });
 
