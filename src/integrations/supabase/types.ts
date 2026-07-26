@@ -351,6 +351,144 @@ export type Database = {
         }
         Relationships: []
       }
+      invoice_email_events: {
+        Row: {
+          bounced_at: string | null
+          created_at: string
+          delivered_at: string | null
+          error_message: string | null
+          id: string
+          installment_id: string | null
+          invoice_id: string
+          meta: Json
+          opened_at: string | null
+          provider_message_id: string | null
+          recipient_email: string
+          recipient_name: string | null
+          sent_by: string | null
+          status: Database["public"]["Enums"]["invoice_email_status"]
+          subject: string
+          trigger: Database["public"]["Enums"]["invoice_email_trigger"]
+          updated_at: string
+        }
+        Insert: {
+          bounced_at?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          error_message?: string | null
+          id?: string
+          installment_id?: string | null
+          invoice_id: string
+          meta?: Json
+          opened_at?: string | null
+          provider_message_id?: string | null
+          recipient_email: string
+          recipient_name?: string | null
+          sent_by?: string | null
+          status?: Database["public"]["Enums"]["invoice_email_status"]
+          subject: string
+          trigger?: Database["public"]["Enums"]["invoice_email_trigger"]
+          updated_at?: string
+        }
+        Update: {
+          bounced_at?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          error_message?: string | null
+          id?: string
+          installment_id?: string | null
+          invoice_id?: string
+          meta?: Json
+          opened_at?: string | null
+          provider_message_id?: string | null
+          recipient_email?: string
+          recipient_name?: string | null
+          sent_by?: string | null
+          status?: Database["public"]["Enums"]["invoice_email_status"]
+          subject?: string
+          trigger?: Database["public"]["Enums"]["invoice_email_trigger"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_email_events_installment_id_fkey"
+            columns: ["installment_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_installments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_email_events_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoice_email_settings: {
+        Row: {
+          auto_send_on_create: boolean
+          auto_send_on_fully_paid: boolean
+          auto_send_on_installment_paid: boolean
+          background_color: string
+          body_html: string
+          brand_color: string
+          card_background: string
+          created_at: string
+          cta_label: string
+          footer_html: string
+          from_email: string
+          from_name: string
+          header_html: string
+          id: string
+          reply_to: string | null
+          subject_template: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          auto_send_on_create?: boolean
+          auto_send_on_fully_paid?: boolean
+          auto_send_on_installment_paid?: boolean
+          background_color?: string
+          body_html?: string
+          brand_color?: string
+          card_background?: string
+          created_at?: string
+          cta_label?: string
+          footer_html?: string
+          from_email?: string
+          from_name?: string
+          header_html?: string
+          id?: string
+          reply_to?: string | null
+          subject_template?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          auto_send_on_create?: boolean
+          auto_send_on_fully_paid?: boolean
+          auto_send_on_installment_paid?: boolean
+          background_color?: string
+          body_html?: string
+          brand_color?: string
+          card_background?: string
+          created_at?: string
+          cta_label?: string
+          footer_html?: string
+          from_email?: string
+          from_name?: string
+          header_html?: string
+          id?: string
+          reply_to?: string | null
+          subject_template?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       invoice_installments: {
         Row: {
           amount: number
@@ -494,6 +632,81 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      invoice_pdf_settings: {
+        Row: {
+          brand_color: string
+          company_address: string | null
+          company_email: string | null
+          company_name: string
+          company_tagline: string | null
+          company_website: string | null
+          created_at: string
+          footer_text: string
+          hairline_color: string
+          header_bg_color: string
+          header_text: string
+          id: string
+          logo_url: string | null
+          muted_color: string
+          page_bg_color: string
+          panel_bg_color: string
+          sections: Json
+          signature_name: string | null
+          signature_title: string | null
+          text_color: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          brand_color?: string
+          company_address?: string | null
+          company_email?: string | null
+          company_name?: string
+          company_tagline?: string | null
+          company_website?: string | null
+          created_at?: string
+          footer_text?: string
+          hairline_color?: string
+          header_bg_color?: string
+          header_text?: string
+          id?: string
+          logo_url?: string | null
+          muted_color?: string
+          page_bg_color?: string
+          panel_bg_color?: string
+          sections?: Json
+          signature_name?: string | null
+          signature_title?: string | null
+          text_color?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          brand_color?: string
+          company_address?: string | null
+          company_email?: string | null
+          company_name?: string
+          company_tagline?: string | null
+          company_website?: string | null
+          created_at?: string
+          footer_text?: string
+          hairline_color?: string
+          header_bg_color?: string
+          header_text?: string
+          id?: string
+          logo_url?: string | null
+          muted_color?: string
+          page_bg_color?: string
+          panel_bg_color?: string
+          sections?: Json
+          signature_name?: string | null
+          signature_title?: string | null
+          text_color?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
       }
       invoice_reminder_log: {
         Row: {
@@ -1851,6 +2064,24 @@ export type Database = {
         | "paid"
         | "overdue"
         | "cancelled"
+      invoice_email_status:
+        | "queued"
+        | "sending"
+        | "sent"
+        | "delivered"
+        | "opened"
+        | "clicked"
+        | "bounced"
+        | "complained"
+        | "failed"
+        | "suppressed"
+        | "delivery_delayed"
+      invoice_email_trigger:
+        | "manual"
+        | "auto_created"
+        | "auto_installment_paid"
+        | "auto_fully_paid"
+        | "resend"
       invoice_status:
         | "draft"
         | "sent"
@@ -2011,6 +2242,26 @@ export const Constants = {
         "paid",
         "overdue",
         "cancelled",
+      ],
+      invoice_email_status: [
+        "queued",
+        "sending",
+        "sent",
+        "delivered",
+        "opened",
+        "clicked",
+        "bounced",
+        "complained",
+        "failed",
+        "suppressed",
+        "delivery_delayed",
+      ],
+      invoice_email_trigger: [
+        "manual",
+        "auto_created",
+        "auto_installment_paid",
+        "auto_fully_paid",
+        "resend",
       ],
       invoice_status: [
         "draft",

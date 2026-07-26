@@ -46,6 +46,7 @@ import { Route as AuthenticatedAppFinanceExpensesRouteImport } from './routes/_a
 import { Route as AuthenticatedAppEmployeesUserIdRouteImport } from './routes/_authenticated/app.employees.$userId'
 import { Route as AuthenticatedAppCustomersCodeRouteImport } from './routes/_authenticated/app.customers.$code'
 import { Route as AuthenticatedAppFinanceInvoicesIndexRouteImport } from './routes/_authenticated/app.finance.invoices.index'
+import { Route as ApiPublicInvoicesSlugPdfRouteImport } from './routes/api/public/invoices.$slug.pdf'
 import { Route as AuthenticatedAppFinanceInvoicesNewRouteImport } from './routes/_authenticated/app.finance.invoices.new'
 import { Route as AuthenticatedAppFinanceInvoicesSlugRouteImport } from './routes/_authenticated/app.finance.invoices.$slug'
 
@@ -258,6 +259,12 @@ const AuthenticatedAppFinanceInvoicesIndexRoute =
     path: '/invoices/',
     getParentRoute: () => AuthenticatedAppFinanceRoute,
   } as any)
+const ApiPublicInvoicesSlugPdfRoute =
+  ApiPublicInvoicesSlugPdfRouteImport.update({
+    id: '/api/public/invoices/$slug/pdf',
+    path: '/api/public/invoices/$slug/pdf',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedAppFinanceInvoicesNewRoute =
   AuthenticatedAppFinanceInvoicesNewRouteImport.update({
     id: '/invoices/new',
@@ -309,6 +316,7 @@ export interface FileRoutesByFullPath {
   '/app/profile/': typeof AuthenticatedAppProfileIndexRoute
   '/app/finance/invoices/$slug': typeof AuthenticatedAppFinanceInvoicesSlugRoute
   '/app/finance/invoices/new': typeof AuthenticatedAppFinanceInvoicesNewRoute
+  '/api/public/invoices/$slug/pdf': typeof ApiPublicInvoicesSlugPdfRoute
   '/app/finance/invoices/': typeof AuthenticatedAppFinanceInvoicesIndexRoute
 }
 export interface FileRoutesByTo {
@@ -344,6 +352,7 @@ export interface FileRoutesByTo {
   '/app/profile': typeof AuthenticatedAppProfileIndexRoute
   '/app/finance/invoices/$slug': typeof AuthenticatedAppFinanceInvoicesSlugRoute
   '/app/finance/invoices/new': typeof AuthenticatedAppFinanceInvoicesNewRoute
+  '/api/public/invoices/$slug/pdf': typeof ApiPublicInvoicesSlugPdfRoute
   '/app/finance/invoices': typeof AuthenticatedAppFinanceInvoicesIndexRoute
 }
 export interface FileRoutesById {
@@ -386,6 +395,7 @@ export interface FileRoutesById {
   '/_authenticated/app/profile/': typeof AuthenticatedAppProfileIndexRoute
   '/_authenticated/app/finance/invoices/$slug': typeof AuthenticatedAppFinanceInvoicesSlugRoute
   '/_authenticated/app/finance/invoices/new': typeof AuthenticatedAppFinanceInvoicesNewRoute
+  '/api/public/invoices/$slug/pdf': typeof ApiPublicInvoicesSlugPdfRoute
   '/_authenticated/app/finance/invoices/': typeof AuthenticatedAppFinanceInvoicesIndexRoute
 }
 export interface FileRouteTypes {
@@ -428,6 +438,7 @@ export interface FileRouteTypes {
     | '/app/profile/'
     | '/app/finance/invoices/$slug'
     | '/app/finance/invoices/new'
+    | '/api/public/invoices/$slug/pdf'
     | '/app/finance/invoices/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -463,6 +474,7 @@ export interface FileRouteTypes {
     | '/app/profile'
     | '/app/finance/invoices/$slug'
     | '/app/finance/invoices/new'
+    | '/api/public/invoices/$slug/pdf'
     | '/app/finance/invoices'
   id:
     | '__root__'
@@ -504,6 +516,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/profile/'
     | '/_authenticated/app/finance/invoices/$slug'
     | '/_authenticated/app/finance/invoices/new'
+    | '/api/public/invoices/$slug/pdf'
     | '/_authenticated/app/finance/invoices/'
   fileRoutesById: FileRoutesById
 }
@@ -515,6 +528,7 @@ export interface RootRouteChildren {
   ApiPublicBrevoWebhookRoute: typeof ApiPublicBrevoWebhookRoute
   ApiPublicResendWebhookRoute: typeof ApiPublicResendWebhookRoute
   ApiPublicTelegramWebhookRoute: typeof ApiPublicTelegramWebhookRoute
+  ApiPublicInvoicesSlugPdfRoute: typeof ApiPublicInvoicesSlugPdfRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -778,6 +792,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppFinanceInvoicesIndexRouteImport
       parentRoute: typeof AuthenticatedAppFinanceRoute
     }
+    '/api/public/invoices/$slug/pdf': {
+      id: '/api/public/invoices/$slug/pdf'
+      path: '/api/public/invoices/$slug/pdf'
+      fullPath: '/api/public/invoices/$slug/pdf'
+      preLoaderRoute: typeof ApiPublicInvoicesSlugPdfRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/app/finance/invoices/new': {
       id: '/_authenticated/app/finance/invoices/new'
       path: '/invoices/new'
@@ -936,6 +957,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicBrevoWebhookRoute: ApiPublicBrevoWebhookRoute,
   ApiPublicResendWebhookRoute: ApiPublicResendWebhookRoute,
   ApiPublicTelegramWebhookRoute: ApiPublicTelegramWebhookRoute,
+  ApiPublicInvoicesSlugPdfRoute: ApiPublicInvoicesSlugPdfRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -1,7 +1,7 @@
 import { createFileRoute, useParams, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   getInvoiceBySlug,
@@ -10,11 +10,19 @@ import {
   deleteInvoice,
   type InstallmentRow,
 } from "@/lib/finance.functions";
+import {
+  listInvoiceRecipients,
+  listInvoiceEmailEvents,
+  sendInvoiceEmail,
+  getSignedInvoicePdfUrl,
+  type InvoiceEmailEventRow,
+  type InvoiceRecipient,
+} from "@/lib/invoice-email.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useConfirm } from "@/components/ui/confirm-dialog";
-import { Loader2, ArrowLeft, Trash2, CheckCircle2, RotateCcw } from "lucide-react";
+import { Loader2, ArrowLeft, Trash2, CheckCircle2, RotateCcw, Send, Download, Mail, Clock, CheckCheck, MailOpen, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/app/finance/invoices/$slug")({
@@ -44,6 +52,10 @@ function InvoiceDetail() {
   const markPaid = useServerFn(markInstallmentPaid);
   const revert = useServerFn(revertInstallment);
   const del = useServerFn(deleteInvoice);
+  const listRecips = useServerFn(listInvoiceRecipients);
+  const listEvents = useServerFn(listInvoiceEmailEvents);
+  const sendEmail = useServerFn(sendInvoiceEmail);
+  const getPdfUrl = useServerFn(getSignedInvoicePdfUrl);
 
   const q = useQuery({
     queryKey: ["finance", "invoice", slug],
@@ -51,18 +63,33 @@ function InvoiceDetail() {
     staleTime: 15_000,
   });
 
+  const events = useQuery({
+    queryKey: ["finance", "invoice", slug, "events"],
+    queryFn: () => listEvents({ data: { slug } }),
+    staleTime: 5_000,
+  });
+
+  const recipients = useQuery({
+    queryKey: ["finance", "invoice", slug, "recipients"],
+    queryFn: () => listRecips({ data: { slug } }),
+    staleTime: 60_000,
+  });
+
   useEffect(() => {
     const ch = supabase.channel(`finance:invoice:${slug}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "invoice_installments" }, () => void q.refetch())
       .on("postgres_changes", { event: "*", schema: "public", table: "invoice_payouts" }, () => void q.refetch())
       .on("postgres_changes", { event: "*", schema: "public", table: "invoices" }, () => void q.refetch())
+      .on("postgres_changes", { event: "*", schema: "public", table: "invoice_email_events" }, () => void events.refetch())
       .subscribe();
     return () => { void supabase.removeChannel(ch); };
-  }, [slug, q]);
+  }, [slug, q, events]);
 
   const [payModal, setPayModal] = useState<InstallmentRow | null>(null);
   const [payRef, setPayRef] = useState("");
   const [payMethod, setPayMethod] = useState("");
+  const [sendOpen, setSendOpen] = useState(false);
+  const [selectedEmails, setSelectedEmails] = useState<Record<string, boolean>>({});
 
   const doPay = useMutation({
     mutationFn: async () => {
@@ -72,6 +99,28 @@ function InvoiceDetail() {
     onSuccess: () => { setPayModal(null); setPayRef(""); setPayMethod(""); toast.success("Installment marked as paid"); void q.refetch(); },
     onError: (e) => toast.error((e as Error).message),
   });
+
+  const sendMutation = useMutation({
+    mutationFn: async () => {
+      const picked = (recipients.data ?? []).filter((r) => selectedEmails[r.email]);
+      if (!picked.length) throw new Error("Select at least one recipient");
+      return await sendEmail({
+        data: {
+          slug,
+          recipients: picked.map((r) => ({ email: r.email, name: r.name })),
+          trigger: "manual",
+        },
+      });
+    },
+    onSuccess: (res) => {
+      toast.success(`Sent to ${res.sent} recipient(s)${res.failed ? `, ${res.failed} failed` : ""}`);
+      setSendOpen(false);
+      void events.refetch();
+    },
+    onError: (e) => toast.error((e as Error).message),
+  });
+
+
 
   const doDelete = async () => {
     if (!q.data) return;
@@ -119,7 +168,33 @@ function InvoiceDetail() {
               · Created {new Date(invoice.created_at).toLocaleDateString()}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                try {
+                  const { url } = await getPdfUrl({ data: { slug: invoice.slug } });
+                  window.open(url, "_blank");
+                } catch (e) { toast.error((e as Error).message); }
+              }}
+              className="h-8 rounded-sm text-[12px]"
+              title="Download PDF"
+            >
+              <Download className="mr-1.5 size-3.5" /> PDF
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                const map: Record<string, boolean> = {};
+                (recipients.data ?? []).forEach((r) => { if (r.is_primary) map[r.email] = true; });
+                setSelectedEmails(map);
+                setSendOpen(true);
+              }}
+              className="h-8 rounded-sm bg-brand text-[12px] text-white hover:bg-brand/90"
+            >
+              <Send className="mr-1.5 size-3.5" /> Send invoice
+            </Button>
             <Button variant="outline" size="sm" onClick={doDelete} className="h-8 rounded-sm text-[12px] text-rose-600 hover:bg-rose-50">
               <Trash2 className="mr-1.5 size-3.5" /> Delete
             </Button>
@@ -247,6 +322,22 @@ function InvoiceDetail() {
         </table>
       </div>
 
+      {/* Delivery */}
+      <DeliveryPanel events={events.data ?? []} loading={events.isLoading} />
+
+      {/* Send dialog */}
+      {sendOpen && (
+        <SendInvoiceDialog
+          recipients={recipients.data ?? []}
+          selected={selectedEmails}
+          onSelectedChange={setSelectedEmails}
+          sending={sendMutation.isPending}
+          onClose={() => setSendOpen(false)}
+          onSend={() => sendMutation.mutate()}
+        />
+      )}
+
+
       {payModal && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 p-4">
           <div className="w-full max-w-md rounded-md border border-border bg-card p-5 shadow-lg">
@@ -286,6 +377,109 @@ function StatBox({ label, value, tone = "neutral" }: { label: string; value: str
       <div className={cn("mt-1 font-mono text-[15px] font-semibold",
         tone === "good" ? "text-emerald-600" : tone === "warn" ? "text-amber-600" : "text-foreground")}>
         {value}
+      </div>
+    </div>
+  );
+}
+
+function DeliveryPanel({ events, loading }: { events: InvoiceEmailEventRow[]; loading: boolean }) {
+  return (
+    <div className="rounded-md border border-border bg-card">
+      <div className="border-b border-border px-4 py-2.5">
+        <h2 className="text-[13px] font-semibold flex items-center gap-1.5"><Mail className="size-3.5" /> Delivery</h2>
+        <p className="text-[11.5px] text-muted-foreground">Live status of every invoice email sent from Branta. Updates automatically as Resend reports back.</p>
+      </div>
+      {loading ? (
+        <div className="p-6 text-center text-[12px] text-muted-foreground">Loading…</div>
+      ) : events.length === 0 ? (
+        <div className="p-6 text-center text-[12px] text-muted-foreground">No emails sent yet. Click <b>Send invoice</b> to deliver a branded PDF.</div>
+      ) : (
+        <ul className="divide-y divide-border">
+          {events.map((e) => (
+            <li key={e.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5">
+              <div className="min-w-0">
+                <div className="truncate text-[12.5px] font-medium">{e.recipient_email}</div>
+                <div className="truncate text-[11px] text-muted-foreground">{e.subject}</div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10.5px] text-muted-foreground">
+                  {new Date(e.created_at).toLocaleString()}
+                </span>
+                <DeliveryChip status={e.status} />
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function DeliveryChip({ status }: { status: string }) {
+  const map: Record<string, { label: string; className: string; Icon: typeof Clock }> = {
+    queued: { label: "Queued", className: "border-slate-200 bg-slate-50 text-slate-600", Icon: Clock },
+    sending: { label: "Sending", className: "border-slate-200 bg-slate-50 text-slate-600", Icon: Clock },
+    sent: { label: "Sent", className: "border-blue-200 bg-blue-50 text-blue-700", Icon: Send },
+    delivered: { label: "Delivered", className: "border-emerald-200 bg-emerald-50 text-emerald-700", Icon: CheckCheck },
+    opened: { label: "Opened", className: "border-violet-200 bg-violet-50 text-violet-700", Icon: MailOpen },
+    bounced: { label: "Bounced", className: "border-rose-200 bg-rose-50 text-rose-700", Icon: AlertCircle },
+    complained: { label: "Complained", className: "border-rose-200 bg-rose-50 text-rose-700", Icon: AlertCircle },
+    failed: { label: "Failed", className: "border-rose-200 bg-rose-50 text-rose-700", Icon: AlertCircle },
+    suppressed: { label: "Suppressed", className: "border-amber-200 bg-amber-50 text-amber-700", Icon: AlertCircle },
+    delivery_delayed: { label: "Delayed", className: "border-amber-200 bg-amber-50 text-amber-700", Icon: Clock },
+  };
+  const cfg = map[status] ?? map.queued;
+  const Icon = cfg.Icon;
+  return (
+    <span className={cn("inline-flex items-center gap-1 rounded-sm border px-1.5 py-0.5 text-[10.5px] font-semibold uppercase", cfg.className)}>
+      <Icon className="size-3" /> {cfg.label}
+    </span>
+  );
+}
+
+function SendInvoiceDialog({
+  recipients, selected, onSelectedChange, onClose, onSend, sending,
+}: {
+  recipients: InvoiceRecipient[];
+  selected: Record<string, boolean>;
+  onSelectedChange: (m: Record<string, boolean>) => void;
+  onClose: () => void;
+  onSend: () => void;
+  sending: boolean;
+}) {
+  const toggle = (email: string) => onSelectedChange({ ...selected, [email]: !selected[email] });
+  const anySelected = useMemo(() => Object.values(selected).some(Boolean), [selected]);
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 p-4">
+      <div className="w-full max-w-md rounded-md border border-border bg-card p-5 shadow-lg">
+        <h3 className="text-[14px] font-semibold flex items-center gap-1.5"><Send className="size-3.5" /> Send invoice</h3>
+        <p className="mt-1 text-[12px] text-muted-foreground">
+          Delivered from <b>finance@brantatech.com</b> with the branded PDF attached.
+        </p>
+        <div className="mt-4 space-y-1.5 max-h-64 overflow-auto">
+          {recipients.length === 0 && (
+            <div className="rounded-sm border border-dashed border-border p-4 text-center text-[12px] text-muted-foreground">
+              No email on this customer or its contacts. Add one on the customer's lead first.
+            </div>
+          )}
+          {recipients.map((r) => (
+            <label key={r.email} className="flex items-center gap-2 rounded-sm border border-border px-3 py-2 hover:bg-muted/40 cursor-pointer">
+              <input type="checkbox" checked={!!selected[r.email]} onChange={() => toggle(r.email)} className="accent-brand" />
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[12.5px] font-medium">{r.name || r.email.split("@")[0]}</div>
+                <div className="truncate text-[11px] text-muted-foreground">{r.email}</div>
+              </div>
+              <span className="text-[10px] font-semibold uppercase text-muted-foreground">{r.is_primary ? "Primary" : r.role || r.source}</span>
+            </label>
+          ))}
+        </div>
+        <div className="mt-4 flex justify-end gap-2">
+          <Button variant="ghost" onClick={onClose} className="h-9 rounded-sm">Cancel</Button>
+          <Button onClick={onSend} disabled={sending || !anySelected} className="h-9 rounded-sm bg-brand text-white hover:bg-brand/90">
+            {sending && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
+            Send
+          </Button>
+        </div>
       </div>
     </div>
   );

@@ -393,6 +393,18 @@ export const createInvoice = createServerFn({ method: "POST" })
       } as any);
     }
 
+    // Auto-email the invoice PDF to the customer (respects settings toggle).
+    try {
+      const { autoSendInvoiceEmail } = await import("@/lib/invoice-email.functions");
+      await autoSendInvoiceEmail({
+        slug,
+        trigger: "auto_created",
+        actorId: context.userId,
+      });
+    } catch (e) {
+      console.error("[createInvoice] auto-send failed:", e);
+    }
+
     return { id: invoiceId, slug };
   });
 
@@ -516,6 +528,20 @@ export const markInstallmentPaid = createServerFn({ method: "POST" })
           `Invoice ${priorInv.slug} status: ${priorInv.status} → ${after.status} (${fmtMoney(after.paid_amount, cur)} / ${fmtMoney(after.total_amount, cur)})`,
           { event: "invoice_status_change", from: priorInv.status, to: after.status, paid: after.paid_amount, total: after.total_amount, currency: cur },
         );
+      }
+
+      // Fire branded email to customer + primary contact.
+      try {
+        const { autoSendInvoiceEmail } = await import("@/lib/invoice-email.functions");
+        const fullyPaid = after && Number(after.paid_amount) >= Number(after.total_amount) && Number(after.total_amount) > 0;
+        await autoSendInvoiceEmail({
+          slug: priorInv.slug,
+          trigger: fullyPaid ? "auto_fully_paid" : "auto_installment_paid",
+          installment_id: data.installment_id,
+          actorId: context.userId,
+        });
+      } catch (e) {
+        console.error("[markInstallmentPaid] auto-send failed:", e);
       }
     }
     return { ok: true as const };
