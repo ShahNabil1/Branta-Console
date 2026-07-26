@@ -393,6 +393,18 @@ export const createInvoice = createServerFn({ method: "POST" })
       } as any);
     }
 
+    // Auto-email the invoice PDF to the customer (respects settings toggle).
+    try {
+      const { autoSendInvoiceEmail } = await import("@/lib/invoice-email.functions");
+      await autoSendInvoiceEmail({
+        slug,
+        trigger: "auto_created",
+        actorId: context.userId,
+      });
+    } catch (e) {
+      console.error("[createInvoice] auto-send failed:", e);
+    }
+
     return { id: invoiceId, slug };
   });
 
