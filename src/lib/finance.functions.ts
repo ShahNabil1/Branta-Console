@@ -1030,6 +1030,11 @@ export const decideWithdrawal = createServerFn({ method: "POST" })
     if (data.action === "approve" && row.status !== "pending")
       throw new Error("Only pending requests can be approved");
 
+    const { data: linkedPayouts } = await context.supabase
+      .from("invoice_payouts")
+      .select("id, invoice_id, amount, currency, user_id")
+      .eq("withdrawal_request_id", row.id);
+
     const nowIso = new Date().toISOString();
     const update: Record<string, unknown> = { admin_note: data.note ?? row.admin_note ?? null };
     if (data.action === "approve") {
@@ -1066,6 +1071,18 @@ export const decideWithdrawal = createServerFn({ method: "POST" })
       .update(update as never)
       .eq("id", data.id);
     if (error) throw new Error(error.message);
+
+    const invoiceIds = Array.from(new Set(((linkedPayouts ?? []) as Array<{ invoice_id: string | null }>).map((p) => p.invoice_id).filter((x): x is string => !!x)));
+    for (const invoiceId of invoiceIds) {
+      await logInvoiceActivity(
+        context.supabase,
+        invoiceId,
+        context.userId,
+        "note",
+        `Withdrawal ${data.action} — ${fmtMoney(row.amount, row.currency)}`,
+        { event: `withdrawal_${data.action}`, withdrawal_request_id: row.id, transfer_ref: data.transfer_ref ?? null, admin_note: data.note ?? null },
+      );
+    }
 
     return { ok: true as const };
   });
@@ -1119,6 +1136,17 @@ export const createExpense = createServerFn({ method: "POST" })
       .insert({ ...data, created_by: context.userId } as never)
       .select("*").single();
     if (error) throw new Error(error.message);
+    const expense = row as unknown as ExpenseRow;
+    if (expense.linked_invoice_id) {
+      await logInvoiceActivity(
+        context.supabase,
+        expense.linked_invoice_id,
+        context.userId,
+        "note",
+        `Expense added — ${expense.category} ${fmtMoney(expense.amount, expense.currency)}`,
+        { event: "expense_created", expense_id: expense.id, category: expense.category, vendor: expense.vendor ?? null, related_table: "expenses", related_id: expense.id },
+      );
+    }
     return row as unknown as ExpenseRow;
   });
 
@@ -1127,8 +1155,24 @@ export const deleteExpense = createServerFn({ method: "POST" })
   .inputValidator((d: { id: string }) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     await ensureFinanceAdmin(context.supabase as never, context.userId);
+    const { data: existing } = await context.supabase
+      .from("expenses")
+      .select("id, category, amount, currency, linked_invoice_id, vendor")
+      .eq("id", data.id)
+      .maybeSingle();
     const { error } = await context.supabase.from("expenses").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
+    const expense = existing as { id: string; category: string; amount: number; currency: string; linked_invoice_id: string | null; vendor: string | null } | null;
+    if (expense?.linked_invoice_id) {
+      await logInvoiceActivity(
+        context.supabase,
+        expense.linked_invoice_id,
+        context.userId,
+        "note",
+        `Expense deleted — ${expense.category} ${fmtMoney(expense.amount, expense.currency)}`,
+        { event: "expense_deleted", expense_id: expense.id, category: expense.category, vendor: expense.vendor, related_table: "expenses", related_id: expense.id },
+      );
+    }
     return { ok: true as const };
   });
 
