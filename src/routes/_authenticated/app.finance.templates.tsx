@@ -69,6 +69,11 @@ type EmailSettings = {
   auto_send_on_create: boolean;
   auto_send_on_installment_paid: boolean;
   auto_send_on_fully_paid: boolean;
+  reminders_enabled: boolean;
+  reminder_days_upcoming: string;
+  reminder_days_overdue: string;
+  reminder_subject_template: string;
+  reminder_body_html: string;
 };
 
 const SAMPLE_VARS: Record<string, string> = {
