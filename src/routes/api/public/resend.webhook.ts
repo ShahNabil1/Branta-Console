@@ -135,6 +135,33 @@ export const Route = createFileRoute("/api/public/resend/webhook")({
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 .update(patch as any)
                 .eq("id", invoice_event_id);
+              const { data: eventRow } = await supabaseAdmin
+                .from("invoice_email_events")
+                .select("invoice_id, invoice_slug, recipient_email, subject")
+                .eq("id", invoice_event_id)
+                .maybeSingle();
+              const invoiceEvent = eventRow as {
+                invoice_id: string | null;
+                invoice_slug: string | null;
+                recipient_email: string | null;
+                subject: string | null;
+              } | null;
+              if (invoiceEvent?.invoice_slug) {
+                await (supabaseAdmin as never as { from: (table: string) => { insert: (row: Record<string, unknown>) => Promise<unknown> } })
+                  .from("invoice_activity_logs")
+                  .insert({
+                    invoice_id: invoiceEvent.invoice_id,
+                    invoice_slug: invoiceEvent.invoice_slug,
+                    actor_id: null,
+                    action: `invoice_email_${status}`,
+                    title: `Invoice email ${status.replace("_", " ")} — ${invoiceEvent.recipient_email ?? "recipient"}`,
+                    body: invoiceEvent.subject,
+                    related_table: "invoice_email_events",
+                    related_id: invoice_event_id,
+                    deep_link: `/app/finance/invoices/${invoiceEvent.invoice_slug}#delivery`,
+                    metadata: { recipient_email: invoiceEvent.recipient_email, status, provider_event: rawType, provider_message_id: data.email_id ?? null },
+                  });
+              }
             }
           } catch (e) {
             console.error("[resend-webhook] invoice update failed:", e);
