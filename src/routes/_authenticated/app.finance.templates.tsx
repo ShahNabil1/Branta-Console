@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Save, FileText, Mail, Palette, Eye, RefreshCw } from "lucide-react";
+import { Loader2, Save, FileText, Mail, Palette, Eye, RefreshCw, Upload } from "lucide-react";
+import { requestR2Upload } from "@/lib/r2.functions";
 import {
   getInvoiceTemplates,
   updateInvoicePdfSettings,
@@ -218,8 +219,16 @@ function PdfEditor({ initial }: { initial: PdfSettings | null }) {
             </Field>
           </div>
           <Field label="Logo URL (PNG/JPG, transparent recommended)">
-            <Input value={form.logo_url ?? ""} onChange={(e) => set("logo_url", e.target.value || null)} placeholder="https://…" />
+            <div className="flex items-center gap-2">
+              <Input value={form.logo_url ?? ""} onChange={(e) => set("logo_url", e.target.value || null)} placeholder="https://…" className="flex-1" />
+              <LogoUploader onUploaded={(url) => set("logo_url", url)} />
+            </div>
+            {form.logo_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={form.logo_url} alt="Logo preview" className="mt-2 h-10 w-auto rounded-sm border border-border bg-white p-1" />
+            ) : null}
           </Field>
+
         </Section>
 
         <Section title="Header & Footer">
@@ -571,6 +580,61 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       </div>
       <div className="space-y-3">{children}</div>
     </div>
+  );
+}
+
+function LogoUploader({ onUploaded }: { onUploaded: (url: string) => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const requestUpload = useServerFn(requestR2Upload);
+
+  async function handleFile(file: File) {
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Logo must be under 5MB");
+      return;
+    }
+    setBusy(true);
+    try {
+      const { url, publicUrl } = await requestUpload({
+        data: { filename: file.name, contentType: file.type || "application/octet-stream", scope: "branding" },
+      });
+      const put = await fetch(url, { method: "PUT", body: file, headers: { "Content-Type": file.type || "application/octet-stream" } });
+      if (!put.ok) throw new Error(`Upload failed (${put.status})`);
+      if (!publicUrl) throw new Error("R2 public base URL is not configured");
+      onUploaded(publicUrl);
+      toast.success("Logo uploaded");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setBusy(false);
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  }
+
+  return (
+    <>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp,image/svg+xml"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) void handleFile(f);
+        }}
+      />
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={busy}
+        onClick={() => inputRef.current?.click()}
+        className="h-9 gap-1.5"
+      >
+        {busy ? <Loader2 className="size-3.5 animate-spin" /> : <Upload className="size-3.5" />}
+        {busy ? "Uploading…" : "Upload"}
+      </Button>
+    </>
   );
 }
 
