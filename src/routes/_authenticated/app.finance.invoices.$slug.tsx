@@ -100,6 +100,25 @@ function InvoiceDetail() {
     onError: (e) => toast.error((e as Error).message),
   });
 
+  const sendMutation = useMutation({
+    mutationFn: async () => {
+      const picked = (recipients.data ?? []).filter((r) => selectedEmails[r.email]);
+      if (!picked.length) throw new Error("Select at least one recipient");
+      return await sendEmail({
+        data: {
+          slug,
+          recipients: picked.map((r) => ({ email: r.email, name: r.name })),
+          trigger: "manual",
+        },
+      });
+    },
+    onSuccess: (res) => {
+      toast.success(`Sent to ${res.sent} recipient(s)${res.failed ? `, ${res.failed} failed` : ""}`);
+      setSendOpen(false);
+      void events.refetch();
+    },
+    onError: (e) => toast.error((e as Error).message),
+
   const doDelete = async () => {
     if (!q.data) return;
     const ok = await confirm({
