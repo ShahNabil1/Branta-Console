@@ -149,7 +149,7 @@ async function handle(request: Request): Promise<Response> {
       });
 
       const providerRef =
-        result.results.find((r) => r.ok)?.eventId ?? null;
+        result.results.find((r) => r.ok)?.eventId ?? undefined;
 
       await supabaseAdmin.from("invoice_reminder_log").insert({
         installment_id: inst.id,
