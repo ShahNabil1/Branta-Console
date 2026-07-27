@@ -172,12 +172,13 @@ function ExpensesPage() {
               <th className="px-3 py-2">Vendor</th>
               <th className="px-3 py-2 text-right">Amount</th>
               <th className="px-3 py-2">Notes</th>
+              <th className="px-3 py-2">Receipt</th>
               <th className="px-3 py-2 text-right"></th>
             </tr>
           </thead>
           <tbody>
             {(q.data ?? []).length === 0 ? (
-              <tr><td colSpan={6} className="px-3 py-10 text-center text-muted-foreground">No expenses yet.</td></tr>
+              <tr><td colSpan={7} className="px-3 py-10 text-center text-muted-foreground">No expenses yet.</td></tr>
             ) : q.data?.map((r) => (
               <tr key={r.id} className="border-t border-border">
                 <td className="px-3 py-2 text-muted-foreground">{r.spent_on}</td>
@@ -185,6 +186,24 @@ function ExpensesPage() {
                 <td className="px-3 py-2">{r.vendor ?? "—"}</td>
                 <td className="px-3 py-2 text-right font-mono">{fmt(r.amount, r.currency)}</td>
                 <td className="px-3 py-2 text-muted-foreground truncate max-w-xs">{r.notes ?? ""}</td>
+                <td className="px-3 py-2">
+                  {r.receipt_url ? (
+                    <div className="flex items-center gap-1">
+                      <Button size="sm" variant="ghost" className="h-7 rounded-sm px-2 text-[11.5px]"
+                        onClick={() => openReceipt(r.receipt_url as string)}
+                        title={isPdfPath(r.receipt_url) ? "Open PDF" : "View image"}>
+                        {isPdfPath(r.receipt_url) ? <FileText className="size-3.5" /> : <Eye className="size-3.5" />}
+                        <span className="ml-1">View</span>
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-7 rounded-sm px-2 text-[11.5px]"
+                        onClick={() => downloadReceipt(r.receipt_url as string)} title="Download">
+                        <Download className="size-3.5" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <span className="text-[11.5px] text-muted-foreground">—</span>
+                  )}
+                </td>
                 <td className="px-3 py-2 text-right">
                   <Button size="sm" variant="ghost" onClick={async () => {
                     const ok = await confirm({ title: "Delete expense", description: "This cannot be undone.", tone: "danger" });
