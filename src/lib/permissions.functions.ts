@@ -203,6 +203,7 @@ export const bulkDeleteLeads = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertSuperAdmin(context.supabase, context.userId);
+    await assertCallerPermission(context.supabase, context.userId, "lead_delete", "Delete leads");
     const { error } = await context.supabase
       .from("leads")
       .delete()
@@ -210,3 +211,4 @@ export const bulkDeleteLeads = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true as const, count: data.leadIds.length };
   });
+
