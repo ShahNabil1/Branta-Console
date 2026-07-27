@@ -351,8 +351,8 @@ function Leaderboard({
             <th className="px-3 py-2 text-right">Converted</th>
             <th className="px-3 py-2 text-right">Emails</th>
             <th className="px-3 py-2 text-right">Meetings</th>
-            <th className="px-3 py-2 text-right">USD</th>
             <th className="px-3 py-2 text-right">BDT</th>
+            <th className="px-3 py-2 text-right">USD</th>
             <th className="px-3 py-2" />
           </tr>
         </thead>
