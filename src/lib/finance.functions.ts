@@ -1223,6 +1223,25 @@ export const decideWithdrawal = createServerFn({ method: "POST" })
       );
     }
 
+    if (data.action === "paid" || data.action === "reject") {
+      try {
+        const { notify } = await import("@/lib/notify.server");
+        await notify({
+          event: data.action === "paid" ? "payout.paid" : "payout.revoked",
+          recipients: [row.user_id],
+          vars: {
+            amount: `${row.currency} ${Number(row.amount).toLocaleString()}`,
+            ref: data.transfer_ref ?? "—",
+            slug: `withdrawal ${row.id.slice(0, 8)}`,
+          },
+          dedupeKey: `withdrawal:${row.id}:${data.action}`,
+          actorId: context.userId,
+        });
+      } catch (e) {
+        console.error("[decideWithdrawal] notify failed:", e);
+      }
+    }
+
     return { ok: true as const };
   });
 
