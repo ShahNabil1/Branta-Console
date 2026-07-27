@@ -194,14 +194,11 @@ async function drain() {
   };
 }
 
+type AdminClient =
+  typeof import("@/integrations/supabase/client.server")["supabaseAdmin"];
+
 async function scheduleRetry(
-  admin: Awaited<
-    ReturnType<
-      typeof import("@/integrations/supabase/client.server")["supabaseAdmin"]["from"]
-    >
-  > extends never
-    ? never
-    : typeof import("@/integrations/supabase/client.server")["supabaseAdmin"],
+  admin: AdminClient,
   rows: Row[],
   error: string | undefined,
   retryDelayMs: (n: number) => number,
