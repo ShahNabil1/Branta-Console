@@ -1019,6 +1019,21 @@ export const requestWithdrawal = createServerFn({ method: "POST" })
         { event: "withdrawal_requested", withdrawal_request_id: row.id, payment_method_id: row.payment_method_id ?? null },
       );
     }
+    try {
+      const { notify } = await import("@/lib/notify.server");
+      const { data: prof } = await context.supabase
+        .from("profiles").select("full_name").eq("user_id", context.userId).maybeSingle();
+      const uname = (prof as { full_name: string | null } | null)?.full_name ?? "Employee";
+      await notify({
+        event: "payout.requested",
+        recipientRoles: ["finance", "super_admin"],
+        vars: { user: uname, amount: `${row.currency} ${Number(row.amount).toLocaleString()}` },
+        dedupeKey: `withdrawal:${row.id}:requested`,
+        actorId: context.userId,
+      });
+    } catch (e) {
+      console.error("[requestWithdrawal] notify failed:", e);
+    }
     return row;
   });
 
