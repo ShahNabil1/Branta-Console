@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { listScopeUsers, type RangeKey } from "@/lib/analytics.functions";
 import { getMyPermissions } from "@/lib/permissions.functions";
 import { cn } from "@/lib/utils";
-import { User, ChevronDown } from "lucide-react";
+import { User, ChevronDown, Lock } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,11 +39,11 @@ export function ScopeSelector({ value, onChange }: ScopeSelectorProps) {
     queryFn: () => permsFn(),
     staleTime: 60_000,
   });
-  const isAdmin = Boolean(permsQ.data?.isAdmin || permsQ.data?.isSuperAdmin);
+  const isSuperAdmin = Boolean(permsQ.data?.isSuperAdmin);
   const usersQ = useQuery({
     queryKey: ["scope-users"],
     queryFn: () => scopeFn(),
-    enabled: isAdmin,
+    enabled: isSuperAdmin,
     staleTime: 60_000,
   });
 
@@ -60,7 +60,7 @@ export function ScopeSelector({ value, onChange }: ScopeSelectorProps) {
         <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
           Acting as
         </span>
-        {isAdmin ? (
+        {isSuperAdmin ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="hairline flex h-8 items-center gap-2 rounded-sm border border-border bg-card px-2.5 text-[12.5px] font-medium text-foreground hover:border-brand/40">
@@ -98,8 +98,11 @@ export function ScopeSelector({ value, onChange }: ScopeSelectorProps) {
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (
-          <div className="hairline flex h-8 items-center gap-2 rounded-sm border border-border bg-muted/50 px-2.5 text-[12.5px] text-muted-foreground">
-            <User className="size-3.5" /> Me
+          <div
+            title="Only super admins can view other employees"
+            className="hairline flex h-8 cursor-not-allowed items-center gap-2 rounded-sm border border-border bg-muted/50 px-2.5 text-[12.5px] text-muted-foreground"
+          >
+            <User className="size-3.5" /> Me <Lock className="size-3 opacity-70" />
           </div>
         )}
       </div>
