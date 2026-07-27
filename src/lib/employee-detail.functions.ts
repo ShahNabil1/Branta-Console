@@ -263,6 +263,19 @@ export const updateEmployeeRoles = createServerFn({ method: "POST" })
     const ins = await supabaseAdmin.from("user_roles").insert(rows);
     if (ins.error) throw new Error(ins.error.message);
 
+    try {
+      const { notify } = await import("@/lib/notify.server");
+      await notify({
+        event: "employee.role_changed",
+        recipients: [data.userId],
+        vars: { roles: data.roles.join(", ") },
+        dedupeKey: `role:${data.userId}:${Date.now()}`,
+        actorId: context.userId,
+      });
+    } catch (e) {
+      console.error("[updateEmployeeRoles] notify failed:", e);
+    }
+
     return { ok: true as const, roles: rows.map((r) => r.role) };
   });
 
