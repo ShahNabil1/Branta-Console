@@ -793,6 +793,11 @@ export const revokeEmployeeSession = createServerFn({ method: "POST" })
       "@/integrations/supabase/client.server"
     );
     // Update triggers realtime → target device's session-watcher signs out.
+    const { data: sess } = await supabaseAdmin
+      .from("user_sessions")
+      .select("device, browser")
+      .eq("id", data.sessionId)
+      .maybeSingle();
     const { error } = await supabaseAdmin
       .from("user_sessions")
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -800,5 +805,21 @@ export const revokeEmployeeSession = createServerFn({ method: "POST" })
       .eq("user_id", data.userId)
       .eq("id", data.sessionId);
     if (error) throw new Error(error.message);
+    if (data.userId !== context.userId) {
+      try {
+        const { notify } = await import("@/lib/notify.server");
+        const s = sess as { device?: string; browser?: string } | null;
+        const device = [s?.device, s?.browser].filter(Boolean).join(" · ") || "a device";
+        await notify({
+          event: "auth.session.revoked_by_admin",
+          recipients: [data.userId],
+          vars: { device },
+          dedupeKey: `session:${data.sessionId}:revoked`,
+          actorId: context.userId,
+        });
+      } catch (e) {
+        console.error("[revokeEmployeeSession] notify failed:", e);
+      }
+    }
     return { ok: true as const };
   });
