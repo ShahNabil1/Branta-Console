@@ -104,7 +104,7 @@ export interface EmployeeDetail {
 
 
 
-const ROLE_ORDER = ["super_admin", "admin", "manager", "user"];
+const ROLE_ORDER = ["super_admin", "admin", "finance", "manager", "user"];
 const primaryRole = (roles: string[]): EmployeeRole => {
   for (const r of ROLE_ORDER) if (roles.includes(r)) return r as EmployeeRole;
   return "user";
