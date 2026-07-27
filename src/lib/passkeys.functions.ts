@@ -64,12 +64,30 @@ export const deleteMyPasskey = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
     );
+    const { data: existing } = await supabaseAdmin
+      .from("user_passkeys")
+      .select("friendly_name")
+      .eq("user_id", context.userId)
+      .eq("id", data.id)
+      .maybeSingle();
     const { error } = await supabaseAdmin
       .from("user_passkeys")
       .delete()
       .eq("user_id", context.userId)
       .eq("id", data.id);
     if (error) throw new Error(error.message);
+    try {
+      const { notify } = await import("@/lib/notify.server");
+      await notify({
+        event: "passkey.removed",
+        recipients: [context.userId],
+        vars: { name: (existing as { friendly_name?: string } | null)?.friendly_name ?? "Passkey" },
+        dedupeKey: `passkey:${data.id}:removed`,
+        actorId: context.userId,
+      });
+    } catch (e) {
+      console.error("[deleteMyPasskey] notify failed:", e);
+    }
     return { ok: true as const };
   });
 
