@@ -373,8 +373,8 @@ function Leaderboard({
               <td className="px-3 py-2 text-right font-mono text-emerald-600">{r.leads_converted}</td>
               <td className="px-3 py-2 text-right font-mono">{r.emails_sent}</td>
               <td className="px-3 py-2 text-right font-mono">{r.meetings_held}</td>
-              <td className="px-3 py-2 text-right font-mono">${r.revenue_usd.toLocaleString()}</td>
               <td className="px-3 py-2 text-right font-mono">৳{r.revenue_bdt.toLocaleString()}</td>
+              <td className="px-3 py-2 text-right font-mono">${r.revenue_usd.toLocaleString()}</td>
               <td className="px-3 py-2 text-right">
                 <div className="flex items-center justify-end gap-1">
                   <button
