@@ -49,6 +49,7 @@ import { cn } from "@/lib/utils";
 import { SESSION_KEY_STORAGE } from "@/hooks/use-session-watcher";
 import { PASSWORD_LEN, stripToPassword } from "@/lib/branta-credentials";
 import { TelegramConnectCard } from "@/components/profile/telegram-connect-card";
+import { NotificationPreferencesCard } from "@/components/profile/notification-preferences-card";
 
 export const Route = createFileRoute("/_authenticated/app/profile/security")({
   head: () => ({ meta: [{ title: "Security & Notifications · Profile" }] }),
