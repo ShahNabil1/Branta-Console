@@ -6,7 +6,8 @@ export const Route = createFileRoute("/api/public/invoices/$slug.pdf")({
   server: {
     handlers: {
       GET: async ({ params, request }) => {
-        const slug = (params as Record<string, string>)["slug.pdf"] ?? (params as Record<string, string>).slug;
+        const raw = (params as Record<string, string>)["slug.pdf"] ?? (params as Record<string, string>).slug ?? "";
+        const slug = raw.endsWith(".pdf") ? raw.slice(0, -4) : raw;
         const url = new URL(request.url);
         const exp = Number(url.searchParams.get("exp") ?? "0");
         const sig = url.searchParams.get("sig") ?? "";
