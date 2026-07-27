@@ -98,8 +98,11 @@ export function ScopeSelector({ value, onChange }: ScopeSelectorProps) {
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (
-          <div className="hairline flex h-8 items-center gap-2 rounded-sm border border-border bg-muted/50 px-2.5 text-[12.5px] text-muted-foreground">
-            <User className="size-3.5" /> Me
+          <div
+            title="Only super admins can view other employees"
+            className="hairline flex h-8 cursor-not-allowed items-center gap-2 rounded-sm border border-border bg-muted/50 px-2.5 text-[12.5px] text-muted-foreground"
+          >
+            <User className="size-3.5" /> Me <Lock className="size-3 opacity-70" />
           </div>
         )}
       </div>
