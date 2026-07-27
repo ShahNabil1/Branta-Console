@@ -121,12 +121,19 @@ async function isAdmin(supabase: any, userId: string): Promise<boolean> {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function isSuperAdmin(supabase: any, userId: string): Promise<boolean> {
+  const { data } = await supabase.rpc("has_role", { _user_id: userId, _role: "super_admin" });
+  return Boolean(data);
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function resolveScopeUser(supabase: any, callerId: string, requested?: string | null): Promise<string> {
   if (!requested || requested === callerId) return callerId;
-  const admin = await isAdmin(supabase, callerId);
-  if (!admin) throw new Error("Forbidden: only admins can view other users");
+  const sa = await isSuperAdmin(supabase, callerId);
+  if (!sa) throw new Error("Forbidden: only super admins can view other users");
   return requested;
 }
+
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function countRows(q: any): Promise<number> {
