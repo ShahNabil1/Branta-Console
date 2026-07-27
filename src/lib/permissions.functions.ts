@@ -62,19 +62,10 @@ export const getMyPermissions = createServerFn({ method: "GET" })
     ]);
     const isSuperAdmin = !!suRes.data;
     const isAdmin = isSuperAdmin || !!adRes.data;
-    if (isSuperAdmin) {
-      return {
-        user_id: context.userId,
-        lead_delete: true,
-        lead_manage: true,
-        lead_assign: true,
-        customer_access: true,
-        customer_view_all: true,
-        customer_view_detail: true,
-        isSuperAdmin,
-        isAdmin,
-      };
-    }
+    // NOTE: toggles apply on top of role. Even super_admins respect their
+    // per-user overrides so a super_admin with lead_delete=false cannot
+    // delete leads from the UI or server. Role only affects settings access.
+
 
 
     const { data } = await context.supabase
