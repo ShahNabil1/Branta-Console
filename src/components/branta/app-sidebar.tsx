@@ -35,7 +35,7 @@ const NAV: NavGroup[] = [
     label: "Workspace",
     items: [
       { label: "Overview", to: "/app", icon: LayoutDashboard },
-      { label: "Analytics", to: "/app", icon: BarChart3 },
+      { label: "Analytics", to: "/app/analytics", icon: BarChart3 },
     ],
   },
   {
