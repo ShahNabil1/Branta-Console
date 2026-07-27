@@ -15,8 +15,6 @@ import {
   LayoutDashboard,
   Users,
   Settings,
-  Mail,
-  Calendar,
   LogOut,
   Building2,
   Inbox,
