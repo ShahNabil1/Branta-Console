@@ -358,6 +358,20 @@ export const syncInbox = createServerFn({ method: "POST" })
         },
       });
 
+      try {
+        const { notify } = await import("@/lib/notify.server");
+        const recipients = ownerId ? [ownerId] : [];
+        await notify({
+          event: "inbox.new_reply",
+          recipients,
+          recipientRoles: ownerId ? [] : ["super_admin", "admin"],
+          vars: { from: from.name ? `${from.name} <${from.email}>` : from.email, subject: subject ?? "(no subject)" },
+          dedupeKey: `inbox:${m.id}:new_reply`,
+        });
+      } catch (e) {
+        console.error("[syncInbox] notify failed:", e);
+      }
+
       await supabaseAdmin
         .from("leads")
         .update({ last_activity_at: received })

@@ -158,6 +158,25 @@ export const scheduleLeadMeeting = createServerFn({ method: "POST" })
         reminder_minutes: data.reminderMinutes,
       },
     });
+    try {
+      const { notify } = await import("@/lib/notify.server");
+      const { data: leadRow } = await context.supabase
+        .from("leads").select("owner_id, slug, lead_code, name")
+        .eq("id", data.leadId).maybeSingle();
+      const ownerId = (leadRow as { owner_id?: string | null } | null)?.owner_id ?? null;
+      const recipients = new Set<string>();
+      if (ownerId && ownerId !== context.userId) recipients.add(ownerId);
+      const when = `${data.startsAt} → ${data.endsAt} (BDT)`;
+      await notify({
+        event: "meeting.scheduled",
+        recipients: Array.from(recipients),
+        vars: { title: data.title, when, link: meetLink ?? "" },
+        dedupeKey: `meeting:${ev.id}:scheduled`,
+        actorId: context.userId,
+      });
+    } catch (e) {
+      console.error("[scheduleLeadMeeting] notify failed:", e);
+    }
     return row as LeadMeetingRow;
   });
 

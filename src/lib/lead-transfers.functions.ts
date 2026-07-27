@@ -165,6 +165,25 @@ export const requestLeadTransfer = createServerFn({ method: "POST" })
       }`,
     } as never);
 
+    try {
+      const { notify } = await import("@/lib/notify.server");
+      const recipients: string[] = [];
+      if (lead.owner_id && lead.owner_id !== context.userId) recipients.push(lead.owner_id as string);
+      await notify({
+        event: "lead.transfer.requested",
+        recipients,
+        recipientRoles: ["super_admin"],
+        vars: {
+          requester: requesterName,
+          slug: (lead.slug as string | null) ?? (lead.lead_code as string | null) ?? data.leadId.slice(0, 8),
+        },
+        dedupeKey: `transfer:${inserted?.id}:requested`,
+        actorId: context.userId,
+      });
+    } catch (e) {
+      console.error("[requestLeadTransfer] notify failed:", e);
+    }
+
     return { ok: true as const, id: inserted?.id as string };
   });
 
@@ -324,6 +343,34 @@ export const decideTransferRequests = createServerFn({ method: "POST" })
           data.note ? ` · Note: ${data.note}` : ""
         }`,
       } as never);
+
+      try {
+        const { notify } = await import("@/lib/notify.server");
+        const { data: leadRow } = await context.supabase
+          .from("leads").select("slug, lead_code, name")
+          .eq("id", r.lead_id).maybeSingle();
+        const slug = (leadRow as { slug?: string; lead_code?: string } | null)?.slug
+          ?? (leadRow as { lead_code?: string } | null)?.lead_code ?? r.lead_id.slice(0, 8);
+        const name = (leadRow as { name?: string } | null)?.name ?? "Lead";
+        await notify({
+          event: "lead.transfer.decided",
+          recipients: [r.requester_id],
+          vars: { decision: verb, slug },
+          dedupeKey: `transfer:${r.id}:decided`,
+          actorId: context.userId,
+        });
+        if (data.decision === "approved" && r.to_user_id !== context.userId) {
+          await notify({
+            event: "lead.assigned",
+            recipients: [r.to_user_id],
+            vars: { name, slug },
+            dedupeKey: `lead:${r.lead_id}:assigned:${r.to_user_id}:${r.id}`,
+            actorId: context.userId,
+          });
+        }
+      } catch (e) {
+        console.error("[decideTransferRequests] notify failed:", e);
+      }
     }
 
     return { ok: true as const, count: pending.length };
