@@ -1576,6 +1576,141 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_events: {
+        Row: {
+          actor_user_id: string | null
+          created_at: string
+          dedupe_key: string | null
+          event_key: string
+          id: string
+          message: string | null
+          payload: Json
+          reason: string | null
+          recipient_user_id: string
+          sent_at: string | null
+          status: string
+          tg_message_id: number | null
+        }
+        Insert: {
+          actor_user_id?: string | null
+          created_at?: string
+          dedupe_key?: string | null
+          event_key: string
+          id?: string
+          message?: string | null
+          payload?: Json
+          reason?: string | null
+          recipient_user_id: string
+          sent_at?: string | null
+          status?: string
+          tg_message_id?: number | null
+        }
+        Update: {
+          actor_user_id?: string | null
+          created_at?: string
+          dedupe_key?: string | null
+          event_key?: string
+          id?: string
+          message?: string | null
+          payload?: Json
+          reason?: string | null
+          recipient_user_id?: string
+          sent_at?: string | null
+          status?: string
+          tg_message_id?: number | null
+        }
+        Relationships: []
+      }
+      notification_preferences: {
+        Row: {
+          created_at: string
+          digest_mode: boolean
+          group_finance: boolean
+          group_inbox: boolean
+          group_leads: boolean
+          group_meetings: boolean
+          group_security: boolean
+          group_system: boolean
+          quiet_hours_enabled: boolean
+          quiet_hours_end: string
+          quiet_hours_start: string
+          timezone: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          digest_mode?: boolean
+          group_finance?: boolean
+          group_inbox?: boolean
+          group_leads?: boolean
+          group_meetings?: boolean
+          group_security?: boolean
+          group_system?: boolean
+          quiet_hours_enabled?: boolean
+          quiet_hours_end?: string
+          quiet_hours_start?: string
+          timezone?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          digest_mode?: boolean
+          group_finance?: boolean
+          group_inbox?: boolean
+          group_leads?: boolean
+          group_meetings?: boolean
+          group_security?: boolean
+          group_system?: boolean
+          quiet_hours_enabled?: boolean
+          quiet_hours_end?: string
+          quiet_hours_start?: string
+          timezone?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      notification_rules: {
+        Row: {
+          config: Json
+          created_at: string
+          enabled: boolean
+          event_key: string
+          role_admin: boolean
+          role_employee: boolean
+          role_finance: boolean
+          role_super_admin: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          config?: Json
+          created_at?: string
+          enabled?: boolean
+          event_key: string
+          role_admin?: boolean
+          role_employee?: boolean
+          role_finance?: boolean
+          role_super_admin?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          enabled?: boolean
+          event_key?: string
+          role_admin?: boolean
+          role_employee?: boolean
+          role_finance?: boolean
+          role_super_admin?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       passkey_challenges: {
         Row: {
           branta_local: string | null
