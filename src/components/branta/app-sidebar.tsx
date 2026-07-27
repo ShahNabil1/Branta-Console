@@ -96,6 +96,7 @@ export function AppSidebar() {
     const perms = permsQ.data;
     if (!perms) return NAV;
     const isAdmin = perms.isAdmin ?? perms.isSuperAdmin;
+    const isSuperAdmin = perms.isSuperAdmin ?? false;
     const isFinance = perms.isFinance ?? isAdmin;
     return NAV.map((g) => {
       if (g.label === "Admin" && !isAdmin) return { ...g, items: [] };
@@ -104,6 +105,7 @@ export function AppSidebar() {
         ...g,
         items: g.items.filter((it) => {
           if (it.to === "/app/customers" && !perms.customer_access) return false;
+          if (it.to === "/app/notifications" && !isSuperAdmin) return false;
           return true;
         }),
       };
