@@ -162,6 +162,25 @@ export const Route = createFileRoute("/api/public/resend/webhook")({
                     metadata: { recipient_email: invoiceEvent.recipient_email, status, provider_event: rawType, provider_message_id: data.email_id ?? null },
                   });
               }
+              if (status === "bounced" || status === "complained" || status === "failed") {
+                try {
+                  const { notify } = await import("@/lib/notify.server");
+                  const eventKey = status === "bounced" ? "email.bounced"
+                    : status === "complained" ? "email.complained"
+                    : "email.delivery_failed";
+                  await notify({
+                    event: eventKey,
+                    recipientRoles: ["finance", "super_admin"],
+                    vars: {
+                      to: invoiceEvent?.recipient_email ?? recipient,
+                      reason: rawType,
+                    },
+                    dedupeKey: `invoice_email:${invoice_event_id}:${status}`,
+                  });
+                } catch (e) {
+                  console.error("[resend-webhook] notify failed:", e);
+                }
+              }
             }
           } catch (e) {
             console.error("[resend-webhook] invoice update failed:", e);
