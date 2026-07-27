@@ -149,14 +149,7 @@ function ExpensesPage() {
     </div>;
   }
 
-  if (isAdmin.isLoading) return <div className="grid h-64 place-items-center"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>;
-  if (!isAdmin.data?.isAdmin) {
-    return <div className="mx-auto max-w-2xl px-6 py-16 text-center">
-      <Receipt className="mx-auto mb-3 size-8 text-muted-foreground" />
-      <h1 className="text-[18px] font-semibold">Finance-only page</h1>
-      <p className="mt-1 text-[13px] text-muted-foreground">Finance or Super-admin role required.</p>
-    </div>;
-  }
+
 
   return (
     <div className="mx-auto max-w-7xl space-y-4 px-6 py-6">
