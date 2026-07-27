@@ -20,6 +20,7 @@ import { Route as AuthenticatedOnboardingPasswordRouteImport } from './routes/_a
 import { Route as AuthenticatedAppTransfersRouteImport } from './routes/_authenticated/app.transfers'
 import { Route as AuthenticatedAppSettingsRouteImport } from './routes/_authenticated/app.settings'
 import { Route as AuthenticatedAppProfileRouteImport } from './routes/_authenticated/app.profile'
+import { Route as AuthenticatedAppNotificationsRouteImport } from './routes/_authenticated/app.notifications'
 import { Route as AuthenticatedAppMailQueueRouteImport } from './routes/_authenticated/app.mail-queue'
 import { Route as AuthenticatedAppLeadsRouteImport } from './routes/_authenticated/app.leads'
 import { Route as AuthenticatedAppInboxRouteImport } from './routes/_authenticated/app.inbox'
@@ -111,6 +112,12 @@ const AuthenticatedAppProfileRoute = AuthenticatedAppProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
+const AuthenticatedAppNotificationsRoute =
+  AuthenticatedAppNotificationsRouteImport.update({
+    id: '/notifications',
+    path: '/notifications',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
 const AuthenticatedAppMailQueueRoute =
   AuthenticatedAppMailQueueRouteImport.update({
     id: '/mail-queue',
@@ -309,6 +316,7 @@ export interface FileRoutesByFullPath {
   '/app/inbox': typeof AuthenticatedAppInboxRoute
   '/app/leads': typeof AuthenticatedAppLeadsRouteWithChildren
   '/app/mail-queue': typeof AuthenticatedAppMailQueueRoute
+  '/app/notifications': typeof AuthenticatedAppNotificationsRoute
   '/app/profile': typeof AuthenticatedAppProfileRouteWithChildren
   '/app/settings': typeof AuthenticatedAppSettingsRoute
   '/app/transfers': typeof AuthenticatedAppTransfersRoute
@@ -349,6 +357,7 @@ export interface FileRoutesByTo {
   '/app/analytics': typeof AuthenticatedAppAnalyticsRoute
   '/app/inbox': typeof AuthenticatedAppInboxRoute
   '/app/mail-queue': typeof AuthenticatedAppMailQueueRoute
+  '/app/notifications': typeof AuthenticatedAppNotificationsRoute
   '/app/settings': typeof AuthenticatedAppSettingsRoute
   '/app/transfers': typeof AuthenticatedAppTransfersRoute
   '/onboarding/password': typeof AuthenticatedOnboardingPasswordRoute
@@ -394,6 +403,7 @@ export interface FileRoutesById {
   '/_authenticated/app/inbox': typeof AuthenticatedAppInboxRoute
   '/_authenticated/app/leads': typeof AuthenticatedAppLeadsRouteWithChildren
   '/_authenticated/app/mail-queue': typeof AuthenticatedAppMailQueueRoute
+  '/_authenticated/app/notifications': typeof AuthenticatedAppNotificationsRoute
   '/_authenticated/app/profile': typeof AuthenticatedAppProfileRouteWithChildren
   '/_authenticated/app/settings': typeof AuthenticatedAppSettingsRoute
   '/_authenticated/app/transfers': typeof AuthenticatedAppTransfersRoute
@@ -440,6 +450,7 @@ export interface FileRouteTypes {
     | '/app/inbox'
     | '/app/leads'
     | '/app/mail-queue'
+    | '/app/notifications'
     | '/app/profile'
     | '/app/settings'
     | '/app/transfers'
@@ -480,6 +491,7 @@ export interface FileRouteTypes {
     | '/app/analytics'
     | '/app/inbox'
     | '/app/mail-queue'
+    | '/app/notifications'
     | '/app/settings'
     | '/app/transfers'
     | '/onboarding/password'
@@ -524,6 +536,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/inbox'
     | '/_authenticated/app/leads'
     | '/_authenticated/app/mail-queue'
+    | '/_authenticated/app/notifications'
     | '/_authenticated/app/profile'
     | '/_authenticated/app/settings'
     | '/_authenticated/app/transfers'
@@ -648,6 +661,13 @@ declare module '@tanstack/react-router' {
       path: '/profile'
       fullPath: '/app/profile'
       preLoaderRoute: typeof AuthenticatedAppProfileRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/notifications': {
+      id: '/_authenticated/app/notifications'
+      path: '/notifications'
+      fullPath: '/app/notifications'
+      preLoaderRoute: typeof AuthenticatedAppNotificationsRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
     '/_authenticated/app/mail-queue': {
@@ -974,6 +994,7 @@ interface AuthenticatedAppRouteChildren {
   AuthenticatedAppInboxRoute: typeof AuthenticatedAppInboxRoute
   AuthenticatedAppLeadsRoute: typeof AuthenticatedAppLeadsRouteWithChildren
   AuthenticatedAppMailQueueRoute: typeof AuthenticatedAppMailQueueRoute
+  AuthenticatedAppNotificationsRoute: typeof AuthenticatedAppNotificationsRoute
   AuthenticatedAppProfileRoute: typeof AuthenticatedAppProfileRouteWithChildren
   AuthenticatedAppSettingsRoute: typeof AuthenticatedAppSettingsRoute
   AuthenticatedAppTransfersRoute: typeof AuthenticatedAppTransfersRoute
@@ -989,6 +1010,7 @@ const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
   AuthenticatedAppInboxRoute: AuthenticatedAppInboxRoute,
   AuthenticatedAppLeadsRoute: AuthenticatedAppLeadsRouteWithChildren,
   AuthenticatedAppMailQueueRoute: AuthenticatedAppMailQueueRoute,
+  AuthenticatedAppNotificationsRoute: AuthenticatedAppNotificationsRoute,
   AuthenticatedAppProfileRoute: AuthenticatedAppProfileRouteWithChildren,
   AuthenticatedAppSettingsRoute: AuthenticatedAppSettingsRoute,
   AuthenticatedAppTransfersRoute: AuthenticatedAppTransfersRoute,
