@@ -173,6 +173,18 @@ export const setUserPermission = createServerFn({ method: "POST" })
 
 
     if (error) throw new Error(error.message);
+    try {
+      const { notify } = await import("@/lib/notify.server");
+      await notify({
+        event: "permission.changed",
+        recipients: [data.userId],
+        vars: { permission: data.key, value: data.value ? "enabled" : "disabled" },
+        dedupeKey: `perm:${data.userId}:${data.key}:${data.value ? 1 : 0}:${Date.now()}`,
+        actorId: context.userId,
+      });
+    } catch (e) {
+      console.error("[setUserPermission] notify failed:", e);
+    }
     return { ok: true as const };
   });
 
