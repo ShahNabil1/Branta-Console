@@ -923,10 +923,13 @@ export const deleteLead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { id: string }) => z.object({ id: z.string().uuid() }).parse(data))
   .handler(async ({ data, context }): Promise<{ ok: true }> => {
+    const { assertCallerPermission } = await import("@/lib/permissions.functions");
+    await assertCallerPermission(context.supabase, context.userId, "lead_delete", "Delete leads");
     const { error } = await context.supabase.from("leads").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
 
 export const listLeadActivities = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
