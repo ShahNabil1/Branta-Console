@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { listScopeUsers, type RangeKey } from "@/lib/analytics.functions";
 import { getMyPermissions } from "@/lib/permissions.functions";
 import { cn } from "@/lib/utils";
-import { User, ChevronDown } from "lucide-react";
+import { User, ChevronDown, Lock } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
