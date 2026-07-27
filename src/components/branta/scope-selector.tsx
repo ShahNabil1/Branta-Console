@@ -60,7 +60,7 @@ export function ScopeSelector({ value, onChange }: ScopeSelectorProps) {
         <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
           Acting as
         </span>
-        {isAdmin ? (
+        {isSuperAdmin ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="hairline flex h-8 items-center gap-2 rounded-sm border border-border bg-card px-2.5 text-[12.5px] font-medium text-foreground hover:border-brand/40">
