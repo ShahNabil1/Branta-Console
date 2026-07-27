@@ -753,6 +753,17 @@ export const updateLead = createServerFn({ method: "POST" })
     const emailPatch = patch.email;
     delete patch.email;
 
+    // Gate reassignment on the lead_assign toggle (applies to super_admins too).
+    if ("owner_id" in patch) {
+      const { data: prior } = await context.supabase
+        .from("leads").select("owner_id").eq("id", data.id).maybeSingle();
+      if ((prior?.owner_id ?? null) !== (patch.owner_id ?? null)) {
+        const { assertCallerPermission } = await import("@/lib/permissions.functions");
+        await assertCallerPermission(context.supabase, context.userId, "lead_assign", "Reassign leads");
+      }
+    }
+
+
     // Duplicate guard — block reusing an email/phone that another lead owns.
     await throwIfDuplicate(
       context.supabase,
