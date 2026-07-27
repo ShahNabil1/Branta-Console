@@ -247,19 +247,7 @@ export async function notify(input: NotifyInput): Promise<{
 }
 
 async function logEvent(
-  admin: Awaited<
-    ReturnType<
-      typeof import("@/integrations/supabase/client.server").getSupabaseAdmin
-    >
-  > extends never
-    ? never
-    : ReturnType<
-        typeof import("@/integrations/supabase/client.server") extends {
-          supabaseAdmin: infer T;
-        }
-          ? () => T
-          : never
-      >,
+  admin: SupabaseAdminClient,
   args: {
     input: NotifyInput;
     recipient: string;
@@ -268,8 +256,6 @@ async function logEvent(
     message: string;
   },
 ): Promise<void> {
-  // Best-effort audit row for skipped/failed; ignore unique-constraint
-  // violations when dedupeKey collides with a prior send.
   const dedupe = args.input.dedupeKey
     ? `${args.input.dedupeKey}:${args.recipient}`
     : null;
@@ -282,7 +268,7 @@ async function logEvent(
       status: args.status,
       reason: args.reason,
       message: args.message,
-      payload: args.input.vars ?? {},
+      payload: (args.input.vars ?? {}) as never,
       actor_user_id: args.input.actorId ?? null,
     })
     .then(() => undefined, () => undefined);
