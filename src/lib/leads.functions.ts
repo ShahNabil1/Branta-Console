@@ -948,6 +948,40 @@ export const updateLead = createServerFn({ method: "POST" })
     if (activityRows.length > 0) {
       await context.supabase.from("lead_activities").insert(activityRows as never);
     }
+    try {
+      const { notify } = await import("@/lib/notify.server");
+      const priorRow = prior as Record<string, unknown> | null;
+      const finalRow = row as Record<string, unknown>;
+      const slug = (finalRow.slug as string | null) ?? data.id.slice(0, 8);
+      const leadName = (finalRow.name as string | null) ?? "Lead";
+      if (patch.status && priorRow && priorRow.status !== patch.status) {
+        const ownerId = (finalRow.owner_id as string | null) ?? null;
+        if (ownerId) {
+          await notify({
+            event: "lead.status_changed",
+            recipients: [ownerId],
+            vars: { status: String(patch.status), slug, name: leadName },
+            dedupeKey: `lead:${data.id}:status:${String(patch.status)}`,
+            actorId: context.userId,
+          });
+        }
+      }
+      if ("owner_id" in patch) {
+        const beforeOwner = (priorRow?.owner_id as string | null) ?? null;
+        const afterOwner = (patch.owner_id as string | null) ?? null;
+        if (afterOwner && afterOwner !== beforeOwner && afterOwner !== context.userId) {
+          await notify({
+            event: "lead.assigned",
+            recipients: [afterOwner],
+            vars: { name: leadName, slug },
+            dedupeKey: `lead:${data.id}:assigned:${afterOwner}:${Date.now()}`,
+            actorId: context.userId,
+          });
+        }
+      }
+    } catch (e) {
+      console.error("[updateLead] notify failed:", e);
+    }
     const base = { ...(row as LeadRow), email: null };
     const [withEmail] = await attachPrimaryEmails(context.supabase, [base]);
     return withEmail;
