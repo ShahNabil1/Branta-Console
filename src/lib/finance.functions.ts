@@ -1305,6 +1305,21 @@ export const createExpense = createServerFn({ method: "POST" })
         { event: "expense_created", expense_id: expense.id, category: expense.category, vendor: expense.vendor ?? null, related_table: "expenses", related_id: expense.id },
       );
     }
+    try {
+      const { notify } = await import("@/lib/notify.server");
+      await notify({
+        event: "expense.added",
+        recipientRoles: ["finance", "super_admin"],
+        vars: {
+          category: expense.category,
+          amount: `${expense.currency} ${Number(expense.amount).toLocaleString()}`,
+        },
+        dedupeKey: `expense:${expense.id}:added`,
+        actorId: context.userId,
+      });
+    } catch (e) {
+      console.error("[createExpense] notify failed:", e);
+    }
     return row as unknown as ExpenseRow;
   });
 
