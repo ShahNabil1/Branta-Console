@@ -197,6 +197,16 @@ export async function notify(input: NotifyInput): Promise<{
         return;
       }
 
+      // Quiet-hours / digest deferral for non-critical events.
+      const { computeDeferredUntil, retryDelayMs, MAX_ATTEMPTS } = await import(
+        "@/lib/notify-scheduling"
+      );
+      const deferUntil = alwaysOn
+        ? null
+        : computeDeferredUntil(
+            (prefs.get(uid) ?? {}) as Record<string, unknown>,
+          );
+
       // Idempotency: insert first, only send if fresh row.
       const dedupe = input.dedupeKey ? `${input.dedupeKey}:${uid}` : null;
       const { data: inserted, error: insertErr } = await supabaseAdmin
@@ -205,10 +215,12 @@ export async function notify(input: NotifyInput): Promise<{
           event_key: input.event,
           recipient_user_id: uid,
           dedupe_key: dedupe,
-          status: "queued",
+          status: deferUntil ? "deferred" : "queued",
           message: rendered,
           payload: (input.vars ?? {}) as never,
           actor_user_id: input.actorId ?? null,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ...(deferUntil ? ({ deferred_until: deferUntil.toISOString() } as any) : {}),
         })
         .select("id")
         .maybeSingle();
@@ -220,6 +232,11 @@ export async function notify(input: NotifyInput): Promise<{
       }
       const rowId = inserted?.id as string | undefined;
 
+      if (deferUntil) {
+        skipped++;
+        return;
+      }
+
       const res = await sendTelegramToChatId(sub.chat_id, rendered, {
         parseMode: "HTML",
       });
@@ -228,16 +245,23 @@ export async function notify(input: NotifyInput): Promise<{
         if (rowId) {
           await supabaseAdmin
             .from("notification_events")
-            .update({ status: "sent", sent_at: new Date().toISOString() })
+            .update({ status: "sent", sent_at: new Date().toISOString(), attempt_count: 1 } as never)
             .eq("id", rowId);
         }
       } else {
         failed++;
         if (rowId) {
+          const next = new Date(Date.now() + retryDelayMs(0));
           await supabaseAdmin
             .from("notification_events")
-            .update({ status: "failed", reason: res.error ?? "send_failed" })
+            .update({
+              status: "retry",
+              reason: res.error ?? "send_failed",
+              attempt_count: 1,
+              next_attempt_at: next.toISOString(),
+            } as never)
             .eq("id", rowId);
+          void MAX_ATTEMPTS;
         }
       }
     }),
