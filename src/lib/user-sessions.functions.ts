@@ -75,6 +75,15 @@ export const registerSession = createServerFn({ method: "POST" })
     const browser = `${parsed.browser.name ?? "Browser"} ${parsed.browser.version?.split(".")[0] ?? ""}`.trim();
     const os = `${parsed.os.name ?? ""} ${parsed.os.version ?? ""}`.trim();
 
+    // Detect first-time session_key for this user → new-device notification.
+    const { data: existing } = await supabaseAdmin
+      .from("user_sessions")
+      .select("id")
+      .eq("user_id", context.userId)
+      .eq("session_key", data.session_key)
+      .maybeSingle();
+    const isNewDevice = !existing;
+
     // Upsert on unique (user_id, session_key)
     const { error } = await supabaseAdmin
       .from("user_sessions")
@@ -96,6 +105,32 @@ export const registerSession = createServerFn({ method: "POST" })
         { onConflict: "user_id,session_key" },
       );
     if (error) throw new Error(error.message);
+
+    if (isNewDevice) {
+      try {
+        const { notify } = await import("@/lib/notify.server");
+        const when = new Date().toLocaleString("en-GB", {
+          timeZone: "Asia/Dhaka",
+          hour12: true,
+          dateStyle: "medium",
+          timeStyle: "short",
+        });
+        const location = [geo.city, geo.country].filter(Boolean).join(", ");
+        await notify({
+          event: "auth.new_device_login",
+          recipients: [context.userId],
+          vars: {
+            device: `${device} · ${browser}`.trim(),
+            ip: `${ip ?? "unknown"}${location ? ` (${location})` : ""}`,
+            when: `${when} (BDT)`,
+          },
+          dedupeKey: `session:${context.userId}:${data.session_key}:new`,
+          actorId: context.userId,
+        });
+      } catch (e) {
+        console.error("[registerSession] notify failed:", e);
+      }
+    }
     return { ok: true as const };
   });
 
