@@ -15,7 +15,31 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useConfirm } from "@/components/ui/confirm-dialog";
-import { Loader2, Plus, Trash2, Receipt } from "lucide-react";
+import { Loader2, Plus, Trash2, Receipt, Upload, Eye, Download, X, FileText } from "lucide-react";
+
+const RECEIPT_BUCKET = "expense-receipts";
+const MAX_RECEIPT_MB = 15;
+const ACCEPT = "image/png,image/jpeg,image/webp,image/gif,application/pdf";
+
+function isImagePath(p: string | null | undefined) {
+  if (!p) return false;
+  return /\.(png|jpe?g|webp|gif|heic|avif)$/i.test(p);
+}
+function isPdfPath(p: string | null | undefined) {
+  return !!p && /\.pdf$/i.test(p);
+}
+async function signedUrl(path: string, expires = 300) {
+  const { data, error } = await supabase.storage.from(RECEIPT_BUCKET).createSignedUrl(path, expires);
+  if (error) throw new Error(error.message);
+  return data.signedUrl;
+}
+async function signedDownloadUrl(path: string, filename?: string) {
+  const { data, error } = await supabase.storage
+    .from(RECEIPT_BUCKET)
+    .createSignedUrl(path, 300, { download: filename ?? true });
+  if (error) throw new Error(error.message);
+  return data.signedUrl;
+}
 
 export const Route = createFileRoute("/_authenticated/app/finance/expenses")({
   head: () => ({ meta: [{ title: "Expenses · Finance · Branta" }] }),
@@ -55,9 +79,47 @@ function ExpensesPage() {
     vendor: "",
     notes: "",
   });
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [viewer, setViewer] = useState<{ url: string; name: string } | null>(null);
+
+  const openReceipt = async (path: string) => {
+    try {
+      const name = path.split("/").pop() ?? "receipt";
+      if (isImagePath(path)) {
+        setViewer({ url: await signedUrl(path), name });
+      } else {
+        window.open(await signedUrl(path), "_blank", "noopener,noreferrer");
+      }
+    } catch (e) { toast.error((e as Error).message); }
+  };
+  const downloadReceipt = async (path: string) => {
+    try {
+      const name = path.split("/").pop() ?? "receipt";
+      const url = await signedDownloadUrl(path, name);
+      const a = document.createElement("a");
+      a.href = url; a.download = name; a.rel = "noopener"; document.body.appendChild(a); a.click(); a.remove();
+    } catch (e) { toast.error((e as Error).message); }
+  };
 
   const add = useMutation({
     mutationFn: async () => {
+      let receipt_url: string | null = null;
+      if (receiptFile) {
+        if (receiptFile.size > MAX_RECEIPT_MB * 1024 * 1024) {
+          throw new Error(`Receipt must be ≤ ${MAX_RECEIPT_MB} MB`);
+        }
+        setUploading(true);
+        const { data: sess } = await supabase.auth.getUser();
+        const uid = sess.user?.id ?? "anon";
+        const ext = receiptFile.name.split(".").pop()?.toLowerCase() ?? "bin";
+        const path = `${uid}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const { error: upErr } = await supabase.storage.from(RECEIPT_BUCKET)
+          .upload(path, receiptFile, { contentType: receiptFile.type || undefined, upsert: false });
+        setUploading(false);
+        if (upErr) throw new Error(upErr.message);
+        receipt_url = path;
+      }
       await create({ data: {
         category: form.category,
         amount: Number(form.amount),
@@ -65,15 +127,17 @@ function ExpensesPage() {
         spent_on: form.spent_on,
         vendor: form.vendor || null,
         notes: form.notes || null,
+        receipt_url,
       }});
     },
     onSuccess: () => {
       toast.success("Expense added");
       setOpen(false);
+      setReceiptFile(null);
       setForm({ ...form, amount: "", vendor: "", notes: "" });
       void q.refetch();
     },
-    onError: (e) => toast.error((e as Error).message),
+    onError: (e) => { setUploading(false); toast.error((e as Error).message); },
   });
 
   if (isAdmin.isLoading) return <div className="grid h-64 place-items-center"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>;
@@ -84,6 +148,8 @@ function ExpensesPage() {
       <p className="mt-1 text-[13px] text-muted-foreground">Finance or Super-admin role required.</p>
     </div>;
   }
+
+
 
   return (
     <div className="mx-auto max-w-7xl space-y-4 px-6 py-6">
@@ -106,12 +172,13 @@ function ExpensesPage() {
               <th className="px-3 py-2">Vendor</th>
               <th className="px-3 py-2 text-right">Amount</th>
               <th className="px-3 py-2">Notes</th>
+              <th className="px-3 py-2">Receipt</th>
               <th className="px-3 py-2 text-right"></th>
             </tr>
           </thead>
           <tbody>
             {(q.data ?? []).length === 0 ? (
-              <tr><td colSpan={6} className="px-3 py-10 text-center text-muted-foreground">No expenses yet.</td></tr>
+              <tr><td colSpan={7} className="px-3 py-10 text-center text-muted-foreground">No expenses yet.</td></tr>
             ) : q.data?.map((r) => (
               <tr key={r.id} className="border-t border-border">
                 <td className="px-3 py-2 text-muted-foreground">{r.spent_on}</td>
@@ -119,6 +186,24 @@ function ExpensesPage() {
                 <td className="px-3 py-2">{r.vendor ?? "—"}</td>
                 <td className="px-3 py-2 text-right font-mono">{fmt(r.amount, r.currency)}</td>
                 <td className="px-3 py-2 text-muted-foreground truncate max-w-xs">{r.notes ?? ""}</td>
+                <td className="px-3 py-2">
+                  {r.receipt_url ? (
+                    <div className="flex items-center gap-1">
+                      <Button size="sm" variant="ghost" className="h-7 rounded-sm px-2 text-[11.5px]"
+                        onClick={() => openReceipt(r.receipt_url as string)}
+                        title={isPdfPath(r.receipt_url) ? "Open PDF" : "View image"}>
+                        {isPdfPath(r.receipt_url) ? <FileText className="size-3.5" /> : <Eye className="size-3.5" />}
+                        <span className="ml-1">View</span>
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-7 rounded-sm px-2 text-[11.5px]"
+                        onClick={() => downloadReceipt(r.receipt_url as string)} title="Download">
+                        <Download className="size-3.5" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <span className="text-[11.5px] text-muted-foreground">—</span>
+                  )}
+                </td>
                 <td className="px-3 py-2 text-right">
                   <Button size="sm" variant="ghost" onClick={async () => {
                     const ok = await confirm({ title: "Delete expense", description: "This cannot be undone.", tone: "danger" });
@@ -180,14 +265,71 @@ function ExpensesPage() {
                 <Input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })}
                   className="mt-1 h-9 rounded-sm" />
               </div>
+              <div>
+                <label className="text-[11px] font-semibold uppercase text-muted-foreground">
+                  Receipt <span className="text-muted-foreground/70 normal-case font-normal">(optional — image or PDF, ≤ {MAX_RECEIPT_MB} MB)</span>
+                </label>
+                {!receiptFile ? (
+                  <label className="mt-1 flex h-20 cursor-pointer items-center justify-center gap-2 rounded-sm border border-dashed border-input bg-background text-[12px] text-muted-foreground hover:border-primary hover:text-primary">
+                    <Upload className="size-3.5" />
+                    <span>Click to upload proof / receipt</span>
+                    <input type="file" accept={ACCEPT} className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0] ?? null;
+                        if (f && f.size > MAX_RECEIPT_MB * 1024 * 1024) {
+                          toast.error(`File must be ≤ ${MAX_RECEIPT_MB} MB`);
+                          e.target.value = ""; return;
+                        }
+                        setReceiptFile(f);
+                      }} />
+                  </label>
+                ) : (
+                  <div className="mt-1 flex items-center justify-between rounded-sm border border-input bg-background px-2 py-1.5 text-[12px]">
+                    <div className="flex min-w-0 items-center gap-2">
+                      {receiptFile.type.startsWith("image/") ? <Eye className="size-3.5 shrink-0" /> : <FileText className="size-3.5 shrink-0" />}
+                      <span className="truncate">{receiptFile.name}</span>
+                      <span className="shrink-0 text-muted-foreground">({(receiptFile.size / 1024).toFixed(0)} KB)</span>
+                    </div>
+                    <Button size="sm" variant="ghost" className="h-6 rounded-sm px-1.5"
+                      onClick={() => setReceiptFile(null)} disabled={uploading}>
+                      <X className="size-3.5" />
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
             <div className="mt-4 flex justify-end gap-2">
-              <Button variant="ghost" onClick={() => setOpen(false)} className="h-9 rounded-sm">Cancel</Button>
+              <Button variant="ghost" onClick={() => setOpen(false)} className="h-9 rounded-sm" disabled={add.isPending}>Cancel</Button>
               <Button onClick={() => add.mutate()} disabled={add.isPending || !form.amount}
                 className="h-9 rounded-sm bg-primary hover:bg-brand-700">
-                {add.isPending && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
-                Save
+                {(add.isPending || uploading) && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
+                {uploading ? "Uploading…" : "Save"}
               </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {viewer && (
+        <div className="fixed inset-0 z-[60] grid place-items-center bg-black/80 p-4" onClick={() => setViewer(null)}>
+          <div className="relative max-h-[90vh] w-full max-w-3xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between rounded-t-md border border-border bg-card px-3 py-2">
+              <div className="flex min-w-0 items-center gap-2 text-[12.5px]">
+                <Eye className="size-3.5 shrink-0" />
+                <span className="truncate">{viewer.name}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Button size="sm" variant="ghost" className="h-7 rounded-sm px-2 text-[11.5px]"
+                  onClick={() => { const a = document.createElement("a"); a.href = viewer.url; a.download = viewer.name; a.rel = "noopener"; document.body.appendChild(a); a.click(); a.remove(); }}>
+                  <Download className="mr-1 size-3.5" /> Download
+                </Button>
+                <Button size="sm" variant="ghost" className="h-7 rounded-sm px-2" onClick={() => setViewer(null)}>
+                  <X className="size-3.5" />
+                </Button>
+              </div>
+            </div>
+            <div className="max-h-[80vh] overflow-auto rounded-b-md border-x border-b border-border bg-black">
+              <img src={viewer.url} alt={viewer.name} className="mx-auto block max-h-[80vh] object-contain" />
             </div>
           </div>
         </div>
