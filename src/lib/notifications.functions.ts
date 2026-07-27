@@ -26,11 +26,11 @@ const PREF_SCHEMA = z.object({
   digest_mode: z.boolean().optional(),
 });
 
-async function assertSuperAdmin(ctx: {
-  supabase: { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown }> };
-  userId: string;
-}): Promise<void> {
-  const { data } = await ctx.supabase.rpc("has_role", {
+async function assertSuperAdmin(ctx: { supabase: unknown; userId: string }): Promise<void> {
+  const sb = ctx.supabase as {
+    rpc: (fn: "has_role", args: { _user_id: string; _role: "super_admin" }) => Promise<{ data: unknown }>;
+  };
+  const { data } = await sb.rpc("has_role", {
     _user_id: ctx.userId,
     _role: "super_admin",
   });
