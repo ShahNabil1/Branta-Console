@@ -15,7 +15,31 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useConfirm } from "@/components/ui/confirm-dialog";
-import { Loader2, Plus, Trash2, Receipt } from "lucide-react";
+import { Loader2, Plus, Trash2, Receipt, Upload, Eye, Download, X, FileText } from "lucide-react";
+
+const RECEIPT_BUCKET = "expense-receipts";
+const MAX_RECEIPT_MB = 15;
+const ACCEPT = "image/png,image/jpeg,image/webp,image/gif,application/pdf";
+
+function isImagePath(p: string | null | undefined) {
+  if (!p) return false;
+  return /\.(png|jpe?g|webp|gif|heic|avif)$/i.test(p);
+}
+function isPdfPath(p: string | null | undefined) {
+  return !!p && /\.pdf$/i.test(p);
+}
+async function signedUrl(path: string, expires = 300) {
+  const { data, error } = await supabase.storage.from(RECEIPT_BUCKET).createSignedUrl(path, expires);
+  if (error) throw new Error(error.message);
+  return data.signedUrl;
+}
+async function signedDownloadUrl(path: string, filename?: string) {
+  const { data, error } = await supabase.storage
+    .from(RECEIPT_BUCKET)
+    .createSignedUrl(path, 300, { download: filename ?? true });
+  if (error) throw new Error(error.message);
+  return data.signedUrl;
+}
 
 export const Route = createFileRoute("/_authenticated/app/finance/expenses")({
   head: () => ({ meta: [{ title: "Expenses · Finance · Branta" }] }),
