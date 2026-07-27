@@ -265,14 +265,71 @@ function ExpensesPage() {
                 <Input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })}
                   className="mt-1 h-9 rounded-sm" />
               </div>
+              <div>
+                <label className="text-[11px] font-semibold uppercase text-muted-foreground">
+                  Receipt <span className="text-muted-foreground/70 normal-case font-normal">(optional — image or PDF, ≤ {MAX_RECEIPT_MB} MB)</span>
+                </label>
+                {!receiptFile ? (
+                  <label className="mt-1 flex h-20 cursor-pointer items-center justify-center gap-2 rounded-sm border border-dashed border-input bg-background text-[12px] text-muted-foreground hover:border-primary hover:text-primary">
+                    <Upload className="size-3.5" />
+                    <span>Click to upload proof / receipt</span>
+                    <input type="file" accept={ACCEPT} className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0] ?? null;
+                        if (f && f.size > MAX_RECEIPT_MB * 1024 * 1024) {
+                          toast.error(`File must be ≤ ${MAX_RECEIPT_MB} MB`);
+                          e.target.value = ""; return;
+                        }
+                        setReceiptFile(f);
+                      }} />
+                  </label>
+                ) : (
+                  <div className="mt-1 flex items-center justify-between rounded-sm border border-input bg-background px-2 py-1.5 text-[12px]">
+                    <div className="flex min-w-0 items-center gap-2">
+                      {receiptFile.type.startsWith("image/") ? <Eye className="size-3.5 shrink-0" /> : <FileText className="size-3.5 shrink-0" />}
+                      <span className="truncate">{receiptFile.name}</span>
+                      <span className="shrink-0 text-muted-foreground">({(receiptFile.size / 1024).toFixed(0)} KB)</span>
+                    </div>
+                    <Button size="sm" variant="ghost" className="h-6 rounded-sm px-1.5"
+                      onClick={() => setReceiptFile(null)} disabled={uploading}>
+                      <X className="size-3.5" />
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
             <div className="mt-4 flex justify-end gap-2">
-              <Button variant="ghost" onClick={() => setOpen(false)} className="h-9 rounded-sm">Cancel</Button>
+              <Button variant="ghost" onClick={() => setOpen(false)} className="h-9 rounded-sm" disabled={add.isPending}>Cancel</Button>
               <Button onClick={() => add.mutate()} disabled={add.isPending || !form.amount}
                 className="h-9 rounded-sm bg-primary hover:bg-brand-700">
-                {add.isPending && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
-                Save
+                {(add.isPending || uploading) && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
+                {uploading ? "Uploading…" : "Save"}
               </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {viewer && (
+        <div className="fixed inset-0 z-[60] grid place-items-center bg-black/80 p-4" onClick={() => setViewer(null)}>
+          <div className="relative max-h-[90vh] w-full max-w-3xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between rounded-t-md border border-border bg-card px-3 py-2">
+              <div className="flex min-w-0 items-center gap-2 text-[12.5px]">
+                <Eye className="size-3.5 shrink-0" />
+                <span className="truncate">{viewer.name}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Button size="sm" variant="ghost" className="h-7 rounded-sm px-2 text-[11.5px]"
+                  onClick={() => { const a = document.createElement("a"); a.href = viewer.url; a.download = viewer.name; a.rel = "noopener"; document.body.appendChild(a); a.click(); a.remove(); }}>
+                  <Download className="mr-1 size-3.5" /> Download
+                </Button>
+                <Button size="sm" variant="ghost" className="h-7 rounded-sm px-2" onClick={() => setViewer(null)}>
+                  <X className="size-3.5" />
+                </Button>
+              </div>
+            </div>
+            <div className="max-h-[80vh] overflow-auto rounded-b-md border-x border-b border-border bg-black">
+              <img src={viewer.url} alt={viewer.name} className="mx-auto block max-h-[80vh] object-contain" />
             </div>
           </div>
         </div>
