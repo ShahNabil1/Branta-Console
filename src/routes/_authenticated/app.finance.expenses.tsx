@@ -79,9 +79,47 @@ function ExpensesPage() {
     vendor: "",
     notes: "",
   });
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [viewer, setViewer] = useState<{ url: string; name: string } | null>(null);
+
+  const openReceipt = async (path: string) => {
+    try {
+      const name = path.split("/").pop() ?? "receipt";
+      if (isImagePath(path)) {
+        setViewer({ url: await signedUrl(path), name });
+      } else {
+        window.open(await signedUrl(path), "_blank", "noopener,noreferrer");
+      }
+    } catch (e) { toast.error((e as Error).message); }
+  };
+  const downloadReceipt = async (path: string) => {
+    try {
+      const name = path.split("/").pop() ?? "receipt";
+      const url = await signedDownloadUrl(path, name);
+      const a = document.createElement("a");
+      a.href = url; a.download = name; a.rel = "noopener"; document.body.appendChild(a); a.click(); a.remove();
+    } catch (e) { toast.error((e as Error).message); }
+  };
 
   const add = useMutation({
     mutationFn: async () => {
+      let receipt_url: string | null = null;
+      if (receiptFile) {
+        if (receiptFile.size > MAX_RECEIPT_MB * 1024 * 1024) {
+          throw new Error(`Receipt must be ≤ ${MAX_RECEIPT_MB} MB`);
+        }
+        setUploading(true);
+        const { data: sess } = await supabase.auth.getUser();
+        const uid = sess.user?.id ?? "anon";
+        const ext = receiptFile.name.split(".").pop()?.toLowerCase() ?? "bin";
+        const path = `${uid}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const { error: upErr } = await supabase.storage.from(RECEIPT_BUCKET)
+          .upload(path, receiptFile, { contentType: receiptFile.type || undefined, upsert: false });
+        setUploading(false);
+        if (upErr) throw new Error(upErr.message);
+        receipt_url = path;
+      }
       await create({ data: {
         category: form.category,
         amount: Number(form.amount),
@@ -89,16 +127,27 @@ function ExpensesPage() {
         spent_on: form.spent_on,
         vendor: form.vendor || null,
         notes: form.notes || null,
+        receipt_url,
       }});
     },
     onSuccess: () => {
       toast.success("Expense added");
       setOpen(false);
+      setReceiptFile(null);
       setForm({ ...form, amount: "", vendor: "", notes: "" });
       void q.refetch();
     },
-    onError: (e) => toast.error((e as Error).message),
+    onError: (e) => { setUploading(false); toast.error((e as Error).message); },
   });
+
+  if (isAdmin.isLoading) return <div className="grid h-64 place-items-center"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>;
+  if (!isAdmin.data?.isAdmin) {
+    return <div className="mx-auto max-w-2xl px-6 py-16 text-center">
+      <Receipt className="mx-auto mb-3 size-8 text-muted-foreground" />
+      <h1 className="text-[18px] font-semibold">Finance-only page</h1>
+      <p className="mt-1 text-[13px] text-muted-foreground">Finance or Super-admin role required.</p>
+    </div>;
+  }
 
   if (isAdmin.isLoading) return <div className="grid h-64 place-items-center"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>;
   if (!isAdmin.data?.isAdmin) {
