@@ -603,6 +603,29 @@ export const createLead = createServerFn({ method: "POST" })
     } catch (e) {
       console.warn("[createLead] auto-sync failed", e);
     }
+    try {
+      const { notify } = await import("@/lib/notify.server");
+      const ownerId = (row as { owner_id: string | null }).owner_id ?? null;
+      const slug = (row as { slug: string | null }).slug ?? row.id.slice(0, 8);
+      await notify({
+        event: "lead.created",
+        recipientRoles: ["super_admin", "admin"],
+        vars: { name: data.name, slug, source: data.source ?? "manual" },
+        dedupeKey: `lead:${row.id}:created`,
+        actorId: context.userId,
+      });
+      if (ownerId && ownerId !== context.userId) {
+        await notify({
+          event: "lead.assigned",
+          recipients: [ownerId],
+          vars: { name: data.name, slug },
+          dedupeKey: `lead:${row.id}:assigned:${ownerId}`,
+          actorId: context.userId,
+        });
+      }
+    } catch (e) {
+      console.error("[createLead] notify failed:", e);
+    }
     return { ...(row as unknown as LeadRow), email };
   });
 
