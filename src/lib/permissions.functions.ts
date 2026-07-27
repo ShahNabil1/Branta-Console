@@ -46,6 +46,38 @@ async function assertSuperAdmin(supabase: any, userId: string) {
   if (!data) throw new Error("Forbidden: super_admin required");
 }
 
+/**
+ * Read a caller's effective toggle honoring the per-user override even for
+ * super admins. Role only affects settings access — actions gated by a
+ * toggle respect the toggle regardless of role.
+ */
+export async function callerHasPermission(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  userId: string,
+  key: keyof Omit<UserPermissions, "user_id">,
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("user_permissions")
+    .select(key)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (data && key in data) return !!(data as Record<string, unknown>)[key];
+  return DEFAULTS[key];
+}
+
+export async function assertCallerPermission(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  userId: string,
+  key: keyof Omit<UserPermissions, "user_id">,
+  label: string,
+) {
+  const ok = await callerHasPermission(supabase, userId, key);
+  if (!ok) throw new Error(`Forbidden: ${label} permission is disabled for your account`);
+}
+
+
 /** Called by any signed-in user to learn their own effective toggles. */
 export const getMyPermissions = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -62,19 +94,10 @@ export const getMyPermissions = createServerFn({ method: "GET" })
     ]);
     const isSuperAdmin = !!suRes.data;
     const isAdmin = isSuperAdmin || !!adRes.data;
-    if (isSuperAdmin) {
-      return {
-        user_id: context.userId,
-        lead_delete: true,
-        lead_manage: true,
-        lead_assign: true,
-        customer_access: true,
-        customer_view_all: true,
-        customer_view_detail: true,
-        isSuperAdmin,
-        isAdmin,
-      };
-    }
+    // NOTE: toggles apply on top of role. Even super_admins respect their
+    // per-user overrides so a super_admin with lead_delete=false cannot
+    // delete leads from the UI or server. Role only affects settings access.
+
 
 
     const { data } = await context.supabase
@@ -163,6 +186,7 @@ export const bulkAssignLeads = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertSuperAdmin(context.supabase, context.userId);
+    await assertCallerPermission(context.supabase, context.userId, "lead_assign", "Reassign leads");
     const { error } = await context.supabase
       .from("leads")
       .update({ owner_id: data.ownerId })
@@ -171,6 +195,7 @@ export const bulkAssignLeads = createServerFn({ method: "POST" })
     return { ok: true as const, count: data.leadIds.length };
   });
 
+
 export const bulkDeleteLeads = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { leadIds: string[] }) =>
@@ -178,6 +203,7 @@ export const bulkDeleteLeads = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertSuperAdmin(context.supabase, context.userId);
+    await assertCallerPermission(context.supabase, context.userId, "lead_delete", "Delete leads");
     const { error } = await context.supabase
       .from("leads")
       .delete()
@@ -185,3 +211,4 @@ export const bulkDeleteLeads = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true as const, count: data.leadIds.length };
   });
+
