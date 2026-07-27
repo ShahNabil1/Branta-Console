@@ -726,6 +726,46 @@ export const markInstallmentPaid = createServerFn({ method: "POST" })
       } catch (e) {
         console.error("[markInstallmentPaid] auto-send failed:", e);
       }
+
+      try {
+        const { notify } = await import("@/lib/notify.server");
+        const cur = priorInv.currency;
+        const amtPaid = data.paid_amount ?? inst.amount;
+        await notify({
+          event: "invoice.installment.paid",
+          recipientRoles: ["finance", "super_admin"],
+          vars: {
+            slug: priorInv.slug,
+            amount: `${cur} ${Number(amtPaid).toLocaleString()}`,
+            label: inst.label,
+          },
+          dedupeKey: `installment:${data.installment_id}:paid`,
+          actorId: context.userId,
+        });
+        const fullyPaid = after && Number(after.paid_amount) >= Number(after.total_amount) && Number(after.total_amount) > 0;
+        if (fullyPaid) {
+          const { data: payouts } = await context.supabase
+            .from("invoice_payouts")
+            .select("user_id, amount, currency")
+            .eq("invoice_id", inst.invoice_id)
+            .eq("status", "available")
+            .neq("role", "company");
+          for (const p of ((payouts ?? []) as Array<{ user_id: string; amount: number; currency: string }>)) {
+            await notify({
+              event: "payout.available",
+              recipients: [p.user_id],
+              vars: {
+                slug: priorInv.slug,
+                amount: `${p.currency} ${Number(p.amount).toLocaleString()}`,
+              },
+              dedupeKey: `payout:${inst.invoice_id}:${p.user_id}:available`,
+              actorId: context.userId,
+            });
+          }
+        }
+      } catch (e) {
+        console.error("[markInstallmentPaid] notify failed:", e);
+      }
     }
     return { ok: true as const };
   });
