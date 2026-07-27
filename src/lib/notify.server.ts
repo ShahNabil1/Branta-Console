@@ -207,7 +207,7 @@ export async function notify(input: NotifyInput): Promise<{
           dedupe_key: dedupe,
           status: "queued",
           message: rendered,
-          payload: input.vars ?? {},
+          payload: (input.vars ?? {}) as never,
           actor_user_id: input.actorId ?? null,
         })
         .select("id")
