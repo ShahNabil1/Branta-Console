@@ -228,7 +228,7 @@ export const updateEmployeeRoles = createServerFn({ method: "POST" })
     z
       .object({
         userId: uuid,
-        roles: z.array(ROLE_ENUM).min(1).max(4),
+        roles: z.array(ROLE_ENUM).min(1).max(5),
       })
       .parse(input),
   )
