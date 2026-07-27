@@ -174,5 +174,47 @@ export const setInitialPassword = createServerFn({ method: "POST" })
       .update({ must_change_password: false } as any)
       .eq("user_id", context.userId);
 
+    try {
+      const { notify } = await import("@/lib/notify.server");
+      const when = new Date().toLocaleString("en-GB", {
+        timeZone: "Asia/Dhaka",
+        hour12: true,
+        dateStyle: "medium",
+        timeStyle: "short",
+      });
+      await notify({
+        event: "auth.password_changed",
+        recipients: [context.userId],
+        vars: { when: `${when} (BDT)` },
+        dedupeKey: `pwd:${context.userId}:initial:${Date.now()}`,
+        actorId: context.userId,
+      });
+      // Check if onboarding is now complete (telegram already linked).
+      const { data: sub } = await supabaseAdmin
+        .from("telegram_subscriptions")
+        .select("active")
+        .eq("user_id", context.userId)
+        .maybeSingle();
+      const { data: prof2 } = await supabaseAdmin
+        .from("profiles")
+        .select("must_link_telegram, full_name")
+        .eq("user_id", context.userId)
+        .maybeSingle();
+      const name =
+        (prof2 as { full_name?: string } | null)?.full_name ??
+        "New employee";
+      if (sub?.active && !(prof2 as { must_link_telegram?: boolean } | null)?.must_link_telegram) {
+        await notify({
+          event: "employee.onboarded",
+          recipientRoles: ["super_admin", "admin"],
+          vars: { name },
+          dedupeKey: `onboarded:${context.userId}`,
+          actorId: context.userId,
+        });
+      }
+    } catch (e) {
+      console.error("[setInitialPassword] notify failed:", e);
+    }
+
     return { ok: true as const };
   });
