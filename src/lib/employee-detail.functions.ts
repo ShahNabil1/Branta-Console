@@ -12,7 +12,7 @@ import {
   generateTempPassword,
 } from "@/lib/branta-credentials";
 
-const ROLE_ENUM = z.enum(["super_admin", "admin", "manager", "user"]);
+const ROLE_ENUM = z.enum(["super_admin", "admin", "finance", "manager", "user"]);
 export type EmployeeRole = z.infer<typeof ROLE_ENUM>;
 
 const uuid = z.string().uuid();
