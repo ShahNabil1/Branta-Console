@@ -134,9 +134,10 @@ export function NotificationPreferencesCard() {
                   Quiet hours
                 </div>
                 <div className="text-[11.5px] text-muted-foreground">
-                  Non-critical alerts are held during this window (
-                  {local.timezone}). Coming online in Phase&nbsp;5.
+                  Non-critical alerts pause during this window ({local.timezone})
+                  and are delivered right after it ends.
                 </div>
+
               </div>
               <Switch
                 checked={local.quiet_hours_enabled}
