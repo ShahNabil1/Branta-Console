@@ -186,6 +186,7 @@ export const bulkAssignLeads = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertSuperAdmin(context.supabase, context.userId);
+    await assertCallerPermission(context.supabase, context.userId, "lead_assign", "Reassign leads");
     const { error } = await context.supabase
       .from("leads")
       .update({ owner_id: data.ownerId })
@@ -193,6 +194,7 @@ export const bulkAssignLeads = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true as const, count: data.leadIds.length };
   });
+
 
 export const bulkDeleteLeads = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
