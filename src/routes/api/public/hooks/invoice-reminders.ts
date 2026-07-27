@@ -12,11 +12,34 @@ import { createFileRoute } from "@tanstack/react-router";
 export const Route = createFileRoute("/api/public/hooks/invoice-reminders")({
   server: {
     handlers: {
-      POST: async ({ request }) => handle(request),
-      GET: async ({ request }) => handle(request),
+      POST: async ({ request }) => wrap(request),
+      GET: async ({ request }) => wrap(request),
     },
   },
 });
+
+async function wrap(request: Request): Promise<Response> {
+  try {
+    return await handle(request);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    try {
+      const { notify } = await import("@/lib/notify.server");
+      await notify({
+        event: "cron.failed",
+        recipientRoles: ["super_admin"],
+        vars: { job: "invoice-reminders", error: msg.slice(0, 400) },
+        dedupeKey: `cron:invoice-reminders:${new Date().toISOString().slice(0, 10)}`,
+      });
+    } catch (err) {
+      console.error("[invoice-reminders] cron.failed notify failed:", err);
+    }
+    return new Response(JSON.stringify({ ok: false, error: msg }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+}
 
 async function handle(request: Request): Promise<Response> {
   const providedKey =
