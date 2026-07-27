@@ -537,6 +537,18 @@ export const logImpersonationEnd = createServerFn({ method: "POST" })
       target_email: data.targetEmail,
       action: "end",
     });
+    try {
+      const { notify } = await import("@/lib/notify.server");
+      await notify({
+        event: "auth.impersonation.stopped",
+        recipients: [data.targetUserId],
+        vars: {},
+        dedupeKey: `imp:${data.targetUserId}:${context.userId}:stop:${Date.now()}`,
+        actorId: context.userId,
+      });
+    } catch (e) {
+      console.error("[logImpersonationEnd] notify failed:", e);
+    }
     return { ok: true as const };
   });
 
