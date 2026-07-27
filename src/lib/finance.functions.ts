@@ -482,6 +482,25 @@ export const createInvoice = createServerFn({ method: "POST" })
       console.error("[createInvoice] auto-send failed:", e);
     }
 
+    try {
+      const { notify } = await import("@/lib/notify.server");
+      const stakeholderIds = Array.from(new Set(data.stakeholders.map((s) => s.user_id)));
+      await notify({
+        event: "invoice.created",
+        recipientRoles: ["finance", "super_admin"],
+        recipients: stakeholderIds,
+        vars: {
+          slug,
+          amount: `${data.currency} ${data.total_amount.toLocaleString()}`,
+          title: data.title,
+        },
+        dedupeKey: `invoice:${invoiceId}:created`,
+        actorId: context.userId,
+      });
+    } catch (e) {
+      console.error("[createInvoice] notify failed:", e);
+    }
+
     return { id: invoiceId, slug };
   });
 
