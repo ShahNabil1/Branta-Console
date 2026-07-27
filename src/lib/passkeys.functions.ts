@@ -261,6 +261,19 @@ export const finishPasskeyRegistration = createServerFn({ method: "POST" })
       .delete()
       .eq("id", chal.id);
 
+    try {
+      const { notify } = await import("@/lib/notify.server");
+      await notify({
+        event: "passkey.added",
+        recipients: [context.userId],
+        vars: { name: data.friendly_name },
+        dedupeKey: `passkey:${cred.id}:added`,
+        actorId: context.userId,
+      });
+    } catch (e) {
+      console.error("[finishPasskeyRegistration] notify failed:", e);
+    }
+
     return { ok: true as const };
   });
 
