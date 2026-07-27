@@ -1817,6 +1817,21 @@ export const revokeManualEmployeePayout = createServerFn({ method: "POST" })
           unlocked_at: new Date().toISOString(),
         } as never);
       if (error) throw new Error(error.message);
+      try {
+        const { notify } = await import("@/lib/notify.server");
+        await notify({
+          event: "payout.revoked",
+          recipients: [row.user_id],
+          vars: {
+            slug: row.kind ?? "manual",
+            amount: `${row.currency} ${Number(row.amount).toLocaleString()}`,
+          },
+          dedupeKey: `payout:${row.id}:revoked`,
+          actorId: context.userId,
+        });
+      } catch (e) {
+        console.error("[revokeManualEmployeePayout] notify failed:", e);
+      }
       return { ok: true as const, mode: "clawback" as const };
     }
 
