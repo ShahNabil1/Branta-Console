@@ -170,6 +170,23 @@ export function NotificationPreferencesCard() {
             )}
           </div>
 
+          <div className="mt-3 flex items-center justify-between gap-3 rounded-sm border border-border bg-muted/30 px-3 py-2">
+            <div>
+              <div className="text-[12.5px] font-medium text-foreground">
+                Digest mode
+              </div>
+              <div className="text-[11.5px] text-muted-foreground">
+                Batch non-critical alerts into one message every 30 minutes.
+              </div>
+            </div>
+            <Switch
+              checked={local.digest_mode}
+              onCheckedChange={(v) => update({ digest_mode: v })}
+            />
+          </div>
+
+
+
           <div className="mt-3 flex items-center justify-end">
             <Button
               type="button"
