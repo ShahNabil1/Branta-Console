@@ -160,6 +160,33 @@ async function handle(request: Request): Promise<Response> {
       });
 
       sent += result.sent;
+
+      try {
+        const { notify } = await import("@/lib/notify.server");
+        await notify({
+          event: "invoice.reminder_sent",
+          recipientRoles: ["finance", "super_admin"],
+          vars: {
+            slug: inv.slug,
+            kind: t.kind === "upcoming" ? `upcoming ${t.days}d` : `overdue ${t.days}d`,
+          },
+          dedupeKey: `reminder:${inst.id}:${t.kind}_${t.days}d:${dayBucket}`,
+        });
+        if (t.kind === "overdue") {
+          await notify({
+            event: "invoice.overdue",
+            recipientRoles: ["finance", "super_admin"],
+            vars: {
+              slug: inv.slug,
+              amount: formatAmount(inst.amount),
+              due: inst.due_date,
+            },
+            dedupeKey: `overdue:${inst.id}:${dayBucket}`,
+          });
+        }
+      } catch (e) {
+        console.error("[invoice-reminders] notify failed:", e);
+      }
     } catch (e) {
       errors.push({
         installment_id: inst.id,

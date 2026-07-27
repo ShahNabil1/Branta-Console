@@ -482,6 +482,25 @@ export const createInvoice = createServerFn({ method: "POST" })
       console.error("[createInvoice] auto-send failed:", e);
     }
 
+    try {
+      const { notify } = await import("@/lib/notify.server");
+      const stakeholderIds = Array.from(new Set(data.stakeholders.map((s) => s.user_id)));
+      await notify({
+        event: "invoice.created",
+        recipientRoles: ["finance", "super_admin"],
+        recipients: stakeholderIds,
+        vars: {
+          slug,
+          amount: `${data.currency} ${data.total_amount.toLocaleString()}`,
+          title: data.title,
+        },
+        dedupeKey: `invoice:${invoiceId}:created`,
+        actorId: context.userId,
+      });
+    } catch (e) {
+      console.error("[createInvoice] notify failed:", e);
+    }
+
     return { id: invoiceId, slug };
   });
 
@@ -706,6 +725,46 @@ export const markInstallmentPaid = createServerFn({ method: "POST" })
         });
       } catch (e) {
         console.error("[markInstallmentPaid] auto-send failed:", e);
+      }
+
+      try {
+        const { notify } = await import("@/lib/notify.server");
+        const cur = priorInv.currency;
+        const amtPaid = data.paid_amount ?? inst.amount;
+        await notify({
+          event: "invoice.installment.paid",
+          recipientRoles: ["finance", "super_admin"],
+          vars: {
+            slug: priorInv.slug,
+            amount: `${cur} ${Number(amtPaid).toLocaleString()}`,
+            label: inst.label,
+          },
+          dedupeKey: `installment:${data.installment_id}:paid`,
+          actorId: context.userId,
+        });
+        const fullyPaid = after && Number(after.paid_amount) >= Number(after.total_amount) && Number(after.total_amount) > 0;
+        if (fullyPaid) {
+          const { data: payouts } = await context.supabase
+            .from("invoice_payouts")
+            .select("user_id, amount, currency")
+            .eq("invoice_id", inst.invoice_id)
+            .eq("status", "available")
+            .neq("role", "company");
+          for (const p of ((payouts ?? []) as Array<{ user_id: string; amount: number; currency: string }>)) {
+            await notify({
+              event: "payout.available",
+              recipients: [p.user_id],
+              vars: {
+                slug: priorInv.slug,
+                amount: `${p.currency} ${Number(p.amount).toLocaleString()}`,
+              },
+              dedupeKey: `payout:${inst.invoice_id}:${p.user_id}:available`,
+              actorId: context.userId,
+            });
+          }
+        }
+      } catch (e) {
+        console.error("[markInstallmentPaid] notify failed:", e);
       }
     }
     return { ok: true as const };
@@ -960,6 +1019,21 @@ export const requestWithdrawal = createServerFn({ method: "POST" })
         { event: "withdrawal_requested", withdrawal_request_id: row.id, payment_method_id: row.payment_method_id ?? null },
       );
     }
+    try {
+      const { notify } = await import("@/lib/notify.server");
+      const { data: prof } = await context.supabase
+        .from("profiles").select("full_name").eq("user_id", context.userId).maybeSingle();
+      const uname = (prof as { full_name: string | null } | null)?.full_name ?? "Employee";
+      await notify({
+        event: "payout.requested",
+        recipientRoles: ["finance", "super_admin"],
+        vars: { user: uname, amount: `${row.currency} ${Number(row.amount).toLocaleString()}` },
+        dedupeKey: `withdrawal:${row.id}:requested`,
+        actorId: context.userId,
+      });
+    } catch (e) {
+      console.error("[requestWithdrawal] notify failed:", e);
+    }
     return row;
   });
 
@@ -1149,6 +1223,25 @@ export const decideWithdrawal = createServerFn({ method: "POST" })
       );
     }
 
+    if (data.action === "paid" || data.action === "reject") {
+      try {
+        const { notify } = await import("@/lib/notify.server");
+        await notify({
+          event: data.action === "paid" ? "payout.paid" : "payout.revoked",
+          recipients: [row.user_id],
+          vars: {
+            amount: `${row.currency} ${Number(row.amount).toLocaleString()}`,
+            ref: data.transfer_ref ?? "—",
+            slug: `withdrawal ${row.id.slice(0, 8)}`,
+          },
+          dedupeKey: `withdrawal:${row.id}:${data.action}`,
+          actorId: context.userId,
+        });
+      } catch (e) {
+        console.error("[decideWithdrawal] notify failed:", e);
+      }
+    }
+
     return { ok: true as const };
   });
 
@@ -1211,6 +1304,21 @@ export const createExpense = createServerFn({ method: "POST" })
         `Expense added — ${expense.category} ${fmtMoney(expense.amount, expense.currency)}`,
         { event: "expense_created", expense_id: expense.id, category: expense.category, vendor: expense.vendor ?? null, related_table: "expenses", related_id: expense.id },
       );
+    }
+    try {
+      const { notify } = await import("@/lib/notify.server");
+      await notify({
+        event: "expense.added",
+        recipientRoles: ["finance", "super_admin"],
+        vars: {
+          category: expense.category,
+          amount: `${expense.currency} ${Number(expense.amount).toLocaleString()}`,
+        },
+        dedupeKey: `expense:${expense.id}:added`,
+        actorId: context.userId,
+      });
+    } catch (e) {
+      console.error("[createExpense] notify failed:", e);
     }
     return row as unknown as ExpenseRow;
   });
@@ -1633,7 +1741,23 @@ export const addManualEmployeePayout = createServerFn({ method: "POST" })
       } as never)
       .select("*").single();
     if (error) throw new Error(error.message);
-    return row as unknown as ManualPayoutRow;
+    const created = row as unknown as ManualPayoutRow;
+    try {
+      const { notify } = await import("@/lib/notify.server");
+      await notify({
+        event: "payout.available",
+        recipients: [data.user_id],
+        vars: {
+          slug: data.kind,
+          amount: `${data.currency} ${data.amount.toLocaleString()}`,
+        },
+        dedupeKey: `payout:manual:${created.id}:available`,
+        actorId: context.userId,
+      });
+    } catch (e) {
+      console.error("[addManualEmployeePayout] notify failed:", e);
+    }
+    return created;
   });
 
 export const revokeManualEmployeePayout = createServerFn({ method: "POST" })
@@ -1693,6 +1817,21 @@ export const revokeManualEmployeePayout = createServerFn({ method: "POST" })
           unlocked_at: new Date().toISOString(),
         } as never);
       if (error) throw new Error(error.message);
+      try {
+        const { notify } = await import("@/lib/notify.server");
+        await notify({
+          event: "payout.revoked",
+          recipients: [row.user_id],
+          vars: {
+            slug: row.kind ?? "manual",
+            amount: `${row.currency} ${Number(row.amount).toLocaleString()}`,
+          },
+          dedupeKey: `payout:${row.id}:revoked`,
+          actorId: context.userId,
+        });
+      } catch (e) {
+        console.error("[revokeManualEmployeePayout] notify failed:", e);
+      }
       return { ok: true as const, mode: "clawback" as const };
     }
 

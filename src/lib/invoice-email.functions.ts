@@ -350,7 +350,23 @@ export async function internalSendInvoiceEmail(opts: {
     }
   }
 
-  return { ok: true as const, sent: results.filter((r) => r.ok).length, failed: results.filter((r) => !r.ok).length, results };
+  const sentOk = results.filter((r) => r.ok);
+  if (sentOk.length > 0 && (opts.trigger === "manual" || opts.trigger === "resend")) {
+    try {
+      const { notify } = await import("@/lib/notify.server");
+      await notify({
+        event: "invoice.sent",
+        recipientRoles: ["finance", "super_admin"],
+        vars: { slug: payload.invoice.slug, to: sentOk.map((r) => r.email).join(", ") },
+        dedupeKey: `invoice:${payload.invoice.id}:sent:${opts.trigger}:${Date.now()}`,
+        actorId: opts.actorId ?? undefined,
+      });
+    } catch (e) {
+      console.error("[internalSendInvoiceEmail] notify failed:", e);
+    }
+  }
+
+  return { ok: true as const, sent: sentOk.length, failed: results.filter((r) => !r.ok).length, results };
 }
 
 /**
