@@ -170,8 +170,8 @@ function KpiGrid({ data, loading }: { data: OverviewKpis | undefined; loading: b
         { key: "meetingsToday", ...data.meetingsToday },
         { key: "emailsSent", ...data.emailsSent },
         { key: "invoicesActionable", ...data.invoicesActionable },
-        { key: "walletAvailableUsd", ...data.walletAvailableUsd },
         { key: "walletAvailableBdt", ...data.walletAvailableBdt },
+        { key: "walletAvailableUsd", ...data.walletAvailableUsd },
       ]
     : [];
   return (

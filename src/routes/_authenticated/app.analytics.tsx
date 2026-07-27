@@ -310,10 +310,10 @@ function FinanceBlock({ data, loading }: { data: FinanceAttribution | undefined;
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-        <Kpi label="Booked USD" value={money(data.bookedUsd, "USD")} tone="pos" />
         <Kpi label="Booked BDT" value={money(data.bookedBdt, "BDT")} tone="pos" />
-        <Kpi label="Pipeline USD" value={money(data.pipelineUsd, "USD")} />
+        <Kpi label="Booked USD" value={money(data.bookedUsd, "USD")} tone="pos" />
         <Kpi label="Pipeline BDT" value={money(data.pipelineBdt, "BDT")} />
+        <Kpi label="Pipeline USD" value={money(data.pipelineUsd, "USD")} />
       </div>
       {data.monthly.length === 0 ? (
         <EmptyBlock msg="No revenue booked yet in this window." />
@@ -351,8 +351,8 @@ function Leaderboard({
             <th className="px-3 py-2 text-right">Converted</th>
             <th className="px-3 py-2 text-right">Emails</th>
             <th className="px-3 py-2 text-right">Meetings</th>
-            <th className="px-3 py-2 text-right">USD</th>
             <th className="px-3 py-2 text-right">BDT</th>
+            <th className="px-3 py-2 text-right">USD</th>
             <th className="px-3 py-2" />
           </tr>
         </thead>
@@ -373,8 +373,8 @@ function Leaderboard({
               <td className="px-3 py-2 text-right font-mono text-emerald-600">{r.leads_converted}</td>
               <td className="px-3 py-2 text-right font-mono">{r.emails_sent}</td>
               <td className="px-3 py-2 text-right font-mono">{r.meetings_held}</td>
-              <td className="px-3 py-2 text-right font-mono">${r.revenue_usd.toLocaleString()}</td>
               <td className="px-3 py-2 text-right font-mono">৳{r.revenue_bdt.toLocaleString()}</td>
+              <td className="px-3 py-2 text-right font-mono">${r.revenue_usd.toLocaleString()}</td>
               <td className="px-3 py-2 text-right">
                 <div className="flex items-center justify-end gap-1">
                   <button
