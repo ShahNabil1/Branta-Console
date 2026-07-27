@@ -246,6 +246,9 @@ export async function notify(input: NotifyInput): Promise<{
   return { attempted: recipients.length, sent, skipped, failed };
 }
 
+type SupabaseAdminClient =
+  typeof import("@/integrations/supabase/client.server")["supabaseAdmin"];
+
 async function logEvent(
   admin: SupabaseAdminClient,
   args: {
