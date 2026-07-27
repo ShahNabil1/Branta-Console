@@ -1579,11 +1579,14 @@ export type Database = {
       notification_events: {
         Row: {
           actor_user_id: string | null
+          attempt_count: number
           created_at: string
           dedupe_key: string | null
+          deferred_until: string | null
           event_key: string
           id: string
           message: string | null
+          next_attempt_at: string | null
           payload: Json
           reason: string | null
           recipient_user_id: string
@@ -1593,11 +1596,14 @@ export type Database = {
         }
         Insert: {
           actor_user_id?: string | null
+          attempt_count?: number
           created_at?: string
           dedupe_key?: string | null
+          deferred_until?: string | null
           event_key: string
           id?: string
           message?: string | null
+          next_attempt_at?: string | null
           payload?: Json
           reason?: string | null
           recipient_user_id: string
@@ -1607,11 +1613,14 @@ export type Database = {
         }
         Update: {
           actor_user_id?: string | null
+          attempt_count?: number
           created_at?: string
           dedupe_key?: string | null
+          deferred_until?: string | null
           event_key?: string
           id?: string
           message?: string | null
+          next_attempt_at?: string | null
           payload?: Json
           reason?: string | null
           recipient_user_id?: string
