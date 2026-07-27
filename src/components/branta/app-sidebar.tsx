@@ -20,6 +20,7 @@ import {
   PiggyBank,
   ArrowLeftRight,
   Palette,
+  Bell,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import brandLogo from "@/assets/brand-logo.png.asset.json";
@@ -63,6 +64,7 @@ const NAV: NavGroup[] = [
       { label: "Employees", to: "/app/employees", icon: UserPlus },
       { label: "Transfers", to: "/app/transfers", icon: ArrowLeftRight },
       { label: "Mail queue", to: "/app/mail-queue", icon: Send },
+      { label: "Notifications", to: "/app/notifications", icon: Bell },
     ],
   },
 ];
@@ -94,6 +96,7 @@ export function AppSidebar() {
     const perms = permsQ.data;
     if (!perms) return NAV;
     const isAdmin = perms.isAdmin ?? perms.isSuperAdmin;
+    const isSuperAdmin = perms.isSuperAdmin ?? false;
     const isFinance = perms.isFinance ?? isAdmin;
     return NAV.map((g) => {
       if (g.label === "Admin" && !isAdmin) return { ...g, items: [] };
@@ -102,6 +105,7 @@ export function AppSidebar() {
         ...g,
         items: g.items.filter((it) => {
           if (it.to === "/app/customers" && !perms.customer_access) return false;
+          if (it.to === "/app/notifications" && !isSuperAdmin) return false;
           return true;
         }),
       };
