@@ -310,10 +310,10 @@ function FinanceBlock({ data, loading }: { data: FinanceAttribution | undefined;
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-        <Kpi label="Booked USD" value={money(data.bookedUsd, "USD")} tone="pos" />
         <Kpi label="Booked BDT" value={money(data.bookedBdt, "BDT")} tone="pos" />
-        <Kpi label="Pipeline USD" value={money(data.pipelineUsd, "USD")} />
+        <Kpi label="Booked USD" value={money(data.bookedUsd, "USD")} tone="pos" />
         <Kpi label="Pipeline BDT" value={money(data.pipelineBdt, "BDT")} />
+        <Kpi label="Pipeline USD" value={money(data.pipelineUsd, "USD")} />
       </div>
       {data.monthly.length === 0 ? (
         <EmptyBlock msg="No revenue booked yet in this window." />
