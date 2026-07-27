@@ -1741,7 +1741,23 @@ export const addManualEmployeePayout = createServerFn({ method: "POST" })
       } as never)
       .select("*").single();
     if (error) throw new Error(error.message);
-    return row as unknown as ManualPayoutRow;
+    const created = row as unknown as ManualPayoutRow;
+    try {
+      const { notify } = await import("@/lib/notify.server");
+      await notify({
+        event: "payout.available",
+        recipients: [data.user_id],
+        vars: {
+          slug: data.kind,
+          amount: `${data.currency} ${data.amount.toLocaleString()}`,
+        },
+        dedupeKey: `payout:manual:${created.id}:available`,
+        actorId: context.userId,
+      });
+    } catch (e) {
+      console.error("[addManualEmployeePayout] notify failed:", e);
+    }
+    return created;
   });
 
 export const revokeManualEmployeePayout = createServerFn({ method: "POST" })
