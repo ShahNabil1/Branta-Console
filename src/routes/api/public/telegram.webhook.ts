@@ -119,6 +119,42 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
             .delete()
             .eq("user_id", req.user_id);
 
+          // Clear onboarding flag & check if onboarding is now complete.
+          const { data: prof } = await supabaseAdmin
+            .from("profiles")
+            .select("must_change_password, must_link_telegram, full_name")
+            .eq("user_id", req.user_id)
+            .maybeSingle();
+          const wasBlocking =
+            !!(prof as { must_link_telegram?: boolean } | null)?.must_link_telegram;
+          if (wasBlocking) {
+            await supabaseAdmin
+              .from("profiles")
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              .update({ must_link_telegram: false } as any)
+              .eq("user_id", req.user_id);
+          }
+          const stillNeedsPwd =
+            !!(prof as { must_change_password?: boolean } | null)?.must_change_password;
+          if (wasBlocking && !stillNeedsPwd) {
+            try {
+              const { notify } = await import("@/lib/notify.server");
+              await notify({
+                event: "employee.onboarded",
+                recipientRoles: ["super_admin", "admin"],
+                vars: {
+                  name:
+                    (prof as { full_name?: string } | null)?.full_name ??
+                    "New employee",
+                },
+                dedupeKey: `onboarded:${req.user_id}`,
+                actorId: req.user_id,
+              });
+            } catch (e) {
+              console.error("[telegram.webhook] onboarded notify failed:", e);
+            }
+          }
+
           // Look up the employee email for a friendlier confirmation.
           let email = "";
           try {
