@@ -94,8 +94,8 @@ export async function notify(input: NotifyInput): Promise<{
   const set = new Set<string>(input.recipients ?? []);
   if (input.recipientRoles && input.recipientRoles.length > 0) {
     const mappedRoles = input.recipientRoles.flatMap((r) =>
-      r === "employee" ? ["user", "manager"] : [r],
-    );
+      r === "employee" ? (["user", "manager"] as const) : ([r] as const),
+    ) as Array<"admin" | "finance" | "manager" | "super_admin" | "user">;
     const { data: rows } = await supabaseAdmin
       .from("user_roles")
       .select("user_id, role")
