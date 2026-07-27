@@ -151,8 +151,8 @@ function delta(cur: number, prev: number): number | null {
 export const listScopeUsers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<ScopeUser[]> => {
-    const admin = await isAdmin(context.supabase, context.userId);
-    if (!admin) return [];
+    const sa = await isSuperAdmin(context.supabase, context.userId);
+    if (!sa) return [];
     const { data, error } = await context.supabase
       .from("profiles")
       .select("user_id, full_name, employee_code")
