@@ -157,5 +157,20 @@ export async function autoSyncLead(supabase: Admin, leadId: string): Promise<voi
       sheet_sync_status: "failed",
       sheet_sync_error: (res.error || "").slice(0, 500),
     } as never).eq("id", leadId);
+    try {
+      const { notify } = await import("@/lib/notify.server");
+      const { data: leadRow } = await supabase
+        .from("leads").select("slug, lead_code").eq("id", leadId).maybeSingle();
+      const slug = (leadRow as { slug?: string; lead_code?: string } | null)?.slug
+        ?? (leadRow as { lead_code?: string } | null)?.lead_code ?? leadId.slice(0, 8);
+      await notify({
+        event: "lead.sheet_sync.failed",
+        recipientRoles: ["super_admin", "admin"],
+        vars: { slug, error: (res.error || "unknown").slice(0, 200) },
+        dedupeKey: `lead:${leadId}:sheet_sync_failed:${new Date().toISOString().slice(0, 10)}`,
+      });
+    } catch (e) {
+      console.error("[autoSyncLead] notify failed:", e);
+    }
   }
 }
