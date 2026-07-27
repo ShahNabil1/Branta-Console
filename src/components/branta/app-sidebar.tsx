@@ -96,8 +96,10 @@ export function AppSidebar() {
     const perms = permsQ.data;
     if (!perms) return NAV;
     const isAdmin = perms.isAdmin ?? perms.isSuperAdmin;
+    const isFinance = perms.isFinance ?? isAdmin;
     return NAV.map((g) => {
       if (g.label === "Admin" && !isAdmin) return { ...g, items: [] };
+      if (g.label === "Finance" && !isFinance) return { ...g, items: [] };
       return {
         ...g,
         items: g.items.filter((it) => {

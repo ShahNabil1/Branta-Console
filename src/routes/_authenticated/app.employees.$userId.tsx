@@ -82,6 +82,7 @@ export const Route = createFileRoute("/_authenticated/app/employees/$userId")({
 const ROLE_OPTIONS: { value: EmployeeRole; label: string; note: string }[] = [
   { value: "user", label: "User", note: "Standard operator access" },
   { value: "manager", label: "Manager", note: "Team lead, extended reads" },
+  { value: "finance", label: "Finance", note: "Full finance CRUD access" },
   { value: "admin", label: "Admin", note: "Manages employees & settings" },
   { value: "super_admin", label: "Super admin", note: "Full unrestricted access" },
 ];
