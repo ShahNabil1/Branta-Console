@@ -488,6 +488,19 @@ export const startImpersonation = createServerFn({ method: "POST" })
       action: "start",
     });
 
+    try {
+      const { notify } = await import("@/lib/notify.server");
+      await notify({
+        event: "auth.impersonation.started",
+        recipients: [data.userId],
+        vars: { admin: adminEmail },
+        dedupeKey: `imp:${data.userId}:${context.userId}:start:${Date.now()}`,
+        actorId: context.userId,
+      });
+    } catch (e) {
+      console.error("[startImpersonation] notify failed:", e);
+    }
+
     return {
       hashedToken: link.properties.hashed_token,
       targetEmail,
