@@ -49,10 +49,11 @@ export const Route = createFileRoute("/_authenticated/app/employees/")({
   ),
 });
 
-type Role = "super_admin" | "admin" | "manager" | "user";
+type Role = "super_admin" | "admin" | "finance" | "manager" | "user";
 const ROLE_OPTIONS: { value: Role; label: string; note: string }[] = [
   { value: "user", label: "User", note: "Standard operator access." },
   { value: "manager", label: "Manager", note: "Team lead — extended read access." },
+  { value: "finance", label: "Finance", note: "Full finance CRUD access." },
   { value: "admin", label: "Admin", note: "Manages employees and settings." },
   { value: "super_admin", label: "Super admin", note: "Full unrestricted access." },
 ];
@@ -63,6 +64,8 @@ const roleBadge = (role: string) => {
       return "border-brand/40 bg-brand/10 text-brand";
     case "admin":
       return "border-violet-300 bg-violet-50 text-violet-700";
+    case "finance":
+      return "border-emerald-300 bg-emerald-50 text-emerald-700";
     case "manager":
       return "border-sky-300 bg-sky-50 text-sky-700";
     default:
