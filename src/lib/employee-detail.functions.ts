@@ -263,6 +263,19 @@ export const updateEmployeeRoles = createServerFn({ method: "POST" })
     const ins = await supabaseAdmin.from("user_roles").insert(rows);
     if (ins.error) throw new Error(ins.error.message);
 
+    try {
+      const { notify } = await import("@/lib/notify.server");
+      await notify({
+        event: "employee.role_changed",
+        recipients: [data.userId],
+        vars: { roles: data.roles.join(", ") },
+        dedupeKey: `role:${data.userId}:${Date.now()}`,
+        actorId: context.userId,
+      });
+    } catch (e) {
+      console.error("[updateEmployeeRoles] notify failed:", e);
+    }
+
     return { ok: true as const, roles: rows.map((r) => r.role) };
   });
 
@@ -475,6 +488,19 @@ export const startImpersonation = createServerFn({ method: "POST" })
       action: "start",
     });
 
+    try {
+      const { notify } = await import("@/lib/notify.server");
+      await notify({
+        event: "auth.impersonation.started",
+        recipients: [data.userId],
+        vars: { admin: adminEmail },
+        dedupeKey: `imp:${data.userId}:${context.userId}:start:${Date.now()}`,
+        actorId: context.userId,
+      });
+    } catch (e) {
+      console.error("[startImpersonation] notify failed:", e);
+    }
+
     return {
       hashedToken: link.properties.hashed_token,
       targetEmail,
@@ -511,6 +537,18 @@ export const logImpersonationEnd = createServerFn({ method: "POST" })
       target_email: data.targetEmail,
       action: "end",
     });
+    try {
+      const { notify } = await import("@/lib/notify.server");
+      await notify({
+        event: "auth.impersonation.stopped",
+        recipients: [data.targetUserId],
+        vars: {},
+        dedupeKey: `imp:${data.targetUserId}:${context.userId}:stop:${Date.now()}`,
+        actorId: context.userId,
+      });
+    } catch (e) {
+      console.error("[logImpersonationEnd] notify failed:", e);
+    }
     return { ok: true as const };
   });
 
@@ -755,6 +793,11 @@ export const revokeEmployeeSession = createServerFn({ method: "POST" })
       "@/integrations/supabase/client.server"
     );
     // Update triggers realtime → target device's session-watcher signs out.
+    const { data: sess } = await supabaseAdmin
+      .from("user_sessions")
+      .select("device, browser")
+      .eq("id", data.sessionId)
+      .maybeSingle();
     const { error } = await supabaseAdmin
       .from("user_sessions")
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -762,5 +805,21 @@ export const revokeEmployeeSession = createServerFn({ method: "POST" })
       .eq("user_id", data.userId)
       .eq("id", data.sessionId);
     if (error) throw new Error(error.message);
+    if (data.userId !== context.userId) {
+      try {
+        const { notify } = await import("@/lib/notify.server");
+        const s = sess as { device?: string; browser?: string } | null;
+        const device = [s?.device, s?.browser].filter(Boolean).join(" · ") || "a device";
+        await notify({
+          event: "auth.session.revoked_by_admin",
+          recipients: [data.userId],
+          vars: { device },
+          dedupeKey: `session:${data.sessionId}:revoked`,
+          actorId: context.userId,
+        });
+      } catch (e) {
+        console.error("[revokeEmployeeSession] notify failed:", e);
+      }
+    }
     return { ok: true as const };
   });
