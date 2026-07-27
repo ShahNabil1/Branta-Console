@@ -89,6 +89,25 @@ export const changeMyPassword = createServerFn({ method: "POST" })
       .update({ must_change_password: false } as any)
       .eq("user_id", context.userId);
 
+    try {
+      const { notify } = await import("@/lib/notify.server");
+      const when = new Date().toLocaleString("en-GB", {
+        timeZone: "Asia/Dhaka",
+        hour12: true,
+        dateStyle: "medium",
+        timeStyle: "short",
+      });
+      await notify({
+        event: "auth.password_changed",
+        recipients: [context.userId],
+        vars: { when: `${when} (BDT)` },
+        dedupeKey: `pwd:${context.userId}:${Date.now()}`,
+        actorId: context.userId,
+      });
+    } catch (e) {
+      console.error("[changeMyPassword] notify failed:", e);
+    }
+
     return { ok: true as const };
   });
 
