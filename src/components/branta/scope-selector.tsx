@@ -39,11 +39,11 @@ export function ScopeSelector({ value, onChange }: ScopeSelectorProps) {
     queryFn: () => permsFn(),
     staleTime: 60_000,
   });
-  const isAdmin = Boolean(permsQ.data?.isAdmin || permsQ.data?.isSuperAdmin);
+  const isSuperAdmin = Boolean(permsQ.data?.isSuperAdmin);
   const usersQ = useQuery({
     queryKey: ["scope-users"],
     queryFn: () => scopeFn(),
-    enabled: isAdmin,
+    enabled: isSuperAdmin,
     staleTime: 60_000,
   });
 
