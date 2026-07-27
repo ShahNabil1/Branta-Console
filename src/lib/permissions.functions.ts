@@ -46,6 +46,38 @@ async function assertSuperAdmin(supabase: any, userId: string) {
   if (!data) throw new Error("Forbidden: super_admin required");
 }
 
+/**
+ * Read a caller's effective toggle honoring the per-user override even for
+ * super admins. Role only affects settings access — actions gated by a
+ * toggle respect the toggle regardless of role.
+ */
+export async function callerHasPermission(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  userId: string,
+  key: keyof Omit<UserPermissions, "user_id">,
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("user_permissions")
+    .select(key)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (data && key in data) return !!(data as Record<string, unknown>)[key];
+  return DEFAULTS[key];
+}
+
+export async function assertCallerPermission(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  userId: string,
+  key: keyof Omit<UserPermissions, "user_id">,
+  label: string,
+) {
+  const ok = await callerHasPermission(supabase, userId, key);
+  if (!ok) throw new Error(`Forbidden: ${label} permission is disabled for your account`);
+}
+
+
 /** Called by any signed-in user to learn their own effective toggles. */
 export const getMyPermissions = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
