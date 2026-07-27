@@ -165,6 +165,25 @@ export const requestLeadTransfer = createServerFn({ method: "POST" })
       }`,
     } as never);
 
+    try {
+      const { notify } = await import("@/lib/notify.server");
+      const recipients: string[] = [];
+      if (lead.owner_id && lead.owner_id !== context.userId) recipients.push(lead.owner_id as string);
+      await notify({
+        event: "lead.transfer.requested",
+        recipients,
+        recipientRoles: ["super_admin"],
+        vars: {
+          requester: requesterName,
+          slug: (lead.slug as string | null) ?? (lead.lead_code as string | null) ?? data.leadId.slice(0, 8),
+        },
+        dedupeKey: `transfer:${inserted?.id}:requested`,
+        actorId: context.userId,
+      });
+    } catch (e) {
+      console.error("[requestLeadTransfer] notify failed:", e);
+    }
+
     return { ok: true as const, id: inserted?.id as string };
   });
 
