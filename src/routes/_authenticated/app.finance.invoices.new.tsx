@@ -101,11 +101,23 @@ function NewInvoicePage() {
     onError: (e) => toast.error((e as Error).message),
   });
 
-  const canSubmit =
-    !!customerId && !!title.trim() && totalNum > 0 &&
-    Math.abs(instSum - totalNum) < 0.01 && Math.abs(pctSum - 100) < 0.01 &&
-    installments.every((i) => i.label && i.due_date && i.amount > 0) &&
-    stakeholders.every((s) => s.user_id && s.percent > 0);
+  const issues = useMemo(() => {
+    const out: string[] = [];
+    if (!customerId) out.push("Select a customer");
+    if (!title.trim()) out.push("Enter a title");
+    if (!(totalNum > 0)) out.push("Total amount must be greater than 0");
+    if (totalNum > 0 && Math.abs(instSum - totalNum) >= 0.01)
+      out.push(`Installments must sum to ${totalNum.toFixed(2)} (currently ${instSum.toFixed(2)}, difference ${(totalNum - instSum).toFixed(2)})`);
+    if (installments.some((i) => !i.label.trim())) out.push("Every installment needs a label");
+    if (installments.some((i) => !i.due_date)) out.push("Every installment needs a due date");
+    if (installments.some((i) => !(Number(i.amount) > 0))) out.push("Every installment amount must be greater than 0");
+    if (Math.abs(pctSum - 100) >= 0.01) out.push(`Stakeholder split must total 100% (currently ${pctSum.toFixed(2)}%)`);
+    if (stakeholders.some((s) => !s.user_id)) out.push("Every stakeholder row needs an employee selected");
+    if (stakeholders.some((s) => !(Number(s.percent) > 0))) out.push("Every stakeholder percent must be greater than 0");
+    return out;
+  }, [customerId, title, totalNum, instSum, installments, pctSum, stakeholders]);
+
+  const canSubmit = issues.length === 0;
 
   return (
     <div className="mx-auto max-w-5xl space-y-5 px-6 py-6">
@@ -288,19 +300,47 @@ function NewInvoicePage() {
         <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="mt-1 rounded-sm text-[13px]" />
       </section>
 
-      <div className="flex items-center justify-between rounded-md border border-border bg-card px-5 py-3">
-        <div className="text-[11.5px] text-muted-foreground">
-          {canSubmit ? "Ready to create" : "Fix validation errors above"}
-        </div>
-        <div className="flex gap-2">
-          <Button variant="ghost" onClick={() => navigate({ to: "/app/finance/invoices" })} className="h-9 rounded-sm">Cancel</Button>
-          <Button onClick={() => submit.mutate()} disabled={!canSubmit || submit.isPending}
-            className="h-9 rounded-sm bg-primary hover:bg-brand-700">
-            {submit.isPending && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
-            Create invoice
-          </Button>
+      <div className="rounded-md border border-border bg-card px-5 py-3">
+        {!canSubmit && (
+          <div className="mb-3 rounded-sm border border-rose-200 bg-rose-50 p-3">
+            <div className="text-[12px] font-semibold text-rose-700">
+              {issues.length} item{issues.length > 1 ? "s" : ""} need attention before you can create this invoice
+            </div>
+            <ul className="mt-1.5 list-disc space-y-0.5 pl-4 text-[11.5px] text-rose-700">
+              {issues.map((m) => <li key={m}>{m}</li>)}
+            </ul>
+            {totalNum > 0 && Math.abs(instSum - totalNum) >= 0.01 && (
+              <Button
+                variant="outline" size="sm"
+                onClick={() => {
+                  const diff = Number((totalNum - instSum).toFixed(2));
+                  setInstallments(installments.map((x, k) =>
+                    k === installments.length - 1
+                      ? { ...x, amount: Number((Number(x.amount || 0) + diff).toFixed(2)) }
+                      : x));
+                }}
+                className="mt-2 h-7 rounded-sm text-[11.5px]"
+              >
+                Adjust last installment to match total
+              </Button>
+            )}
+          </div>
+        )}
+        <div className="flex items-center justify-between">
+          <div className="text-[11.5px] text-muted-foreground">
+            {canSubmit ? "Ready to create" : "Resolve the items above"}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="ghost" onClick={() => navigate({ to: "/app/finance/invoices" })} className="h-9 rounded-sm">Cancel</Button>
+            <Button onClick={() => submit.mutate()} disabled={!canSubmit || submit.isPending}
+              className="h-9 rounded-sm bg-primary hover:bg-brand-700">
+              {submit.isPending && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
+              Create invoice
+            </Button>
+          </div>
         </div>
       </div>
+
 
       <QuickCustomerDialog
         open={quickAddOpen}
