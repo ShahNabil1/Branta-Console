@@ -101,11 +101,23 @@ function NewInvoicePage() {
     onError: (e) => toast.error((e as Error).message),
   });
 
-  const canSubmit =
-    !!customerId && !!title.trim() && totalNum > 0 &&
-    Math.abs(instSum - totalNum) < 0.01 && Math.abs(pctSum - 100) < 0.01 &&
-    installments.every((i) => i.label && i.due_date && i.amount > 0) &&
-    stakeholders.every((s) => s.user_id && s.percent > 0);
+  const issues = useMemo(() => {
+    const out: string[] = [];
+    if (!customerId) out.push("Select a customer");
+    if (!title.trim()) out.push("Enter a title");
+    if (!(totalNum > 0)) out.push("Total amount must be greater than 0");
+    if (totalNum > 0 && Math.abs(instSum - totalNum) >= 0.01)
+      out.push(`Installments must sum to ${totalNum.toFixed(2)} (currently ${instSum.toFixed(2)}, difference ${(totalNum - instSum).toFixed(2)})`);
+    if (installments.some((i) => !i.label.trim())) out.push("Every installment needs a label");
+    if (installments.some((i) => !i.due_date)) out.push("Every installment needs a due date");
+    if (installments.some((i) => !(Number(i.amount) > 0))) out.push("Every installment amount must be greater than 0");
+    if (Math.abs(pctSum - 100) >= 0.01) out.push(`Stakeholder split must total 100% (currently ${pctSum.toFixed(2)}%)`);
+    if (stakeholders.some((s) => !s.user_id)) out.push("Every stakeholder row needs an employee selected");
+    if (stakeholders.some((s) => !(Number(s.percent) > 0))) out.push("Every stakeholder percent must be greater than 0");
+    return out;
+  }, [customerId, title, totalNum, instSum, installments, pctSum, stakeholders]);
+
+  const canSubmit = issues.length === 0;
 
   return (
     <div className="mx-auto max-w-5xl space-y-5 px-6 py-6">
