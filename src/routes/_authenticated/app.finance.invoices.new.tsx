@@ -300,19 +300,47 @@ function NewInvoicePage() {
         <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="mt-1 rounded-sm text-[13px]" />
       </section>
 
-      <div className="flex items-center justify-between rounded-md border border-border bg-card px-5 py-3">
-        <div className="text-[11.5px] text-muted-foreground">
-          {canSubmit ? "Ready to create" : "Fix validation errors above"}
-        </div>
-        <div className="flex gap-2">
-          <Button variant="ghost" onClick={() => navigate({ to: "/app/finance/invoices" })} className="h-9 rounded-sm">Cancel</Button>
-          <Button onClick={() => submit.mutate()} disabled={!canSubmit || submit.isPending}
-            className="h-9 rounded-sm bg-primary hover:bg-brand-700">
-            {submit.isPending && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
-            Create invoice
-          </Button>
+      <div className="rounded-md border border-border bg-card px-5 py-3">
+        {!canSubmit && (
+          <div className="mb-3 rounded-sm border border-rose-200 bg-rose-50 p-3">
+            <div className="text-[12px] font-semibold text-rose-700">
+              {issues.length} item{issues.length > 1 ? "s" : ""} need attention before you can create this invoice
+            </div>
+            <ul className="mt-1.5 list-disc space-y-0.5 pl-4 text-[11.5px] text-rose-700">
+              {issues.map((m) => <li key={m}>{m}</li>)}
+            </ul>
+            {totalNum > 0 && Math.abs(instSum - totalNum) >= 0.01 && (
+              <Button
+                variant="outline" size="sm"
+                onClick={() => {
+                  const diff = Number((totalNum - instSum).toFixed(2));
+                  setInstallments(installments.map((x, k) =>
+                    k === installments.length - 1
+                      ? { ...x, amount: Number((Number(x.amount || 0) + diff).toFixed(2)) }
+                      : x));
+                }}
+                className="mt-2 h-7 rounded-sm text-[11.5px]"
+              >
+                Adjust last installment to match total
+              </Button>
+            )}
+          </div>
+        )}
+        <div className="flex items-center justify-between">
+          <div className="text-[11.5px] text-muted-foreground">
+            {canSubmit ? "Ready to create" : "Resolve the items above"}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="ghost" onClick={() => navigate({ to: "/app/finance/invoices" })} className="h-9 rounded-sm">Cancel</Button>
+            <Button onClick={() => submit.mutate()} disabled={!canSubmit || submit.isPending}
+              className="h-9 rounded-sm bg-primary hover:bg-brand-700">
+              {submit.isPending && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
+              Create invoice
+            </Button>
+          </div>
         </div>
       </div>
+
 
       <QuickCustomerDialog
         open={quickAddOpen}
