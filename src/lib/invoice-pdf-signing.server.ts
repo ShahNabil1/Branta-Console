@@ -30,19 +30,24 @@ export async function loadInvoicePdfPayload(adminClient: any, slug: string) {
     .from("invoices").select("*").eq("slug", slug).maybeSingle();
   if (error) throw new Error(error.message);
   if (!inv) return null;
-  const [{ data: cust }, { data: insts }, { data: settings }] = await Promise.all([
+  const [{ data: cust }, { data: insts }, { data: items }, { data: settings }] = await Promise.all([
     adminClient.from("customers")
-      .select("name, customer_code, email, company, phone")
+      .select("name, customer_code, email, company, phone, address")
       .eq("id", inv.customer_id).maybeSingle(),
     adminClient.from("invoice_installments")
       .select("sequence, label, due_date, amount, status, paid_at")
+      .eq("invoice_id", inv.id).order("sequence"),
+    adminClient.from("invoice_line_items")
+      .select("sequence, description, quantity, unit_price")
       .eq("invoice_id", inv.id).order("sequence"),
     adminClient.from("invoice_pdf_settings").select("*").eq("id", "default").maybeSingle(),
   ]);
   return {
     invoice: inv,
-    customer: cust ?? { name: null, customer_code: null, email: null, company: null, phone: null },
+    customer: cust ?? { name: null, customer_code: null, email: null, company: null, phone: null, address: null },
     installments: insts ?? [],
+    lineItems: items ?? [],
     settings: settings ?? null,
   };
 }
+

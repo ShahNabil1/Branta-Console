@@ -34,7 +34,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { SearchableSelect, type SearchableItem } from "@/components/finance/searchable-select";
-import { Loader2, ArrowLeft, Trash2, CheckCircle2, RotateCcw, Send, Download, Mail, Clock, CheckCheck, MailOpen, AlertCircle, Pencil, Activity, Plus } from "lucide-react";
+import { Loader2, ArrowLeft, Trash2, CheckCircle2, RotateCcw, Send, Download, Printer, Mail, Clock, CheckCheck, MailOpen, AlertCircle, Pencil, Activity, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/app/finance/invoices/$slug")({
@@ -240,15 +240,30 @@ function InvoiceDetail() {
               size="sm"
               onClick={async () => {
                 try {
-                  const { url } = await getPdfUrl({ data: { slug: invoice.slug } });
+                  const { url } = await getPdfUrl({ data: { slug: invoice.slug, mode: "print" } });
                   window.open(url, "_blank");
                 } catch (e) { toast.error((e as Error).message); }
               }}
               className="h-8 rounded-sm text-[12px]"
-              title="Download PDF"
+              title="Print on pre-printed letterhead (no digital header/footer)"
+            >
+              <Printer className="mr-1.5 size-3.5" /> Print
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                try {
+                  const { url } = await getPdfUrl({ data: { slug: invoice.slug, mode: "digital" } });
+                  window.open(url, "_blank");
+                } catch (e) { toast.error((e as Error).message); }
+              }}
+              className="h-8 rounded-sm text-[12px]"
+              title="Download PDF with full digital letterhead"
             >
               <Download className="mr-1.5 size-3.5" /> PDF
             </Button>
+
             <Button
               size="sm"
               onClick={() => {
