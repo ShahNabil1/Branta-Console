@@ -34,7 +34,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { SearchableSelect, type SearchableItem } from "@/components/finance/searchable-select";
-import { Loader2, ArrowLeft, Trash2, CheckCircle2, RotateCcw, Send, Download, Mail, Clock, CheckCheck, MailOpen, AlertCircle, Pencil, Activity, Plus } from "lucide-react";
+import { Loader2, ArrowLeft, Trash2, CheckCircle2, RotateCcw, Send, Download, Printer, Mail, Clock, CheckCheck, MailOpen, AlertCircle, Pencil, Activity, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/app/finance/invoices/$slug")({
