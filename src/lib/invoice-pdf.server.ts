@@ -462,7 +462,7 @@ export async function renderInvoicePdf(
     draw(label, tx + 12, ry, strong ? 9.5 : 9, strong ? bold : font, strong ? text : muted);
     const f = strong ? monoBold : mono;
     const size = strong ? 10.5 : 9.5;
-    const w = f.widthOfTextAtSize(money(0, cur).replace(/.*/, val), size);
+    const w = f.widthOfTextAtSize(safeText(val), size);
     draw(val, tx + 240 - 12 - w, ry, size, f, strong ? brand : text);
   });
   y -= totalsH + 12;
