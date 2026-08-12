@@ -240,15 +240,30 @@ function InvoiceDetail() {
               size="sm"
               onClick={async () => {
                 try {
-                  const { url } = await getPdfUrl({ data: { slug: invoice.slug } });
+                  const { url } = await getPdfUrl({ data: { slug: invoice.slug, mode: "print" } });
                   window.open(url, "_blank");
                 } catch (e) { toast.error((e as Error).message); }
               }}
               className="h-8 rounded-sm text-[12px]"
-              title="Download PDF"
+              title="Print on pre-printed letterhead (no digital header/footer)"
+            >
+              <Printer className="mr-1.5 size-3.5" /> Print
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                try {
+                  const { url } = await getPdfUrl({ data: { slug: invoice.slug, mode: "digital" } });
+                  window.open(url, "_blank");
+                } catch (e) { toast.error((e as Error).message); }
+              }}
+              className="h-8 rounded-sm text-[12px]"
+              title="Download PDF with full digital letterhead"
             >
               <Download className="mr-1.5 size-3.5" /> PDF
             </Button>
+
             <Button
               size="sm"
               onClick={() => {
