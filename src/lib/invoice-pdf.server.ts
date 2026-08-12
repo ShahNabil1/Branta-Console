@@ -129,7 +129,7 @@ function safeText(s: string | null | undefined): string {
     .replace(/[\u2013\u2014]/g, "-")
     .replace(/[\u2022]/g, "*")
     .replace(/[\u00B7]/g, "-")
-    .replace(/[^\x20-\x7E]/g, "?");
+    .replace(/[^\x20-\x7E\n]/g, "?");
 }
 
 function fmtDate(d: string | null | undefined): string {
@@ -260,10 +260,21 @@ export async function renderInvoicePdf(
     p.drawText("Creative Technology Company", { x: rx, y: bandY + 68, size: 9, font, color: white });
     p.drawText("Grow Smarter with AI", { x: rx, y: bandY + 55, size: 11, font: bold, color: white });
     if (s.company_address) {
-      const lines = safeText(s.company_address).split(/\n|;/).slice(0, 2);
+      const maxW = PAGE_W - rx - 14;
+      const raw = s.company_address.split(/\n|;/).map((l) => safeText(l).trim()).filter(Boolean);
+      const lines: string[] = [];
+      for (const ln of raw) {
+        let cur = "";
+        for (const word of ln.split(/\s+/)) {
+          const test = cur ? `${cur} ${word}` : word;
+          if (font.widthOfTextAtSize(test, 7.5) > maxW && cur) { lines.push(cur); cur = word; }
+          else cur = test;
+        }
+        if (cur) lines.push(cur);
+      }
       p.drawText("Address:", { x: rx, y: bandY + 38, size: 8, font: bold, color: white });
-      lines.forEach((ln, i) => {
-        p.drawText(ln.trim(), { x: rx, y: bandY + 27 - i * 10, size: 7.5, font, color: white });
+      lines.slice(0, 3).forEach((ln, i) => {
+        p.drawText(ln, { x: rx, y: bandY + 27 - i * 9.5, size: 7.5, font, color: white });
       });
     }
 
@@ -411,8 +422,8 @@ export async function renderInvoicePdf(
 
   const cSeq = SIDE + 8;
   const cDesc = SIDE + 30;
-  const cQty = SIDE + 300;
-  const cUnit = SIDE + 350;
+  const cQty = SIDE + 280;
+  const cUnitRight = PAGE_W - SIDE - 118;
   const cAmt = PAGE_W - SIDE - 8;
 
   const tableHeader = () => {
@@ -421,7 +432,8 @@ export async function renderInvoicePdf(
     draw("#", cSeq, y - 12.5, 8, bold, white);
     draw("DESCRIPTION", cDesc, y - 12.5, 8, bold, white);
     draw("QTY", cQty, y - 12.5, 8, bold, white);
-    draw("UNIT PRICE", cUnit, y - 12.5, 8, bold, white);
+    const uw = bold.widthOfTextAtSize("UNIT PRICE", 8);
+    draw("UNIT PRICE", cUnitRight - uw, y - 12.5, 8, bold, white);
     const w = bold.widthOfTextAtSize("AMOUNT", 8);
     draw("AMOUNT", cAmt - w, y - 12.5, 8, bold, white);
     y -= 18;
@@ -435,7 +447,8 @@ export async function renderInvoicePdf(
     descLines.forEach((ln, i) => draw(ln, cDesc, y - 13 - i * 12, 9.5, font, text));
     draw(String(it.sequence), cSeq, y - 13, 9, mono, muted);
     draw(Number(it.quantity).toString(), cQty, y - 13, 9.5, font, text);
-    draw(money(Number(it.unit_price), cur), cUnit, y - 13, 9, mono, text);
+    const up = money(Number(it.unit_price), cur);
+    draw(up, cUnitRight - mono.widthOfTextAtSize(up, 9), y - 13, 9, mono, text);
     const amt = money(Number(it.quantity) * Number(it.unit_price), cur);
     const aw = monoBold.widthOfTextAtSize(amt, 9.5);
     draw(amt, cAmt - aw, y - 13, 9.5, monoBold, text);
