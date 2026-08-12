@@ -464,7 +464,9 @@ export const updateInvoiceEmailSettings = createServerFn({ method: "POST" })
 
 export const getSignedInvoicePdfUrl = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { slug: string }) => z.object({ slug: z.string().min(1) }).parse(d))
+  .inputValidator((d: { slug: string; mode?: "digital" | "print" }) =>
+    z.object({ slug: z.string().min(1), mode: z.enum(["digital", "print"]).optional() }).parse(d),
+  )
   .handler(async ({ data, context }) => {
     // Verify user can see this invoice (RLS on invoices).
     const { data: inv } = await context.supabase
@@ -474,5 +476,7 @@ export const getSignedInvoicePdfUrl = createServerFn({ method: "GET" })
     const { buildSignedInvoiceUrl } = await import("@/lib/invoice-pdf-signing.server");
     let origin = await getRequestOrigin();
     if (!origin) origin = process.env.PUBLIC_BASE_URL || "https://console.brantatech.com";
-    return { url: buildSignedInvoiceUrl(origin, data.slug) };
+    const base = buildSignedInvoiceUrl(origin, data.slug);
+    return { url: data.mode === "print" ? `${base}&mode=print` : base };
   });
+
