@@ -52,6 +52,7 @@ export type Database = {
       }
       customers: {
         Row: {
+          address: string | null
           company: string | null
           converted_from_lead_id: string | null
           created_at: string
@@ -70,6 +71,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          address?: string | null
           company?: string | null
           converted_from_lead_id?: string | null
           created_at?: string
@@ -88,6 +90,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          address?: string | null
           company?: string | null
           converted_from_lead_id?: string | null
           created_at?: string
@@ -616,6 +619,47 @@ export type Database = {
           },
         ]
       }
+      invoice_line_items: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          invoice_id: string
+          quantity: number
+          sequence: number
+          unit_price: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          id?: string
+          invoice_id: string
+          quantity?: number
+          sequence?: number
+          unit_price?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          invoice_id?: string
+          quantity?: number
+          sequence?: number
+          unit_price?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_line_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_payouts: {
         Row: {
           amount: number
@@ -719,6 +763,8 @@ export type Database = {
           muted_color: string
           page_bg_color: string
           panel_bg_color: string
+          payment_info: string | null
+          payment_note: string | null
           sections: Json
           signature_name: string | null
           signature_title: string | null
@@ -743,6 +789,8 @@ export type Database = {
           muted_color?: string
           page_bg_color?: string
           panel_bg_color?: string
+          payment_info?: string | null
+          payment_note?: string | null
           sections?: Json
           signature_name?: string | null
           signature_title?: string | null
@@ -767,6 +815,8 @@ export type Database = {
           muted_color?: string
           page_bg_color?: string
           panel_bg_color?: string
+          payment_info?: string | null
+          payment_note?: string | null
           sections?: Json
           signature_name?: string | null
           signature_title?: string | null
@@ -862,6 +912,8 @@ export type Database = {
           currency: string
           customer_id: string
           description: string | null
+          discount_amount: number
+          due_date: string | null
           ends_on: string | null
           id: string
           internal_notes: string | null
@@ -871,6 +923,8 @@ export type Database = {
           slug: string | null
           starts_on: string | null
           status: Database["public"]["Enums"]["invoice_status"]
+          tax_percent: number
+          terms: string | null
           title: string
           total_amount: number
           updated_at: string
@@ -881,6 +935,8 @@ export type Database = {
           currency?: string
           customer_id: string
           description?: string | null
+          discount_amount?: number
+          due_date?: string | null
           ends_on?: string | null
           id?: string
           internal_notes?: string | null
@@ -890,6 +946,8 @@ export type Database = {
           slug?: string | null
           starts_on?: string | null
           status?: Database["public"]["Enums"]["invoice_status"]
+          tax_percent?: number
+          terms?: string | null
           title: string
           total_amount: number
           updated_at?: string
@@ -900,6 +958,8 @@ export type Database = {
           currency?: string
           customer_id?: string
           description?: string | null
+          discount_amount?: number
+          due_date?: string | null
           ends_on?: string | null
           id?: string
           internal_notes?: string | null
@@ -909,6 +969,8 @@ export type Database = {
           slug?: string | null
           starts_on?: string | null
           status?: Database["public"]["Enums"]["invoice_status"]
+          tax_percent?: number
+          terms?: string | null
           title?: string
           total_amount?: number
           updated_at?: string
