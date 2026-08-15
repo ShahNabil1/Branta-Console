@@ -267,6 +267,11 @@ function ExpensesPage() {
         spent_on: form.spent_on,
         vendor: form.vendor || null,
         notes: form.notes || null,
+        txn_id: form.txn_id.trim() || null,
+        payment_method: form.payment_method || null,
+        department: form.department || null,
+        requested_by: form.requested_by || null,
+        request_purpose: form.request_purpose.trim() || null,
       };
       if (editingId) {
         await update({ data: { id: editingId, ...payload, ...(receipt_url ? { receipt_url } : {}) } });
