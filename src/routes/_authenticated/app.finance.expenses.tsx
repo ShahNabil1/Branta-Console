@@ -11,14 +11,19 @@ import {
   isFinanceAdminCheck,
   getSignedExpenseVoucherUrl,
   setExpenseSignedVoucher,
+  listEmployeesForFinance,
   type ExpenseCategory,
   type Currency,
 } from "@/lib/finance.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SearchableSelect, type SearchableItem } from "@/components/finance/searchable-select";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Loader2, Plus, Trash2, Receipt, Upload, Eye, Download, X, FileText, Printer, Stamp, Pencil } from "lucide-react";
+
+const DEPARTMENTS = ["Management", "Finance", "Sales & Outreach", "Marketing", "Production", "Development", "HR & Admin", "Operations", "Other"];
+const PAYMENT_METHODS = ["Cash", "bKash", "Nagad", "Rocket", "Bank Transfer", "Card", "Cheque", "Other"];
 
 const RECEIPT_BUCKET = "expense-receipts";
 const MAX_RECEIPT_MB = 15;
@@ -88,21 +93,17 @@ function ExpensesPage() {
     return () => { void supabase.removeChannel(ch); };
   }, [q]);
 
-  const [open, setOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({
-    category: "office" as ExpenseCategory,
-    amount: "",
-    currency: "BDT" as Currency,
-    spent_on: new Date().toISOString().slice(0, 10),
-    vendor: "",
-    notes: "",
+  const listEmp = useServerFn(listEmployeesForFinance);
+  const emps = useQuery({
+    queryKey: ["finance-employees"], queryFn: () => listEmp(), staleTime: 60_000,
+    enabled: !!isAdmin.data?.isAdmin,
   });
-  const [receiptFile, setReceiptFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [viewer, setViewer] = useState<{ url: string; name: string } | null>(null);
-  const [busyId, setBusyId] = useState<string | null>(null);
-  const [pdfViewer, setPdfViewer] = useState<{ url: string; name: string } | null>(null);
+  const employeeItems: SearchableItem[] = (emps.data ?? []).map((e) => ({
+    value: e.user_id,
+    label: e.full_name ?? e.user_id.slice(0, 8),
+    hint: e.employee_code ?? undefined,
+    keywords: [e.full_name, e.employee_code, e.job_role],
+  }));
 
   const emptyForm = {
     category: "office" as ExpenseCategory,
@@ -111,7 +112,22 @@ function ExpensesPage() {
     spent_on: new Date().toISOString().slice(0, 10),
     vendor: "",
     notes: "",
+    txn_id: "",
+    payment_method: "",
+    department: "",
+    requested_by: "",
+    request_purpose: "",
   };
+
+  const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState(emptyForm);
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [viewer, setViewer] = useState<{ url: string; name: string } | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [pdfViewer, setPdfViewer] = useState<{ url: string; name: string } | null>(null);
+
   const startCreate = () => {
     setEditingId(null);
     setForm(emptyForm);
@@ -121,6 +137,8 @@ function ExpensesPage() {
   const startEdit = (r: {
     id: string; category: ExpenseCategory; amount: number; currency: Currency;
     spent_on: string; vendor: string | null; notes: string | null;
+    txn_id?: string | null; payment_method?: string | null; department?: string | null;
+    requested_by?: string | null; request_purpose?: string | null;
   }) => {
     setEditingId(r.id);
     setForm({
@@ -130,10 +148,16 @@ function ExpensesPage() {
       spent_on: r.spent_on,
       vendor: r.vendor ?? "",
       notes: r.notes ?? "",
+      txn_id: r.txn_id ?? "",
+      payment_method: r.payment_method ?? "",
+      department: r.department ?? "",
+      requested_by: r.requested_by ?? "",
+      request_purpose: r.request_purpose ?? "",
     });
     setReceiptFile(null);
     setOpen(true);
   };
+
 
   const viewVoucher = async (id: string, voucherNo: string | null) => {
     try {
@@ -144,9 +168,18 @@ function ExpensesPage() {
     finally { setBusyId(null); }
   };
 
-  const downloadVoucher = async (id: string, voucherNo: string | null) => {
+  // Prefers the uploaded sealed/signed copy when one exists; otherwise the generated voucher.
+  const downloadVoucher = async (id: string, voucherNo: string | null, signedPath?: string | null) => {
     try {
       setBusyId(id + "dl");
+      if (signedPath) {
+        const name = `Voucher-${voucherNo ?? id}-sealed.${signedPath.split(".").pop() ?? "pdf"}`;
+        const su = await signedDownloadUrl(signedPath, name);
+        const link = document.createElement("a");
+        link.href = su; link.download = name; link.rel = "noopener";
+        document.body.appendChild(link); link.click(); link.remove();
+        return;
+      }
       const { url } = await voucherUrlFn({ data: { id, mode: "digital" } });
       const res = await fetch(url);
       if (!res.ok) throw new Error("Could not generate voucher PDF");
@@ -159,6 +192,7 @@ function ExpensesPage() {
     } catch (e) { toast.error((e as Error).message); }
     finally { setBusyId(null); }
   };
+
 
   const openVoucher = async (id: string, mode: "digital" | "print") => {
     try {
@@ -233,6 +267,11 @@ function ExpensesPage() {
         spent_on: form.spent_on,
         vendor: form.vendor || null,
         notes: form.notes || null,
+        txn_id: form.txn_id.trim() || null,
+        payment_method: form.payment_method || null,
+        department: form.department || null,
+        requested_by: form.requested_by || null,
+        request_purpose: form.request_purpose.trim() || null,
       };
       if (editingId) {
         await update({ data: { id: editingId, ...payload, ...(receipt_url ? { receipt_url } : {}) } });
@@ -280,9 +319,12 @@ function ExpensesPage() {
             <tr>
               <th className="px-3 py-2">Date</th>
               <th className="px-3 py-2">Category</th>
+              <th className="px-3 py-2">Department</th>
+              <th className="px-3 py-2">Requested by</th>
               <th className="px-3 py-2">Vendor</th>
+              <th className="px-3 py-2">Method / TrxID</th>
               <th className="px-3 py-2 text-right">Amount</th>
-              <th className="px-3 py-2">Notes</th>
+              <th className="px-3 py-2">Purpose / Notes</th>
               <th className="px-3 py-2">Voucher</th>
               <th className="px-3 py-2">Receipt</th>
               <th className="px-3 py-2">Signed copy</th>
@@ -291,14 +333,22 @@ function ExpensesPage() {
           </thead>
           <tbody>
             {(q.data ?? []).length === 0 ? (
-              <tr><td colSpan={9} className="px-3 py-10 text-center text-muted-foreground">No expenses yet.</td></tr>
+              <tr><td colSpan={12} className="px-3 py-10 text-center text-muted-foreground">No expenses yet.</td></tr>
             ) : q.data?.map((r) => (
               <tr key={r.id} className="border-t border-border">
                 <td className="px-3 py-2 text-muted-foreground">{r.spent_on}</td>
                 <td className="px-3 py-2 capitalize">{r.category}</td>
+                <td className="px-3 py-2">{r.department ?? "—"}</td>
+                <td className="px-3 py-2">{r.requested_by_name ?? "—"}</td>
                 <td className="px-3 py-2">{r.vendor ?? "—"}</td>
+                <td className="px-3 py-2">
+                  <div className="leading-tight">
+                    <div>{r.payment_method ?? "—"}</div>
+                    {r.txn_id && <div className="font-mono text-[11px] text-muted-foreground">{r.txn_id}</div>}
+                  </div>
+                </td>
                 <td className="px-3 py-2 text-right font-mono">{fmt(r.amount, r.currency)}</td>
-                <td className="px-3 py-2 text-muted-foreground truncate max-w-xs">{r.notes ?? ""}</td>
+                <td className="px-3 py-2 text-muted-foreground truncate max-w-xs">{r.request_purpose || r.notes || ""}</td>
                 <td className="px-3 py-2">
                   <div className="flex items-center gap-1">
                     <span className="font-mono text-[11.5px] text-muted-foreground">{r.voucher_no ?? "—"}</span>
@@ -309,9 +359,11 @@ function ExpensesPage() {
                     </Button>
                     <Button size="sm" variant="ghost" className="h-7 rounded-sm px-2 text-[11.5px]"
                       disabled={!r.voucher_no || busyId === r.id + "dl"}
-                      onClick={() => downloadVoucher(r.id, r.voucher_no)} title="Download voucher PDF">
+                      onClick={() => downloadVoucher(r.id, r.voucher_no, r.signed_voucher_url)}
+                      title={r.signed_voucher_url ? "Download sealed (signed) copy" : "Download voucher PDF"}>
                       {busyId === r.id + "dl" ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />}
                     </Button>
+
                     <Button size="sm" variant="ghost" className="h-7 rounded-sm px-2 text-[11.5px]"
                       disabled={!r.voucher_no || busyId === r.id + "print"}
                       onClick={() => openVoucher(r.id, "print")} title="Print on letterhead paper">
@@ -390,7 +442,7 @@ function ExpensesPage() {
 
       {open && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 p-4">
-          <div className="w-full max-w-md rounded-md border border-border bg-card p-5 shadow-lg">
+          <div className="max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-md border border-border bg-card p-5 shadow-lg">
             <h3 className="text-[14px] font-semibold">{editingId ? "Edit expense" : "Add expense"}</h3>
             <div className="mt-4 space-y-3">
               <div className="grid grid-cols-2 gap-2">
@@ -422,16 +474,59 @@ function ExpensesPage() {
                     className="mt-1 h-9 rounded-sm" />
                 </div>
               </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[11px] font-semibold uppercase text-muted-foreground">Vendor</label>
+                  <Input value={form.vendor} onChange={(e) => setForm({ ...form, vendor: e.target.value })}
+                    className="mt-1 h-9 rounded-sm" placeholder="e.g. Figma, Google Ads, GP" />
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold uppercase text-muted-foreground">Department</label>
+                  <select value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })}
+                    className="mt-1 h-9 w-full rounded-sm border border-input bg-background px-2 text-[13px]">
+                    <option value="">— Select —</option>
+                    {DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                </div>
+              </div>
               <div>
-                <label className="text-[11px] font-semibold uppercase text-muted-foreground">Vendor</label>
-                <Input value={form.vendor} onChange={(e) => setForm({ ...form, vendor: e.target.value })}
-                  className="mt-1 h-9 rounded-sm" placeholder="e.g. Figma, Google Ads, GP" />
+                <label className="text-[11px] font-semibold uppercase text-muted-foreground">Requested by</label>
+                <div className="mt-1">
+                  <SearchableSelect
+                    items={employeeItems}
+                    value={form.requested_by}
+                    onChange={(v) => setForm({ ...form, requested_by: v })}
+                    placeholder="— Who requested this expense —"
+                    emptyText="No employee matches"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[11px] font-semibold uppercase text-muted-foreground">Payment method</label>
+                  <select value={form.payment_method} onChange={(e) => setForm({ ...form, payment_method: e.target.value })}
+                    className="mt-1 h-9 w-full rounded-sm border border-input bg-background px-2 text-[13px]">
+                    <option value="">— Select —</option>
+                    {PAYMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold uppercase text-muted-foreground">Transaction ID (TrxID)</label>
+                  <Input value={form.txn_id} onChange={(e) => setForm({ ...form, txn_id: e.target.value })}
+                    className="mt-1 h-9 rounded-sm font-mono" placeholder="e.g. 9K3D8AB21X" />
+                </div>
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold uppercase text-muted-foreground">Purpose of request</label>
+                <Input value={form.request_purpose} onChange={(e) => setForm({ ...form, request_purpose: e.target.value })}
+                  className="mt-1 h-9 rounded-sm" placeholder="Why was this expense needed?" />
               </div>
               <div>
                 <label className="text-[11px] font-semibold uppercase text-muted-foreground">Notes</label>
                 <Input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })}
                   className="mt-1 h-9 rounded-sm" />
               </div>
+
               <div>
                 <label className="text-[11px] font-semibold uppercase text-muted-foreground">
                   {editingId ? "Replace receipt" : "Receipt"} <span className="text-muted-foreground/70 normal-case font-normal">(optional — image or PDF, ≤ {MAX_RECEIPT_MB} MB)</span>

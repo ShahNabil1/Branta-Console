@@ -170,15 +170,20 @@ export type Database = {
           created_at: string
           created_by: string | null
           currency: string
+          department: string | null
           id: string
           linked_invoice_id: string | null
           notes: string | null
           paid_by: string | null
+          payment_method: string | null
           receipt_url: string | null
+          request_purpose: string | null
+          requested_by: string | null
           signed_voucher_at: string | null
           signed_voucher_by: string | null
           signed_voucher_url: string | null
           spent_on: string
+          txn_id: string | null
           updated_at: string
           vendor: string | null
           voucher_no: string | null
@@ -189,15 +194,20 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           currency?: string
+          department?: string | null
           id?: string
           linked_invoice_id?: string | null
           notes?: string | null
           paid_by?: string | null
+          payment_method?: string | null
           receipt_url?: string | null
+          request_purpose?: string | null
+          requested_by?: string | null
           signed_voucher_at?: string | null
           signed_voucher_by?: string | null
           signed_voucher_url?: string | null
           spent_on?: string
+          txn_id?: string | null
           updated_at?: string
           vendor?: string | null
           voucher_no?: string | null
@@ -208,15 +218,20 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           currency?: string
+          department?: string | null
           id?: string
           linked_invoice_id?: string | null
           notes?: string | null
           paid_by?: string | null
+          payment_method?: string | null
           receipt_url?: string | null
+          request_purpose?: string | null
+          requested_by?: string | null
           signed_voucher_at?: string | null
           signed_voucher_by?: string | null
           signed_voucher_url?: string | null
           spent_on?: string
+          txn_id?: string | null
           updated_at?: string
           vendor?: string | null
           voucher_no?: string | null

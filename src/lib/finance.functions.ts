@@ -165,6 +165,12 @@ export interface ExpenseRow {
   signed_voucher_url: string | null;
   signed_voucher_at: string | null;
   signed_voucher_by: string | null;
+  txn_id?: string | null;
+  payment_method?: string | null;
+  department?: string | null;
+  requested_by?: string | null;
+  request_purpose?: string | null;
+  requested_by_name?: string | null;
 }
 
 
@@ -1262,7 +1268,9 @@ export const listExpenses = createServerFn({ method: "GET" })
       .limit(1000);
     if (error) throw new Error(error.message);
     const rows = (data ?? []) as unknown as ExpenseRow[];
-    const uids = Array.from(new Set(rows.map((r) => r.paid_by).filter(Boolean) as string[]));
+    const uids = Array.from(new Set(
+      rows.flatMap((r) => [r.paid_by, r.requested_by]).filter(Boolean) as string[],
+    ));
     if (uids.length) {
       const { data: profs } = await context.supabase
         .from("profiles").select("user_id, full_name").in("user_id", uids);
@@ -1272,6 +1280,7 @@ export const listExpenses = createServerFn({ method: "GET" })
       );
       rows.forEach((r) => {
         if (r.paid_by) r.paid_by_name = nm.get(r.paid_by) ?? null;
+        if (r.requested_by) r.requested_by_name = nm.get(r.requested_by) ?? null;
       });
     }
     return rows;
@@ -1287,7 +1296,13 @@ const ExpenseIn = z.object({
   receipt_url: z.string().max(600).nullable().optional(),
   notes: z.string().max(2000).nullable().optional(),
   linked_invoice_id: z.string().uuid().nullable().optional(),
+  txn_id: z.string().max(120).nullable().optional(),
+  payment_method: z.string().max(80).nullable().optional(),
+  department: z.string().max(80).nullable().optional(),
+  requested_by: z.string().uuid().nullable().optional(),
+  request_purpose: z.string().max(500).nullable().optional(),
 });
+
 
 export const createExpense = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

@@ -599,10 +599,15 @@ export interface ExpenseVoucherData {
     notes: string | null;
     created_at: string;
     payment_ref?: string | null;
+    txn_id?: string | null;
+    payment_method?: string | null;
+    department?: string | null;
+    request_purpose?: string | null;
   };
   linkedInvoiceSlug?: string | null;
   preparedByName?: string | null;
   paidToName?: string | null;
+  requestedByName?: string | null;
   settings: PdfSettings;
 }
 
@@ -735,11 +740,16 @@ export async function renderExpenseVoucherPdf(
   const rows: Array<[string, string]> = [
     ["Date of Expense", fmtDate(e.spent_on)],
     ["Category", e.category.charAt(0).toUpperCase() + e.category.slice(1)],
+    ["Department", e.department || "—"],
+    ["Requested By", data.requestedByName || "—"],
     ["Paid To / Vendor", e.vendor || "—"],
     ["Paid By", data.paidToName || "—"],
+    ["Payment Method", e.payment_method || "—"],
+    ["Transaction ID (TrxID)", e.txn_id || e.payment_ref || "—"],
     ["Linked Invoice", data.linkedInvoiceSlug || "—"],
     ["Recorded On", fmtDate(e.created_at)],
   ];
+
   const colW = CONTENT_W / 2;
   const rowH = 26;
   const gridH = Math.ceil(rows.length / 2) * rowH;
@@ -768,15 +778,20 @@ export async function renderExpenseVoucherPdf(
   });
   y -= amtH + 20;
 
-  /* ---- notes ---- */
-  if (e.notes) {
-    draw("NOTES / PURPOSE", SIDE, y, 8.5, bold, brand);
+  /* ---- purpose / notes ---- */
+  const purposeBody = [
+    e.request_purpose ? `Purpose of request: ${e.request_purpose}` : null,
+    e.notes || null,
+  ].filter(Boolean).join("\n");
+  if (purposeBody) {
+    draw("PURPOSE / NOTES", SIDE, y, 8.5, bold, brand);
     y -= 6;
     page.drawLine({ start: { x: SIDE, y }, end: { x: PAGE_W - SIDE, y }, thickness: 0.5, color: hair });
     y -= 14;
-    wrap(e.notes, font, 9, CONTENT_W).slice(0, 12).forEach((ln) => { draw(ln, SIDE, y, 9, font, muted); y -= 11; });
+    wrap(purposeBody, font, 9, CONTENT_W).slice(0, 12).forEach((ln) => { draw(ln, SIDE, y, 9, font, muted); y -= 11; });
     y -= 8;
   }
+
 
   /* ---- signature / seal ---- */
   const sealTop = Math.min(y, CONTENT_BOTTOM + 170);
