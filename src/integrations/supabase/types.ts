@@ -175,9 +175,13 @@ export type Database = {
           notes: string | null
           paid_by: string | null
           receipt_url: string | null
+          signed_voucher_at: string | null
+          signed_voucher_by: string | null
+          signed_voucher_url: string | null
           spent_on: string
           updated_at: string
           vendor: string | null
+          voucher_no: string | null
         }
         Insert: {
           amount: number
@@ -190,9 +194,13 @@ export type Database = {
           notes?: string | null
           paid_by?: string | null
           receipt_url?: string | null
+          signed_voucher_at?: string | null
+          signed_voucher_by?: string | null
+          signed_voucher_url?: string | null
           spent_on?: string
           updated_at?: string
           vendor?: string | null
+          voucher_no?: string | null
         }
         Update: {
           amount?: number
@@ -205,9 +213,13 @@ export type Database = {
           notes?: string | null
           paid_by?: string | null
           receipt_url?: string | null
+          signed_voucher_at?: string | null
+          signed_voucher_by?: string | null
+          signed_voucher_url?: string | null
           spent_on?: string
           updated_at?: string
           vendor?: string | null
+          voucher_no?: string | null
         }
         Relationships: [
           {
