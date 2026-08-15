@@ -24,6 +24,49 @@ export function buildSignedInvoiceUrl(baseUrl: string, slug: string, ttlSeconds 
   return `${baseUrl}/api/public/invoices/${encodeURIComponent(slug)}.pdf?exp=${exp}&sig=${sig}`;
 }
 
+/** Signed URL for an expense voucher PDF (namespaced so slugs can't collide). */
+export function buildSignedExpenseVoucherUrl(
+  baseUrl: string,
+  voucherNo: string,
+  ttlSeconds = 60 * 60 * 24 * 30,
+): string {
+  const exp = Math.floor(Date.now() / 1000) + ttlSeconds;
+  const sig = signInvoiceSlug(`exp:${voucherNo}`, exp);
+  return `${baseUrl}/api/public/expenses/${encodeURIComponent(voucherNo)}.pdf?exp=${exp}&sig=${sig}`;
+}
+
+export function verifyExpenseVoucherSig(voucherNo: string, exp: number, sig: string): boolean {
+  return verifyInvoiceSlug(`exp:${voucherNo}`, exp, sig);
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function loadExpenseVoucherPayload(adminClient: any, voucherNo: string) {
+  const { data: exp, error } = await adminClient
+    .from("expenses").select("*").eq("voucher_no", voucherNo).maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!exp) return null;
+  const uids = [exp.created_by, exp.paid_by].filter(Boolean) as string[];
+  const [{ data: profs }, { data: settings }, inv] = await Promise.all([
+    uids.length
+      ? adminClient.from("profiles").select("user_id, full_name").in("user_id", uids)
+      : Promise.resolve({ data: [] }),
+    adminClient.from("invoice_pdf_settings").select("*").eq("id", "default").maybeSingle(),
+    exp.linked_invoice_id
+      ? adminClient.from("invoices").select("slug").eq("id", exp.linked_invoice_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+  const nameOf = (id: string | null) =>
+    (id && (profs ?? []).find((p: { user_id: string }) => p.user_id === id)?.full_name) || null;
+  return {
+    expense: exp,
+    preparedByName: nameOf(exp.created_by),
+    paidToName: nameOf(exp.paid_by),
+    linkedInvoiceSlug: inv?.data?.slug ?? null,
+    settings: settings ?? null,
+  };
+}
+
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function loadInvoicePdfPayload(adminClient: any, slug: string) {
   const { data: inv, error } = await adminClient
