@@ -47,6 +47,7 @@ export const Route = createFileRoute("/api/public/expenses/$voucher.pdf")({
             expense: payload.expense,
             preparedByName: payload.preparedByName,
             paidToName: payload.paidToName,
+            requestedByName: payload.requestedByName,
             linkedInvoiceSlug: payload.linkedInvoiceSlug,
             settings,
           },
