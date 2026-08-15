@@ -779,7 +779,7 @@ export async function renderExpenseVoucherPdf(
   }
 
   /* ---- signature / seal ---- */
-  const sealTop = Math.max(y, CONTENT_BOTTOM + 150);
+  const sealTop = Math.min(y, CONTENT_BOTTOM + 170);
   const boxH = 96;
   const boxW = (CONTENT_W - 16) / 2;
   const boxes: Array<[string, string]> = [
