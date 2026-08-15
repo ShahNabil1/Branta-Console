@@ -474,16 +474,59 @@ function ExpensesPage() {
                     className="mt-1 h-9 rounded-sm" />
                 </div>
               </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[11px] font-semibold uppercase text-muted-foreground">Vendor</label>
+                  <Input value={form.vendor} onChange={(e) => setForm({ ...form, vendor: e.target.value })}
+                    className="mt-1 h-9 rounded-sm" placeholder="e.g. Figma, Google Ads, GP" />
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold uppercase text-muted-foreground">Department</label>
+                  <select value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })}
+                    className="mt-1 h-9 w-full rounded-sm border border-input bg-background px-2 text-[13px]">
+                    <option value="">— Select —</option>
+                    {DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                </div>
+              </div>
               <div>
-                <label className="text-[11px] font-semibold uppercase text-muted-foreground">Vendor</label>
-                <Input value={form.vendor} onChange={(e) => setForm({ ...form, vendor: e.target.value })}
-                  className="mt-1 h-9 rounded-sm" placeholder="e.g. Figma, Google Ads, GP" />
+                <label className="text-[11px] font-semibold uppercase text-muted-foreground">Requested by</label>
+                <div className="mt-1">
+                  <SearchableSelect
+                    items={employeeItems}
+                    value={form.requested_by}
+                    onChange={(v) => setForm({ ...form, requested_by: v })}
+                    placeholder="— Who requested this expense —"
+                    emptyText="No employee matches"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[11px] font-semibold uppercase text-muted-foreground">Payment method</label>
+                  <select value={form.payment_method} onChange={(e) => setForm({ ...form, payment_method: e.target.value })}
+                    className="mt-1 h-9 w-full rounded-sm border border-input bg-background px-2 text-[13px]">
+                    <option value="">— Select —</option>
+                    {PAYMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold uppercase text-muted-foreground">Transaction ID (TrxID)</label>
+                  <Input value={form.txn_id} onChange={(e) => setForm({ ...form, txn_id: e.target.value })}
+                    className="mt-1 h-9 rounded-sm font-mono" placeholder="e.g. 9K3D8AB21X" />
+                </div>
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold uppercase text-muted-foreground">Purpose of request</label>
+                <Input value={form.request_purpose} onChange={(e) => setForm({ ...form, request_purpose: e.target.value })}
+                  className="mt-1 h-9 rounded-sm" placeholder="Why was this expense needed?" />
               </div>
               <div>
                 <label className="text-[11px] font-semibold uppercase text-muted-foreground">Notes</label>
                 <Input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })}
                   className="mt-1 h-9 rounded-sm" />
               </div>
+
               <div>
                 <label className="text-[11px] font-semibold uppercase text-muted-foreground">
                   {editingId ? "Replace receipt" : "Receipt"} <span className="text-muted-foreground/70 normal-case font-normal">(optional — image or PDF, ≤ {MAX_RECEIPT_MB} MB)</span>
