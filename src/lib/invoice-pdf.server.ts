@@ -585,3 +585,220 @@ export async function renderInvoicePdf(
 
   return await pdf.save();
 }
+
+/* ================= Expense voucher ================= */
+
+export interface ExpenseVoucherData {
+  expense: {
+    voucher_no: string | null;
+    category: string;
+    amount: number;
+    currency: string;
+    spent_on: string;
+    vendor: string | null;
+    notes: string | null;
+    created_at: string;
+    payment_ref?: string | null;
+  };
+  linkedInvoiceSlug?: string | null;
+  preparedByName?: string | null;
+  paidToName?: string | null;
+  settings: PdfSettings;
+}
+
+/**
+ * Renders a single-page A4 expense voucher using the same letterhead geometry
+ * and branding as the invoice PDF. `print` mode leaves the reserved
+ * letterhead margins blank for pre-printed paper.
+ */
+export async function renderExpenseVoucherPdf(
+  data: ExpenseVoucherData,
+  opts: { mode?: "digital" | "print" } = {},
+): Promise<Uint8Array> {
+  const mode = opts.mode ?? "digital";
+  const { PDFDocument: PDoc, StandardFonts, rgb } = await import("pdf-lib");
+
+  const s = data.settings;
+  const brand = hex(rgb, s.brand_color);
+  const text = hex(rgb, s.text_color);
+  const muted = hex(rgb, s.muted_color);
+  const hair = hex(rgb, s.hairline_color);
+  const panel = hex(rgb, s.panel_bg_color);
+  const white = hex(rgb, "#FFFFFF");
+
+  const pdf: PDFDocument = await PDoc.create();
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  const mono = await pdf.embedFont(StandardFonts.Courier);
+  const monoBold = await pdf.embedFont(StandardFonts.CourierBold);
+
+  let logo: Awaited<ReturnType<PDFDocument["embedPng"]>> | null = null;
+  if (mode === "digital" && s.logo_url) {
+    const buf = await tryFetchImage(s.logo_url);
+    if (buf) {
+      try {
+        const isJpg = /\.jpe?g($|\?)/i.test(s.logo_url);
+        logo = isJpg ? await pdf.embedJpg(buf) : await pdf.embedPng(buf);
+      } catch { /* ignore */ }
+    }
+  }
+
+  const CONTENT_TOP = PAGE_H - TOP_MARGIN;
+  const CONTENT_BOTTOM = BOTTOM_MARGIN;
+  const CONTENT_W = PAGE_W - SIDE * 2;
+
+  const page: PDFPage = pdf.addPage([PAGE_W, PAGE_H]);
+  let y = CONTENT_TOP;
+
+  const draw = (t: string, x: number, yy: number, size: number, f: PDFFont = font, color: RGB = text) => {
+    page.drawText(safeText(t), { x, y: yy, size, font: f, color });
+  };
+  const wrap = (t: string, f: PDFFont, size: number, maxW: number): string[] => {
+    const out: string[] = [];
+    for (const rawLine of safeText(t).split("\n")) {
+      const words = rawLine.split(/\s+/).filter(Boolean);
+      if (!words.length) { out.push(""); continue; }
+      let line = "";
+      for (const w of words) {
+        const test = line ? `${line} ${w}` : w;
+        if (f.widthOfTextAtSize(test, size) > maxW && line) { out.push(line); line = w; }
+        else line = test;
+      }
+      if (line) out.push(line);
+    }
+    return out;
+  };
+
+  /* ---- letterhead (digital only) ---- */
+  if (mode === "digital") {
+    const bandH = 92;
+    const bandY = PAGE_H - bandH;
+    page.drawRectangle({ x: PAGE_W * 0.55, y: bandY, width: PAGE_W * 0.45, height: bandH, color: brand });
+    page.drawRectangle({ x: 0, y: bandY - 6, width: PAGE_W, height: 5, color: brand });
+    let lx = SIDE;
+    if (logo) {
+      const h = 40;
+      const w = (logo.width / logo.height) * h;
+      page.drawImage(logo, { x: SIDE, y: bandY + (bandH - h) / 2, width: w, height: h });
+      lx = SIDE + w + 10;
+    }
+    draw(s.company_name, lx, bandY + 48, 22, bold, brand);
+    if (s.company_tagline) draw(s.company_tagline, lx, bandY + 32, 8.5, font, muted);
+
+    const rx = PAGE_W * 0.55 + 14;
+    draw("Creative Technology Company", rx, bandY + 68, 9, font, white);
+    draw("Grow Smarter with AI", rx, bandY + 55, 11, bold, white);
+    if (s.company_address) {
+      const maxW = PAGE_W - rx - 14;
+      const raw = s.company_address.split(/\n|;/).map((l) => safeText(l).trim()).filter(Boolean);
+      const lines: string[] = [];
+      for (const ln of raw) lines.push(...wrap(ln, font, 7.5, maxW));
+      draw("Address:", rx, bandY + 38, 8, bold, white);
+      lines.slice(0, 3).forEach((ln, i) => draw(ln, rx, bandY + 27 - i * 9.5, 7.5, font, white));
+    }
+
+    const fH = 20;
+    page.drawRectangle({ x: 0, y: 24, width: PAGE_W, height: fH, color: brand });
+    const segs = [
+      s.company_phone ? `Phone: ${s.company_phone}` : null,
+      s.company_email ? `Email: ${s.company_email}` : null,
+      s.company_website ? `Web: ${s.company_website.replace(/^https?:\/\//, "")}` : null,
+    ].filter(Boolean) as string[];
+    const segW = PAGE_W / Math.max(1, segs.length);
+    segs.forEach((t, i) => {
+      const w = font.widthOfTextAtSize(safeText(t), 8.5);
+      draw(t, i * segW + (segW - w) / 2, 30, 8.5, font, white);
+      if (i > 0) page.drawLine({ start: { x: i * segW, y: 24 }, end: { x: i * segW, y: 24 + fH }, thickness: 1, color: white });
+    });
+    const foot = safeText(s.footer_text);
+    const fw = font.widthOfTextAtSize(foot, 7.5);
+    draw(foot, (PAGE_W - fw) / 2, 12, 7.5, font, muted);
+  }
+
+  const e = data.expense;
+  const cur = (e.currency || "BDT").toUpperCase();
+  const voucherNo = e.voucher_no || "—";
+
+  /* ---- title ---- */
+  y -= 18;
+  draw("EXPENSE VOUCHER", SIDE, y, 20, bold, brand);
+  const metaX = PAGE_W - SIDE - 180;
+  draw("Voucher No.", metaX, y + 6, 8, bold, muted);
+  draw(voucherNo, metaX, y - 7, 12, monoBold, text);
+  y -= 14;
+  draw("Internal payment record", SIDE, y, 9, font, muted);
+  y -= 12;
+  page.drawLine({ start: { x: SIDE, y }, end: { x: PAGE_W - SIDE, y }, thickness: 0.8, color: brand });
+  y -= 22;
+
+  /* ---- detail grid ---- */
+  const rows: Array<[string, string]> = [
+    ["Date of Expense", fmtDate(e.spent_on)],
+    ["Category", e.category.charAt(0).toUpperCase() + e.category.slice(1)],
+    ["Paid To / Vendor", e.vendor || "—"],
+    ["Paid By", data.paidToName || "—"],
+    ["Linked Invoice", data.linkedInvoiceSlug || "—"],
+    ["Recorded On", fmtDate(e.created_at)],
+  ];
+  const colW = CONTENT_W / 2;
+  const rowH = 26;
+  const gridH = Math.ceil(rows.length / 2) * rowH;
+  page.drawRectangle({ x: SIDE, y: y - gridH, width: CONTENT_W, height: gridH, color: panel, borderColor: hair, borderWidth: 0.5 });
+  rows.forEach(([k, v], i) => {
+    const col = i % 2;
+    const row = Math.floor(i / 2);
+    const x = SIDE + col * colW + 12;
+    const ty = y - row * rowH - 11;
+    draw(k.toUpperCase(), x, ty, 7, bold, muted);
+    draw(v, x, ty - 11, 10, font, text);
+  });
+  y -= gridH + 20;
+
+  /* ---- amount block ---- */
+  const amtH = 58;
+  page.drawRectangle({ x: SIDE, y: y - amtH, width: CONTENT_W, height: amtH, borderColor: hair, borderWidth: 0.5 });
+  page.drawRectangle({ x: SIDE, y: y - amtH, width: 3, height: amtH, color: brand });
+  draw("AMOUNT", SIDE + 14, y - 16, 8, bold, muted);
+  const amtStr = money(Number(e.amount), cur);
+  const aw = monoBold.widthOfTextAtSize(safeText(amtStr), 18);
+  draw(amtStr, PAGE_W - SIDE - 14 - aw, y - 22, 18, monoBold, brand);
+  draw("In words", SIDE + 14, y - 34, 7.5, bold, muted);
+  wrap(amountInWords(Number(e.amount), cur), font, 9, CONTENT_W - 28).slice(0, 2).forEach((ln, i) => {
+    draw(ln, SIDE + 14, y - 45 - i * 10, 9, font, text);
+  });
+  y -= amtH + 20;
+
+  /* ---- notes ---- */
+  if (e.notes) {
+    draw("NOTES / PURPOSE", SIDE, y, 8.5, bold, brand);
+    y -= 6;
+    page.drawLine({ start: { x: SIDE, y }, end: { x: PAGE_W - SIDE, y }, thickness: 0.5, color: hair });
+    y -= 14;
+    wrap(e.notes, font, 9, CONTENT_W).slice(0, 12).forEach((ln) => { draw(ln, SIDE, y, 9, font, muted); y -= 11; });
+    y -= 8;
+  }
+
+  /* ---- signature / seal ---- */
+  const sealTop = Math.max(y, CONTENT_BOTTOM + 150);
+  const boxH = 96;
+  const boxW = (CONTENT_W - 16) / 2;
+  const boxes: Array<[string, string]> = [
+    ["Prepared By", data.preparedByName || s.signature_name || s.company_name],
+    ["Authorized Signature & Company Seal", s.signature_title || "Authorized Signature"],
+  ];
+  boxes.forEach(([label, name], i) => {
+    const x = SIDE + i * (boxW + 16);
+    page.drawRectangle({ x, y: sealTop - boxH, width: boxW, height: boxH, borderColor: hair, borderWidth: 0.5 });
+    draw(label.toUpperCase(), x + 10, sealTop - 14, 7, bold, muted);
+    page.drawLine({ start: { x: x + 10, y: sealTop - boxH + 26 }, end: { x: x + boxW - 10, y: sealTop - boxH + 26 }, thickness: 0.6, color: hair });
+    draw(name, x + 10, sealTop - boxH + 13, 8.5, font, text);
+  });
+
+  /* ---- footer id line ---- */
+  const label = `Expense Voucher ${voucherNo}  ·  ${s.company_name}`;
+  const w = font.widthOfTextAtSize(safeText(label), 7.5);
+  page.drawText(safeText(label), { x: (PAGE_W - w) / 2, y: CONTENT_BOTTOM + 6, size: 7.5, font, color: muted });
+
+  void mono;
+  return await pdf.save();
+}
