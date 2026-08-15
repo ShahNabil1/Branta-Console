@@ -37,6 +37,7 @@ import { Route as ApiPublicResendWebhookRouteImport } from './routes/api/public/
 import { Route as ApiPublicInvoicesSlugDotpdfRouteImport } from './routes/api/public/invoices.$slug[.]pdf'
 import { Route as ApiPublicHooksNotificationsDrainRouteImport } from './routes/api/public/hooks/notifications-drain'
 import { Route as ApiPublicHooksInvoiceRemindersRouteImport } from './routes/api/public/hooks/invoice-reminders'
+import { Route as ApiPublicExpensesVoucherDotpdfRouteImport } from './routes/api/public/expenses.$voucher[.]pdf'
 import { Route as ApiPublicBrevoWebhookRouteImport } from './routes/api/public/brevo.webhook'
 import { Route as AuthenticatedAppProfileWalletRouteImport } from './routes/_authenticated/app.profile.wallet'
 import { Route as AuthenticatedAppProfileSecurityRouteImport } from './routes/_authenticated/app.profile.security'
@@ -211,6 +212,12 @@ const ApiPublicHooksInvoiceRemindersRoute =
     path: '/api/public/hooks/invoice-reminders',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicExpensesVoucherDotpdfRoute =
+  ApiPublicExpensesVoucherDotpdfRouteImport.update({
+    id: '/api/public/expenses/$voucher.pdf',
+    path: '/api/public/expenses/$voucher.pdf',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicBrevoWebhookRoute = ApiPublicBrevoWebhookRouteImport.update({
   id: '/api/public/brevo/webhook',
   path: '/api/public/brevo/webhook',
@@ -345,6 +352,7 @@ export interface FileRoutesByFullPath {
   '/app/profile/security': typeof AuthenticatedAppProfileSecurityRoute
   '/app/profile/wallet': typeof AuthenticatedAppProfileWalletRoute
   '/api/public/brevo/webhook': typeof ApiPublicBrevoWebhookRoute
+  '/api/public/expenses/$voucher.pdf': typeof ApiPublicExpensesVoucherDotpdfRoute
   '/api/public/hooks/invoice-reminders': typeof ApiPublicHooksInvoiceRemindersRoute
   '/api/public/hooks/notifications-drain': typeof ApiPublicHooksNotificationsDrainRoute
   '/api/public/invoices/$slug.pdf': typeof ApiPublicInvoicesSlugDotpdfRoute
@@ -386,6 +394,7 @@ export interface FileRoutesByTo {
   '/app/profile/security': typeof AuthenticatedAppProfileSecurityRoute
   '/app/profile/wallet': typeof AuthenticatedAppProfileWalletRoute
   '/api/public/brevo/webhook': typeof ApiPublicBrevoWebhookRoute
+  '/api/public/expenses/$voucher.pdf': typeof ApiPublicExpensesVoucherDotpdfRoute
   '/api/public/hooks/invoice-reminders': typeof ApiPublicHooksInvoiceRemindersRoute
   '/api/public/hooks/notifications-drain': typeof ApiPublicHooksNotificationsDrainRoute
   '/api/public/invoices/$slug.pdf': typeof ApiPublicInvoicesSlugDotpdfRoute
@@ -434,6 +443,7 @@ export interface FileRoutesById {
   '/_authenticated/app/profile/security': typeof AuthenticatedAppProfileSecurityRoute
   '/_authenticated/app/profile/wallet': typeof AuthenticatedAppProfileWalletRoute
   '/api/public/brevo/webhook': typeof ApiPublicBrevoWebhookRoute
+  '/api/public/expenses/$voucher.pdf': typeof ApiPublicExpensesVoucherDotpdfRoute
   '/api/public/hooks/invoice-reminders': typeof ApiPublicHooksInvoiceRemindersRoute
   '/api/public/hooks/notifications-drain': typeof ApiPublicHooksNotificationsDrainRoute
   '/api/public/invoices/$slug.pdf': typeof ApiPublicInvoicesSlugDotpdfRoute
@@ -482,6 +492,7 @@ export interface FileRouteTypes {
     | '/app/profile/security'
     | '/app/profile/wallet'
     | '/api/public/brevo/webhook'
+    | '/api/public/expenses/$voucher.pdf'
     | '/api/public/hooks/invoice-reminders'
     | '/api/public/hooks/notifications-drain'
     | '/api/public/invoices/$slug.pdf'
@@ -523,6 +534,7 @@ export interface FileRouteTypes {
     | '/app/profile/security'
     | '/app/profile/wallet'
     | '/api/public/brevo/webhook'
+    | '/api/public/expenses/$voucher.pdf'
     | '/api/public/hooks/invoice-reminders'
     | '/api/public/hooks/notifications-drain'
     | '/api/public/invoices/$slug.pdf'
@@ -570,6 +582,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/profile/security'
     | '/_authenticated/app/profile/wallet'
     | '/api/public/brevo/webhook'
+    | '/api/public/expenses/$voucher.pdf'
     | '/api/public/hooks/invoice-reminders'
     | '/api/public/hooks/notifications-drain'
     | '/api/public/invoices/$slug.pdf'
@@ -591,6 +604,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   ApiPublicR2HealthRoute: typeof ApiPublicR2HealthRoute
   ApiPublicBrevoWebhookRoute: typeof ApiPublicBrevoWebhookRoute
+  ApiPublicExpensesVoucherDotpdfRoute: typeof ApiPublicExpensesVoucherDotpdfRoute
   ApiPublicHooksInvoiceRemindersRoute: typeof ApiPublicHooksInvoiceRemindersRoute
   ApiPublicHooksNotificationsDrainRoute: typeof ApiPublicHooksNotificationsDrainRoute
   ApiPublicInvoicesSlugDotpdfRoute: typeof ApiPublicInvoicesSlugDotpdfRoute
@@ -794,6 +808,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/hooks/invoice-reminders'
       fullPath: '/api/public/hooks/invoice-reminders'
       preLoaderRoute: typeof ApiPublicHooksInvoiceRemindersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/expenses/$voucher.pdf': {
+      id: '/api/public/expenses/$voucher.pdf'
+      path: '/api/public/expenses/$voucher.pdf'
+      fullPath: '/api/public/expenses/$voucher.pdf'
+      preLoaderRoute: typeof ApiPublicExpensesVoucherDotpdfRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/brevo/webhook': {
@@ -1064,6 +1085,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   ApiPublicR2HealthRoute: ApiPublicR2HealthRoute,
   ApiPublicBrevoWebhookRoute: ApiPublicBrevoWebhookRoute,
+  ApiPublicExpensesVoucherDotpdfRoute: ApiPublicExpensesVoucherDotpdfRoute,
   ApiPublicHooksInvoiceRemindersRoute: ApiPublicHooksInvoiceRemindersRoute,
   ApiPublicHooksNotificationsDrainRoute: ApiPublicHooksNotificationsDrainRoute,
   ApiPublicInvoicesSlugDotpdfRoute: ApiPublicInvoicesSlugDotpdfRoute,

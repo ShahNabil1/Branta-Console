@@ -8,6 +8,8 @@ import {
   createExpense,
   deleteExpense,
   isFinanceAdminCheck,
+  getSignedExpenseVoucherUrl,
+  setExpenseSignedVoucher,
   type ExpenseCategory,
   type Currency,
 } from "@/lib/finance.functions";
@@ -15,7 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useConfirm } from "@/components/ui/confirm-dialog";
-import { Loader2, Plus, Trash2, Receipt, Upload, Eye, Download, X, FileText } from "lucide-react";
+import { Loader2, Plus, Trash2, Receipt, Upload, Eye, Download, X, FileText, Printer, Stamp } from "lucide-react";
 
 const RECEIPT_BUCKET = "expense-receipts";
 const MAX_RECEIPT_MB = 15;
@@ -41,6 +43,18 @@ async function signedDownloadUrl(path: string, filename?: string) {
   return data.signedUrl;
 }
 
+async function uploadToBucket(file: File, prefix: string) {
+  const { data: sess } = await supabase.auth.getUser();
+  const uid = sess.user?.id ?? "anon";
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "bin";
+  const path = `${prefix}${uid}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const { error } = await supabase.storage
+    .from(RECEIPT_BUCKET)
+    .upload(path, file, { contentType: file.type || undefined, upsert: false });
+  if (error) throw new Error(error.message);
+  return path;
+}
+
 export const Route = createFileRoute("/_authenticated/app/finance/expenses")({
   head: () => ({ meta: [{ title: "Expenses · Finance · Branta" }] }),
   component: ExpensesPage,
@@ -57,6 +71,8 @@ function ExpensesPage() {
   const create = useServerFn(createExpense);
   const del = useServerFn(deleteExpense);
   const check = useServerFn(isFinanceAdminCheck);
+  const voucherUrlFn = useServerFn(getSignedExpenseVoucherUrl);
+  const setSignedFn = useServerFn(setExpenseSignedVoucher);
   const confirm = useConfirm();
   const isAdmin = useQuery({ queryKey: ["is-finance-admin"], queryFn: () => check(), staleTime: 60_000 });
   const q = useQuery({
@@ -82,6 +98,40 @@ function ExpensesPage() {
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [viewer, setViewer] = useState<{ url: string; name: string } | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const openVoucher = async (id: string, mode: "digital" | "print") => {
+    try {
+      setBusyId(id + mode);
+      const { url } = await voucherUrlFn({ data: { id, mode } });
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBusyId(null); }
+  };
+
+  const uploadSigned = async (id: string, file: File) => {
+    try {
+      if (file.size > MAX_RECEIPT_MB * 1024 * 1024) throw new Error(`File must be ≤ ${MAX_RECEIPT_MB} MB`);
+      setBusyId(id + "signed");
+      const path = await uploadToBucket(file, "signed/");
+      await setSignedFn({ data: { id, path } });
+      toast.success("Signed voucher uploaded");
+      void q.refetch();
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBusyId(null); }
+  };
+
+  const removeSigned = async (id: string) => {
+    const ok = await confirm({ title: "Remove signed voucher", description: "The stored sealed copy will be detached.", tone: "danger" });
+    if (!ok) return;
+    try {
+      setBusyId(id + "signed");
+      await setSignedFn({ data: { id, path: null } });
+      toast.success("Removed");
+      void q.refetch();
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBusyId(null); }
+  };
 
   const openReceipt = async (path: string) => {
     try {
@@ -110,15 +160,11 @@ function ExpensesPage() {
           throw new Error(`Receipt must be ≤ ${MAX_RECEIPT_MB} MB`);
         }
         setUploading(true);
-        const { data: sess } = await supabase.auth.getUser();
-        const uid = sess.user?.id ?? "anon";
-        const ext = receiptFile.name.split(".").pop()?.toLowerCase() ?? "bin";
-        const path = `${uid}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-        const { error: upErr } = await supabase.storage.from(RECEIPT_BUCKET)
-          .upload(path, receiptFile, { contentType: receiptFile.type || undefined, upsert: false });
-        setUploading(false);
-        if (upErr) throw new Error(upErr.message);
-        receipt_url = path;
+        try {
+          receipt_url = await uploadToBucket(receiptFile, "");
+        } finally {
+          setUploading(false);
+        }
       }
       await create({ data: {
         category: form.category,
@@ -172,13 +218,15 @@ function ExpensesPage() {
               <th className="px-3 py-2">Vendor</th>
               <th className="px-3 py-2 text-right">Amount</th>
               <th className="px-3 py-2">Notes</th>
+              <th className="px-3 py-2">Voucher</th>
               <th className="px-3 py-2">Receipt</th>
+              <th className="px-3 py-2">Signed copy</th>
               <th className="px-3 py-2 text-right"></th>
             </tr>
           </thead>
           <tbody>
             {(q.data ?? []).length === 0 ? (
-              <tr><td colSpan={7} className="px-3 py-10 text-center text-muted-foreground">No expenses yet.</td></tr>
+              <tr><td colSpan={9} className="px-3 py-10 text-center text-muted-foreground">No expenses yet.</td></tr>
             ) : q.data?.map((r) => (
               <tr key={r.id} className="border-t border-border">
                 <td className="px-3 py-2 text-muted-foreground">{r.spent_on}</td>
@@ -186,6 +234,21 @@ function ExpensesPage() {
                 <td className="px-3 py-2">{r.vendor ?? "—"}</td>
                 <td className="px-3 py-2 text-right font-mono">{fmt(r.amount, r.currency)}</td>
                 <td className="px-3 py-2 text-muted-foreground truncate max-w-xs">{r.notes ?? ""}</td>
+                <td className="px-3 py-2">
+                  <div className="flex items-center gap-1">
+                    <span className="font-mono text-[11.5px] text-muted-foreground">{r.voucher_no ?? "—"}</span>
+                    <Button size="sm" variant="ghost" className="h-7 rounded-sm px-2 text-[11.5px]"
+                      disabled={!r.voucher_no || busyId === r.id + "digital"}
+                      onClick={() => openVoucher(r.id, "digital")} title="Voucher PDF (with letterhead)">
+                      {busyId === r.id + "digital" ? <Loader2 className="size-3.5 animate-spin" /> : <FileText className="size-3.5" />}
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-7 rounded-sm px-2 text-[11.5px]"
+                      disabled={!r.voucher_no || busyId === r.id + "print"}
+                      onClick={() => openVoucher(r.id, "print")} title="Print on letterhead paper">
+                      {busyId === r.id + "print" ? <Loader2 className="size-3.5 animate-spin" /> : <Printer className="size-3.5" />}
+                    </Button>
+                  </div>
+                </td>
                 <td className="px-3 py-2">
                   {r.receipt_url ? (
                     <div className="flex items-center gap-1">
@@ -202,6 +265,36 @@ function ExpensesPage() {
                     </div>
                   ) : (
                     <span className="text-[11.5px] text-muted-foreground">—</span>
+                  )}
+                </td>
+                <td className="px-3 py-2">
+                  {r.signed_voucher_url ? (
+                    <div className="flex items-center gap-1">
+                      <span className="rounded-sm bg-emerald-50 px-1.5 py-0.5 text-[10.5px] font-semibold uppercase text-emerald-700">Signed</span>
+                      <Button size="sm" variant="ghost" className="h-7 rounded-sm px-2"
+                        onClick={() => openReceipt(r.signed_voucher_url as string)} title="View sealed copy">
+                        {isPdfPath(r.signed_voucher_url) ? <FileText className="size-3.5" /> : <Eye className="size-3.5" />}
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-7 rounded-sm px-2"
+                        onClick={() => downloadReceipt(r.signed_voucher_url as string)} title="Download">
+                        <Download className="size-3.5" />
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-7 rounded-sm px-2 text-rose-600 hover:bg-rose-50"
+                        disabled={busyId === r.id + "signed"} onClick={() => removeSigned(r.id)} title="Remove">
+                        <X className="size-3.5" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <label className="inline-flex cursor-pointer items-center gap-1 rounded-sm border border-dashed border-input px-2 py-1 text-[11.5px] text-muted-foreground hover:border-primary hover:text-primary">
+                      {busyId === r.id + "signed" ? <Loader2 className="size-3.5 animate-spin" /> : <Stamp className="size-3.5" />}
+                      <span>Upload sealed</span>
+                      <input type="file" accept={ACCEPT} className="hidden"
+                        onChange={(ev) => {
+                          const f = ev.target.files?.[0];
+                          ev.target.value = "";
+                          if (f) void uploadSigned(r.id, f);
+                        }} />
+                    </label>
                   )}
                 </td>
                 <td className="px-3 py-2 text-right">
