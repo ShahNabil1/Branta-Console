@@ -165,6 +165,12 @@ export interface ExpenseRow {
   signed_voucher_url: string | null;
   signed_voucher_at: string | null;
   signed_voucher_by: string | null;
+  txn_id?: string | null;
+  payment_method?: string | null;
+  department?: string | null;
+  requested_by?: string | null;
+  request_purpose?: string | null;
+  requested_by_name?: string | null;
 }
 
 
