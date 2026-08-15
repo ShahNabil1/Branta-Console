@@ -93,21 +93,17 @@ function ExpensesPage() {
     return () => { void supabase.removeChannel(ch); };
   }, [q]);
 
-  const [open, setOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({
-    category: "office" as ExpenseCategory,
-    amount: "",
-    currency: "BDT" as Currency,
-    spent_on: new Date().toISOString().slice(0, 10),
-    vendor: "",
-    notes: "",
+  const listEmp = useServerFn(listEmployeesForFinance);
+  const emps = useQuery({
+    queryKey: ["finance-employees"], queryFn: () => listEmp(), staleTime: 60_000,
+    enabled: !!isAdmin.data?.isAdmin,
   });
-  const [receiptFile, setReceiptFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [viewer, setViewer] = useState<{ url: string; name: string } | null>(null);
-  const [busyId, setBusyId] = useState<string | null>(null);
-  const [pdfViewer, setPdfViewer] = useState<{ url: string; name: string } | null>(null);
+  const employeeItems: SearchableItem[] = (emps.data ?? []).map((e) => ({
+    value: e.user_id,
+    label: e.full_name ?? e.user_id.slice(0, 8),
+    hint: e.employee_code ?? undefined,
+    keywords: [e.full_name, e.employee_code, e.job_role],
+  }));
 
   const emptyForm = {
     category: "office" as ExpenseCategory,
@@ -116,7 +112,22 @@ function ExpensesPage() {
     spent_on: new Date().toISOString().slice(0, 10),
     vendor: "",
     notes: "",
+    txn_id: "",
+    payment_method: "",
+    department: "",
+    requested_by: "",
+    request_purpose: "",
   };
+
+  const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState(emptyForm);
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [viewer, setViewer] = useState<{ url: string; name: string } | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [pdfViewer, setPdfViewer] = useState<{ url: string; name: string } | null>(null);
+
   const startCreate = () => {
     setEditingId(null);
     setForm(emptyForm);
@@ -126,6 +137,8 @@ function ExpensesPage() {
   const startEdit = (r: {
     id: string; category: ExpenseCategory; amount: number; currency: Currency;
     spent_on: string; vendor: string | null; notes: string | null;
+    txn_id?: string | null; payment_method?: string | null; department?: string | null;
+    requested_by?: string | null; request_purpose?: string | null;
   }) => {
     setEditingId(r.id);
     setForm({
@@ -135,10 +148,16 @@ function ExpensesPage() {
       spent_on: r.spent_on,
       vendor: r.vendor ?? "",
       notes: r.notes ?? "",
+      txn_id: r.txn_id ?? "",
+      payment_method: r.payment_method ?? "",
+      department: r.department ?? "",
+      requested_by: r.requested_by ?? "",
+      request_purpose: r.request_purpose ?? "",
     });
     setReceiptFile(null);
     setOpen(true);
   };
+
 
   const viewVoucher = async (id: string, voucherNo: string | null) => {
     try {
