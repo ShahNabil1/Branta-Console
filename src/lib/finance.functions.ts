@@ -1328,6 +1328,33 @@ export const createExpense = createServerFn({ method: "POST" })
     return row as unknown as ExpenseRow;
   });
 
+export const updateExpense = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => ExpenseIn.extend({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await ensureFinanceAdmin(context.supabase as never, context.userId);
+    const { id, ...patch } = data;
+    const { data: row, error } = await context.supabase
+      .from("expenses")
+      .update(patch as never)
+      .eq("id", id)
+      .select("*")
+      .single();
+    if (error) throw new Error(error.message);
+    const expense = row as unknown as ExpenseRow;
+    if (expense.linked_invoice_id) {
+      await logInvoiceActivity(
+        context.supabase,
+        expense.linked_invoice_id,
+        context.userId,
+        "note",
+        `Expense updated — ${expense.category} ${fmtMoney(expense.amount, expense.currency)}`,
+        { event: "expense_updated", expense_id: expense.id, related_table: "expenses", related_id: expense.id },
+      );
+    }
+    return expense;
+  });
+
 export const deleteExpense = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { id: string }) => z.object({ id: z.string().uuid() }).parse(d))
