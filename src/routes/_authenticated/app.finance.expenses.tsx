@@ -168,9 +168,18 @@ function ExpensesPage() {
     finally { setBusyId(null); }
   };
 
-  const downloadVoucher = async (id: string, voucherNo: string | null) => {
+  // Prefers the uploaded sealed/signed copy when one exists; otherwise the generated voucher.
+  const downloadVoucher = async (id: string, voucherNo: string | null, signedPath?: string | null) => {
     try {
       setBusyId(id + "dl");
+      if (signedPath) {
+        const name = `Voucher-${voucherNo ?? id}-sealed.${signedPath.split(".").pop() ?? "pdf"}`;
+        const su = await signedDownloadUrl(signedPath, name);
+        const link = document.createElement("a");
+        link.href = su; link.download = name; link.rel = "noopener";
+        document.body.appendChild(link); link.click(); link.remove();
+        return;
+      }
       const { url } = await voucherUrlFn({ data: { id, mode: "digital" } });
       const res = await fetch(url);
       if (!res.ok) throw new Error("Could not generate voucher PDF");
@@ -183,6 +192,7 @@ function ExpensesPage() {
     } catch (e) { toast.error((e as Error).message); }
     finally { setBusyId(null); }
   };
+
 
   const openVoucher = async (id: string, mode: "digital" | "print") => {
     try {
