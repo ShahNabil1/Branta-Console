@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import {
   listExpenses,
   createExpense,
+  updateExpense,
   deleteExpense,
   isFinanceAdminCheck,
   getSignedExpenseVoucherUrl,
@@ -17,7 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useConfirm } from "@/components/ui/confirm-dialog";
-import { Loader2, Plus, Trash2, Receipt, Upload, Eye, Download, X, FileText, Printer, Stamp } from "lucide-react";
+import { Loader2, Plus, Trash2, Receipt, Upload, Eye, Download, X, FileText, Printer, Stamp, Pencil } from "lucide-react";
 
 const RECEIPT_BUCKET = "expense-receipts";
 const MAX_RECEIPT_MB = 15;
@@ -69,6 +70,7 @@ function fmt(n: number, cur: string) {
 function ExpensesPage() {
   const listFn = useServerFn(listExpenses);
   const create = useServerFn(createExpense);
+  const update = useServerFn(updateExpense);
   const del = useServerFn(deleteExpense);
   const check = useServerFn(isFinanceAdminCheck);
   const voucherUrlFn = useServerFn(getSignedExpenseVoucherUrl);
@@ -87,6 +89,7 @@ function ExpensesPage() {
   }, [q]);
 
   const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({
     category: "office" as ExpenseCategory,
     amount: "",
@@ -99,6 +102,63 @@ function ExpensesPage() {
   const [uploading, setUploading] = useState(false);
   const [viewer, setViewer] = useState<{ url: string; name: string } | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [pdfViewer, setPdfViewer] = useState<{ url: string; name: string } | null>(null);
+
+  const emptyForm = {
+    category: "office" as ExpenseCategory,
+    amount: "",
+    currency: "BDT" as Currency,
+    spent_on: new Date().toISOString().slice(0, 10),
+    vendor: "",
+    notes: "",
+  };
+  const startCreate = () => {
+    setEditingId(null);
+    setForm(emptyForm);
+    setReceiptFile(null);
+    setOpen(true);
+  };
+  const startEdit = (r: {
+    id: string; category: ExpenseCategory; amount: number; currency: Currency;
+    spent_on: string; vendor: string | null; notes: string | null;
+  }) => {
+    setEditingId(r.id);
+    setForm({
+      category: r.category,
+      amount: String(r.amount),
+      currency: r.currency,
+      spent_on: r.spent_on,
+      vendor: r.vendor ?? "",
+      notes: r.notes ?? "",
+    });
+    setReceiptFile(null);
+    setOpen(true);
+  };
+
+  const viewVoucher = async (id: string, voucherNo: string | null) => {
+    try {
+      setBusyId(id + "view");
+      const { url } = await voucherUrlFn({ data: { id, mode: "digital" } });
+      setPdfViewer({ url, name: `Voucher-${voucherNo ?? id}.pdf` });
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBusyId(null); }
+  };
+
+  const downloadVoucher = async (id: string, voucherNo: string | null) => {
+    try {
+      setBusyId(id + "dl");
+      const { url } = await voucherUrlFn({ data: { id, mode: "digital" } });
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Could not generate voucher PDF");
+      const blob = await res.blob();
+      const objUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objUrl; a.download = `Voucher-${voucherNo ?? id}.pdf`; a.rel = "noopener";
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(objUrl), 4000);
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBusyId(null); }
+  };
 
   const openVoucher = async (id: string, mode: "digital" | "print") => {
     try {
@@ -166,21 +226,26 @@ function ExpensesPage() {
           setUploading(false);
         }
       }
-      await create({ data: {
+      const payload = {
         category: form.category,
         amount: Number(form.amount),
         currency: form.currency,
         spent_on: form.spent_on,
         vendor: form.vendor || null,
         notes: form.notes || null,
-        receipt_url,
-      }});
+      };
+      if (editingId) {
+        await update({ data: { id: editingId, ...payload, ...(receipt_url ? { receipt_url } : {}) } });
+      } else {
+        await create({ data: { ...payload, receipt_url } });
+      }
     },
     onSuccess: () => {
-      toast.success("Expense added");
+      toast.success(editingId ? "Expense updated" : "Expense added");
       setOpen(false);
+      setEditingId(null);
       setReceiptFile(null);
-      setForm({ ...form, amount: "", vendor: "", notes: "" });
+      setForm(emptyForm);
       void q.refetch();
     },
     onError: (e) => { setUploading(false); toast.error((e as Error).message); },
@@ -204,7 +269,7 @@ function ExpensesPage() {
           <h1 className="text-[20px] font-semibold text-foreground">Expenses</h1>
           <p className="text-[12.5px] text-muted-foreground">Track company outflow — reflected in the dashboard.</p>
         </div>
-        <Button onClick={() => setOpen(true)} className="h-9 rounded-sm bg-primary hover:bg-brand-700">
+        <Button onClick={startCreate} className="h-9 rounded-sm bg-primary hover:bg-brand-700">
           <Plus className="mr-1.5 size-3.5" /> Add expense
         </Button>
       </div>
@@ -238,9 +303,14 @@ function ExpensesPage() {
                   <div className="flex items-center gap-1">
                     <span className="font-mono text-[11.5px] text-muted-foreground">{r.voucher_no ?? "—"}</span>
                     <Button size="sm" variant="ghost" className="h-7 rounded-sm px-2 text-[11.5px]"
-                      disabled={!r.voucher_no || busyId === r.id + "digital"}
-                      onClick={() => openVoucher(r.id, "digital")} title="Voucher PDF (with letterhead)">
-                      {busyId === r.id + "digital" ? <Loader2 className="size-3.5 animate-spin" /> : <FileText className="size-3.5" />}
+                      disabled={!r.voucher_no || busyId === r.id + "view"}
+                      onClick={() => viewVoucher(r.id, r.voucher_no)} title="View voucher invoice">
+                      {busyId === r.id + "view" ? <Loader2 className="size-3.5 animate-spin" /> : <Eye className="size-3.5" />}
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-7 rounded-sm px-2 text-[11.5px]"
+                      disabled={!r.voucher_no || busyId === r.id + "dl"}
+                      onClick={() => downloadVoucher(r.id, r.voucher_no)} title="Download voucher PDF">
+                      {busyId === r.id + "dl" ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />}
                     </Button>
                     <Button size="sm" variant="ghost" className="h-7 rounded-sm px-2 text-[11.5px]"
                       disabled={!r.voucher_no || busyId === r.id + "print"}
@@ -298,6 +368,10 @@ function ExpensesPage() {
                   )}
                 </td>
                 <td className="px-3 py-2 text-right">
+                  <Button size="sm" variant="ghost" onClick={() => startEdit(r)}
+                    className="h-7 rounded-sm" title="Edit expense">
+                    <Pencil className="size-3.5" />
+                  </Button>
                   <Button size="sm" variant="ghost" onClick={async () => {
                     const ok = await confirm({ title: "Delete expense", description: "This cannot be undone.", tone: "danger" });
                     if (!ok) return;
@@ -317,7 +391,7 @@ function ExpensesPage() {
       {open && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 p-4">
           <div className="w-full max-w-md rounded-md border border-border bg-card p-5 shadow-lg">
-            <h3 className="text-[14px] font-semibold">Add expense</h3>
+            <h3 className="text-[14px] font-semibold">{editingId ? "Edit expense" : "Add expense"}</h3>
             <div className="mt-4 space-y-3">
               <div className="grid grid-cols-2 gap-2">
                 <div>
@@ -360,7 +434,7 @@ function ExpensesPage() {
               </div>
               <div>
                 <label className="text-[11px] font-semibold uppercase text-muted-foreground">
-                  Receipt <span className="text-muted-foreground/70 normal-case font-normal">(optional — image or PDF, ≤ {MAX_RECEIPT_MB} MB)</span>
+                  {editingId ? "Replace receipt" : "Receipt"} <span className="text-muted-foreground/70 normal-case font-normal">(optional — image or PDF, ≤ {MAX_RECEIPT_MB} MB)</span>
                 </label>
                 {!receiptFile ? (
                   <label className="mt-1 flex h-20 cursor-pointer items-center justify-center gap-2 rounded-sm border border-dashed border-input bg-background text-[12px] text-muted-foreground hover:border-primary hover:text-primary">
@@ -392,11 +466,11 @@ function ExpensesPage() {
               </div>
             </div>
             <div className="mt-4 flex justify-end gap-2">
-              <Button variant="ghost" onClick={() => setOpen(false)} className="h-9 rounded-sm" disabled={add.isPending}>Cancel</Button>
+              <Button variant="ghost" onClick={() => { setOpen(false); setEditingId(null); }} className="h-9 rounded-sm" disabled={add.isPending}>Cancel</Button>
               <Button onClick={() => add.mutate()} disabled={add.isPending || !form.amount}
                 className="h-9 rounded-sm bg-primary hover:bg-brand-700">
                 {(add.isPending || uploading) && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
-                {uploading ? "Uploading…" : "Save"}
+                {uploading ? "Uploading…" : editingId ? "Save changes" : "Save"}
               </Button>
             </div>
           </div>
@@ -424,6 +498,29 @@ function ExpensesPage() {
             <div className="max-h-[80vh] overflow-auto rounded-b-md border-x border-b border-border bg-black">
               <img src={viewer.url} alt={viewer.name} className="mx-auto block max-h-[80vh] object-contain" />
             </div>
+          </div>
+        </div>
+      )}
+      {pdfViewer && (
+        <div className="fixed inset-0 z-[60] grid place-items-center bg-black/80 p-4" onClick={() => setPdfViewer(null)}>
+          <div className="relative flex h-[92vh] w-full max-w-4xl flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between rounded-t-md border border-border bg-card px-3 py-2">
+              <div className="flex min-w-0 items-center gap-2 text-[12.5px]">
+                <FileText className="size-3.5 shrink-0" />
+                <span className="truncate">{pdfViewer.name}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Button size="sm" variant="ghost" className="h-7 rounded-sm px-2 text-[11.5px]"
+                  onClick={() => window.open(pdfViewer.url, "_blank", "noopener,noreferrer")}>
+                  Open in new tab
+                </Button>
+                <Button size="sm" variant="ghost" className="h-7 rounded-sm px-2" onClick={() => setPdfViewer(null)}>
+                  <X className="size-3.5" />
+                </Button>
+              </div>
+            </div>
+            <iframe title={pdfViewer.name} src={pdfViewer.url}
+              className="flex-1 rounded-b-md border-x border-b border-border bg-white" />
           </div>
         </div>
       )}
