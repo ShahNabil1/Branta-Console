@@ -319,9 +319,12 @@ function ExpensesPage() {
             <tr>
               <th className="px-3 py-2">Date</th>
               <th className="px-3 py-2">Category</th>
+              <th className="px-3 py-2">Department</th>
+              <th className="px-3 py-2">Requested by</th>
               <th className="px-3 py-2">Vendor</th>
+              <th className="px-3 py-2">Method / TrxID</th>
               <th className="px-3 py-2 text-right">Amount</th>
-              <th className="px-3 py-2">Notes</th>
+              <th className="px-3 py-2">Purpose / Notes</th>
               <th className="px-3 py-2">Voucher</th>
               <th className="px-3 py-2">Receipt</th>
               <th className="px-3 py-2">Signed copy</th>
@@ -330,14 +333,22 @@ function ExpensesPage() {
           </thead>
           <tbody>
             {(q.data ?? []).length === 0 ? (
-              <tr><td colSpan={9} className="px-3 py-10 text-center text-muted-foreground">No expenses yet.</td></tr>
+              <tr><td colSpan={12} className="px-3 py-10 text-center text-muted-foreground">No expenses yet.</td></tr>
             ) : q.data?.map((r) => (
               <tr key={r.id} className="border-t border-border">
                 <td className="px-3 py-2 text-muted-foreground">{r.spent_on}</td>
                 <td className="px-3 py-2 capitalize">{r.category}</td>
+                <td className="px-3 py-2">{r.department ?? "—"}</td>
+                <td className="px-3 py-2">{r.requested_by_name ?? "—"}</td>
                 <td className="px-3 py-2">{r.vendor ?? "—"}</td>
+                <td className="px-3 py-2">
+                  <div className="leading-tight">
+                    <div>{r.payment_method ?? "—"}</div>
+                    {r.txn_id && <div className="font-mono text-[11px] text-muted-foreground">{r.txn_id}</div>}
+                  </div>
+                </td>
                 <td className="px-3 py-2 text-right font-mono">{fmt(r.amount, r.currency)}</td>
-                <td className="px-3 py-2 text-muted-foreground truncate max-w-xs">{r.notes ?? ""}</td>
+                <td className="px-3 py-2 text-muted-foreground truncate max-w-xs">{r.request_purpose || r.notes || ""}</td>
                 <td className="px-3 py-2">
                   <div className="flex items-center gap-1">
                     <span className="font-mono text-[11.5px] text-muted-foreground">{r.voucher_no ?? "—"}</span>
@@ -348,9 +359,11 @@ function ExpensesPage() {
                     </Button>
                     <Button size="sm" variant="ghost" className="h-7 rounded-sm px-2 text-[11.5px]"
                       disabled={!r.voucher_no || busyId === r.id + "dl"}
-                      onClick={() => downloadVoucher(r.id, r.voucher_no)} title="Download voucher PDF">
+                      onClick={() => downloadVoucher(r.id, r.voucher_no, r.signed_voucher_url)}
+                      title={r.signed_voucher_url ? "Download sealed (signed) copy" : "Download voucher PDF"}>
                       {busyId === r.id + "dl" ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />}
                     </Button>
+
                     <Button size="sm" variant="ghost" className="h-7 rounded-sm px-2 text-[11.5px]"
                       disabled={!r.voucher_no || busyId === r.id + "print"}
                       onClick={() => openVoucher(r.id, "print")} title="Print on letterhead paper">
