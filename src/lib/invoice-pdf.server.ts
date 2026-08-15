@@ -740,11 +740,16 @@ export async function renderExpenseVoucherPdf(
   const rows: Array<[string, string]> = [
     ["Date of Expense", fmtDate(e.spent_on)],
     ["Category", e.category.charAt(0).toUpperCase() + e.category.slice(1)],
+    ["Department", e.department || "—"],
+    ["Requested By", data.requestedByName || "—"],
     ["Paid To / Vendor", e.vendor || "—"],
     ["Paid By", data.paidToName || "—"],
+    ["Payment Method", e.payment_method || "—"],
+    ["Transaction ID (TrxID)", e.txn_id || e.payment_ref || "—"],
     ["Linked Invoice", data.linkedInvoiceSlug || "—"],
     ["Recorded On", fmtDate(e.created_at)],
   ];
+
   const colW = CONTENT_W / 2;
   const rowH = 26;
   const gridH = Math.ceil(rows.length / 2) * rowH;
