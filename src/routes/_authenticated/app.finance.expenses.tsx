@@ -11,14 +11,19 @@ import {
   isFinanceAdminCheck,
   getSignedExpenseVoucherUrl,
   setExpenseSignedVoucher,
+  listEmployeesForFinance,
   type ExpenseCategory,
   type Currency,
 } from "@/lib/finance.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SearchableSelect, type SearchableItem } from "@/components/finance/searchable-select";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Loader2, Plus, Trash2, Receipt, Upload, Eye, Download, X, FileText, Printer, Stamp, Pencil } from "lucide-react";
+
+const DEPARTMENTS = ["Management", "Finance", "Sales & Outreach", "Marketing", "Production", "Development", "HR & Admin", "Operations", "Other"];
+const PAYMENT_METHODS = ["Cash", "bKash", "Nagad", "Rocket", "Bank Transfer", "Card", "Cheque", "Other"];
 
 const RECEIPT_BUCKET = "expense-receipts";
 const MAX_RECEIPT_MB = 15;
