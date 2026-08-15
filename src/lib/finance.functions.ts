@@ -1354,6 +1354,45 @@ export const deleteExpense = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
+// -------- Expense vouchers --------
+export const getSignedExpenseVoucherUrl = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string; mode?: "digital" | "print" }) =>
+    z.object({ id: z.string().uuid(), mode: z.enum(["digital", "print"]).optional() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await ensureFinanceAdmin(context.supabase as never, context.userId);
+    const { data: row } = await context.supabase
+      .from("expenses").select("voucher_no").eq("id", data.id).maybeSingle();
+    const voucherNo = (row as { voucher_no: string | null } | null)?.voucher_no;
+    if (!voucherNo) throw new Error("Voucher number not assigned yet");
+    const { getRequestOrigin } = await import("@/lib/invoice-request-origin.server");
+    const { buildSignedExpenseVoucherUrl } = await import("@/lib/invoice-pdf-signing.server");
+    let origin = await getRequestOrigin();
+    if (!origin) origin = process.env.PUBLIC_BASE_URL || "https://console.brantatech.com";
+    const base = buildSignedExpenseVoucherUrl(origin, voucherNo);
+    return { url: data.mode === "print" ? `${base}&mode=print` : base, voucher_no: voucherNo };
+  });
+
+export const setExpenseSignedVoucher = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string; path: string | null }) =>
+    z.object({ id: z.string().uuid(), path: z.string().max(600).nullable() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await ensureFinanceAdmin(context.supabase as never, context.userId);
+    const { error } = await context.supabase
+      .from("expenses")
+      .update({
+        signed_voucher_url: data.path,
+        signed_voucher_at: data.path ? new Date().toISOString() : null,
+        signed_voucher_by: data.path ? context.userId : null,
+      } as never)
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
 // ==================== Reports ====================
 export const getFinanceReport = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
