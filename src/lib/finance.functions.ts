@@ -161,7 +161,12 @@ export interface ExpenseRow {
   created_at: string;
   updated_at: string;
   paid_by_name?: string | null;
+  voucher_no: string | null;
+  signed_voucher_url: string | null;
+  signed_voucher_at: string | null;
+  signed_voucher_by: string | null;
 }
+
 
 export interface InvoiceActivityLogRow {
   id: string;
