@@ -45,7 +45,7 @@ export async function loadExpenseVoucherPayload(adminClient: any, voucherNo: str
     .from("expenses").select("*").eq("voucher_no", voucherNo).maybeSingle();
   if (error) throw new Error(error.message);
   if (!exp) return null;
-  const uids = [exp.created_by, exp.paid_by].filter(Boolean) as string[];
+  const uids = [exp.created_by, exp.paid_by, exp.requested_by].filter(Boolean) as string[];
   const [{ data: profs }, { data: settings }, inv] = await Promise.all([
     uids.length
       ? adminClient.from("profiles").select("user_id, full_name").in("user_id", uids)
@@ -61,6 +61,7 @@ export async function loadExpenseVoucherPayload(adminClient: any, voucherNo: str
     expense: exp,
     preparedByName: nameOf(exp.created_by),
     paidToName: nameOf(exp.paid_by),
+    requestedByName: nameOf(exp.requested_by ?? null),
     linkedInvoiceSlug: inv?.data?.slug ?? null,
     settings: settings ?? null,
   };
