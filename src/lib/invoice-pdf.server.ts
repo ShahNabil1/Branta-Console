@@ -599,10 +599,15 @@ export interface ExpenseVoucherData {
     notes: string | null;
     created_at: string;
     payment_ref?: string | null;
+    txn_id?: string | null;
+    payment_method?: string | null;
+    department?: string | null;
+    request_purpose?: string | null;
   };
   linkedInvoiceSlug?: string | null;
   preparedByName?: string | null;
   paidToName?: string | null;
+  requestedByName?: string | null;
   settings: PdfSettings;
 }
 
