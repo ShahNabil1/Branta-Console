@@ -18,6 +18,7 @@ import { ArrowLeft, Loader2, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SearchableSelect, type SearchableItem } from "@/components/finance/searchable-select";
 import { QuickCustomerDialog } from "@/components/finance/quick-customer-dialog";
+import { ProjectCostEditor, sumProjectCosts, type ProjectCost } from "@/components/finance/project-cost-editor";
 
 type Installment = { label: string; amount: number; due_date: string };
 type Stakeholder = { user_id: string; role: StakeholderRole; percent: number };
@@ -49,6 +50,7 @@ function NewInvoicePage() {
   const [installments, setInstallments] = useState<Installment[]>([
     { label: "Advance", amount: 0, due_date: new Date().toISOString().slice(0, 10) },
   ]);
+  const [projectCosts, setProjectCosts] = useState<ProjectCost[]>([]);
   const [stakeholders, setStakeholders] = useState<Stakeholder[]>([
     { user_id: "", role: "company", percent: 100 },
   ]);
@@ -76,6 +78,8 @@ function NewInvoicePage() {
 
   const totalNum = Number(total) || 0;
   const instSum = useMemo(() => installments.reduce((a, i) => a + Number(i.amount || 0), 0), [installments]);
+  const costSum = useMemo(() => sumProjectCosts(projectCosts), [projectCosts]);
+  const netAmount = Math.max(totalNum - costSum, 0);
   const pctSum = useMemo(() => stakeholders.reduce((a, s) => a + Number(s.percent || 0), 0), [stakeholders]);
 
   const submit = useMutation({
@@ -92,6 +96,9 @@ function NewInvoicePage() {
         notes: notes.trim() || null,
         installments: installments.map((i) => ({ label: i.label.trim(), amount: Number(i.amount), due_date: i.due_date })),
         stakeholders: stakeholders.map((s) => ({ user_id: s.user_id, role: s.role, percent: Number(s.percent) })),
+        project_costs: projectCosts
+          .filter((c) => c.name.trim() || Number(c.amount) > 0)
+          .map((c) => ({ name: c.name.trim(), amount: Number(c.amount) || 0, description: c.description.trim() || null })),
       }});
     },
     onSuccess: (inv) => {
@@ -111,11 +118,13 @@ function NewInvoicePage() {
     if (installments.some((i) => !i.label.trim())) out.push("Every installment needs a label");
     if (installments.some((i) => !i.due_date)) out.push("Every installment needs a due date");
     if (installments.some((i) => !(Number(i.amount) > 0))) out.push("Every installment amount must be greater than 0");
+    if (projectCosts.some((c) => !c.name.trim())) out.push("Every project cost needs a name");
+    if (costSum > totalNum + 0.01) out.push("Total project cost cannot exceed the invoice total");
     if (Math.abs(pctSum - 100) >= 0.01) out.push(`Stakeholder split must total 100% (currently ${pctSum.toFixed(2)}%)`);
     if (stakeholders.some((s) => !s.user_id)) out.push("Every stakeholder row needs an employee selected");
     if (stakeholders.some((s) => !(Number(s.percent) > 0))) out.push("Every stakeholder percent must be greater than 0");
     return out;
-  }, [customerId, title, totalNum, instSum, installments, pctSum, stakeholders]);
+  }, [customerId, title, totalNum, instSum, installments, pctSum, stakeholders, projectCosts, costSum]);
 
   const canSubmit = issues.length === 0;
 
@@ -249,6 +258,10 @@ function NewInvoicePage() {
       </section>
 
       <section className="rounded-md border border-border bg-card p-5">
+        <ProjectCostEditor costs={projectCosts} onChange={setProjectCosts} total={totalNum} currency={currency} />
+      </section>
+
+      <section className="rounded-md border border-border bg-card p-5">
         <div className="mb-2 flex items-center justify-between">
           <h3 className="text-[13px] font-semibold">Stakeholders (revenue split)</h3>
           <div className="text-[11.5px] text-muted-foreground">
@@ -258,6 +271,7 @@ function NewInvoicePage() {
           </div>
         </div>
         <p className="mb-2 text-[11px] text-muted-foreground">
+          Percentages apply to the net distributable amount ({currency} {netAmount.toFixed(2)}), not the invoice total.<br />
           Roles: <b>outreach</b> = brought the lead · <b>lead_closer</b> = confirmed the deal · <b>worker</b> = does the work · <b>company</b> = Branta cut. Must sum to 100.
         </p>
         <div className="space-y-2">
