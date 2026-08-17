@@ -56,6 +56,8 @@ const ROLE_COLORS: Record<string, string> = {
   company: "bg-amber-50 text-amber-700 border-amber-200",
 };
 
+import { ProjectCostEditor, sumProjectCosts, type ProjectCost } from "@/components/finance/project-cost-editor";
+
 type EditInstallment = { label: string; amount: number; due_date: string };
 type EditStakeholder = { user_id: string; role: StakeholderRole; percent: number };
 type UpdateInvoicePayload = {
@@ -72,6 +74,7 @@ type UpdateInvoicePayload = {
   internal_notes: string | null;
   installments: EditInstallment[];
   stakeholders: EditStakeholder[];
+  project_costs: Array<{ name: string; amount: number; description: string | null }>;
 };
 
 function InvoiceDetail() {
@@ -204,6 +207,9 @@ function InvoiceDetail() {
   }
   if (!q.data) return null;
   const { invoice, installments, stakeholders, payouts } = q.data;
+  const projectCosts = q.data.projectCosts ?? [];
+  const costTotal = projectCosts.reduce((a, c) => a + Number(c.amount || 0), 0);
+  const netDistributable = Math.max(Number(invoice.total_amount) - costTotal, 0);
   const outstanding = Math.max(0, Number(invoice.total_amount) - Number(invoice.paid_amount));
 
   return (
@@ -342,9 +348,41 @@ function InvoiceDetail() {
           </table>
         </div>
 
+        <div className="space-y-4">
+        <div className="rounded-md border border-border bg-card">
+          <div className="border-b border-border px-4 py-2.5">
+            <h2 className="text-[13px] font-semibold">Project cost</h2>
+          </div>
+          <div className="space-y-1.5 px-4 py-3 text-[12.5px]">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Invoice total</span>
+              <span className="font-mono">{invoice.currency} {Number(invoice.total_amount).toFixed(2)}</span>
+            </div>
+            {projectCosts.map((c) => (
+              <div key={c.id} className="flex items-start justify-between gap-3">
+                <span className="min-w-0">
+                  <span className="truncate">{c.name}</span>
+                  {c.description && <span className="block text-[11px] text-muted-foreground">{c.description}</span>}
+                </span>
+                <span className="font-mono text-muted-foreground">− {Number(c.amount).toFixed(2)}</span>
+              </div>
+            ))}
+            {!projectCosts.length && <div className="text-[11.5px] text-muted-foreground">No project costs recorded.</div>}
+            <div className="flex items-center justify-between border-t border-border pt-1.5">
+              <span className="text-muted-foreground">Total project cost</span>
+              <span className="font-mono">− {invoice.currency} {costTotal.toFixed(2)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="font-semibold">Net distributable</span>
+              <span className="font-mono font-semibold">{invoice.currency} {netDistributable.toFixed(2)}</span>
+            </div>
+          </div>
+        </div>
+
         <div className="rounded-md border border-border bg-card">
           <div className="border-b border-border px-4 py-2.5">
             <h2 className="text-[13px] font-semibold">Stakeholders</h2>
+            <p className="text-[11px] text-muted-foreground">Percent of net distributable</p>
           </div>
           <div className="divide-y divide-border">
             {stakeholders.map((s) => (
@@ -355,10 +393,16 @@ function InvoiceDetail() {
                     {s.role.replace("_"," ")}
                   </span>
                 </div>
-                <div className="text-right font-mono text-[12.5px] font-semibold">{s.percent}%</div>
+                <div className="text-right">
+                  <div className="font-mono text-[12.5px] font-semibold">{s.percent}%</div>
+                  <div className="font-mono text-[11px] text-muted-foreground">
+                    {invoice.currency} {((netDistributable * Number(s.percent)) / 100).toFixed(2)}
+                  </div>
+                </div>
               </div>
             ))}
           </div>
+        </div>
         </div>
       </div>
 
@@ -425,6 +469,7 @@ function InvoiceDetail() {
           invoice={invoice}
           installments={installments}
           stakeholders={stakeholders}
+          projectCosts={q.data.projectCosts ?? []}
           customers={customers.data ?? []}
           employees={employees.data ?? []}
           saving={updateMutation.isPending}
@@ -569,6 +614,7 @@ function EditInvoiceDialog({
   invoice,
   installments,
   stakeholders,
+  projectCosts,
   customers,
   employees,
   saving,
@@ -578,6 +624,7 @@ function EditInvoiceDialog({
   invoice: InvoiceRow;
   installments: InstallmentRow[];
   stakeholders: StakeholderRow[];
+  projectCosts: Array<{ name: string; amount: number; description: string | null }>;
   customers: Array<{ id: string; customer_code: string; name: string; company: string | null; email: string | null; phone: string | null }>;
   employees: Array<{ user_id: string; full_name: string | null; employee_code: string | null; job_role: string | null; email?: string | null }>;
   saving: boolean;
@@ -601,6 +648,10 @@ function EditInvoiceDialog({
     stakeholders.map((s) => ({ user_id: s.user_id, role: s.role, percent: Number(s.percent) })),
   );
 
+  const [editCosts, setEditCosts] = useState<ProjectCost[]>(
+    projectCosts.map((c) => ({ name: c.name, amount: Number(c.amount), description: c.description ?? "" })),
+  );
+
   const customerItems: SearchableItem[] = customers.map((c) => ({
     value: c.id,
     label: `${c.customer_code} · ${c.name}`,
@@ -616,11 +667,13 @@ function EditInvoiceDialog({
   const totalNum = Number(total) || 0;
   const instSum = editInstallments.reduce((a, i) => a + Number(i.amount || 0), 0);
   const pctSum = editStakeholders.reduce((a, s) => a + Number(s.percent || 0), 0);
+  const costSum = sumProjectCosts(editCosts);
   const canSave =
     !!customerId && !!title.trim() && totalNum > 0 &&
     Math.abs(instSum - totalNum) < 0.01 && Math.abs(pctSum - 100) < 0.01 &&
     editInstallments.every((i) => i.label.trim() && i.due_date && Number(i.amount) > 0) &&
-    editStakeholders.every((s) => s.user_id && Number(s.percent) > 0);
+    editStakeholders.every((s) => s.user_id && Number(s.percent) > 0) &&
+    editCosts.every((c) => c.name.trim()) && costSum <= totalNum + 0.01;
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 p-4">
@@ -644,6 +697,9 @@ function EditInvoiceDialog({
                 internal_notes: internalNotes.trim() || null,
                 installments: editInstallments.map((i) => ({ label: i.label.trim(), amount: Number(i.amount), due_date: i.due_date })),
                 stakeholders: editStakeholders.map((s) => ({ user_id: s.user_id, role: s.role, percent: Number(s.percent) })),
+                project_costs: editCosts
+                  .filter((c) => c.name.trim() || Number(c.amount) > 0)
+                  .map((c) => ({ name: c.name.trim(), amount: Number(c.amount) || 0, description: c.description.trim() || null })),
               })}
               disabled={!canSave || saving}
               className="h-8 rounded-sm bg-primary text-[12px] text-primary-foreground hover:bg-brand-700"
@@ -702,6 +758,10 @@ function EditInvoiceDialog({
               ))}
             </div>
             <Button variant="outline" size="sm" onClick={() => setEditInstallments([...editInstallments, { label: "", amount: 0, due_date: new Date().toISOString().slice(0, 10) }])} className="mt-2 h-7 rounded-sm text-[11px]"><Plus className="mr-1 size-3" /> Add installment</Button>
+          </section>
+
+          <section className="rounded-sm border border-border p-3">
+            <ProjectCostEditor costs={editCosts} onChange={setEditCosts} total={totalNum} currency={currency} compact />
           </section>
 
           <section className="rounded-sm border border-border p-3">

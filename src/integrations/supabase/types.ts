@@ -853,6 +853,47 @@ export type Database = {
         }
         Relationships: []
       }
+      invoice_project_costs: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string | null
+          id: string
+          invoice_id: string
+          name: string
+          sequence: number
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          invoice_id: string
+          name: string
+          sequence?: number
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          invoice_id?: string
+          name?: string
+          sequence?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_project_costs_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_reminder_log: {
         Row: {
           day_bucket: string
@@ -946,6 +987,7 @@ export type Database = {
           internal_notes: string | null
           notes: string | null
           paid_amount: number
+          project_cost_total: number
           project_type: string
           slug: string | null
           starts_on: string | null
@@ -969,6 +1011,7 @@ export type Database = {
           internal_notes?: string | null
           notes?: string | null
           paid_amount?: number
+          project_cost_total?: number
           project_type?: string
           slug?: string | null
           starts_on?: string | null
@@ -992,6 +1035,7 @@ export type Database = {
           internal_notes?: string | null
           notes?: string | null
           paid_amount?: number
+          project_cost_total?: number
           project_type?: string
           slug?: string | null
           starts_on?: string | null

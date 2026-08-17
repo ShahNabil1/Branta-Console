@@ -52,6 +52,7 @@ export interface InvoiceRow {
   ends_on: string | null;
   currency: Currency;
   total_amount: number;
+  project_cost_total: number;
   paid_amount: number;
   status: InvoiceStatus;
   notes: string | null;
@@ -61,6 +62,17 @@ export interface InvoiceRow {
   updated_at: string;
   customer_name?: string | null;
   customer_code?: string | null;
+}
+
+export interface ProjectCostRow {
+  id: string;
+  invoice_id: string;
+  sequence: number;
+  name: string;
+  amount: number;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface InstallmentRow {
@@ -211,6 +223,11 @@ const StakeholderIn = z.object({
   percent: z.number().min(0).max(100),
   note: z.string().trim().max(200).nullable().optional(),
 });
+const ProjectCostIn = z.object({
+  name: z.string().trim().min(1).max(80),
+  amount: z.number().nonnegative(),
+  description: z.string().trim().max(500).nullable().optional(),
+});
 const CreateInvoiceIn = z.object({
   customer_id: z.string().uuid(),
   title: z.string().trim().min(1).max(200),
@@ -224,10 +241,15 @@ const CreateInvoiceIn = z.object({
   internal_notes: z.string().trim().max(4000).nullable().optional(),
   installments: z.array(InstallmentIn).min(1).max(24),
   stakeholders: z.array(StakeholderIn).min(1).max(20),
+  project_costs: z.array(ProjectCostIn).max(30).optional().default([]),
 });
 const UpdateInvoiceIn = CreateInvoiceIn.extend({
   id: z.string().uuid(),
 });
+
+function sumCosts(costs: Array<{ amount: number }> | undefined): number {
+  return Number(((costs ?? []).reduce((a, c) => a + Number(c.amount || 0), 0)).toFixed(2));
+}
 
 async function ensureFinanceAdmin(supabase: {
   rpc: (name: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
@@ -364,6 +386,8 @@ export const getInvoiceBySlug = createServerFn({ method: "GET" })
         context.supabase.from("invoice_stakeholders").select("*").eq("invoice_id", invoice.id),
         context.supabase.from("invoice_payouts").select("*").eq("invoice_id", invoice.id),
       ]);
+    const { data: costs } = await context.supabase
+      .from("invoice_project_costs").select("*").eq("invoice_id", invoice.id).order("sequence");
     const cust = (custs ?? [])[0] as { name: string; customer_code: string } | undefined;
     invoice.customer_name = cust?.name ?? null;
     invoice.customer_code = cust?.customer_code ?? null;
@@ -384,6 +408,7 @@ export const getInvoiceBySlug = createServerFn({ method: "GET" })
       invoice,
       installments: (insts ?? []) as unknown as InstallmentRow[],
       stakeholders,
+      projectCosts: (costs ?? []) as unknown as ProjectCostRow[],
       payouts: (payouts ?? []) as unknown as PayoutRow[],
     };
   });
@@ -400,6 +425,9 @@ export const createInvoice = createServerFn({ method: "POST" })
     const instSum = data.installments.reduce((a, i) => a + i.amount, 0);
     if (Math.abs(instSum - data.total_amount) > 0.01)
       throw new Error(`Installment amounts must sum to total (got ${instSum})`);
+    const costTotal = sumCosts(data.project_costs);
+    if (costTotal > data.total_amount + 0.01)
+      throw new Error("Total project cost cannot exceed the invoice total amount");
 
     const { data: inv, error: invErr } = await context.supabase
       .from("invoices")
@@ -412,6 +440,7 @@ export const createInvoice = createServerFn({ method: "POST" })
         ends_on: data.ends_on ?? null,
         currency: data.currency,
         total_amount: data.total_amount,
+        project_cost_total: costTotal,
         notes: data.notes ?? null,
         internal_notes: data.internal_notes ?? null,
         created_by: context.userId,
@@ -423,6 +452,20 @@ export const createInvoice = createServerFn({ method: "POST" })
     if (invErr || !inv) throw new Error(invErr?.message ?? "Failed to create invoice");
     const invoiceId = (inv as { id: string; slug: string }).id;
     const slug = (inv as { id: string; slug: string }).slug;
+
+    if ((data.project_costs ?? []).length) {
+      const { error: cErr } = await context.supabase.from("invoice_project_costs").insert(
+        (data.project_costs ?? []).map((c, idx) => ({
+          invoice_id: invoiceId,
+          sequence: idx + 1,
+          name: c.name,
+          amount: c.amount,
+          description: c.description ?? null,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        })) as any,
+      );
+      if (cErr) throw new Error(cErr.message);
+    }
 
     // Stakeholders first (so payout sync trigger has percent info when installments insert)
     const { error: sErr } = await context.supabase.from("invoice_stakeholders").insert(
@@ -526,6 +569,9 @@ export const updateInvoice = createServerFn({ method: "POST" })
     const instSum = data.installments.reduce((a, i) => a + i.amount, 0);
     if (Math.abs(instSum - data.total_amount) > 0.01)
       throw new Error(`Installment amounts must sum to total (got ${instSum})`);
+    const costTotal = sumCosts(data.project_costs);
+    if (costTotal > data.total_amount + 0.01)
+      throw new Error("Total project cost cannot exceed the invoice total amount");
 
     const [{ data: before }, { data: paidInst }, { data: activeWithdrawals }] = await Promise.all([
       context.supabase.from("invoices").select("id, slug, title, currency, total_amount").eq("id", data.id).maybeSingle(),
@@ -548,6 +594,7 @@ export const updateInvoice = createServerFn({ method: "POST" })
         ends_on: data.ends_on ?? null,
         currency: data.currency,
         total_amount: data.total_amount,
+        project_cost_total: costTotal,
         notes: data.notes ?? null,
         internal_notes: data.internal_notes ?? null,
       } as never)
@@ -557,6 +604,15 @@ export const updateInvoice = createServerFn({ method: "POST" })
     await context.supabase.from("invoice_payouts").delete().eq("invoice_id", data.id);
     await context.supabase.from("invoice_installments").delete().eq("invoice_id", data.id);
     await context.supabase.from("invoice_stakeholders").delete().eq("invoice_id", data.id);
+    await context.supabase.from("invoice_project_costs").delete().eq("invoice_id", data.id);
+    if ((data.project_costs ?? []).length) {
+      const { error: cErr } = await context.supabase.from("invoice_project_costs").insert(
+        (data.project_costs ?? []).map((c, idx) => ({
+          invoice_id: data.id, sequence: idx + 1, name: c.name, amount: c.amount, description: c.description ?? null,
+        })) as never,
+      );
+      if (cErr) throw new Error(cErr.message);
+    }
 
     const { error: sErr } = await context.supabase.from("invoice_stakeholders").insert(
       data.stakeholders.map((s) => ({ invoice_id: data.id, user_id: s.user_id, role: s.role, percent: s.percent, note: s.note ?? null })) as never,
