@@ -162,6 +162,42 @@ function SalaryPage() {
     }
   };
 
+  const uploadSealedCopy = async (id: string, file: File) => {
+    try {
+      if (file.size > MAX_SLIP_MB * 1024 * 1024) throw new Error(`File must be ≤ ${MAX_SLIP_MB} MB`);
+      setBusyId(id + "seal");
+      const path = await uploadSealed(file);
+      await sealFn({ data: { id, path } });
+      toast.success("Signed & sealed slip uploaded");
+      slipsQ.refetch();
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBusyId(null); }
+  };
+
+  const openSealed = async (id: string, download?: boolean) => {
+    try {
+      setBusyId(id + "sealview");
+      const r = await sealedUrlFn({ data: { id, ...(download ? { download: true } : {}) } });
+      window.open(r.url, "_blank", "noopener,noreferrer");
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBusyId(null); }
+  };
+
+  const removeSealed = async (id: string) => {
+    const ok = await confirm({
+      title: "Remove sealed copy",
+      description: "The stored signed copy will be detached from this slip.",
+      tone: "danger" as const,
+    });
+    if (!ok) return;
+    try {
+      setBusyId(id + "seal");
+      await sealFn({ data: { id, path: null } });
+      slipsQ.refetch();
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBusyId(null); }
+  };
+
   const doVoid = async (id: string, slipNo: string | null) => {
     const ok = await confirm({
       title: `Void ${slipNo ?? "salary slip"}?`,
@@ -204,17 +240,18 @@ function SalaryPage() {
               <th className="px-3 py-2 text-right font-semibold">Net</th>
               <th className="px-3 py-2 text-left font-semibold">Paid on</th>
               <th className="px-3 py-2 text-left font-semibold">Status</th>
+              <th className="px-3 py-2 text-left font-semibold">Sealed copy</th>
               <th className="px-3 py-2 text-right font-semibold">Actions</th>
             </tr>
           </thead>
           <tbody>
             {slipsQ.isLoading && (
-              <tr><td colSpan={7} className="px-3 py-8 text-center text-muted-foreground">
+              <tr><td colSpan={8} className="px-3 py-8 text-center text-muted-foreground">
                 <Loader2 className="mx-auto size-4 animate-spin" />
               </td></tr>
             )}
             {!slipsQ.isLoading && (slipsQ.data ?? []).length === 0 && (
-              <tr><td colSpan={7} className="px-3 py-10 text-center text-[12.5px] text-muted-foreground">
+              <tr><td colSpan={8} className="px-3 py-10 text-center text-[12.5px] text-muted-foreground">
                 No salary slips yet.
               </td></tr>
             )}
@@ -232,6 +269,35 @@ function SalaryPage() {
                   <span className={s.status === "void" ? "text-destructive" : "text-emerald-600"}>
                     {s.status === "void" ? "Void" : "Issued"}
                   </span>
+                </td>
+                <td className="px-3 py-2">
+                  {s.signed_slip_url ? (
+                    <div className="flex items-center gap-1">
+                      <Button size="sm" variant="ghost" className="h-7 px-2" title="View sealed copy"
+                        onClick={() => openSealed(s.id)}>
+                        {busyId === s.id + "sealview" ? <Loader2 className="size-3.5 animate-spin" /> : <FileText className="size-3.5" />}
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-7 px-2" title="Download sealed copy"
+                        onClick={() => openSealed(s.id, true)}>
+                        <Download className="size-3.5" />
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-7 px-2 text-destructive" title="Remove sealed copy"
+                        onClick={() => removeSealed(s.id)}>
+                        <X className="size-3.5" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <label className="inline-flex cursor-pointer items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground">
+                      {busyId === s.id + "seal" ? <Loader2 className="size-3.5 animate-spin" /> : <Stamp className="size-3.5" />}
+                      Upload
+                      <input type="file" accept={ACCEPT} className="hidden"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          e.target.value = "";
+                          if (f) void uploadSealedCopy(s.id, f);
+                        }} />
+                    </label>
+                  )}
                 </td>
                 <td className="px-3 py-2">
                   <div className="flex items-center justify-end gap-1">
@@ -299,7 +365,7 @@ function SalaryPage() {
               <div className="col-span-2">
                 <div className="mb-1 flex items-center justify-between">
                   <label className="text-[12px] text-muted-foreground">
-                    Bonus / allowance / deduction (use a negative amount to deduct)
+                    Pay lines — project payment, conveyance, bonus, deduction (negative amount)
                   </label>
                   <button
                     type="button"
@@ -312,9 +378,31 @@ function SalaryPage() {
                 <div className="space-y-2">
                   {comps.map((c, i) => (
                     <div key={i} className="flex gap-2">
+                      <div className="w-52 shrink-0">
+                        <SearchableSelect
+                          items={invoices}
+                          value={c.invoice_id ?? ""}
+                          onChange={(v) => {
+                            const inv = (invQ.data ?? []).find((x) => x.id === v);
+                            setComps((prev) =>
+                              prev.map((p, j) =>
+                                j === i
+                                  ? {
+                                      ...p,
+                                      invoice_id: v || null,
+                                      invoice_slug: inv?.slug ?? null,
+                                      label: p.label.trim() || (inv ? `Project pay — ${inv.title}` : p.label),
+                                    }
+                                  : p,
+                              ),
+                            );
+                          }}
+                          placeholder="Manual / no invoice"
+                        />
+                      </div>
                       <Input
                         value={c.label}
-                        placeholder="e.g. Festival bonus / Advance adjustment"
+                        placeholder="e.g. Conveyance / Festival bonus / Advance adjustment"
                         onChange={(e) =>
                           setComps((prev) => prev.map((p, j) => (j === i ? { ...p, label: e.target.value } : p)))
                         }
@@ -349,6 +437,10 @@ function SalaryPage() {
               <div>
                 <label className="mb-1 block text-[12px] text-muted-foreground">Transaction ID</label>
                 <Input value={txn} onChange={(e) => setTxn(e.target.value)} placeholder="TrxID" className="h-9 rounded-sm" />
+              </div>
+              <div>
+                <label className="mb-1 block text-[12px] text-muted-foreground">Bank / wallet name</label>
+                <Input value={bank} onChange={(e) => setBank(e.target.value)} placeholder="e.g. City Bank PLC / bKash personal" className="h-9 rounded-sm" />
               </div>
               <div>
                 <label className="mb-1 block text-[12px] text-muted-foreground">Department</label>
