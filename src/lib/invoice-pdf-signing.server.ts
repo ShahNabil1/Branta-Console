@@ -95,3 +95,46 @@ export async function loadInvoicePdfPayload(adminClient: any, slug: string) {
   };
 }
 
+
+/* ================= Salary slips ================= */
+
+/** Signed URL for a salary slip PDF (namespaced so slugs can't collide). */
+export function buildSignedSalarySlipUrl(
+  baseUrl: string,
+  slipNo: string,
+  ttlSeconds = 60 * 60 * 24 * 30,
+): string {
+  const exp = Math.floor(Date.now() / 1000) + ttlSeconds;
+  const sig = signInvoiceSlug(`sal:${slipNo}`, exp);
+  return `${baseUrl}/api/public/salary/${encodeURIComponent(slipNo)}.pdf?exp=${exp}&sig=${sig}`;
+}
+
+export function verifySalarySlipSig(slipNo: string, exp: number, sig: string): boolean {
+  return verifyInvoiceSlug(`sal:${slipNo}`, exp, sig);
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function loadSalarySlipPayload(adminClient: any, slipNo: string) {
+  const { data: slip, error } = await adminClient
+    .from("salary_slips").select("*").eq("slip_no", slipNo).maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!slip) return null;
+  const uids = [slip.user_id, slip.created_by].filter(Boolean) as string[];
+  const [{ data: profs }, { data: settings }] = await Promise.all([
+    adminClient.from("profiles")
+      .select("user_id, full_name, employee_code, job_role, bank_name, bank_account_number, mfs_provider, mfs_number")
+      .in("user_id", uids),
+    adminClient.from("invoice_pdf_settings").select("*").eq("id", "default").maybeSingle(),
+  ]);
+  const list = (profs ?? []) as Array<{ user_id: string; full_name: string | null; employee_code: string | null; job_role: string | null }>;
+  const employee = list.find((p) => p.user_id === slip.user_id) ?? null;
+  const preparedBy = list.find((p) => p.user_id === slip.created_by) ?? null;
+  return {
+    slip,
+    employeeName: employee?.full_name ?? null,
+    employeeCode: employee?.employee_code ?? null,
+    employeeRole: employee?.job_role ?? null,
+    preparedByName: preparedBy?.full_name ?? null,
+    settings: settings ?? null,
+  };
+}
