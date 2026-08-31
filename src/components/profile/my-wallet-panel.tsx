@@ -14,6 +14,7 @@ import {
   type WithdrawalRow,
 } from "@/lib/finance.functions";
 import { getMyProfile, type PaymentMethod } from "@/lib/profile.functions";
+import { listMySalarySlips, getSignedSalarySlipUrl } from "@/lib/salary.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
