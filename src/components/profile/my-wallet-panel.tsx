@@ -14,7 +14,7 @@ import {
   type WithdrawalRow,
 } from "@/lib/finance.functions";
 import { getMyProfile, type PaymentMethod } from "@/lib/profile.functions";
-import { listMySalarySlips, getSignedSalarySlipUrl } from "@/lib/salary.functions";
+import { listMySalarySlips, getSignedSalarySlipUrl, getSalarySealedFileUrl } from "@/lib/salary.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -266,12 +266,22 @@ export function MyWalletPanel() {
 function MySalarySlips() {
   const listFn = useServerFn(listMySalarySlips);
   const urlFn = useServerFn(getSignedSalarySlipUrl);
+  const sealedFn = useServerFn(getSalarySealedFileUrl);
   const q = useQuery({ queryKey: ["my-salary-slips"], queryFn: () => listFn(), staleTime: 30_000 });
 
   const open = async (id: string) => {
     try {
       const r = await urlFn({ data: { id } });
       window.open(r.url, "_blank", "noopener");
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  };
+
+  const openSealed = async (id: string, download?: boolean) => {
+    try {
+      const r = await sealedFn({ data: { id, ...(download ? { download: true } : {}) } });
+      window.open(r.url, "_blank", "noopener,noreferrer");
     } catch (e) {
       toast.error((e as Error).message);
     }
@@ -299,6 +309,16 @@ function MySalarySlips() {
               <Button variant="outline" className="h-8 rounded-sm text-[12px]" onClick={() => open(s.id)}>
                 View slip
               </Button>
+              {s.signed_slip_url && (
+                <>
+                  <Button variant="outline" className="h-8 rounded-sm text-[12px]" onClick={() => openSealed(s.id)}>
+                    Signed copy
+                  </Button>
+                  <Button variant="ghost" className="h-8 rounded-sm text-[12px]" onClick={() => openSealed(s.id, true)}>
+                    Download
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         ))}
