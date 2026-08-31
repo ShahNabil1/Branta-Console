@@ -3,7 +3,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Plus, X, Eye, Download, Printer, Ban, Wallet } from "lucide-react";
+import { Loader2, Plus, X, Eye, Download, Printer, Ban, Wallet, Stamp, FileText } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SearchableSelect, type SearchableItem } from "@/components/finance/searchable-select";
@@ -14,6 +15,9 @@ import {
   voidSalarySlip,
   getSignedSalarySlipUrl,
   listSalaryEmployees,
+  listSalaryInvoiceOptions,
+  setSalarySignedSlip,
+  getSalarySealedFileUrl,
   type SalaryComponent,
 } from "@/lib/salary.functions";
 
@@ -28,6 +32,22 @@ export const Route = createFileRoute("/_authenticated/app/finance/salary")({
 });
 
 const PAYMENT_METHODS = ["Bank Transfer", "bKash", "Nagad", "Rocket", "Cash", "Cheque", "Other"];
+const RECEIPT_BUCKET = "expense-receipts";
+const MAX_SLIP_MB = 15;
+const ACCEPT = "image/png,image/jpeg,image/webp,application/pdf";
+
+async function uploadSealed(file: File) {
+  const { data: sess } = await supabase.auth.getUser();
+  const uid = sess.user?.id ?? "anon";
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "bin";
+  const path = `salary-signed/${uid}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const { error } = await supabase.storage
+    .from(RECEIPT_BUCKET)
+    .upload(path, file, { contentType: file.type || undefined, upsert: false });
+  if (error) throw new Error(error.message);
+  return path;
+}
+
 const DEPARTMENTS = ["HR & Admin", "Management", "Finance", "Sales & Outreach", "Marketing", "Production", "Development", "Operations", "Other"];
 
 function fmt(n: number, cur: string) {
@@ -47,9 +67,14 @@ function SalaryPage() {
   const issueFn = useServerFn(issueSalarySlip);
   const voidFn = useServerFn(voidSalarySlip);
   const urlFn = useServerFn(getSignedSalarySlipUrl);
+  const invFn = useServerFn(listSalaryInvoiceOptions);
+  const sealFn = useServerFn(setSalarySignedSlip);
+  const sealedUrlFn = useServerFn(getSalarySealedFileUrl);
 
   const slipsQ = useQuery({ queryKey: ["salary.slips"], queryFn: () => listFn() });
   const empQ = useQuery({ queryKey: ["salary.employees"], queryFn: () => empFn() });
+  const invQ = useQuery({ queryKey: ["salary.invoices"], queryFn: () => invFn() });
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   const [open, setOpen] = useState(false);
   const [userId, setUserId] = useState("");
@@ -60,6 +85,7 @@ function SalaryPage() {
   const [reason, setReason] = useState("");
   const [method, setMethod] = useState("Bank Transfer");
   const [txn, setTxn] = useState("");
+  const [bank, setBank] = useState("");
   const [dept, setDept] = useState("HR & Admin");
   const [paidOn, setPaidOn] = useState(() => new Date().toISOString().slice(0, 10));
 
@@ -74,13 +100,24 @@ function SalaryPage() {
     [empQ.data],
   );
 
+  const invoices: SearchableItem[] = useMemo(
+    () =>
+      (invQ.data ?? []).map((i) => ({
+        value: i.id,
+        label: `${i.slug ?? "—"} — ${i.title}`,
+        hint: i.customer_name ?? undefined,
+        keywords: [i.slug, i.customer_name, i.title],
+      })),
+    [invQ.data],
+  );
+
   const net = useMemo(
     () => Number(base || 0) + comps.reduce((a, c) => a + Number(c.amount || 0), 0),
     [base, comps],
   );
 
   const reset = () => {
-    setUserId(""); setBase(""); setComps([]); setReason(""); setTxn("");
+    setUserId(""); setBase(""); setComps([]); setReason(""); setTxn(""); setBank("");
   };
 
   const issue = useMutation({
@@ -93,9 +130,15 @@ function SalaryPage() {
           base_amount: Number(base || 0),
           components: comps
             .filter((c) => c.label.trim() && Number(c.amount) !== 0)
-            .map((c) => ({ label: c.label.trim(), amount: Number(c.amount) })),
+            .map((c) => ({
+              label: c.label.trim(),
+              amount: Number(c.amount),
+              invoice_id: c.invoice_id ?? null,
+              invoice_slug: c.invoice_slug ?? null,
+            })),
           reason: reason.trim() || null,
           payment_method: method || null,
+          bank_name: bank.trim() || null,
           txn_id: txn.trim() || null,
           paid_on: paidOn,
           department: dept,
