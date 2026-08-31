@@ -124,8 +124,8 @@ function SalaryPage() {
       title: `Void ${slipNo ?? "salary slip"}?`,
       description:
         "The linked expense will be removed and the employee wallet credit reversed (a clawback is posted if it was already withdrawn).",
-      confirmText: "Void slip",
-      destructive: true,
+      confirmLabel: "Void slip",
+      tone: "danger" as const,
     });
     if (!ok) return;
     try {
