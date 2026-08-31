@@ -826,10 +826,11 @@ export interface SalarySlipPdfData {
     period_month: string;
     currency: string;
     base_amount: number;
-    components: Array<{ label: string; amount: number }>;
+    components: Array<{ label: string; amount: number; invoice_slug?: string | null }>;
     net_amount: number;
     reason: string | null;
     payment_method: string | null;
+    bank_name?: string | null;
     txn_id: string | null;
     paid_on: string;
     status: string;
@@ -841,6 +842,45 @@ export interface SalarySlipPdfData {
   preparedByName?: string | null;
   settings: PdfSettings;
 }
+
+/* --- Code 128B encoder (bar widths only; drawn with pdf-lib rectangles) --- */
+const C128_PATTERNS = [
+  "212222","222122","222221","121223","121322","131222","122213","122312","132212","221213",
+  "221312","231212","112232","122132","122231","113222","123122","123221","223211","221132",
+  "221231","213212","223112","312131","311222","321122","321221","312212","322112","322211",
+  "212123","212321","232121","111323","131123","131321","112313","132113","132311","211313",
+  "231113","231311","112133","112331","132131","113123","113321","133121","313121","211331",
+  "231131","213113","213311","213131","311123","311321","331121","312113","312311","332111",
+  "314111","221411","431111","111224","111422","121124","121421","141122","141221","112214",
+  "112412","122114","122411","142112","142211","241211","221114","413111","241112","134111",
+  "111242","121142","121241","114212","124112","124211","411212","421112","421211","212141",
+  "214121","412121","111143","111341","131141","114113","114311","411113","411311","113141",
+  "114131","311141","411131","211412","211214","211232","2331112",
+];
+
+/** Returns an array of {x,w,bar} bar segments normalised to `width` pt. */
+function code128Bars(value: string, width: number, moduleMin = 0.9) {
+  const chars = value.replace(/[^\x20-\x7E]/g, "").slice(0, 24);
+  const codes: number[] = [104]; // Start B
+  for (const ch of chars) codes.push(ch.charCodeAt(0) - 32);
+  let sum = 104;
+  codes.slice(1).forEach((c, i) => { sum += c * (i + 1); });
+  codes.push(sum % 103);
+  codes.push(106); // stop
+  const widths: number[] = [];
+  for (const c of codes) for (const d of C128_PATTERNS[c] ?? "") widths.push(Number(d));
+  const total = widths.reduce((a, b) => a + b, 0);
+  const mod = Math.max(moduleMin, width / total);
+  const bars: Array<{ x: number; w: number }> = [];
+  let x = 0;
+  widths.forEach((w, i) => {
+    const seg = w * mod;
+    if (i % 2 === 0) bars.push({ x, w: seg });
+    x += seg;
+  });
+  return { bars, totalWidth: x };
+}
+
 
 function monthLabel(d: string): string {
   const dt = new Date(`${String(d).slice(0, 10)}T00:00:00Z`);
@@ -974,7 +1014,7 @@ export async function renderSalarySlipPdf(
     draw("VOID", PAGE_W - SIDE - 60, y + 30, 26, bold, hex(rgb, "#DC2626"));
   }
 
-  /* ---- employee grid ---- */
+  /* ---- employee + payment panel ---- */
   const rows: Array<[string, string]> = [
     ["Employee", data.employeeName || "—"],
     ["Employee ID", data.employeeCode || "—"],
@@ -982,8 +1022,8 @@ export async function renderSalarySlipPdf(
     ["Salary Month", monthLabel(sl.period_month)],
     ["Payment Date", fmtDate(sl.paid_on)],
     ["Payment Method", sl.payment_method || "—"],
+    ["Bank / Wallet", sl.bank_name || "—"],
     ["Transaction ID (TrxID)", sl.txn_id || "—"],
-    ["Issued On", fmtDate(sl.created_at)],
   ];
   const colW = CONTENT_W / 2;
   const rowH = 26;
@@ -997,28 +1037,71 @@ export async function renderSalarySlipPdf(
     draw(k.toUpperCase(), x, ty, 7, bold, muted);
     draw(v, x, ty - 11, 10, font, text);
   });
-  y -= gridH + 20;
+  y -= gridH + 10;
 
-  /* ---- earnings / deductions table ---- */
-  draw("SALARY BREAKDOWN", SIDE, y, 8.5, bold, brand);
+  /* ---- employee ID barcode ---- */
+  if (data.employeeCode) {
+    const bcW = 150;
+    const bcH = 26;
+    const bcX = PAGE_W - SIDE - bcW;
+    const { bars, totalWidth } = code128Bars(data.employeeCode, bcW, 0.85);
+    const scale = totalWidth > bcW ? bcW / totalWidth : 1;
+    bars.forEach((b) => {
+      page.drawRectangle({
+        x: bcX + b.x * scale,
+        y: y - bcH,
+        width: Math.max(0.5, b.w * scale),
+        height: bcH,
+        color: text,
+      });
+    });
+    const cw = font.widthOfTextAtSize(safeText(data.employeeCode), 7);
+    draw(data.employeeCode, bcX + (bcW - cw) / 2, y - bcH - 8, 7, font, muted);
+    draw("Issued on", SIDE, y - 12, 7, bold, muted);
+    draw(fmtDate(sl.created_at), SIDE, y - 23, 9.5, font, text);
+    y -= bcH + 22;
+  } else {
+    y -= 4;
+  }
+
+  /* ---- pay breakdown table ---- */
+  draw("PAY BREAKDOWN", SIDE, y, 8.5, bold, brand);
+  y -= 6;
+  page.drawLine({ start: { x: SIDE, y }, end: { x: PAGE_W - SIDE, y }, thickness: 0.5, color: brand });
+  y -= 13;
+
+  const refX = SIDE + 22;
+  const descX = SIDE + 100;
+  draw("#", SIDE + 4, y, 7, bold, muted);
+  draw("REFERENCE", refX, y, 7, bold, muted);
+  draw("DESCRIPTION", descX, y, 7, bold, muted);
+  const amtHead = "AMOUNT";
+  draw(amtHead, PAGE_W - SIDE - 4 - bold.widthOfTextAtSize(amtHead, 7), y, 7, bold, muted);
   y -= 6;
   page.drawLine({ start: { x: SIDE, y }, end: { x: PAGE_W - SIDE, y }, thickness: 0.5, color: hair });
-  y -= 16;
+  y -= 14;
 
-  const lines: Array<[string, number]> = [
-    ["Basic salary", Number(sl.base_amount)],
-    ...(sl.components ?? []).map((c) => [c.label, Number(c.amount)] as [string, number]),
+  const lines: Array<{ ref: string; label: string; amount: number }> = [
+    { ref: "—", label: "Basic salary", amount: Number(sl.base_amount) },
+    ...(sl.components ?? []).map((c) => ({
+      ref: c.invoice_slug || "—",
+      label: c.label,
+      amount: Number(c.amount),
+    })),
   ];
-  lines.forEach(([label, amt]) => {
-    draw(label, SIDE + 4, y, 9.5, font, text);
-    const t = `${amt < 0 ? "-" : ""}${money(Math.abs(amt), cur)}`;
-    const w = font.widthOfTextAtSize(safeText(t), 9.5);
-    draw(t, PAGE_W - SIDE - 4 - w, y, 9.5, font, amt < 0 ? hex(rgb, "#B91C1C") : text);
-    y -= 15;
+  lines.forEach((ln, i) => {
+    draw(String(i + 1), SIDE + 4, y, 9, font, muted);
+    draw(ln.ref, refX, y, 9, ln.ref === "—" ? font : monoBold, ln.ref === "—" ? muted : brand);
+    const descLines = wrap(ln.label, font, 9.5, PAGE_W - SIDE - 90 - descX);
+    draw(descLines[0] ?? "", descX, y, 9.5, font, text);
+    const t = `${ln.amount < 0 ? "-" : ""}${money(Math.abs(ln.amount), cur)}`;
+    const w2 = font.widthOfTextAtSize(safeText(t), 9.5);
+    draw(t, PAGE_W - SIDE - 4 - w2, y, 9.5, font, ln.amount < 0 ? hex(rgb, "#B91C1C") : text);
+    y -= 13;
+    descLines.slice(1, 2).forEach((extra) => { draw(extra, descX, y, 8.5, font, muted); y -= 11; });
+    page.drawLine({ start: { x: SIDE, y: y + 5 }, end: { x: PAGE_W - SIDE, y: y + 5 }, thickness: 0.3, color: hair });
   });
-  y -= 4;
-  page.drawLine({ start: { x: SIDE, y }, end: { x: PAGE_W - SIDE, y }, thickness: 0.5, color: hair });
-  y -= 18;
+  y -= 10;
 
   /* ---- net payable ---- */
   const amtH = 58;
@@ -1032,7 +1115,7 @@ export async function renderSalarySlipPdf(
   wrap(amountInWords(Number(sl.net_amount), cur), font, 9, CONTENT_W - 28).slice(0, 2).forEach((ln, i) => {
     draw(ln, SIDE + 14, y - 45 - i * 10, 9, font, text);
   });
-  y -= amtH + 20;
+  y -= amtH + 18;
 
   /* ---- reason / remarks ---- */
   if (sl.reason) {
@@ -1040,29 +1123,44 @@ export async function renderSalarySlipPdf(
     y -= 6;
     page.drawLine({ start: { x: SIDE, y }, end: { x: PAGE_W - SIDE, y }, thickness: 0.5, color: hair });
     y -= 14;
-    wrap(sl.reason, font, 9, CONTENT_W).slice(0, 8).forEach((ln) => { draw(ln, SIDE, y, 9, font, muted); y -= 11; });
+    wrap(sl.reason, font, 9, CONTENT_W).slice(0, 6).forEach((ln) => { draw(ln, SIDE, y, 9, font, muted); y -= 11; });
     y -= 8;
   }
 
   /* ---- signatures ---- */
-  const sealTop = Math.min(y, CONTENT_BOTTOM + 170);
-  const boxH = 96;
+  const sealTop = Math.min(y, CONTENT_BOTTOM + 150);
+  const boxH = 92;
   const boxW = (CONTENT_W - 16) / 2;
-  const boxes: Array<[string, string]> = [
-    ["Received By (Employee)", data.employeeName || "—"],
-    ["Authorized Signature & Company Seal", data.preparedByName || s.signature_name || s.company_name],
+  const boxes: Array<[string, string, string]> = [
+    ["Employee Signature", data.employeeName || "—", data.employeeRole || "Employee"],
+    ["Authorized Signature & Company Seal", "MD. Nahid Hasan", "Accounts Manager"],
   ];
-  boxes.forEach(([label, name], i) => {
+  boxes.forEach(([label, name, sub], i) => {
     const x = SIDE + i * (boxW + 16);
     page.drawRectangle({ x, y: sealTop - boxH, width: boxW, height: boxH, borderColor: hair, borderWidth: 0.5 });
     draw(label.toUpperCase(), x + 10, sealTop - 14, 7, bold, muted);
-    page.drawLine({ start: { x: x + 10, y: sealTop - boxH + 26 }, end: { x: x + boxW - 10, y: sealTop - boxH + 26 }, thickness: 0.6, color: hair });
-    draw(name, x + 10, sealTop - boxH + 13, 8.5, font, text);
+    page.drawLine({
+      start: { x: x + 10, y: sealTop - boxH + 30 },
+      end: { x: x + boxW - 10, y: sealTop - boxH + 30 },
+      thickness: 0.6,
+      color: hair,
+    });
+    draw(name, x + 10, sealTop - boxH + 18, 9, bold, text);
+    draw(sub, x + 10, sealTop - boxH + 8, 7.5, font, muted);
   });
 
-  const label = `Salary Slip ${slipNo}  ·  ${s.company_name}`;
-  const w = font.widthOfTextAtSize(safeText(label), 7.5);
-  page.drawText(safeText(label), { x: (PAGE_W - w) / 2, y: CONTENT_BOTTOM + 6, size: 7.5, font, color: muted });
+  /* ---- verification footer ---- */
+  const printedAt = new Date().toLocaleString("en-GB", {
+    timeZone: "Asia/Dhaka",
+    day: "2-digit", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit", hour12: false,
+  });
+  const left = `Verified online · ${(s.company_website || "brantatech.com").replace(/^https?:\/\//, "")} · Slip ${slipNo}`;
+  const right = `Printed: ${printedAt} (GMT+6)`;
+  draw(left, SIDE, CONTENT_BOTTOM + 6, 7, font, muted);
+  const rw = font.widthOfTextAtSize(safeText(right), 7);
+  draw(right, PAGE_W - SIDE - rw, CONTENT_BOTTOM + 6, 7, font, muted);
 
   return await pdf.save();
 }
+

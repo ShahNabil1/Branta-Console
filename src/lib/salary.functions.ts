@@ -11,6 +11,9 @@ export interface SalaryComponent {
   label: string;
   /** Positive = earning, negative = deduction. */
   amount: number;
+  /** Optional link to a real invoice this pay line came from. */
+  invoice_id?: string | null;
+  invoice_slug?: string | null;
 }
 
 export interface SalarySlipRow {
@@ -24,11 +27,14 @@ export interface SalarySlipRow {
   net_amount: number;
   reason: string | null;
   payment_method: string | null;
+  bank_name: string | null;
   txn_id: string | null;
   paid_on: string;
   status: "issued" | "void";
   expense_id: string | null;
   payout_id: string | null;
+  signed_slip_url: string | null;
+  signed_slip_at: string | null;
   created_by: string | null;
   created_at: string;
   employee_name?: string | null;
@@ -36,8 +42,10 @@ export interface SalarySlipRow {
 }
 
 const ComponentIn = z.object({
-  label: z.string().trim().min(1).max(80),
+  label: z.string().trim().min(1).max(120),
   amount: z.number(),
+  invoice_id: z.string().uuid().nullable().optional(),
+  invoice_slug: z.string().trim().max(40).nullable().optional(),
 });
 
 const IssueIn = z.object({
@@ -45,13 +53,15 @@ const IssueIn = z.object({
   period_month: z.string().regex(/^\d{4}-\d{2}$/),
   currency: z.enum(["BDT", "USD"]).default("BDT"),
   base_amount: z.number().nonnegative(),
-  components: z.array(ComponentIn).max(12).default([]),
+  components: z.array(ComponentIn).max(24).default([]),
   reason: z.string().trim().max(600).nullable().optional(),
   payment_method: z.string().trim().max(80).nullable().optional(),
+  bank_name: z.string().trim().max(120).nullable().optional(),
   txn_id: z.string().trim().max(120).nullable().optional(),
   paid_on: z.string(),
   department: z.string().trim().max(80).nullable().optional(),
 });
+
 
 async function ensureFinanceAdmin(
   supabase: { rpc: (n: string, a: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }> },
@@ -165,11 +175,16 @@ export const issueSalarySlip = createServerFn({ method: "POST" })
           `Salary for ${monthLabel} — ${employeeName}`,
           data.reason ?? null,
           comps.length
-            ? comps.map((c) => `${c.label}: ${c.amount > 0 ? "+" : ""}${c.amount}`).join(" · ")
+          comps.length
+            ? comps
+                .map((c) => `${c.invoice_slug ? `[${c.invoice_slug}] ` : ""}${c.label}: ${c.amount > 0 ? "+" : ""}${c.amount}`)
+                .join(" · ")
             : null,
+          data.bank_name ? `Bank/Wallet: ${data.bank_name}` : null,
         ].filter(Boolean).join("\n"),
         txn_id: data.txn_id ?? null,
         payment_method: data.payment_method ?? null,
+
         department: data.department ?? "HR & Admin",
         requested_by: data.user_id,
         request_purpose: data.reason ?? `Monthly salary — ${monthLabel}`,
@@ -213,7 +228,9 @@ export const issueSalarySlip = createServerFn({ method: "POST" })
         net_amount: net,
         reason: data.reason ?? null,
         payment_method: data.payment_method ?? null,
+        bank_name: data.bank_name ?? null,
         txn_id: data.txn_id ?? null,
+
         paid_on: data.paid_on,
         status: "issued",
         expense_id: expenseId,
@@ -353,4 +370,87 @@ export const listSalaryEmployees = createServerFn({ method: "GET" })
       employee_code: string | null;
       job_role: string | null;
     }>;
+  });
+
+/** Invoices selectable as the source of a project-based pay line. */
+export const listSalaryInvoiceOptions = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await ensureFinanceAdmin(context.supabase as never, context.userId);
+    const { data, error } = await context.supabase
+      .from("invoices")
+      .select("id, slug, title, currency, total_amount, customer_id")
+      .order("created_at", { ascending: false })
+      .limit(300);
+    if (error) throw new Error(error.message);
+    const rows = (data ?? []) as Array<{
+      id: string; slug: string | null; title: string; currency: string;
+      total_amount: number; customer_id: string;
+    }>;
+    const ids = [...new Set(rows.map((r) => r.customer_id))];
+    let names = new Map<string, string>();
+    if (ids.length) {
+      const { data: cs } = await context.supabase
+        .from("customers").select("id, name").in("id", ids);
+      names = new Map(((cs ?? []) as Array<{ id: string; name: string }>).map((c) => [c.id, c.name]));
+    }
+    return rows.map((r) => ({
+      id: r.id,
+      slug: r.slug,
+      title: r.title,
+      currency: r.currency,
+      total_amount: Number(r.total_amount),
+      customer_name: names.get(r.customer_id) ?? null,
+    }));
+  });
+
+/** Attach (or detach) the scanned, signed & sealed copy of a printed slip. */
+export const setSalarySignedSlip = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ id: z.string().uuid(), path: z.string().max(600).nullable() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await ensureFinanceAdmin(context.supabase as never, context.userId);
+    const { error } = await context.supabase
+      .from("salary_slips")
+      .update({
+        signed_slip_url: data.path,
+        signed_slip_at: data.path ? new Date().toISOString() : null,
+        signed_slip_by: data.path ? context.userId : null,
+      } as never)
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
+/**
+ * Signed storage URL for the sealed copy. Finance sees every slip; an employee
+ * only their own (RLS on salary_slips decides what this query can read).
+ */
+export const getSalarySealedFileUrl = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ id: z.string().uuid(), download: z.boolean().optional() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: row } = await context.supabase
+      .from("salary_slips")
+      .select("id, slip_no, signed_slip_url")
+      .eq("id", data.id)
+      .maybeSingle();
+    const slip = row as { slip_no: string | null; signed_slip_url: string | null } | null;
+    if (!slip?.signed_slip_url) throw new Error("No sealed copy uploaded for this slip");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const ext = slip.signed_slip_url.split(".").pop() ?? "pdf";
+    const { data: signed, error } = await supabaseAdmin.storage
+      .from("expense-receipts")
+      .createSignedUrl(
+        slip.signed_slip_url,
+        300,
+        data.download ? { download: `Salary-${slip.slip_no ?? "slip"}-signed.${ext}` } : undefined,
+      );
+    if (error) throw new Error(error.message);
+    return { url: signed.signedUrl, path: slip.signed_slip_url };
   });

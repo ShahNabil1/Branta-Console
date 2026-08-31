@@ -2092,6 +2092,7 @@ export type Database = {
       }
       salary_slips: {
         Row: {
+          bank_name: string | null
           base_amount: number
           components: Json
           created_at: string
@@ -2105,6 +2106,9 @@ export type Database = {
           payout_id: string | null
           period_month: string
           reason: string | null
+          signed_slip_at: string | null
+          signed_slip_by: string | null
+          signed_slip_url: string | null
           slip_no: string | null
           status: string
           txn_id: string | null
@@ -2112,6 +2116,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          bank_name?: string | null
           base_amount?: number
           components?: Json
           created_at?: string
@@ -2125,6 +2130,9 @@ export type Database = {
           payout_id?: string | null
           period_month: string
           reason?: string | null
+          signed_slip_at?: string | null
+          signed_slip_by?: string | null
+          signed_slip_url?: string | null
           slip_no?: string | null
           status?: string
           txn_id?: string | null
@@ -2132,6 +2140,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          bank_name?: string | null
           base_amount?: number
           components?: Json
           created_at?: string
@@ -2145,6 +2154,9 @@ export type Database = {
           payout_id?: string | null
           period_month?: string
           reason?: string | null
+          signed_slip_at?: string | null
+          signed_slip_by?: string | null
+          signed_slip_url?: string | null
           slip_no?: string | null
           status?: string
           txn_id?: string | null
