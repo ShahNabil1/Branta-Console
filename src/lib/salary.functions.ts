@@ -228,7 +228,9 @@ export const issueSalarySlip = createServerFn({ method: "POST" })
         net_amount: net,
         reason: data.reason ?? null,
         payment_method: data.payment_method ?? null,
+        bank_name: data.bank_name ?? null,
         txn_id: data.txn_id ?? null,
+
         paid_on: data.paid_on,
         status: "issued",
         expense_id: expenseId,
