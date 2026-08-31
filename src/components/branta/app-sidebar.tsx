@@ -21,6 +21,7 @@ import {
   ArrowLeftRight,
   Palette,
   Bell,
+  BadgeDollarSign,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import brandLogo from "@/assets/brand-logo.png.asset.json";
@@ -55,6 +56,7 @@ const NAV: NavGroup[] = [
       { label: "Wallet", to: "/app/finance/wallet", icon: Wallet },
       { label: "Withdrawals", to: "/app/finance/withdrawals", icon: Banknote },
       { label: "Expenses", to: "/app/finance/expenses", icon: Receipt },
+      { label: "Salary", to: "/app/finance/salary", icon: BadgeDollarSign },
       { label: "Templates", to: "/app/finance/templates", icon: Palette },
     ],
   },

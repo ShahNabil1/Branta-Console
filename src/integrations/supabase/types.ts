@@ -2090,6 +2090,84 @@ export type Database = {
         }
         Relationships: []
       }
+      salary_slips: {
+        Row: {
+          base_amount: number
+          components: Json
+          created_at: string
+          created_by: string | null
+          currency: string
+          expense_id: string | null
+          id: string
+          net_amount: number
+          paid_on: string
+          payment_method: string | null
+          payout_id: string | null
+          period_month: string
+          reason: string | null
+          slip_no: string | null
+          status: string
+          txn_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          base_amount?: number
+          components?: Json
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          expense_id?: string | null
+          id?: string
+          net_amount?: number
+          paid_on?: string
+          payment_method?: string | null
+          payout_id?: string | null
+          period_month: string
+          reason?: string | null
+          slip_no?: string | null
+          status?: string
+          txn_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          base_amount?: number
+          components?: Json
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          expense_id?: string | null
+          id?: string
+          net_amount?: number
+          paid_on?: string
+          payment_method?: string | null
+          payout_id?: string | null
+          period_month?: string
+          reason?: string | null
+          slip_no?: string | null
+          status?: string
+          txn_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "salary_slips_expense_id_fkey"
+            columns: ["expense_id"]
+            isOneToOne: false
+            referencedRelation: "expenses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "salary_slips_payout_id_fkey"
+            columns: ["payout_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_payouts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       telegram_link_requests: {
         Row: {
           created_at: string

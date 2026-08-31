@@ -33,6 +33,7 @@ import { Route as AuthenticatedAppFinanceIndexRouteImport } from './routes/_auth
 import { Route as AuthenticatedAppEmployeesIndexRouteImport } from './routes/_authenticated/app.employees.index'
 import { Route as AuthenticatedAppCustomersIndexRouteImport } from './routes/_authenticated/app.customers.index'
 import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram.webhook'
+import { Route as ApiPublicSalarySlipDotpdfRouteImport } from './routes/api/public/salary.$slip[.]pdf'
 import { Route as ApiPublicResendWebhookRouteImport } from './routes/api/public/resend.webhook'
 import { Route as ApiPublicInvoicesSlugDotpdfRouteImport } from './routes/api/public/invoices.$slug[.]pdf'
 import { Route as ApiPublicHooksNotificationsDrainRouteImport } from './routes/api/public/hooks/notifications-drain'
@@ -49,6 +50,7 @@ import { Route as AuthenticatedAppLeadsSlugRouteImport } from './routes/_authent
 import { Route as AuthenticatedAppFinanceWithdrawalsRouteImport } from './routes/_authenticated/app.finance.withdrawals'
 import { Route as AuthenticatedAppFinanceWalletRouteImport } from './routes/_authenticated/app.finance.wallet'
 import { Route as AuthenticatedAppFinanceTemplatesRouteImport } from './routes/_authenticated/app.finance.templates'
+import { Route as AuthenticatedAppFinanceSalaryRouteImport } from './routes/_authenticated/app.finance.salary'
 import { Route as AuthenticatedAppFinanceExpensesRouteImport } from './routes/_authenticated/app.finance.expenses'
 import { Route as AuthenticatedAppEmployeesUserIdRouteImport } from './routes/_authenticated/app.employees.$userId'
 import { Route as AuthenticatedAppCustomersCodeRouteImport } from './routes/_authenticated/app.customers.$code'
@@ -189,6 +191,12 @@ const ApiPublicTelegramWebhookRoute =
     path: '/api/public/telegram/webhook',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicSalarySlipDotpdfRoute =
+  ApiPublicSalarySlipDotpdfRouteImport.update({
+    id: '/api/public/salary/$slip.pdf',
+    path: '/api/public/salary/$slip.pdf',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicResendWebhookRoute = ApiPublicResendWebhookRouteImport.update({
   id: '/api/public/resend/webhook',
   path: '/api/public/resend/webhook',
@@ -283,6 +291,12 @@ const AuthenticatedAppFinanceTemplatesRoute =
     path: '/templates',
     getParentRoute: () => AuthenticatedAppFinanceRoute,
   } as any)
+const AuthenticatedAppFinanceSalaryRoute =
+  AuthenticatedAppFinanceSalaryRouteImport.update({
+    id: '/salary',
+    path: '/salary',
+    getParentRoute: () => AuthenticatedAppFinanceRoute,
+  } as any)
 const AuthenticatedAppFinanceExpensesRoute =
   AuthenticatedAppFinanceExpensesRouteImport.update({
     id: '/expenses',
@@ -341,6 +355,7 @@ export interface FileRoutesByFullPath {
   '/app/customers/$code': typeof AuthenticatedAppCustomersCodeRoute
   '/app/employees/$userId': typeof AuthenticatedAppEmployeesUserIdRoute
   '/app/finance/expenses': typeof AuthenticatedAppFinanceExpensesRoute
+  '/app/finance/salary': typeof AuthenticatedAppFinanceSalaryRoute
   '/app/finance/templates': typeof AuthenticatedAppFinanceTemplatesRoute
   '/app/finance/wallet': typeof AuthenticatedAppFinanceWalletRoute
   '/app/finance/withdrawals': typeof AuthenticatedAppFinanceWithdrawalsRoute
@@ -357,6 +372,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/notifications-drain': typeof ApiPublicHooksNotificationsDrainRoute
   '/api/public/invoices/$slug.pdf': typeof ApiPublicInvoicesSlugDotpdfRoute
   '/api/public/resend/webhook': typeof ApiPublicResendWebhookRoute
+  '/api/public/salary/$slip.pdf': typeof ApiPublicSalarySlipDotpdfRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
   '/app/customers/': typeof AuthenticatedAppCustomersIndexRoute
   '/app/employees/': typeof AuthenticatedAppEmployeesIndexRoute
@@ -383,6 +399,7 @@ export interface FileRoutesByTo {
   '/app/customers/$code': typeof AuthenticatedAppCustomersCodeRoute
   '/app/employees/$userId': typeof AuthenticatedAppEmployeesUserIdRoute
   '/app/finance/expenses': typeof AuthenticatedAppFinanceExpensesRoute
+  '/app/finance/salary': typeof AuthenticatedAppFinanceSalaryRoute
   '/app/finance/templates': typeof AuthenticatedAppFinanceTemplatesRoute
   '/app/finance/wallet': typeof AuthenticatedAppFinanceWalletRoute
   '/app/finance/withdrawals': typeof AuthenticatedAppFinanceWithdrawalsRoute
@@ -399,6 +416,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/notifications-drain': typeof ApiPublicHooksNotificationsDrainRoute
   '/api/public/invoices/$slug.pdf': typeof ApiPublicInvoicesSlugDotpdfRoute
   '/api/public/resend/webhook': typeof ApiPublicResendWebhookRoute
+  '/api/public/salary/$slip.pdf': typeof ApiPublicSalarySlipDotpdfRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
   '/app/customers': typeof AuthenticatedAppCustomersIndexRoute
   '/app/employees': typeof AuthenticatedAppEmployeesIndexRoute
@@ -432,6 +450,7 @@ export interface FileRoutesById {
   '/_authenticated/app/customers/$code': typeof AuthenticatedAppCustomersCodeRoute
   '/_authenticated/app/employees/$userId': typeof AuthenticatedAppEmployeesUserIdRoute
   '/_authenticated/app/finance/expenses': typeof AuthenticatedAppFinanceExpensesRoute
+  '/_authenticated/app/finance/salary': typeof AuthenticatedAppFinanceSalaryRoute
   '/_authenticated/app/finance/templates': typeof AuthenticatedAppFinanceTemplatesRoute
   '/_authenticated/app/finance/wallet': typeof AuthenticatedAppFinanceWalletRoute
   '/_authenticated/app/finance/withdrawals': typeof AuthenticatedAppFinanceWithdrawalsRoute
@@ -448,6 +467,7 @@ export interface FileRoutesById {
   '/api/public/hooks/notifications-drain': typeof ApiPublicHooksNotificationsDrainRoute
   '/api/public/invoices/$slug.pdf': typeof ApiPublicInvoicesSlugDotpdfRoute
   '/api/public/resend/webhook': typeof ApiPublicResendWebhookRoute
+  '/api/public/salary/$slip.pdf': typeof ApiPublicSalarySlipDotpdfRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
   '/_authenticated/app/customers/': typeof AuthenticatedAppCustomersIndexRoute
   '/_authenticated/app/employees/': typeof AuthenticatedAppEmployeesIndexRoute
@@ -481,6 +501,7 @@ export interface FileRouteTypes {
     | '/app/customers/$code'
     | '/app/employees/$userId'
     | '/app/finance/expenses'
+    | '/app/finance/salary'
     | '/app/finance/templates'
     | '/app/finance/wallet'
     | '/app/finance/withdrawals'
@@ -497,6 +518,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/notifications-drain'
     | '/api/public/invoices/$slug.pdf'
     | '/api/public/resend/webhook'
+    | '/api/public/salary/$slip.pdf'
     | '/api/public/telegram/webhook'
     | '/app/customers/'
     | '/app/employees/'
@@ -523,6 +545,7 @@ export interface FileRouteTypes {
     | '/app/customers/$code'
     | '/app/employees/$userId'
     | '/app/finance/expenses'
+    | '/app/finance/salary'
     | '/app/finance/templates'
     | '/app/finance/wallet'
     | '/app/finance/withdrawals'
@@ -539,6 +562,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/notifications-drain'
     | '/api/public/invoices/$slug.pdf'
     | '/api/public/resend/webhook'
+    | '/api/public/salary/$slip.pdf'
     | '/api/public/telegram/webhook'
     | '/app/customers'
     | '/app/employees'
@@ -571,6 +595,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/customers/$code'
     | '/_authenticated/app/employees/$userId'
     | '/_authenticated/app/finance/expenses'
+    | '/_authenticated/app/finance/salary'
     | '/_authenticated/app/finance/templates'
     | '/_authenticated/app/finance/wallet'
     | '/_authenticated/app/finance/withdrawals'
@@ -587,6 +612,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/notifications-drain'
     | '/api/public/invoices/$slug.pdf'
     | '/api/public/resend/webhook'
+    | '/api/public/salary/$slip.pdf'
     | '/api/public/telegram/webhook'
     | '/_authenticated/app/customers/'
     | '/_authenticated/app/employees/'
@@ -609,6 +635,7 @@ export interface RootRouteChildren {
   ApiPublicHooksNotificationsDrainRoute: typeof ApiPublicHooksNotificationsDrainRoute
   ApiPublicInvoicesSlugDotpdfRoute: typeof ApiPublicInvoicesSlugDotpdfRoute
   ApiPublicResendWebhookRoute: typeof ApiPublicResendWebhookRoute
+  ApiPublicSalarySlipDotpdfRoute: typeof ApiPublicSalarySlipDotpdfRoute
   ApiPublicTelegramWebhookRoute: typeof ApiPublicTelegramWebhookRoute
 }
 
@@ -782,6 +809,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicTelegramWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/salary/$slip.pdf': {
+      id: '/api/public/salary/$slip.pdf'
+      path: '/api/public/salary/$slip.pdf'
+      fullPath: '/api/public/salary/$slip.pdf'
+      preLoaderRoute: typeof ApiPublicSalarySlipDotpdfRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/resend/webhook': {
       id: '/api/public/resend/webhook'
       path: '/api/public/resend/webhook'
@@ -894,6 +928,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppFinanceTemplatesRouteImport
       parentRoute: typeof AuthenticatedAppFinanceRoute
     }
+    '/_authenticated/app/finance/salary': {
+      id: '/_authenticated/app/finance/salary'
+      path: '/salary'
+      fullPath: '/app/finance/salary'
+      preLoaderRoute: typeof AuthenticatedAppFinanceSalaryRouteImport
+      parentRoute: typeof AuthenticatedAppFinanceRoute
+    }
     '/_authenticated/app/finance/expenses': {
       id: '/_authenticated/app/finance/expenses'
       path: '/expenses'
@@ -957,6 +998,7 @@ const AuthenticatedAppCustomersRouteWithChildren =
 
 interface AuthenticatedAppFinanceRouteChildren {
   AuthenticatedAppFinanceExpensesRoute: typeof AuthenticatedAppFinanceExpensesRoute
+  AuthenticatedAppFinanceSalaryRoute: typeof AuthenticatedAppFinanceSalaryRoute
   AuthenticatedAppFinanceTemplatesRoute: typeof AuthenticatedAppFinanceTemplatesRoute
   AuthenticatedAppFinanceWalletRoute: typeof AuthenticatedAppFinanceWalletRoute
   AuthenticatedAppFinanceWithdrawalsRoute: typeof AuthenticatedAppFinanceWithdrawalsRoute
@@ -969,6 +1011,7 @@ interface AuthenticatedAppFinanceRouteChildren {
 const AuthenticatedAppFinanceRouteChildren: AuthenticatedAppFinanceRouteChildren =
   {
     AuthenticatedAppFinanceExpensesRoute: AuthenticatedAppFinanceExpensesRoute,
+    AuthenticatedAppFinanceSalaryRoute: AuthenticatedAppFinanceSalaryRoute,
     AuthenticatedAppFinanceTemplatesRoute:
       AuthenticatedAppFinanceTemplatesRoute,
     AuthenticatedAppFinanceWalletRoute: AuthenticatedAppFinanceWalletRoute,
@@ -1090,6 +1133,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksNotificationsDrainRoute: ApiPublicHooksNotificationsDrainRoute,
   ApiPublicInvoicesSlugDotpdfRoute: ApiPublicInvoicesSlugDotpdfRoute,
   ApiPublicResendWebhookRoute: ApiPublicResendWebhookRoute,
+  ApiPublicSalarySlipDotpdfRoute: ApiPublicSalarySlipDotpdfRoute,
   ApiPublicTelegramWebhookRoute: ApiPublicTelegramWebhookRoute,
 }
 export const routeTree = rootRouteImport
