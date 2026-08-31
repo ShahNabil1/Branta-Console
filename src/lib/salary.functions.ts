@@ -175,11 +175,16 @@ export const issueSalarySlip = createServerFn({ method: "POST" })
           `Salary for ${monthLabel} — ${employeeName}`,
           data.reason ?? null,
           comps.length
-            ? comps.map((c) => `${c.label}: ${c.amount > 0 ? "+" : ""}${c.amount}`).join(" · ")
+          comps.length
+            ? comps
+                .map((c) => `${c.invoice_slug ? `[${c.invoice_slug}] ` : ""}${c.label}: ${c.amount > 0 ? "+" : ""}${c.amount}`)
+                .join(" · ")
             : null,
+          data.bank_name ? `Bank/Wallet: ${data.bank_name}` : null,
         ].filter(Boolean).join("\n"),
         txn_id: data.txn_id ?? null,
         payment_method: data.payment_method ?? null,
+
         department: data.department ?? "HR & Admin",
         requested_by: data.user_id,
         request_purpose: data.reason ?? `Monthly salary — ${monthLabel}`,
