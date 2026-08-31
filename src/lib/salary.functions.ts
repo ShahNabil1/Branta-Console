@@ -11,6 +11,9 @@ export interface SalaryComponent {
   label: string;
   /** Positive = earning, negative = deduction. */
   amount: number;
+  /** Optional link to a real invoice this pay line came from. */
+  invoice_id?: string | null;
+  invoice_slug?: string | null;
 }
 
 export interface SalarySlipRow {
@@ -24,11 +27,14 @@ export interface SalarySlipRow {
   net_amount: number;
   reason: string | null;
   payment_method: string | null;
+  bank_name: string | null;
   txn_id: string | null;
   paid_on: string;
   status: "issued" | "void";
   expense_id: string | null;
   payout_id: string | null;
+  signed_slip_url: string | null;
+  signed_slip_at: string | null;
   created_by: string | null;
   created_at: string;
   employee_name?: string | null;
@@ -36,8 +42,10 @@ export interface SalarySlipRow {
 }
 
 const ComponentIn = z.object({
-  label: z.string().trim().min(1).max(80),
+  label: z.string().trim().min(1).max(120),
   amount: z.number(),
+  invoice_id: z.string().uuid().nullable().optional(),
+  invoice_slug: z.string().trim().max(40).nullable().optional(),
 });
 
 const IssueIn = z.object({
@@ -45,13 +53,15 @@ const IssueIn = z.object({
   period_month: z.string().regex(/^\d{4}-\d{2}$/),
   currency: z.enum(["BDT", "USD"]).default("BDT"),
   base_amount: z.number().nonnegative(),
-  components: z.array(ComponentIn).max(12).default([]),
+  components: z.array(ComponentIn).max(24).default([]),
   reason: z.string().trim().max(600).nullable().optional(),
   payment_method: z.string().trim().max(80).nullable().optional(),
+  bank_name: z.string().trim().max(120).nullable().optional(),
   txn_id: z.string().trim().max(120).nullable().optional(),
   paid_on: z.string(),
   department: z.string().trim().max(80).nullable().optional(),
 });
+
 
 async function ensureFinanceAdmin(
   supabase: { rpc: (n: string, a: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }> },
