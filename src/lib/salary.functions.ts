@@ -175,7 +175,6 @@ export const issueSalarySlip = createServerFn({ method: "POST" })
           `Salary for ${monthLabel} — ${employeeName}`,
           data.reason ?? null,
           comps.length
-          comps.length
             ? comps
                 .map((c) => `${c.invoice_slug ? `[${c.invoice_slug}] ` : ""}${c.label}: ${c.amount > 0 ? "+" : ""}${c.amount}`)
                 .join(" · ")
