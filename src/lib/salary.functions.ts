@@ -259,21 +259,47 @@ export const issueSalarySlip = createServerFn({ method: "POST" })
       throw new Error(slipErr.message);
     }
 
+    const slipId = (slipRow as { id: string; slip_no: string | null }).id;
+    const slipNo = (slipRow as { slip_no: string | null }).slip_no ?? "Salary slip";
+
+    // Voucher number is assigned by trigger on the expense row.
+    let voucherNo: string | null = null;
+    try {
+      const { data: v } = await context.supabase
+        .from("expenses").select("voucher_no").eq("id", expenseId).maybeSingle();
+      voucherNo = (v as { voucher_no: string | null } | null)?.voucher_no ?? null;
+    } catch { /* non-fatal */ }
+
     try {
       const { notify } = await import("@/lib/notify.server");
+      const vars = {
+        slip: slipNo,
+        user: employeeName,
+        month: monthLabel,
+        amount: `${data.currency} ${net.toLocaleString()}`,
+        voucher: voucherNo ?? "—",
+        slug: `Salary ${monthLabel}`,
+      };
+      // Employee gets their own copy…
       await notify({
-        event: "payout.available",
+        event: "salary.slip.issued",
         recipients: [data.user_id],
-        vars: {
-          slug: `Salary ${monthLabel}`,
-          amount: `${data.currency} ${net.toLocaleString()}`,
-        },
-        dedupeKey: `salary:${(slipRow as { id: string }).id}:issued`,
+        vars,
+        dedupeKey: `salary:${slipId}:issued:employee`,
+        actorId: context.userId,
+      });
+      // …and Finance / Accounts + admins get the desk copy.
+      await notify({
+        event: "salary.slip.issued",
+        recipientRoles: ["finance", "admin", "super_admin"],
+        vars,
+        dedupeKey: `salary:${slipId}:issued:finance`,
         actorId: context.userId,
       });
     } catch (e) {
       console.error("[issueSalarySlip] notify failed:", e);
     }
+
 
     return {
       ...(slipRow as unknown as SalarySlipRow),
