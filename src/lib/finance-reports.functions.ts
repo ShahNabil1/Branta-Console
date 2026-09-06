@@ -397,7 +397,7 @@ export const exportReport = createServerFn({ method: "POST" })
       return {
         filename,
         mime: "application/pdf",
-        base64: btoa(String.fromCharCode(...chunkBytes(bytes))),
+        base64: toBase64(bytes),
         count: rows.length,
       };
     }
@@ -424,7 +424,7 @@ export const exportReport = createServerFn({ method: "POST" })
       return {
         filename,
         mime: "text/csv;charset=utf-8",
-        base64: btoa(String.fromCharCode(...chunkBytes(bytes))),
+        base64: toBase64(bytes),
         count: rows.length,
       };
     }
@@ -455,17 +455,17 @@ export const exportReport = createServerFn({ method: "POST" })
     return {
       filename,
       mime: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      base64: btoa(String.fromCharCode(...chunkBytes(bytes))),
+      base64: toBase64(bytes),
       count: rows.length,
     };
   });
 
-/** String.fromCharCode(...bytes) blows the stack on large buffers; chunk it. */
-function chunkBytes(bytes: Uint8Array): number[] {
-  const out: number[] = [];
+/** Chunked base64 — spreading a large Uint8Array into fromCharCode overflows the stack. */
+function toBase64(bytes: Uint8Array): string {
+  let bin = "";
   const size = 8192;
   for (let i = 0; i < bytes.length; i += size) {
-    out.push(...Array.from(bytes.subarray(i, i + size)));
+    bin += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + size)) as unknown as number[]);
   }
-  return out;
+  return btoa(bin);
 }
