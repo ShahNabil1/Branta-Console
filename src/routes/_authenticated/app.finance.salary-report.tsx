@@ -236,7 +236,7 @@ function SalaryReportPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <KpiTile label="Basic · মূল বেতন" value={fmtMoney(s?.basic ?? 0, currency)} delta="base" positive={null} />
         <KpiTile label="Bonus · বোনাস" value={fmtMoney(s?.bonus ?? 0, currency)} delta="added" positive={true} />
         <KpiTile label="Deduction · কর্তন" value={fmtMoney(s?.deduction ?? 0, currency)} delta="less" positive={false} />

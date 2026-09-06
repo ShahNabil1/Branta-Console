@@ -53,7 +53,7 @@ function FinanceDashboard() {
   const r = q.data;
 
   return (
-    <div className="mx-auto max-w-7xl space-y-4 px-6 py-6">
+    <div className="mx-auto max-w-7xl space-y-4 px-4 py-6 sm:px-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-[20px] font-semibold text-foreground">Finance Dashboard</h1>
@@ -83,7 +83,7 @@ function FinanceDashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <KpiTile label="Income" value={fmt(r?.income ?? 0, currency)} delta="paid" positive={true} />
         <KpiTile label="Expense" value={fmt(r?.expense ?? 0, currency)} delta="spent" positive={false} />
         <KpiTile label="Net profit" value={fmt(r?.profit ?? 0, currency)} delta={(r?.profit ?? 0) >= 0 ? "positive" : "loss"} positive={(r?.profit ?? 0) >= 0} />

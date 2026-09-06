@@ -213,7 +213,7 @@ function InvoiceDetail() {
   const outstanding = Math.max(0, Number(invoice.total_amount) - Number(invoice.paid_amount));
 
   return (
-    <div className="mx-auto max-w-6xl space-y-4 px-6 py-6">
+    <div className="mx-auto max-w-6xl space-y-4 px-4 py-6 sm:px-6">
       <button onClick={() => navigate({ to: "/app/finance/invoices" })}
         className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground">
         <ArrowLeft className="size-3.5" /> Back to invoices

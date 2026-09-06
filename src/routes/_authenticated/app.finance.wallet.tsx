@@ -141,7 +141,7 @@ function CompanyWalletPage() {
   };
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5 px-6 py-6">
+    <div className="mx-auto max-w-7xl space-y-5 px-4 py-6 sm:px-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="flex items-center gap-2 text-[20px] font-semibold text-foreground">
@@ -196,7 +196,7 @@ function CompanyWalletPage() {
           </div>
 
           {/* Breakdown row */}
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <MiniStat label="Received" tone="emerald" icon={<TrendingUp className="size-3" />} value={fmt(c.received, cur)} />
             <MiniStat label="Ledger" tone="blue" icon={<PlusCircle className="size-3" />} value={fmt(c.ledger_total, cur)} />
             <MiniStat label="Expenses" tone="rose" icon={<TrendingDown className="size-3" />} value={fmt(c.expenses_total, cur)} />
