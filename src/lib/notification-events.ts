@@ -122,6 +122,13 @@ export const EVENT_CATALOG: readonly EventDef[] = [
   { key: "salary.slip.signed", group: "finance", label: "Signed salary slip uploaded",
     description: "A printed, signed & sealed salary slip was uploaded back.",
     template: "🖊️ <b>Signed salary slip uploaded</b>: {slip} — {user} ({month})" },
+  { key: "income.voucher.created", group: "finance", label: "Money receipt created",
+    description: "A printable money receipt was generated for a received payment.",
+    template: "🧾 <b>Money receipt</b>: {voucher} — {amount}\nFrom: {party} ({date})" },
+  { key: "income.voucher.signed", group: "finance", label: "Signed money receipt uploaded",
+    description: "A printed, signed & sealed money receipt was uploaded back.",
+    template: "🖊️ <b>Signed money receipt</b>: {voucher} — {amount}\nFrom: {party} ({date})" },
+
   { key: "expense.added", group: "finance", label: "Expense added",
 
     description: "A new company expense was recorded.",
