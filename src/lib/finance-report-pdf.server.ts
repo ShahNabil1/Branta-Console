@@ -102,7 +102,7 @@ export async function buildFinanceReportPdf(input: PdfReportInput): Promise<Uint
     const size = opts.size ?? 9;
     const f = opts.font ?? font;
     // The embedded Bengali font has no arrow glyph — keep it renderable.
-    const safe = s.replace(/[→⟶]/g, "-");
+    const safe = s.replace(/[→⟶]/g, "-").replace(/·/g, "|");
     const str = opts.maxW ? fit(safe, f, size, opts.maxW) : safe;
     const x2 = opts.align === "right" ? x - f.widthOfTextAtSize(str, size) : x;
     page.drawText(str, { x: x2, y: yy, size, font: f, color: opts.color ?? INK });
@@ -121,8 +121,6 @@ export async function buildFinanceReportPdf(input: PdfReportInput): Promise<Uint
     text(input.title, metaRight, y + 10, { size: 12, font: bold, align: "right" });
     y -= 10;
     text(`Period: ${input.periodLabel}`, metaRight, y, { size: 8, color: MUTED, align: "right" });
-    y -= 11;
-    text(`Generated: ${input.generatedAt}`, metaRight, y, { size: 8, color: MUTED, align: "right" });
     if (input.subtitle) text(input.subtitle, M, y, { size: 8, color: MUTED, maxW: contentW * 0.55 });
     y -= 14;
     page.drawLine({ start: { x: M, y }, end: { x: A4.w - M, y }, thickness: 0.7, color: HAIR });
@@ -318,7 +316,7 @@ export async function buildGenericReportPdf(input: GenericReportInput): Promise<
   ) => {
     const size = opts.size ?? 9;
     const f = opts.font ?? font;
-    const safe = s.replace(/[→⟶]/g, "-");
+    const safe = s.replace(/[→⟶]/g, "-").replace(/·/g, "|");
     const str = opts.maxW ? fit(safe, f, size, opts.maxW) : safe;
     const x2 = opts.align === "right" ? x - f.widthOfTextAtSize(str, size) : x;
     page.drawText(str, { x: x2, y: yy, size, font: f, color: opts.color ?? INK });
@@ -336,8 +334,6 @@ export async function buildGenericReportPdf(input: GenericReportInput): Promise<
     text(input.title, metaRight, y + 10, { size: 12, font: bold, align: "right" });
     y -= 10;
     text(`Period: ${input.periodLabel}`, metaRight, y, { size: 8, color: MUTED, align: "right" });
-    y -= 11;
-    text(`Generated: ${input.generatedAt}`, metaRight, y, { size: 8, color: MUTED, align: "right" });
     if (input.subtitle) text(input.subtitle, M, y, { size: 8, color: MUTED, maxW: contentW * 0.55 });
     y -= 14;
     page.drawLine({ start: { x: M, y }, end: { x: A4.w - M, y }, thickness: 0.7, color: HAIR });
