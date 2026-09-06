@@ -813,10 +813,16 @@ export async function renderExpenseVoucherPdf(
   const sealTop = Math.min(y, CONTENT_BOTTOM + 170);
   const boxH = 96;
   const boxW = (CONTENT_W - 16) / 2;
-  const boxes: Array<[string, string]> = [
-    ["Prepared By", data.preparedByName || s.signature_name || s.company_name],
-    ["Authorized Signature & Company Seal", s.signature_title || "Authorized Signature"],
-  ];
+  const boxes: Array<[string, string]> =
+    kind === "income"
+      ? [
+          ["Received By (Accounts)", data.preparedByName || s.signature_name || s.company_name],
+          ["Authorized Signature & Company Seal", s.signature_title || "Authorized Signature"],
+        ]
+      : [
+          ["Prepared By", data.preparedByName || s.signature_name || s.company_name],
+          ["Authorized Signature & Company Seal", s.signature_title || "Authorized Signature"],
+        ];
   boxes.forEach(([label, name], i) => {
     const x = SIDE + i * (boxW + 16);
     page.drawRectangle({ x, y: sealTop - boxH, width: boxW, height: boxH, borderColor: hair, borderWidth: 0.5 });
@@ -826,7 +832,8 @@ export async function renderExpenseVoucherPdf(
   });
 
   /* ---- footer id line ---- */
-  const label = `Expense Voucher ${voucherNo}  ·  ${s.company_name}`;
+  const label = `${kind === "income" ? "Money Receipt" : "Expense Voucher"} ${voucherNo}  ·  ${s.company_name}`;
+
   const w = font.widthOfTextAtSize(safeText(label), 7.5);
   page.drawText(safeText(label), { x: (PAGE_W - w) / 2, y: CONTENT_BOTTOM + 6, size: 7.5, font, color: muted });
 
