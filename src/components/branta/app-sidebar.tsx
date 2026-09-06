@@ -52,6 +52,7 @@ const NAV: NavGroup[] = [
     label: "Finance",
     items: [
       { label: "Dashboard", to: "/app/finance", icon: PiggyBank },
+      { label: "Income", to: "/app/finance/income", icon: TrendingUp },
       { label: "Invoices", to: "/app/finance/invoices", icon: FileText },
       { label: "Wallet", to: "/app/finance/wallet", icon: Wallet },
       { label: "Withdrawals", to: "/app/finance/withdrawals", icon: Banknote },
