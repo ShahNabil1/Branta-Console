@@ -377,6 +377,14 @@ export const exportReport = createServerFn({ method: "POST" })
 
     if (data.format === "pdf") {
       const { buildFinanceReportPdf } = await import("@/lib/finance-report-pdf.server");
+      const { getWebRequest } = await import("@tanstack/react-start/server");
+      const { deviceFromUserAgent } = await import("@/lib/brand/pdf-brand.server");
+      const { data: me } = await context.supabase
+        .from("profiles").select("full_name").eq("user_id", context.userId).maybeSingle();
+      const generatedBy = {
+        name: (me as { full_name?: string | null } | null)?.full_name ?? null,
+        device: deviceFromUserAgent(getWebRequest()?.headers.get("user-agent") ?? null),
+      };
       const { data: settings } = await context.supabase
         .from("invoice_pdf_settings")
         .select("company_name, company_address, company_email, company_website")
@@ -390,6 +398,7 @@ export const exportReport = createServerFn({ method: "POST" })
         title,
         periodLabel: data.periodLabel || `${data.from} → ${data.to}`,
         generatedAt,
+        generatedBy,
         currency: cur,
         filters: data.filterLabels,
         summary: [
