@@ -20,6 +20,8 @@ import {
   getSalarySealedFileUrl,
   type SalaryComponent,
 } from "@/lib/salary.functions";
+import { getSignedExpenseVoucherUrl } from "@/lib/finance.functions";
+
 
 export const Route = createFileRoute("/_authenticated/app/finance/salary")({
   head: () => ({
