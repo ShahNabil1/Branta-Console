@@ -643,7 +643,11 @@ export interface ExpenseVoucherData {
  */
 export async function renderExpenseVoucherPdf(
   data: ExpenseVoucherData,
-  opts: { mode?: "digital" | "print"; kind?: "expense" | "income" } = {},
+  opts: {
+    mode?: "digital" | "print";
+    kind?: "expense" | "income";
+    generatedBy?: GeneratedBy | null;
+  } = {},
 ): Promise<Uint8Array> {
   const mode = opts.mode ?? "digital";
   const kind = opts.kind ?? "expense";
