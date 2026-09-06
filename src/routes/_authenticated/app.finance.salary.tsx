@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Plus, X, Eye, Download, Printer, Ban, Wallet, Stamp, FileText } from "lucide-react";
+import { Loader2, Plus, X, Eye, Download, Printer, Ban, Wallet, Stamp, FileText, ReceiptText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
