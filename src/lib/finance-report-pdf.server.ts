@@ -1,6 +1,10 @@
 // Server-side A4 financial report PDF (pdf-lib). Bangla-capable via an
 // embedded Noto Sans Bengali subset, so client names / notes render correctly.
 import { PDFDocument, rgb, type PDFFont, type PDFPage } from "pdf-lib";
+// fontkit's bundle uses regenerator helpers for complex-script (Bengali)
+// shaping; the Worker runtime has no global for it, so provide one.
+import regeneratorRuntime from "regenerator-runtime";
+(globalThis as unknown as { regeneratorRuntime?: unknown }).regeneratorRuntime ??= regeneratorRuntime;
 import fontkit from "@pdf-lib/fontkit";
 import { NOTO_BENGALI_REGULAR_B64 } from "@/lib/fonts/noto-bengali-regular.server";
 import { NOTO_BENGALI_BOLD_B64 } from "@/lib/fonts/noto-bengali-bold.server";
