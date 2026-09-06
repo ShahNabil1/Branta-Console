@@ -39,6 +39,9 @@ export interface SalarySlipRow {
   created_at: string;
   employee_name?: string | null;
   employee_code?: string | null;
+  /** Voucher number of the linked salary expense, when assigned. */
+  voucher_no?: string | null;
+
 }
 
 const ComponentIn = z.object({
