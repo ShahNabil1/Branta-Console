@@ -300,7 +300,8 @@ function InvoiceDetail() {
           <div className="border-b border-border px-4 py-2.5">
             <h2 className="text-[13px] font-semibold">Installments</h2>
           </div>
-          <table className="w-full text-[12.5px]">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[620px] text-[12.5px]">
             <thead className="text-left text-[10.5px] uppercase tracking-wider text-muted-foreground">
               <tr>
                 <th className="px-3 py-2">#</th>
@@ -411,7 +412,8 @@ function InvoiceDetail() {
           <h2 className="text-[13px] font-semibold">Payouts</h2>
           <p className="text-[11.5px] text-muted-foreground">Auto-generated per installment × stakeholder. Unlocks when the installment is marked paid.</p>
         </div>
-        <table className="w-full text-[12.5px]">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[640px] text-[12.5px]">
           <thead className="text-left text-[10.5px] uppercase tracking-wider text-muted-foreground">
             <tr>
               <th className="px-3 py-2">Installment</th>
