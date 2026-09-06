@@ -80,8 +80,8 @@ export const BRAND_EMAILS = [
 
 /** Email list for footers: the four official mailboxes plus any custom one. */
 export function brandEmailList(extra?: string | null): string {
-  const all = [...BRAND_EMAILS];
+  const all: string[] = [...BRAND_EMAILS];
   const e = extra?.trim();
-  if (e && !all.includes(e as (typeof BRAND_EMAILS)[number])) all.push(e);
+  if (e && !all.includes(e)) all.push(e);
   return all.join(" · ");
 }
