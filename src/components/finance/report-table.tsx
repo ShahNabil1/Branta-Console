@@ -3,6 +3,8 @@ import { Loader2 } from "lucide-react";
 import { formatMoney, type ReportCurrency } from "@/lib/report-filters";
 import type { ReportRow } from "@/lib/finance-reports.functions";
 import { Button } from "@/components/ui/button";
+import { RecordCard } from "@/components/finance/responsive-record-list";
+
 
 export function ReportTable({
   rows,
