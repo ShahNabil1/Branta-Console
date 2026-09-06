@@ -48,7 +48,7 @@ function MethodDetailsDialog({ snap, onClose }: { snap: MethodSnap; onClose: () 
       ];
   const filled = rows.filter((r) => r.value && String(r.value).trim().length > 0);
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-background/80 p-2 sm:p-4" onClick={onClose}>
       <div className="w-full max-w-md rounded-md border border-border bg-card p-5 shadow-lg" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h3 className="text-[14px] font-semibold">Payment method details</h3>
@@ -197,7 +197,7 @@ function WithdrawalsPage() {
       </div>
 
       {dialog && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 p-4">
+        <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-background/80 p-2 sm:p-4">
           <div className="w-full max-w-md rounded-md border border-border bg-card p-5 shadow-lg">
             <h3 className="text-[14px] font-semibold capitalize">{dialog.action} withdrawal</h3>
             <div className="mt-4 space-y-3">

@@ -456,7 +456,7 @@ function AddLedgerModal({ cur, onClose, onSubmit, submitting }: {
   };
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 p-4">
+    <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-background/80 p-2 sm:p-4">
       <div className="w-full max-w-md rounded-md border border-border bg-card p-5 shadow-lg">
         <h3 className="flex items-center gap-2 text-[14px] font-semibold">
           <Lock className="size-4 text-brand" /> Add ledger entry
@@ -546,7 +546,7 @@ function PayEmployeeModal({ cur, employees, onClose, onSubmit, submitting }: {
   };
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 p-4">
+    <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-background/80 p-2 sm:p-4">
       <div className="w-full max-w-lg rounded-md border border-border bg-card p-5 shadow-lg">
         <h3 className="flex items-center gap-2 text-[14px] font-semibold">
           <HandCoins className="size-4 text-emerald-700" /> Pay employee

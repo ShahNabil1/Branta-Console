@@ -579,7 +579,7 @@ function ExpensesPage() {
 
 
       {open && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 p-4">
+        <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-background/80 p-2 sm:p-4">
           <div className="max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-md border border-border bg-card p-5 shadow-lg">
             <h3 className="text-[14px] font-semibold">{editingId ? "Edit expense" : "Add expense"}</h3>
             <div className="mt-4 space-y-3">
