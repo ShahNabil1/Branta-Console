@@ -295,65 +295,18 @@ export async function renderInvoicePdf(
 
   const drawLetterhead = (p: PDFPage) => {
     if (mode !== "digital") return;
-    // ---- header band (inside reserved top margin) ----
-    const bandH = 92;
-    const bandY = PAGE_H - bandH;
-    // right angled orange block
-    p.drawRectangle({ x: PAGE_W * 0.55, y: bandY, width: PAGE_W * 0.45, height: bandH, color: brand });
-    // orange rule under the whole band
-    p.drawRectangle({ x: 0, y: bandY - 6, width: PAGE_W, height: 5, color: brand });
-
-    let lx = SIDE;
-    if (logo) {
-      const h = 40;
-      const w = (logo.width / logo.height) * h;
-      p.drawImage(logo, { x: SIDE, y: bandY + (bandH - h) / 2, width: w, height: h });
-      lx = SIDE + w + 10;
-    }
-    p.drawText(safeText(s.company_name), { x: lx, y: bandY + 48, size: 22, font: bold, color: brand });
-    if (s.company_tagline) {
-      p.drawText(safeText(s.company_tagline), { x: lx, y: bandY + 32, size: 8.5, font, color: muted });
-    }
-
-    const rx = PAGE_W * 0.55 + 14;
-    p.drawText("Creative Technology Company", { x: rx, y: bandY + 68, size: 9, font, color: white });
-    p.drawText("Grow Smarter with AI", { x: rx, y: bandY + 55, size: 11, font: bold, color: white });
-    if (s.company_address) {
-      const maxW = PAGE_W - rx - 14;
-      const raw = s.company_address.split(/\n|;/).map((l) => safeText(l).trim()).filter(Boolean);
-      const lines: string[] = [];
-      for (const ln of raw) {
-        let cur = "";
-        for (const word of ln.split(/\s+/)) {
-          const test = cur ? `${cur} ${word}` : word;
-          if (font.widthOfTextAtSize(test, 7.5) > maxW && cur) { lines.push(cur); cur = word; }
-          else cur = test;
-        }
-        if (cur) lines.push(cur);
-      }
-      p.drawText("Address:", { x: rx, y: bandY + 38, size: 8, font: bold, color: white });
-      lines.slice(0, 3).forEach((ln, i) => {
-        p.drawText(ln, { x: rx, y: bandY + 27 - i * 9.5, size: 7.5, font, color: white });
-      });
-    }
-
-    // ---- footer band (inside reserved bottom margin) ----
-    const fH = 20;
-    p.drawRectangle({ x: 0, y: 24, width: PAGE_W, height: fH, color: brand });
-    const segs = [
-      s.company_phone ? `Phone: ${s.company_phone}` : null,
-      s.company_email ? `Email: ${s.company_email}` : null,
-      s.company_website ? `Web: ${s.company_website.replace(/^https?:\/\//, "")}` : null,
-    ].filter(Boolean) as string[];
-    const segW = PAGE_W / Math.max(1, segs.length);
-    segs.forEach((t, i) => {
-      const w = font.widthOfTextAtSize(safeText(t), 8.5);
-      p.drawText(safeText(t), { x: i * segW + (segW - w) / 2, y: 30, size: 8.5, font, color: white });
-      if (i > 0) p.drawLine({ start: { x: i * segW, y: 24 }, end: { x: i * segW, y: 24 + fH }, thickness: 1, color: white });
+    drawBrandHeader(p, logo, brand);
+    drawBrandFooter(p, {
+      logo: whiteLogo,
+      font,
+      brand,
+      white,
+      muted,
+      phone: s.company_phone,
+      email: s.company_email,
+      website: s.company_website,
+      generatedBy: opts.generatedBy,
     });
-    const foot = safeText(s.footer_text);
-    const fw = font.widthOfTextAtSize(foot, 7.5);
-    p.drawText(foot, { x: (PAGE_W - fw) / 2, y: 12, size: 7.5, font, color: muted });
   };
 
   drawLetterhead(page);
