@@ -74,13 +74,13 @@ export function ReportFilterBar({
   return (
     <div className="rounded-md border border-border bg-card">
       {/* Row 1 — quick dates, currency, search */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-border p-2.5">
-        <div className="flex flex-wrap items-center gap-1">
+      <div className="flex flex-col gap-2 border-b border-border p-2.5 sm:flex-row sm:flex-wrap sm:items-center">
+        <div className="-mx-0.5 flex items-center gap-1 overflow-x-auto px-0.5 pb-0.5 sm:flex-wrap sm:overflow-visible">
           {DATE_PRESETS.map((p) => (
             <button
               key={p.key}
               onClick={() => setPreset(p.key)}
-              className={`rounded-[3px] px-2 py-1 text-[11.5px] font-medium transition-colors ${
+              className={`shrink-0 rounded-[3px] px-2 py-1 text-[11.5px] font-medium transition-colors ${
                 filters.preset === p.key
                   ? "bg-brand text-white"
                   : "border border-border text-muted-foreground hover:text-foreground"
@@ -91,8 +91,8 @@ export function ReportFilterBar({
           ))}
         </div>
 
-        <div className="ml-auto flex items-center gap-2">
-          <div className="inline-flex items-center rounded-sm border border-border p-0.5">
+        <div className="flex items-center gap-2 sm:ml-auto">
+          <div className="inline-flex shrink-0 items-center rounded-sm border border-border p-0.5">
             {(["BDT", "USD"] as ReportCurrency[]).map((c) => (
               <button
                 key={c}
@@ -105,19 +105,19 @@ export function ReportFilterBar({
               </button>
             ))}
           </div>
-          <div className="relative">
+          <div className="relative min-w-0 flex-1 sm:flex-none">
             <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={filters.search}
               onChange={(e) => set({ search: e.target.value })}
               placeholder="Search…"
-              className="h-8 w-40 rounded-sm pl-7 text-[12px] sm:w-56"
+              className="h-8 w-full rounded-sm pl-7 text-[12px] sm:w-56"
             />
           </div>
           <Button
             variant="outline"
             size="sm"
-            className="h-8 rounded-sm text-[12px]"
+            className="h-8 shrink-0 rounded-sm text-[12px]"
             onClick={() => setOpen((v) => !v)}
           >
             <Filter className="mr-1.5 size-3.5" /> Filters
@@ -125,6 +125,7 @@ export function ReportFilterBar({
           </Button>
         </div>
       </div>
+
 
       {/* Row 2 — advanced facets */}
       {open && (
