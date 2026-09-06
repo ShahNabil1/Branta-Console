@@ -728,29 +728,43 @@ export async function renderExpenseVoucherPdf(
 
   /* ---- title ---- */
   y -= 18;
-  draw("EXPENSE VOUCHER", SIDE, y, 20, bold, brand);
+  draw(kind === "income" ? "MONEY RECEIPT" : "EXPENSE VOUCHER", SIDE, y, 20, bold, brand);
   const metaX = PAGE_W - SIDE - 180;
-  draw("Voucher No.", metaX, y + 6, 8, bold, muted);
+  draw(kind === "income" ? "Receipt No." : "Voucher No.", metaX, y + 6, 8, bold, muted);
   draw(voucherNo, metaX, y - 7, 12, monoBold, text);
   y -= 14;
-  draw("Internal payment record", SIDE, y, 9, font, muted);
+  draw(kind === "income" ? "Income received record" : "Internal payment record", SIDE, y, 9, font, muted);
   y -= 12;
   page.drawLine({ start: { x: SIDE, y }, end: { x: PAGE_W - SIDE, y }, thickness: 0.8, color: brand });
   y -= 22;
 
   /* ---- detail grid ---- */
-  const rows: Array<[string, string]> = [
-    ["Date of Expense", fmtDate(e.spent_on)],
-    ["Category", e.category.charAt(0).toUpperCase() + e.category.slice(1)],
-    ["Department", e.department || "—"],
-    ["Requested By", data.requestedByName || "—"],
-    ["Paid To / Vendor", e.vendor || "—"],
-    ["Paid By", data.paidToName || "—"],
-    ["Payment Method", e.payment_method || "—"],
-    ["Transaction ID (TrxID)", e.txn_id || e.payment_ref || "—"],
-    ["Linked Invoice", data.linkedInvoiceSlug || "—"],
-    ["Recorded On", fmtDate(e.created_at)],
-  ];
+  const rows: Array<[string, string]> =
+    kind === "income"
+      ? [
+          ["Date Received", fmtDate(e.spent_on)],
+          ["Income Type", e.category.charAt(0).toUpperCase() + e.category.slice(1)],
+          ["Project / Reference", e.department || "—"],
+          ["Received From", e.vendor || "—"],
+          ["Received By", data.paidToName || data.preparedByName || "—"],
+          ["Payment Method", e.payment_method || "—"],
+          ["Transaction ID (TrxID)", e.txn_id || e.payment_ref || "—"],
+          ["Linked Invoice", data.linkedInvoiceSlug || "—"],
+          ["Recorded On", fmtDate(e.created_at)],
+        ]
+      : [
+          ["Date of Expense", fmtDate(e.spent_on)],
+          ["Category", e.category.charAt(0).toUpperCase() + e.category.slice(1)],
+          ["Department", e.department || "—"],
+          ["Requested By", data.requestedByName || "—"],
+          ["Paid To / Vendor", e.vendor || "—"],
+          ["Paid By", data.paidToName || "—"],
+          ["Payment Method", e.payment_method || "—"],
+          ["Transaction ID (TrxID)", e.txn_id || e.payment_ref || "—"],
+          ["Linked Invoice", data.linkedInvoiceSlug || "—"],
+          ["Recorded On", fmtDate(e.created_at)],
+        ];
+
 
   const colW = CONTENT_W / 2;
   const rowH = 26;
