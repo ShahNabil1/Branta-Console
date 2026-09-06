@@ -127,14 +127,15 @@ function WithdrawalsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-4 px-6 py-6">
+    <div className="mx-auto max-w-7xl space-y-4 px-4 py-6 sm:px-6">
       <div>
         <h1 className="text-[20px] font-semibold text-foreground">Withdrawal Requests</h1>
         <p className="text-[12.5px] text-muted-foreground">Approve → transfer → mark paid. Real-time.</p>
       </div>
 
-      <div className="overflow-hidden rounded-md border border-border bg-card">
-        <table className="w-full text-[12.5px]">
+      <div className="hidden overflow-x-auto rounded-md border border-border bg-card md:block">
+        <table className="w-full min-w-[760px] text-[12.5px]">
+
           <thead className="border-b border-border bg-muted/30 text-left text-[10.5px] uppercase tracking-wider text-muted-foreground">
             <tr>
               <th className="px-3 py-2">Employee</th>
