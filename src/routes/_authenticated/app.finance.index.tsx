@@ -80,9 +80,6 @@ function FinanceDashboard() {
               </button>
             ))}
           </div>
-          <Button variant="outline" size="sm" disabled className="h-8 rounded-sm text-[12px]">
-            <Download className="mr-1.5 size-3.5" /> PDF report
-          </Button>
         </div>
       </div>
 
