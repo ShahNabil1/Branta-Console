@@ -22,6 +22,8 @@ export type ReportRow = {
   createdBy: string | null;
   clientId: string | null;
   invoiceId: string | null;
+  /** Where the row came from — used to attach money receipts to income rows. */
+  source: "installment" | "ledger" | "expense";
 };
 
 const FiltersSchema = z.object({
@@ -144,6 +146,7 @@ async function fetchIncome(supabase: Sb, f: ServerFilters): Promise<ReportRow[]>
     createdBy: null,
     clientId: r.invoices?.customer_id ?? null,
     invoiceId: r.invoice_id,
+    source: "installment" as const,
   }));
 
   // Manual (non-invoice) income recorded on the Company Wallet ledger.
@@ -179,6 +182,7 @@ async function fetchIncome(supabase: Sb, f: ServerFilters): Promise<ReportRow[]>
       createdBy: r.created_by,
       clientId: null,
       invoiceId: null,
+      source: "ledger" as const,
     }));
   }
 
