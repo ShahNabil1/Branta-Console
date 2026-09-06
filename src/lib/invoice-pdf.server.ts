@@ -594,7 +594,7 @@ export async function renderInvoicePdf(
   const sigX = PAGE_W - SIDE - 200;
   page.drawLine({ start: { x: sigX, y }, end: { x: PAGE_W - SIDE, y }, thickness: 0.7, color: hair });
   y -= 12;
-  draw(s.signature_name || s.company_name, sigX, y, 9.5, bold, text);
+  draw(s.signature_name || "Authorized Signature", sigX, y, 9.5, bold, text);
   y -= 11;
   draw(s.signature_title || "Authorized Signature", sigX, y, 8.5, font, muted);
   y -= 16;
@@ -806,11 +806,11 @@ export async function renderExpenseVoucherPdf(
   const boxes: Array<[string, string]> =
     kind === "income"
       ? [
-          ["Received By (Accounts)", data.preparedByName || s.signature_name || s.company_name],
+          ["Received By (Accounts)", data.preparedByName || s.signature_name || "—"],
           ["Authorized Signature & Company Seal", s.signature_title || "Authorized Signature"],
         ]
       : [
-          ["Prepared By", data.preparedByName || s.signature_name || s.company_name],
+          ["Prepared By", data.preparedByName || s.signature_name || "—"],
           ["Authorized Signature & Company Seal", s.signature_title || "Authorized Signature"],
         ];
   boxes.forEach(([label, name], i) => {
@@ -822,7 +822,7 @@ export async function renderExpenseVoucherPdf(
   });
 
   /* ---- footer id line ---- */
-  const label = `${kind === "income" ? "Money Receipt" : "Expense Voucher"} ${voucherNo}  ·  ${s.company_name}`;
+  const label = `${kind === "income" ? "Money Receipt" : "Expense Voucher"} ${voucherNo}`;
 
   const w = font.widthOfTextAtSize(safeText(label), 7.5);
   page.drawText(safeText(label), { x: (PAGE_W - w) / 2, y: CONTENT_BOTTOM + 6, size: 7.5, font, color: muted });
