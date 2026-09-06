@@ -685,13 +685,13 @@ export const exportSalaryReport = createServerFn({ method: "POST" })
 
     if (data.format === "pdf") {
       const { buildGenericReportPdf } = await import("@/lib/finance-report-pdf.server");
-      const { getWebRequest } = await import("@tanstack/react-start/server");
+      const { getRequestHeader } = await import("@tanstack/react-start/server");
       const { deviceFromUserAgent } = await import("@/lib/brand/pdf-brand.server");
       const { data: me } = await context.supabase
         .from("profiles").select("full_name").eq("user_id", context.userId).maybeSingle();
       const generatedBy = {
         name: (me as { full_name?: string | null } | null)?.full_name ?? null,
-        device: deviceFromUserAgent(getWebRequest()?.headers.get("user-agent") ?? null),
+        device: deviceFromUserAgent(getRequestHeader("user-agent") ?? null),
       };
       const { data: settings } = await context.supabase
         .from("invoice_pdf_settings")
