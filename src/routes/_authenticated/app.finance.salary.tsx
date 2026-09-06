@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SearchableSelect, type SearchableItem } from "@/components/finance/searchable-select";
 import { useConfirm } from "@/components/ui/confirm-dialog";
+import { RecordCard, RowActionsMenu } from "@/components/finance/responsive-record-list";
+
 import {
   listSalarySlips,
   issueSalarySlip,
