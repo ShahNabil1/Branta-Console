@@ -98,7 +98,9 @@ export async function buildFinanceReportPdf(input: PdfReportInput): Promise<Uint
   ) => {
     const size = opts.size ?? 9;
     const f = opts.font ?? font;
-    const str = opts.maxW ? fit(s, f, size, opts.maxW) : s;
+    // The embedded Bengali font has no arrow glyph — keep it renderable.
+    const safe = s.replace(/[→⟶]/g, "-");
+    const str = opts.maxW ? fit(safe, f, size, opts.maxW) : safe;
     const x2 = opts.align === "right" ? x - f.widthOfTextAtSize(str, size) : x;
     page.drawText(str, { x: x2, y: yy, size, font: f, color: opts.color ?? INK });
   };
