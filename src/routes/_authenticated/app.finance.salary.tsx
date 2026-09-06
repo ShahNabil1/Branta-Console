@@ -71,7 +71,9 @@ function SalaryPage() {
   const urlFn = useServerFn(getSignedSalarySlipUrl);
   const invFn = useServerFn(listSalaryInvoiceOptions);
   const sealFn = useServerFn(setSalarySignedSlip);
+  const sealedUrlFn = useServerFn(getSalarySealedFileUrl);
   const voucherFn = useServerFn(getSignedExpenseVoucherUrl);
+
 
   const slipsQ = useQuery({ queryKey: ["salary.slips"], queryFn: () => listFn() });
   const empQ = useQuery({ queryKey: ["salary.employees"], queryFn: () => empFn() });
