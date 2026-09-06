@@ -9,7 +9,66 @@
 // letterhead artwork. In "print" mode they are left completely blank so the
 // content never overlaps pre-printed letterhead paper.
 
-import type { PDFDocument, PDFFont, PDFPage, RGB } from "pdf-lib";
+import type { PDFDocument, PDFFont, PDFImage, PDFPage, RGB } from "pdf-lib";
+import { embedBrandLogo, generatedByLine, type GeneratedBy } from "@/lib/brand/pdf-brand.server";
+
+export type { GeneratedBy };
+
+/** Header band: brand logo only, plus the orange rule. No marketing copy. */
+function drawBrandHeader(p: PDFPage, logo: PDFImage | null, brand: RGB) {
+  const bandH = 92;
+  const bandY = PAGE_H - bandH;
+  p.drawRectangle({ x: 0, y: bandY - 6, width: PAGE_W, height: 4, color: brand });
+  if (logo) {
+    const h = 46;
+    const w = (logo.width / logo.height) * h;
+    p.drawImage(logo, { x: SIDE, y: bandY + (bandH - h) / 2, width: w, height: h });
+  }
+}
+
+/** Footer band: white logo + contact strip, then the provenance line. */
+function drawBrandFooter(
+  p: PDFPage,
+  opts: {
+    logo: PDFImage | null;
+    font: PDFFont;
+    brand: RGB;
+    white: RGB;
+    muted: RGB;
+    phone?: string | null;
+    email?: string | null;
+    website?: string | null;
+    generatedBy?: GeneratedBy | null;
+  },
+) {
+  const fH = 20;
+  p.drawRectangle({ x: 0, y: 24, width: PAGE_W, height: fH, color: opts.brand });
+
+  let left = SIDE;
+  if (opts.logo) {
+    const h = 11;
+    const w = (opts.logo.width / opts.logo.height) * h;
+    p.drawImage(opts.logo, { x: SIDE, y: 24 + (fH - h) / 2, width: w, height: h });
+    left = SIDE + w + 14;
+  }
+
+  const segs = [
+    opts.phone ? `Phone: ${opts.phone}` : null,
+    opts.email ? `Email: ${opts.email}` : null,
+    opts.website ? `Web: ${opts.website.replace(/^https?:\/\//, "")}` : null,
+  ].filter(Boolean) as string[];
+  const area = PAGE_W - SIDE - left;
+  const segW = area / Math.max(1, segs.length);
+  segs.forEach((t, i) => {
+    const txt = safeText(t);
+    const w = opts.font.widthOfTextAtSize(txt, 8);
+    p.drawText(txt, { x: left + i * segW + (segW - w) / 2, y: 30, size: 8, font: opts.font, color: opts.white });
+  });
+
+  const line = safeText(generatedByLine(opts.generatedBy));
+  const lw = opts.font.widthOfTextAtSize(line, 7);
+  p.drawText(line, { x: (PAGE_W - lw) / 2, y: 12, size: 7, font: opts.font, color: opts.muted });
+}
 
 export interface InvoiceLineItem {
   sequence: number;
@@ -194,9 +253,31 @@ async function tryFetchImage(url: string): Promise<Uint8Array | null> {
 
 /* ---------------- renderer ---------------- */
 
+/** Colour logo for the header (custom URL wins), white logo for the footer. */
+async function loadBrandLogos(
+  pdf: PDFDocument,
+  s: PdfSettings,
+  mode: "digital" | "print",
+): Promise<{ logo: PDFImage | null; whiteLogo: PDFImage | null }> {
+  if (mode !== "digital") return { logo: null, whiteLogo: null };
+  let logo: PDFImage | null = null;
+  if (s.logo_url) {
+    const buf = await tryFetchImage(s.logo_url);
+    if (buf) {
+      try {
+        const isJpg = /\.jpe?g($|\?)/i.test(s.logo_url);
+        logo = isJpg ? await pdf.embedJpg(buf) : await pdf.embedPng(buf);
+      } catch { /* ignore */ }
+    }
+  }
+  if (!logo) logo = await embedBrandLogo(pdf, "color");
+  const whiteLogo = await embedBrandLogo(pdf, "white");
+  return { logo, whiteLogo };
+}
+
 export async function renderInvoicePdf(
   data: InvoicePdfData,
-  opts: { mode?: "digital" | "print" } = {},
+  opts: { mode?: "digital" | "print"; generatedBy?: GeneratedBy | null } = {},
 ): Promise<Uint8Array> {
   const mode = opts.mode ?? "digital";
   const { PDFDocument: PDoc, StandardFonts, rgb } = await import("pdf-lib");
@@ -215,17 +296,8 @@ export async function renderInvoicePdf(
   const mono = await pdf.embedFont(StandardFonts.Courier);
   const monoBold = await pdf.embedFont(StandardFonts.CourierBold);
 
-  // Logo embedded once, reused on every page.
-  let logo: Awaited<ReturnType<PDFDocument["embedPng"]>> | null = null;
-  if (mode === "digital" && s.logo_url) {
-    const buf = await tryFetchImage(s.logo_url);
-    if (buf) {
-      try {
-        const isJpg = /\.jpe?g($|\?)/i.test(s.logo_url);
-        logo = isJpg ? await pdf.embedJpg(buf) : await pdf.embedPng(buf);
-      } catch { /* ignore */ }
-    }
-  }
+  // Logos embedded once, reused on every page.
+  const { logo, whiteLogo } = await loadBrandLogos(pdf, s, mode);
 
   const CONTENT_TOP = PAGE_H - TOP_MARGIN;
   const CONTENT_BOTTOM = BOTTOM_MARGIN;
@@ -236,65 +308,18 @@ export async function renderInvoicePdf(
 
   const drawLetterhead = (p: PDFPage) => {
     if (mode !== "digital") return;
-    // ---- header band (inside reserved top margin) ----
-    const bandH = 92;
-    const bandY = PAGE_H - bandH;
-    // right angled orange block
-    p.drawRectangle({ x: PAGE_W * 0.55, y: bandY, width: PAGE_W * 0.45, height: bandH, color: brand });
-    // orange rule under the whole band
-    p.drawRectangle({ x: 0, y: bandY - 6, width: PAGE_W, height: 5, color: brand });
-
-    let lx = SIDE;
-    if (logo) {
-      const h = 40;
-      const w = (logo.width / logo.height) * h;
-      p.drawImage(logo, { x: SIDE, y: bandY + (bandH - h) / 2, width: w, height: h });
-      lx = SIDE + w + 10;
-    }
-    p.drawText(safeText(s.company_name), { x: lx, y: bandY + 48, size: 22, font: bold, color: brand });
-    if (s.company_tagline) {
-      p.drawText(safeText(s.company_tagline), { x: lx, y: bandY + 32, size: 8.5, font, color: muted });
-    }
-
-    const rx = PAGE_W * 0.55 + 14;
-    p.drawText("Creative Technology Company", { x: rx, y: bandY + 68, size: 9, font, color: white });
-    p.drawText("Grow Smarter with AI", { x: rx, y: bandY + 55, size: 11, font: bold, color: white });
-    if (s.company_address) {
-      const maxW = PAGE_W - rx - 14;
-      const raw = s.company_address.split(/\n|;/).map((l) => safeText(l).trim()).filter(Boolean);
-      const lines: string[] = [];
-      for (const ln of raw) {
-        let cur = "";
-        for (const word of ln.split(/\s+/)) {
-          const test = cur ? `${cur} ${word}` : word;
-          if (font.widthOfTextAtSize(test, 7.5) > maxW && cur) { lines.push(cur); cur = word; }
-          else cur = test;
-        }
-        if (cur) lines.push(cur);
-      }
-      p.drawText("Address:", { x: rx, y: bandY + 38, size: 8, font: bold, color: white });
-      lines.slice(0, 3).forEach((ln, i) => {
-        p.drawText(ln, { x: rx, y: bandY + 27 - i * 9.5, size: 7.5, font, color: white });
-      });
-    }
-
-    // ---- footer band (inside reserved bottom margin) ----
-    const fH = 20;
-    p.drawRectangle({ x: 0, y: 24, width: PAGE_W, height: fH, color: brand });
-    const segs = [
-      s.company_phone ? `Phone: ${s.company_phone}` : null,
-      s.company_email ? `Email: ${s.company_email}` : null,
-      s.company_website ? `Web: ${s.company_website.replace(/^https?:\/\//, "")}` : null,
-    ].filter(Boolean) as string[];
-    const segW = PAGE_W / Math.max(1, segs.length);
-    segs.forEach((t, i) => {
-      const w = font.widthOfTextAtSize(safeText(t), 8.5);
-      p.drawText(safeText(t), { x: i * segW + (segW - w) / 2, y: 30, size: 8.5, font, color: white });
-      if (i > 0) p.drawLine({ start: { x: i * segW, y: 24 }, end: { x: i * segW, y: 24 + fH }, thickness: 1, color: white });
+    drawBrandHeader(p, logo, brand);
+    drawBrandFooter(p, {
+      logo: whiteLogo,
+      font,
+      brand,
+      white,
+      muted,
+      phone: s.company_phone,
+      email: s.company_email,
+      website: s.company_website,
+      generatedBy: opts.generatedBy,
     });
-    const foot = safeText(s.footer_text);
-    const fw = font.widthOfTextAtSize(foot, 7.5);
-    p.drawText(foot, { x: (PAGE_W - fw) / 2, y: 12, size: 7.5, font, color: muted });
   };
 
   drawLetterhead(page);
@@ -569,7 +594,7 @@ export async function renderInvoicePdf(
   const sigX = PAGE_W - SIDE - 200;
   page.drawLine({ start: { x: sigX, y }, end: { x: PAGE_W - SIDE, y }, thickness: 0.7, color: hair });
   y -= 12;
-  draw(s.signature_name || s.company_name, sigX, y, 9.5, bold, text);
+  draw(s.signature_name || "Authorized Signature", sigX, y, 9.5, bold, text);
   y -= 11;
   draw(s.signature_title || "Authorized Signature", sigX, y, 8.5, font, muted);
   y -= 16;
@@ -618,7 +643,11 @@ export interface ExpenseVoucherData {
  */
 export async function renderExpenseVoucherPdf(
   data: ExpenseVoucherData,
-  opts: { mode?: "digital" | "print"; kind?: "expense" | "income" } = {},
+  opts: {
+    mode?: "digital" | "print";
+    kind?: "expense" | "income";
+    generatedBy?: GeneratedBy | null;
+  } = {},
 ): Promise<Uint8Array> {
   const mode = opts.mode ?? "digital";
   const kind = opts.kind ?? "expense";
@@ -639,16 +668,7 @@ export async function renderExpenseVoucherPdf(
   const mono = await pdf.embedFont(StandardFonts.Courier);
   const monoBold = await pdf.embedFont(StandardFonts.CourierBold);
 
-  let logo: Awaited<ReturnType<PDFDocument["embedPng"]>> | null = null;
-  if (mode === "digital" && s.logo_url) {
-    const buf = await tryFetchImage(s.logo_url);
-    if (buf) {
-      try {
-        const isJpg = /\.jpe?g($|\?)/i.test(s.logo_url);
-        logo = isJpg ? await pdf.embedJpg(buf) : await pdf.embedPng(buf);
-      } catch { /* ignore */ }
-    }
-  }
+  const { logo, whiteLogo } = await loadBrandLogos(pdf, s, mode);
 
   const CONTENT_TOP = PAGE_H - TOP_MARGIN;
   const CONTENT_BOTTOM = BOTTOM_MARGIN;
@@ -678,48 +698,18 @@ export async function renderExpenseVoucherPdf(
 
   /* ---- letterhead (digital only) ---- */
   if (mode === "digital") {
-    const bandH = 92;
-    const bandY = PAGE_H - bandH;
-    page.drawRectangle({ x: PAGE_W * 0.55, y: bandY, width: PAGE_W * 0.45, height: bandH, color: brand });
-    page.drawRectangle({ x: 0, y: bandY - 6, width: PAGE_W, height: 5, color: brand });
-    let lx = SIDE;
-    if (logo) {
-      const h = 40;
-      const w = (logo.width / logo.height) * h;
-      page.drawImage(logo, { x: SIDE, y: bandY + (bandH - h) / 2, width: w, height: h });
-      lx = SIDE + w + 10;
-    }
-    draw(s.company_name, lx, bandY + 48, 22, bold, brand);
-    if (s.company_tagline) draw(s.company_tagline, lx, bandY + 32, 8.5, font, muted);
-
-    const rx = PAGE_W * 0.55 + 14;
-    draw("Creative Technology Company", rx, bandY + 68, 9, font, white);
-    draw("Grow Smarter with AI", rx, bandY + 55, 11, bold, white);
-    if (s.company_address) {
-      const maxW = PAGE_W - rx - 14;
-      const raw = s.company_address.split(/\n|;/).map((l) => safeText(l).trim()).filter(Boolean);
-      const lines: string[] = [];
-      for (const ln of raw) lines.push(...wrap(ln, font, 7.5, maxW));
-      draw("Address:", rx, bandY + 38, 8, bold, white);
-      lines.slice(0, 3).forEach((ln, i) => draw(ln, rx, bandY + 27 - i * 9.5, 7.5, font, white));
-    }
-
-    const fH = 20;
-    page.drawRectangle({ x: 0, y: 24, width: PAGE_W, height: fH, color: brand });
-    const segs = [
-      s.company_phone ? `Phone: ${s.company_phone}` : null,
-      s.company_email ? `Email: ${s.company_email}` : null,
-      s.company_website ? `Web: ${s.company_website.replace(/^https?:\/\//, "")}` : null,
-    ].filter(Boolean) as string[];
-    const segW = PAGE_W / Math.max(1, segs.length);
-    segs.forEach((t, i) => {
-      const w = font.widthOfTextAtSize(safeText(t), 8.5);
-      draw(t, i * segW + (segW - w) / 2, 30, 8.5, font, white);
-      if (i > 0) page.drawLine({ start: { x: i * segW, y: 24 }, end: { x: i * segW, y: 24 + fH }, thickness: 1, color: white });
+    drawBrandHeader(page, logo, brand);
+    drawBrandFooter(page, {
+      logo: whiteLogo,
+      font,
+      brand,
+      white,
+      muted,
+      phone: s.company_phone,
+      email: s.company_email,
+      website: s.company_website,
+      generatedBy: opts.generatedBy,
     });
-    const foot = safeText(s.footer_text);
-    const fw = font.widthOfTextAtSize(foot, 7.5);
-    draw(foot, (PAGE_W - fw) / 2, 12, 7.5, font, muted);
   }
 
   const e = data.expense;
@@ -816,11 +806,11 @@ export async function renderExpenseVoucherPdf(
   const boxes: Array<[string, string]> =
     kind === "income"
       ? [
-          ["Received By (Accounts)", data.preparedByName || s.signature_name || s.company_name],
+          ["Received By (Accounts)", data.preparedByName || s.signature_name || "—"],
           ["Authorized Signature & Company Seal", s.signature_title || "Authorized Signature"],
         ]
       : [
-          ["Prepared By", data.preparedByName || s.signature_name || s.company_name],
+          ["Prepared By", data.preparedByName || s.signature_name || "—"],
           ["Authorized Signature & Company Seal", s.signature_title || "Authorized Signature"],
         ];
   boxes.forEach(([label, name], i) => {
@@ -832,7 +822,7 @@ export async function renderExpenseVoucherPdf(
   });
 
   /* ---- footer id line ---- */
-  const label = `${kind === "income" ? "Money Receipt" : "Expense Voucher"} ${voucherNo}  ·  ${s.company_name}`;
+  const label = `${kind === "income" ? "Money Receipt" : "Expense Voucher"} ${voucherNo}`;
 
   const w = font.widthOfTextAtSize(safeText(label), 7.5);
   page.drawText(safeText(label), { x: (PAGE_W - w) / 2, y: CONTENT_BOTTOM + 6, size: 7.5, font, color: muted });
@@ -917,7 +907,7 @@ function monthLabel(d: string): string {
  */
 export async function renderSalarySlipPdf(
   data: SalarySlipPdfData,
-  opts: { mode?: "digital" | "print" } = {},
+  opts: { mode?: "digital" | "print"; generatedBy?: GeneratedBy | null } = {},
 ): Promise<Uint8Array> {
   const mode = opts.mode ?? "digital";
   const { PDFDocument: PDoc, StandardFonts, rgb } = await import("pdf-lib");
@@ -935,16 +925,7 @@ export async function renderSalarySlipPdf(
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
   const monoBold = await pdf.embedFont(StandardFonts.CourierBold);
 
-  let logo: Awaited<ReturnType<PDFDocument["embedPng"]>> | null = null;
-  if (mode === "digital" && s.logo_url) {
-    const buf = await tryFetchImage(s.logo_url);
-    if (buf) {
-      try {
-        const isJpg = /\.jpe?g($|\?)/i.test(s.logo_url);
-        logo = isJpg ? await pdf.embedJpg(buf) : await pdf.embedPng(buf);
-      } catch { /* ignore */ }
-    }
-  }
+  const { logo, whiteLogo } = await loadBrandLogos(pdf, s, mode);
 
   const CONTENT_TOP = PAGE_H - TOP_MARGIN;
   const CONTENT_BOTTOM = BOTTOM_MARGIN;
@@ -973,48 +954,18 @@ export async function renderSalarySlipPdf(
   };
 
   if (mode === "digital") {
-    const bandH = 92;
-    const bandY = PAGE_H - bandH;
-    page.drawRectangle({ x: PAGE_W * 0.55, y: bandY, width: PAGE_W * 0.45, height: bandH, color: brand });
-    page.drawRectangle({ x: 0, y: bandY - 6, width: PAGE_W, height: 5, color: brand });
-    let lx = SIDE;
-    if (logo) {
-      const h = 40;
-      const w = (logo.width / logo.height) * h;
-      page.drawImage(logo, { x: SIDE, y: bandY + (bandH - h) / 2, width: w, height: h });
-      lx = SIDE + w + 10;
-    }
-    draw(s.company_name, lx, bandY + 48, 22, bold, brand);
-    if (s.company_tagline) draw(s.company_tagline, lx, bandY + 32, 8.5, font, muted);
-
-    const rx = PAGE_W * 0.55 + 14;
-    draw("Creative Technology Company", rx, bandY + 68, 9, font, white);
-    draw("Grow Smarter with AI", rx, bandY + 55, 11, bold, white);
-    if (s.company_address) {
-      const maxW = PAGE_W - rx - 14;
-      const raw = s.company_address.split(/\n|;/).map((l) => safeText(l).trim()).filter(Boolean);
-      const lines: string[] = [];
-      for (const ln of raw) lines.push(...wrap(ln, font, 7.5, maxW));
-      draw("Address:", rx, bandY + 38, 8, bold, white);
-      lines.slice(0, 3).forEach((ln, i) => draw(ln, rx, bandY + 27 - i * 9.5, 7.5, font, white));
-    }
-
-    const fH = 20;
-    page.drawRectangle({ x: 0, y: 24, width: PAGE_W, height: fH, color: brand });
-    const segs = [
-      s.company_phone ? `Phone: ${s.company_phone}` : null,
-      s.company_email ? `Email: ${s.company_email}` : null,
-      s.company_website ? `Web: ${s.company_website.replace(/^https?:\/\//, "")}` : null,
-    ].filter(Boolean) as string[];
-    const segW = PAGE_W / Math.max(1, segs.length);
-    segs.forEach((t, i) => {
-      const w = font.widthOfTextAtSize(safeText(t), 8.5);
-      draw(t, i * segW + (segW - w) / 2, 30, 8.5, font, white);
-      if (i > 0) page.drawLine({ start: { x: i * segW, y: 24 }, end: { x: i * segW, y: 24 + fH }, thickness: 1, color: white });
+    drawBrandHeader(page, logo, brand);
+    drawBrandFooter(page, {
+      logo: whiteLogo,
+      font,
+      brand,
+      white,
+      muted,
+      phone: s.company_phone,
+      email: s.company_email,
+      website: s.company_website,
+      generatedBy: opts.generatedBy,
     });
-    const foot = safeText(s.footer_text);
-    const fw = font.widthOfTextAtSize(foot, 7.5);
-    draw(foot, (PAGE_W - fw) / 2, 12, 7.5, font, muted);
   }
 
   const sl = data.slip;
@@ -1173,16 +1124,7 @@ export async function renderSalarySlipPdf(
   });
 
   /* ---- verification footer ---- */
-  const printedAt = new Date().toLocaleString("en-GB", {
-    timeZone: "Asia/Dhaka",
-    day: "2-digit", month: "short", year: "numeric",
-    hour: "2-digit", minute: "2-digit", hour12: false,
-  });
-  const left = `Verified online · ${(s.company_website || "brantatech.com").replace(/^https?:\/\//, "")} · Slip ${slipNo}`;
-  const right = `Printed: ${printedAt} (GMT+6)`;
-  draw(left, SIDE, CONTENT_BOTTOM + 6, 7, font, muted);
-  const rw = font.widthOfTextAtSize(safeText(right), 7);
-  draw(right, PAGE_W - SIDE - rw, CONTENT_BOTTOM + 6, 7, font, muted);
+  draw(`Slip ${slipNo}`, SIDE, CONTENT_BOTTOM + 6, 7, font, muted);
 
   return await pdf.save();
 }

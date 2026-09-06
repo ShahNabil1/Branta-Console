@@ -14,6 +14,8 @@ export const Route = createFileRoute("/api/public/invoices/$slug.pdf")({
         const exp = Number(url.searchParams.get("exp") ?? "0");
         const sig = url.searchParams.get("sig") ?? "";
         const mode = url.searchParams.get("mode") === "print" ? "print" : "digital";
+        const { deviceFromUserAgent } = await import("@/lib/brand/pdf-brand.server");
+        const generatedBy = { device: deviceFromUserAgent(request.headers.get("user-agent")) };
         if (!exp || !sig) return new Response("Missing signature", { status: 400 });
         if (exp * 1000 < Date.now()) return new Response("Link expired", { status: 410 });
 
@@ -38,7 +40,7 @@ export const Route = createFileRoute("/api/public/invoices/$slug.pdf")({
             lineItems: payload.lineItems,
             settings,
           },
-          { mode },
+          { mode, generatedBy },
         );
 
         return new Response(bytes as unknown as BodyInit, {
