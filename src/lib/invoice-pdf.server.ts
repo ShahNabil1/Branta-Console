@@ -1125,9 +1125,6 @@ export async function renderSalarySlipPdf(
 
   /* ---- verification footer ---- */
   draw(`Slip ${slipNo}`, SIDE, CONTENT_BOTTOM + 6, 7, font, muted);
-  const right = generatedByLine(opts.generatedBy);
-  const rw = font.widthOfTextAtSize(safeText(right), 7);
-  draw(right, PAGE_W - SIDE - rw, CONTENT_BOTTOM + 6, 7, font, muted);
 
   return await pdf.save();
 }
