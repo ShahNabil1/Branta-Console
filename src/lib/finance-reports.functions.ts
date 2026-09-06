@@ -261,6 +261,8 @@ async function fetchExpense(supabase: Sb, f: ServerFilters): Promise<ReportRow[]
       null,
     clientId: null,
     invoiceId: r.linked_invoice_id,
+    source: "expense" as const,
+
   }));
 }
 
