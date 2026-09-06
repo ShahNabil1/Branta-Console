@@ -907,7 +907,7 @@ function monthLabel(d: string): string {
  */
 export async function renderSalarySlipPdf(
   data: SalarySlipPdfData,
-  opts: { mode?: "digital" | "print" } = {},
+  opts: { mode?: "digital" | "print"; generatedBy?: GeneratedBy | null } = {},
 ): Promise<Uint8Array> {
   const mode = opts.mode ?? "digital";
   const { PDFDocument: PDoc, StandardFonts, rgb } = await import("pdf-lib");
