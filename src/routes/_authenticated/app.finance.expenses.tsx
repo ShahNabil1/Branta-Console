@@ -349,8 +349,9 @@ function ExpensesPage() {
 
       <ReportFilterBar filters={filters} onChange={setFilters} kind="expense" />
 
-      <div className="overflow-x-auto rounded-md border border-border bg-card">
+      <div className="hidden overflow-x-auto rounded-md border border-border bg-card lg:block">
         <table className="w-full min-w-[1000px] text-[12.5px]">
+
           <thead className="border-b border-border bg-muted/30 text-left text-[10.5px] uppercase tracking-wider text-muted-foreground">
             <tr>
               <th className="px-3 py-2">Date</th>
