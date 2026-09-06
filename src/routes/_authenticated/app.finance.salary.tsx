@@ -290,6 +290,29 @@ function SalaryPage() {
                   </span>
                 </td>
                 <td className="px-3 py-2">
+                  <div className="flex items-center gap-1">
+                    <span className="font-mono text-[11.5px] text-muted-foreground">{s.voucher_no ?? "—"}</span>
+                    <Button size="sm" variant="ghost" className="h-7 px-2" title="View expense voucher"
+                      disabled={!s.expense_id || busyId === (s.expense_id ?? "") + "v"}
+                      onClick={() => openVoucher(s.expense_id)}>
+                      {busyId === (s.expense_id ?? "") + "v"
+                        ? <Loader2 className="size-3.5 animate-spin" />
+                        : <ReceiptText className="size-3.5" />}
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-7 px-2" title="Download voucher PDF"
+                      disabled={!s.expense_id}
+                      onClick={() => openVoucher(s.expense_id, undefined, true)}>
+                      <Download className="size-3.5" />
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-7 px-2" title="Print on letterhead"
+                      disabled={!s.expense_id || busyId === (s.expense_id ?? "") + "print"}
+                      onClick={() => openVoucher(s.expense_id, "print")}>
+                      <Printer className="size-3.5" />
+                    </Button>
+                  </div>
+                </td>
+
+                <td className="px-3 py-2">
                   {s.signed_slip_url ? (
                     <div className="flex items-center gap-1">
                       <Button size="sm" variant="ghost" className="h-7 px-2" title="View sealed copy"
