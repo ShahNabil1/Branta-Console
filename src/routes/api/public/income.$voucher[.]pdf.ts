@@ -100,9 +100,9 @@ function defaultSettings() {
     company_tagline: "Creative Technology Company",
     company_address:
       "Office-1: Colony, Bogura, Bangladesh.\nOffice-2: Niketan, Gulshan-1, Dhaka, Bangladesh.",
-    company_email: "hello@brantatech.com",
+    company_email: "support@brantatech.org",
     company_website: "brantatech.com",
-    company_phone: "+88 01933228681",
+    company_phone: "09644228678",
     logo_url: null,
     brand_color: "#E56A17",
     header_bg_color: "#FFFFFF",

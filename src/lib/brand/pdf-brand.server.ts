@@ -66,3 +66,22 @@ export function generatedByLine(g?: GeneratedBy | null, when: Date = new Date())
   const dev = g?.device?.trim();
   return [who, dev, dhakaTimestamp(when)].filter(Boolean).join("  ·  ");
 }
+
+/** Company helpline printed on every branded PDF. */
+export const BRAND_HOTLINE = "09644228678";
+
+/** Official Branta Tech mailboxes, always listed on PDF footers. */
+export const BRAND_EMAILS = [
+  "hr@brantatech.org",
+  "accounts@brantatech.org",
+  "sales@brantatech.org",
+  "support@brantatech.org",
+] as const;
+
+/** Email list for footers: the four official mailboxes plus any custom one. */
+export function brandEmailList(extra?: string | null): string {
+  const all: string[] = [...BRAND_EMAILS];
+  const e = extra?.trim();
+  if (e && !all.includes(e)) all.push(e);
+  return all.join(" · ");
+}

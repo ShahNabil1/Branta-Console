@@ -10,7 +10,7 @@
 // content never overlaps pre-printed letterhead paper.
 
 import type { PDFDocument, PDFFont, PDFImage, PDFPage, RGB } from "pdf-lib";
-import { embedBrandLogo, generatedByLine, type GeneratedBy } from "@/lib/brand/pdf-brand.server";
+import { brandEmailList, embedBrandLogo, generatedByLine, type GeneratedBy } from "@/lib/brand/pdf-brand.server";
 
 export type { GeneratedBy };
 
@@ -53,16 +53,24 @@ function drawBrandFooter(
   }
 
   const segs = [
-    opts.phone ? `Phone: ${opts.phone}` : null,
-    opts.email ? `Email: ${opts.email}` : null,
+    `Hotline: ${opts.phone?.trim() || "09644228678"}`,
+    `Email: ${brandEmailList(opts.email)}`,
     opts.website ? `Web: ${opts.website.replace(/^https?:\/\//, "")}` : null,
   ].filter(Boolean) as string[];
+  // Sequential, centered layout: shrink until the full contact strip fits.
   const area = PAGE_W - SIDE - left;
-  const segW = area / Math.max(1, segs.length);
+  let size = 7.6;
+  const gap = 10;
+  const widths = () => segs.map((t) => opts.font.widthOfTextAtSize(safeText(t), size));
+  while (size > 5.6 && widths().reduce((a, b) => a + b, 0) + gap * (segs.length - 1) > area) {
+    size -= 0.2;
+  }
+  const ws = widths();
+  const total = ws.reduce((a, b) => a + b, 0) + gap * (segs.length - 1);
+  let x = left + Math.max(0, (area - total) / 2);
   segs.forEach((t, i) => {
-    const txt = safeText(t);
-    const w = opts.font.widthOfTextAtSize(txt, 8);
-    p.drawText(txt, { x: left + i * segW + (segW - w) / 2, y: 30, size: 8, font: opts.font, color: opts.white });
+    p.drawText(safeText(t), { x, y: 30, size, font: opts.font, color: opts.white });
+    x += ws[i]! + gap;
   });
 
   const line = safeText(generatedByLine(opts.generatedBy));
