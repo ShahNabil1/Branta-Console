@@ -185,8 +185,8 @@ function SalaryReportPage() {
             <span className="text-[10.5px] font-semibold uppercase tracking-wide text-muted-foreground">Employee</span>
             <SearchableSelect
               items={employeeItems}
-              value={userId}
-              onChange={setUserId}
+              value={userId ?? ""}
+              onChange={(v) => setUserId(v || null)}
               placeholder="All employees"
             />
           </label>

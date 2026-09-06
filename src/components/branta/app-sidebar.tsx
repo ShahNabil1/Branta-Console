@@ -57,6 +57,7 @@ const NAV: NavGroup[] = [
       { label: "Withdrawals", to: "/app/finance/withdrawals", icon: Banknote },
       { label: "Expenses", to: "/app/finance/expenses", icon: Receipt },
       { label: "Salary", to: "/app/finance/salary", icon: BadgeDollarSign },
+      { label: "Salary Report", to: "/app/finance/salary-report", icon: BadgeDollarSign },
       { label: "Templates", to: "/app/finance/templates", icon: Palette },
     ],
   },
