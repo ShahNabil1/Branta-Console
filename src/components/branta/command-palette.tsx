@@ -34,8 +34,7 @@ import {
   Activity,
   Link2,
   FileSignature,
-  Loader2,
-} from "lucide-react";
+  Loader2, TrendingUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { globalSearch, type GlobalSearchHit } from "@/lib/global-search.functions";
 import type { LucideIcon } from "lucide-react";
