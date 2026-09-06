@@ -107,7 +107,7 @@ function TemplatesPage() {
   });
 
   return (
-    <div className="mx-auto max-w-6xl space-y-4 px-6 py-6">
+    <div className="mx-auto max-w-6xl space-y-4 px-4 py-6 sm:px-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-[20px] font-semibold text-foreground">Invoice Templates</h1>
@@ -251,7 +251,7 @@ function PdfEditor({ initial }: { initial: PdfSettings | null }) {
         </Section>
 
         <Section title="Colors">
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <ColorField label="Brand" value={form.brand_color} onChange={(v) => set("brand_color", v)} />
             <ColorField label="Header BG" value={form.header_bg_color} onChange={(v) => set("header_bg_color", v)} />
             <ColorField label="Page BG" value={form.page_bg_color} onChange={(v) => set("page_bg_color", v)} />

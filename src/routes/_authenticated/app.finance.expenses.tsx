@@ -21,6 +21,8 @@ import { Input } from "@/components/ui/input";
 import { SearchableSelect, type SearchableItem } from "@/components/finance/searchable-select";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { ReportFilterBar } from "@/components/finance/report-filter-bar";
+import { RecordCard, RowActionsMenu } from "@/components/finance/responsive-record-list";
+
 import { ExportMenu } from "@/components/finance/export-menu";
 import { defaultFilters, type ReportFilters } from "@/lib/report-filters";
 import { Loader2, Plus, Trash2, Receipt, Upload, Eye, Download, X, FileText, Printer, Stamp, Pencil } from "lucide-react";
@@ -349,8 +351,9 @@ function ExpensesPage() {
 
       <ReportFilterBar filters={filters} onChange={setFilters} kind="expense" />
 
-      <div className="overflow-x-auto rounded-md border border-border bg-card">
+      <div className="hidden overflow-x-auto rounded-md border border-border bg-card lg:block">
         <table className="w-full min-w-[1000px] text-[12.5px]">
+
           <thead className="border-b border-border bg-muted/30 text-left text-[10.5px] uppercase tracking-wider text-muted-foreground">
             <tr>
               <th className="px-3 py-2">Date</th>
@@ -478,12 +481,109 @@ function ExpensesPage() {
         </table>
       </div>
 
+      {/* Mobile / tablet cards */}
+      <div className="rounded-md border border-border bg-card lg:hidden">
+        {visible.length === 0 ? (
+          <div className="px-3 py-10 text-center text-[12.5px] text-muted-foreground">
+            {(q.data ?? []).length === 0 ? "No expenses yet." : "No expenses match the selected filters."}
+          </div>
+        ) : visible.map((r) => (
+          <RecordCard
+            key={`m-${r.id}`}
+            title={r.vendor || r.category}
+            subtitle={r.request_purpose || r.notes || ""}
+            amount={fmt(r.amount, r.currency)}
+            amountTone="expense"
+            badge={
+              r.signed_voucher_url ? (
+                <span className="rounded-sm bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-emerald-700">Signed</span>
+              ) : null
+            }
+            fields={[
+              { label: "Date", value: r.spent_on, primary: true },
+              { label: "Category", value: <span className="capitalize">{r.category}</span>, primary: true },
+              { label: "Department", value: r.department ?? "—" },
+              { label: "Requested by", value: r.requested_by_name ?? "—" },
+              { label: "Method", value: r.payment_method ?? "—" },
+              { label: "TrxID", value: r.txn_id ? <span className="font-mono">{r.txn_id}</span> : "—" },
+              { label: "Voucher", value: <span className="font-mono">{r.voucher_no ?? "—"}</span> },
+              { label: "Purpose", value: r.request_purpose || r.notes || "—" },
+              { label: "Receipt", value: r.receipt_url ? "Attached" : "—" },
+            ]}
+            actions={
+              <RowActionsMenu>
+                <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]"
+                  disabled={!r.voucher_no} onClick={() => viewVoucher(r.id, r.voucher_no)}>
+                  <Eye className="mr-2 size-3.5" /> View voucher
+                </Button>
+                <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]"
+                  disabled={!r.voucher_no} onClick={() => downloadVoucher(r.id, r.voucher_no, r.signed_voucher_url)}>
+                  <Download className="mr-2 size-3.5" /> Download voucher
+                </Button>
+                <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]"
+                  disabled={!r.voucher_no} onClick={() => openVoucher(r.id, "print")}>
+                  <Printer className="mr-2 size-3.5" /> Print on letterhead
+                </Button>
+                {r.receipt_url && (
+                  <>
+                    <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]"
+                      onClick={() => openReceipt(r.receipt_url as string)}>
+                      <FileText className="mr-2 size-3.5" /> View receipt
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]"
+                      onClick={() => downloadReceipt(r.receipt_url as string)}>
+                      <Download className="mr-2 size-3.5" /> Download receipt
+                    </Button>
+                  </>
+                )}
+                {r.signed_voucher_url ? (
+                  <>
+                    <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]"
+                      onClick={() => openReceipt(r.signed_voucher_url as string)}>
+                      <Stamp className="mr-2 size-3.5" /> View sealed copy
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px] text-rose-600"
+                      onClick={() => removeSigned(r.id)}>
+                      <X className="mr-2 size-3.5" /> Remove sealed copy
+                    </Button>
+                  </>
+                ) : (
+                  <label className="inline-flex h-8 w-full cursor-pointer items-center rounded-sm px-3 text-[12px] hover:bg-muted">
+                    <Stamp className="mr-2 size-3.5" /> Upload sealed copy
+                    <input type="file" accept={ACCEPT} className="hidden"
+                      onChange={(ev) => {
+                        const f = ev.target.files?.[0];
+                        ev.target.value = "";
+                        if (f) void uploadSigned(r.id, f);
+                      }} />
+                  </label>
+                )}
+                <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]" onClick={() => startEdit(r)}>
+                  <Pencil className="mr-2 size-3.5" /> Edit expense
+                </Button>
+                <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px] text-rose-600"
+                  onClick={async () => {
+                    const ok = await confirm({ title: "Delete expense", description: "This cannot be undone.", tone: "danger" });
+                    if (!ok) return;
+                    await del({ data: { id: r.id } });
+                    toast.success("Deleted");
+                    void q.refetch();
+                  }}>
+                  <Trash2 className="mr-2 size-3.5" /> Delete
+                </Button>
+              </RowActionsMenu>
+            }
+          />
+        ))}
+      </div>
+
+
       {open && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 p-4">
+        <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-background/80 p-2 sm:p-4">
           <div className="max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-md border border-border bg-card p-5 shadow-lg">
             <h3 className="text-[14px] font-semibold">{editingId ? "Edit expense" : "Add expense"}</h3>
             <div className="mt-4 space-y-3">
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <div>
                   <label className="text-[11px] font-semibold uppercase text-muted-foreground">Category</label>
                   <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value as ExpenseCategory })}
@@ -500,7 +600,7 @@ function ExpensesPage() {
                   </select>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <div>
                   <label className="text-[11px] font-semibold uppercase text-muted-foreground">Amount</label>
                   <Input type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })}
@@ -512,7 +612,7 @@ function ExpensesPage() {
                     className="mt-1 h-9 rounded-sm" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <div>
                   <label className="text-[11px] font-semibold uppercase text-muted-foreground">Vendor</label>
                   <Input value={form.vendor} onChange={(e) => setForm({ ...form, vendor: e.target.value })}
@@ -539,7 +639,7 @@ function ExpensesPage() {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <div>
                   <label className="text-[11px] font-semibold uppercase text-muted-foreground">Payment method</label>
                   <select value={form.payment_method} onChange={(e) => setForm({ ...form, payment_method: e.target.value })}

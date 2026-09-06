@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SearchableSelect, type SearchableItem } from "@/components/finance/searchable-select";
 import { useConfirm } from "@/components/ui/confirm-dialog";
+import { RecordCard, RowActionsMenu } from "@/components/finance/responsive-record-list";
+
 import {
   listSalarySlips,
   issueSalarySlip,
@@ -234,21 +236,22 @@ function SalaryPage() {
   };
 
   return (
-    <div className="p-6">
-      <div className="mb-5 flex items-start justify-between gap-4">
-        <div>
+    <div className="p-4 sm:p-6">
+      <div className="mb-5 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 sm:flex sm:justify-between sm:gap-4">
+        <div className="min-w-0">
           <h1 className="text-[17px] font-semibold tracking-tight">Salary</h1>
           <p className="mt-0.5 text-[12.5px] text-muted-foreground">
             Issue monthly salary slips. Each slip records a company expense and credits the employee wallet.
           </p>
         </div>
-        <Button onClick={() => setOpen(true)} className="h-9 rounded-sm text-[13px]">
-          <Plus className="mr-1.5 size-3.5" /> Issue salary
+        <Button onClick={() => setOpen(true)} className="h-9 shrink-0 rounded-sm text-[13px]">
+          <Plus className="mr-1.5 size-3.5" /> <span className="hidden sm:inline">Issue salary</span><span className="sm:hidden">Issue</span>
         </Button>
       </div>
 
-      <div className="overflow-hidden rounded-sm border border-border bg-card">
-        <table className="w-full text-[13px]">
+      <div className="hidden overflow-x-auto rounded-sm border border-border bg-card lg:block">
+        <table className="w-full min-w-[1000px] text-[13px]">
+
           <thead className="bg-muted/50 text-[11px] uppercase tracking-wide text-muted-foreground">
             <tr>
               <th className="px-3 py-2 text-left font-semibold">Slip</th>
@@ -365,8 +368,87 @@ function SalaryPage() {
         </table>
       </div>
 
+      {/* Mobile / tablet cards */}
+      <div className="rounded-sm border border-border bg-card lg:hidden">
+        {slipsQ.isLoading && (
+          <div className="px-3 py-8 text-center text-muted-foreground"><Loader2 className="mx-auto size-4 animate-spin" /></div>
+        )}
+        {!slipsQ.isLoading && (slipsQ.data ?? []).length === 0 && (
+          <div className="px-3 py-10 text-center text-[12.5px] text-muted-foreground">No salary slips yet.</div>
+        )}
+        {(slipsQ.data ?? []).map((s) => (
+          <RecordCard
+            key={`m-${s.id}`}
+            title={s.employee_name ?? "—"}
+            subtitle={`${s.employee_code ?? ""} · ${monthLabel(s.period_month)}`}
+            amount={fmt(s.net_amount, s.currency)}
+            badge={
+              <span className={`rounded-sm px-1.5 py-0.5 text-[10px] font-semibold uppercase ${s.status === "void" ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-700"}`}>
+                {s.status === "void" ? "Void" : "Issued"}
+              </span>
+            }
+            fields={[
+              { label: "Slip", value: <span className="font-mono">{s.slip_no ?? "—"}</span>, primary: true },
+              { label: "Paid on", value: String(s.paid_on).slice(0, 10) },
+              { label: "Expense voucher", value: <span className="font-mono">{s.voucher_no ?? "—"}</span> },
+              { label: "Sealed copy", value: s.signed_slip_url ? "Uploaded" : "Not uploaded" },
+            ]}
+            actions={
+              <RowActionsMenu>
+                <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]" onClick={() => openPdf(s.id)}>
+                  <Eye className="mr-2 size-3.5" /> View slip
+                </Button>
+                <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]" onClick={() => openPdf(s.id, undefined, true)}>
+                  <Download className="mr-2 size-3.5" /> Download slip
+                </Button>
+                <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]" onClick={() => openPdf(s.id, "print")}>
+                  <Printer className="mr-2 size-3.5" /> Print (letterhead)
+                </Button>
+                <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]" disabled={!s.expense_id}
+                  onClick={() => openVoucher(s.expense_id)}>
+                  <ReceiptText className="mr-2 size-3.5" /> View expense voucher
+                </Button>
+                <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]" disabled={!s.expense_id}
+                  onClick={() => openVoucher(s.expense_id, undefined, true)}>
+                  <Download className="mr-2 size-3.5" /> Download voucher
+                </Button>
+                {s.signed_slip_url ? (
+                  <>
+                    <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]" onClick={() => openSealed(s.id)}>
+                      <FileText className="mr-2 size-3.5" /> View sealed copy
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]" onClick={() => openSealed(s.id, true)}>
+                      <Download className="mr-2 size-3.5" /> Download sealed copy
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px] text-destructive" onClick={() => removeSealed(s.id)}>
+                      <X className="mr-2 size-3.5" /> Remove sealed copy
+                    </Button>
+                  </>
+                ) : (
+                  <label className="inline-flex h-8 w-full cursor-pointer items-center rounded-sm px-3 text-[12px] hover:bg-muted">
+                    <Stamp className="mr-2 size-3.5" /> Upload sealed copy
+                    <input type="file" accept={ACCEPT} className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        e.target.value = "";
+                        if (f) void uploadSealedCopy(s.id, f);
+                      }} />
+                  </label>
+                )}
+                {s.status !== "void" && (
+                  <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px] text-destructive" onClick={() => doVoid(s.id, s.slip_no)}>
+                    <Ban className="mr-2 size-3.5" /> Void slip
+                  </Button>
+                )}
+              </RowActionsMenu>
+            }
+          />
+        ))}
+      </div>
+
+
       {open && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
+        <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/40 p-2 sm:p-4">
           <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-sm border border-border bg-card p-5">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-[15px] font-semibold">Issue salary</h2>
@@ -375,7 +457,7 @@ function SalaryPage() {
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="col-span-2">
                 <label className="mb-1 block text-[12px] text-muted-foreground">Employee *</label>
                 <SearchableSelect items={employees} value={userId} onChange={setUserId} placeholder="Select employee" />

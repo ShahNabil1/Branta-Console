@@ -3,6 +3,8 @@ import { Loader2 } from "lucide-react";
 import { formatMoney, type ReportCurrency } from "@/lib/report-filters";
 import type { ReportRow } from "@/lib/finance-reports.functions";
 import { Button } from "@/components/ui/button";
+import { RecordCard } from "@/components/finance/responsive-record-list";
+
 
 export function ReportTable({
   rows,
@@ -34,8 +36,9 @@ export function ReportTable({
 
   return (
     <div className="rounded-md border border-border bg-card">
-      <div className="overflow-x-auto">
+      <div className="hidden overflow-x-auto lg:block">
         <table className="w-full min-w-[880px] text-[12px]">
+
           <thead>
             <tr className="border-b border-border bg-muted/40 text-left text-[11px] uppercase tracking-wide text-muted-foreground">
               <th className="px-3 py-2 font-semibold">Date · তারিখ</th>
@@ -103,6 +106,49 @@ export function ReportTable({
           </tbody>
         </table>
       </div>
+
+      {/* Mobile / tablet cards */}
+      <div className="lg:hidden">
+        {loading ? (
+          <div className="px-3 py-10 text-center text-muted-foreground">
+            <Loader2 className="mx-auto size-4 animate-spin" />
+          </div>
+        ) : rows.length === 0 ? (
+          <div className="px-3 py-10 text-center text-[12.5px] text-muted-foreground">
+            No transactions match the selected filters.
+          </div>
+        ) : (
+          rows.map((r) => (
+            <RecordCard
+              key={`m-${r.type}-${r.id}`}
+              title={r.party || r.reference}
+              subtitle={r.project}
+              amount={`${r.type === "expense" ? "-" : ""}${formatMoney(Math.abs(r.amount), currency)}`}
+              amountTone={r.type === "income" ? "income" : "expense"}
+              badge={
+                hideType ? null : (
+                  <span
+                    className={`rounded-[3px] px-1.5 py-0.5 text-[10px] font-semibold uppercase ${
+                      r.type === "income" ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
+                    }`}
+                  >
+                    {r.type === "income" ? "আয়" : "খরচ"}
+                  </span>
+                )
+              }
+              actions={renderActions ? renderActions(r) : undefined}
+              fields={[
+                { label: "Date · তারিখ", value: r.date, primary: true },
+                { label: "Reference · রেফারেন্স", value: r.reference },
+                { label: "Category · খাত", value: <span className="capitalize">{r.category}</span> },
+                { label: "Method · মাধ্যম", value: r.method },
+                { label: "Status · অবস্থা", value: <span className="capitalize">{r.status}</span> },
+              ]}
+            />
+          ))
+        )}
+      </div>
+
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-3 py-2 text-[11.5px] text-muted-foreground">
         <span>

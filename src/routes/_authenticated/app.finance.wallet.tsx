@@ -141,7 +141,7 @@ function CompanyWalletPage() {
   };
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5 px-6 py-6">
+    <div className="mx-auto max-w-7xl space-y-5 px-4 py-6 sm:px-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="flex items-center gap-2 text-[20px] font-semibold text-foreground">
@@ -149,7 +149,7 @@ function CompanyWalletPage() {
           </h1>
           <p className="text-[12.5px] text-muted-foreground">Live view of the main company treasury across all invoices, ledger entries and expenses.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="inline-flex overflow-hidden rounded-sm border border-border">
             {(["BDT", "USD"] as Currency[]).map((x) => (
               <button key={x} onClick={() => setCur(x)}
@@ -196,7 +196,7 @@ function CompanyWalletPage() {
           </div>
 
           {/* Breakdown row */}
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <MiniStat label="Received" tone="emerald" icon={<TrendingUp className="size-3" />} value={fmt(c.received, cur)} />
             <MiniStat label="Ledger" tone="blue" icon={<PlusCircle className="size-3" />} value={fmt(c.ledger_total, cur)} />
             <MiniStat label="Expenses" tone="rose" icon={<TrendingDown className="size-3" />} value={fmt(c.expenses_total, cur)} />
@@ -218,7 +218,7 @@ function CompanyWalletPage() {
                 {fmt(c.company_net, cur)}
               </div>
             </div>
-            <div className="mt-3 grid grid-cols-3 gap-3 text-[11.5px]">
+            <div className="mt-3 grid grid-cols-1 gap-3 text-[11.5px] sm:grid-cols-3">
               <div><span className="text-muted-foreground">Locked (invoice not fully paid): </span><span className="font-mono font-semibold">{fmt(c.employees_locked, cur)}</span></div>
               <div><span className="text-muted-foreground">Ready for payout: </span><span className="font-mono font-semibold text-emerald-700">{fmt(c.employees_available, cur)}</span></div>
               <div><span className="text-muted-foreground">Withdrawal pending: </span><span className="font-mono font-semibold text-amber-700">{fmt(c.employees_requested, cur)}</span></div>
@@ -232,7 +232,8 @@ function CompanyWalletPage() {
         <div className="border-b border-border px-4 py-2.5">
           <h2 className="text-[13px] font-semibold">Invoices ({cur})</h2>
         </div>
-        <table className="w-full text-[12.5px]">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[760px] text-[12.5px]">
           <thead className="text-left text-[10.5px] uppercase tracking-wider text-muted-foreground">
             <tr>
               <th className="px-3 py-2">Invoice</th>
@@ -270,17 +271,19 @@ function CompanyWalletPage() {
             ))}
           </tbody>
         </table>
+        </div>
       </section>
 
       {/* Company ledger */}
       <section className="rounded-md border border-border bg-card">
-        <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-2.5">
           <div>
             <h2 className="text-[13px] font-semibold">Company Ledger ({cur})</h2>
             <p className="text-[11px] text-muted-foreground">Manual entries — seed capital, other income, adjustments. Positive = credit, negative = debit.</p>
           </div>
         </div>
-        <table className="w-full text-[12.5px]">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[760px] text-[12.5px]">
           <thead className="text-left text-[10.5px] uppercase tracking-wider text-muted-foreground">
             <tr>
               <th className="px-3 py-2">Date</th>
@@ -314,11 +317,12 @@ function CompanyWalletPage() {
             ))}
           </tbody>
         </table>
+        </div>
       </section>
 
       {/* Manual employee payouts */}
       <section className="rounded-md border border-border bg-card">
-        <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-2.5">
           <div>
             <h2 className="flex items-center gap-1.5 text-[13px] font-semibold">
               <HandCoins className="size-3.5 text-emerald-700" /> Manual Employee Payouts ({cur})
@@ -332,7 +336,8 @@ function CompanyWalletPage() {
             <HandCoins className="mr-1.5 size-3.5" /> Pay employee
           </Button>
         </div>
-        <table className="w-full text-[12.5px]">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[760px] text-[12.5px]">
           <thead className="text-left text-[10.5px] uppercase tracking-wider text-muted-foreground">
             <tr>
               <th className="px-3 py-2">Date</th>
@@ -377,6 +382,7 @@ function CompanyWalletPage() {
             ))}
           </tbody>
         </table>
+        </div>
       </section>
 
       <div className="rounded-md border border-dashed border-border bg-muted/30 p-4 text-[11.5px] text-muted-foreground">
@@ -456,7 +462,7 @@ function AddLedgerModal({ cur, onClose, onSubmit, submitting }: {
   };
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 p-4">
+    <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-background/80 p-2 sm:p-4">
       <div className="w-full max-w-md rounded-md border border-border bg-card p-5 shadow-lg">
         <h3 className="flex items-center gap-2 text-[14px] font-semibold">
           <Lock className="size-4 text-brand" /> Add ledger entry
@@ -546,7 +552,7 @@ function PayEmployeeModal({ cur, employees, onClose, onSubmit, submitting }: {
   };
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 p-4">
+    <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-background/80 p-2 sm:p-4">
       <div className="w-full max-w-lg rounded-md border border-border bg-card p-5 shadow-lg">
         <h3 className="flex items-center gap-2 text-[14px] font-semibold">
           <HandCoins className="size-4 text-emerald-700" /> Pay employee
@@ -586,7 +592,7 @@ function PayEmployeeModal({ cur, employees, onClose, onSubmit, submitting }: {
             )}
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
               <label className="text-[11px] font-semibold uppercase text-muted-foreground">Reason</label>
               <select value={kind} onChange={(e) => setKind(e.target.value as PayoutKind)}

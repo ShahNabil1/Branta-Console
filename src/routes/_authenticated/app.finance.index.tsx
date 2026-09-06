@@ -53,7 +53,7 @@ function FinanceDashboard() {
   const r = q.data;
 
   return (
-    <div className="mx-auto max-w-7xl space-y-4 px-6 py-6">
+    <div className="mx-auto max-w-7xl space-y-4 px-4 py-6 sm:px-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-[20px] font-semibold text-foreground">Finance Dashboard</h1>
@@ -61,7 +61,7 @@ function FinanceDashboard() {
             Income, expense and outstanding across the whole company.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
           <div className="inline-flex items-center rounded-sm border border-border bg-card p-0.5">
             {(["BDT", "USD"] as Currency[]).map((c) => (
               <button key={c}
@@ -71,11 +71,11 @@ function FinanceDashboard() {
               </button>
             ))}
           </div>
-          <div className="inline-flex items-center rounded-sm border border-border bg-card p-0.5">
+          <div className="inline-flex max-w-full items-center overflow-x-auto rounded-sm border border-border bg-card p-0.5">
             {PRESETS.map((p) => (
               <button key={p.key}
                 onClick={() => setPreset(p.key)}
-                className={`rounded-[3px] px-2.5 py-1 text-[11.5px] font-medium ${preset === p.key ? "bg-brand text-white" : "text-muted-foreground hover:text-foreground"}`}>
+                className={`shrink-0 rounded-[3px] px-2.5 py-1 text-[11.5px] font-medium ${preset === p.key ? "bg-brand text-white" : "text-muted-foreground hover:text-foreground"}`}>
                 {p.label}
               </button>
             ))}
@@ -83,14 +83,14 @@ function FinanceDashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <KpiTile label="Income" value={fmt(r?.income ?? 0, currency)} delta="paid" positive={true} />
         <KpiTile label="Expense" value={fmt(r?.expense ?? 0, currency)} delta="spent" positive={false} />
         <KpiTile label="Net profit" value={fmt(r?.profit ?? 0, currency)} delta={(r?.profit ?? 0) >= 0 ? "positive" : "loss"} positive={(r?.profit ?? 0) >= 0} />
         <KpiTile label="Outstanding" value={fmt(r?.outstanding ?? 0, currency)} delta="unpaid" positive={null} />
       </div>
 
-      <div className="rounded-md border border-border bg-card p-4">
+      <div className="rounded-md border border-border bg-card p-3 sm:p-4">
         <ReportWorkspace
           kind="finance"
           title="Combined finance report"

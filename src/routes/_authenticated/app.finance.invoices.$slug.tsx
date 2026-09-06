@@ -213,7 +213,7 @@ function InvoiceDetail() {
   const outstanding = Math.max(0, Number(invoice.total_amount) - Number(invoice.paid_amount));
 
   return (
-    <div className="mx-auto max-w-6xl space-y-4 px-6 py-6">
+    <div className="mx-auto max-w-6xl space-y-4 px-4 py-6 sm:px-6">
       <button onClick={() => navigate({ to: "/app/finance/invoices" })}
         className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground">
         <ArrowLeft className="size-3.5" /> Back to invoices
@@ -480,7 +480,7 @@ function InvoiceDetail() {
 
 
       {payModal && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 p-4">
+        <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-background/80 p-2 sm:p-4">
           <div className="w-full max-w-md rounded-md border border-border bg-card p-5 shadow-lg">
             <h3 className="text-[14px] font-semibold">Mark installment paid</h3>
             <p className="mt-1 text-[12px] text-muted-foreground">
@@ -676,7 +676,7 @@ function EditInvoiceDialog({
     editCosts.every((c) => c.name.trim()) && costSum <= totalNum + 0.01;
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 p-4">
+    <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-background/80 p-2 sm:p-4">
       <div className="max-h-[92vh] w-full max-w-4xl overflow-auto rounded-md border border-border bg-card shadow-lg">
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-card px-5 py-3">
           <h3 className="flex items-center gap-1.5 text-[14px] font-semibold"><Pencil className="size-3.5" /> Edit invoice {invoice.slug}</h3>
@@ -737,7 +737,7 @@ function EditInvoiceDialog({
               <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Total amount *</Label>
               <Input type="number" value={total} onChange={(e) => setTotal(e.target.value)} className="mt-1 h-9 rounded-sm font-mono" />
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <div><Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Starts</Label><Input type="date" value={startsOn} onChange={(e) => setStartsOn(e.target.value)} className="mt-1 h-9 rounded-sm" /></div>
               <div><Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Ends</Label><Input type="date" value={endsOn} onChange={(e) => setEndsOn(e.target.value)} className="mt-1 h-9 rounded-sm" /></div>
             </div>
@@ -804,7 +804,7 @@ function SendInvoiceDialog({
   const toggle = (email: string) => onSelectedChange({ ...selected, [email]: !selected[email] });
   const anySelected = useMemo(() => Object.values(selected).some(Boolean), [selected]);
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 p-4">
+    <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-background/80 p-2 sm:p-4">
       <div className="w-full max-w-md rounded-md border border-border bg-card p-5 shadow-lg">
         <h3 className="text-[14px] font-semibold flex items-center gap-1.5"><Send className="size-3.5" /> Send invoice</h3>
         <p className="mt-1 text-[12px] text-muted-foreground">
