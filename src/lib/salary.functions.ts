@@ -39,6 +39,9 @@ export interface SalarySlipRow {
   created_at: string;
   employee_name?: string | null;
   employee_code?: string | null;
+  /** Voucher number of the linked salary expense, when assigned. */
+  voucher_no?: string | null;
+
 }
 
 const ComponentIn = z.object({
@@ -98,13 +101,25 @@ export const listSalarySlips = createServerFn({ method: "GET" })
       ((profs ?? []) as Array<{ user_id: string; full_name: string | null; employee_code: string | null }>)
         .map((p) => [p.user_id, p]),
     );
+    // Voucher numbers of the linked salary expenses (printable expense voucher).
+    const expIds = [...new Set(rows.map((r) => r.expense_id).filter(Boolean))] as string[];
+    let vouchers = new Map<string, string | null>();
+    if (expIds.length) {
+      const { data: exps } = await context.supabase
+        .from("expenses").select("id, voucher_no").in("id", expIds);
+      vouchers = new Map(
+        ((exps ?? []) as Array<{ id: string; voucher_no: string | null }>).map((e) => [e.id, e.voucher_no]),
+      );
+    }
     return rows.map((r) => ({
       ...r,
       components: Array.isArray(r.components) ? r.components : [],
       employee_name: byId.get(r.user_id)?.full_name ?? null,
       employee_code: byId.get(r.user_id)?.employee_code ?? null,
+      voucher_no: r.expense_id ? vouchers.get(r.expense_id) ?? null : null,
     }));
   });
+
 
 export const listMySalarySlips = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -244,21 +259,47 @@ export const issueSalarySlip = createServerFn({ method: "POST" })
       throw new Error(slipErr.message);
     }
 
+    const slipId = (slipRow as { id: string; slip_no: string | null }).id;
+    const slipNo = (slipRow as { slip_no: string | null }).slip_no ?? "Salary slip";
+
+    // Voucher number is assigned by trigger on the expense row.
+    let voucherNo: string | null = null;
+    try {
+      const { data: v } = await context.supabase
+        .from("expenses").select("voucher_no").eq("id", expenseId).maybeSingle();
+      voucherNo = (v as { voucher_no: string | null } | null)?.voucher_no ?? null;
+    } catch { /* non-fatal */ }
+
     try {
       const { notify } = await import("@/lib/notify.server");
+      const vars = {
+        slip: slipNo,
+        user: employeeName,
+        month: monthLabel,
+        amount: `${data.currency} ${net.toLocaleString()}`,
+        voucher: voucherNo ?? "—",
+        slug: `Salary ${monthLabel}`,
+      };
+      // Employee gets their own copy…
       await notify({
-        event: "payout.available",
+        event: "salary.slip.issued",
         recipients: [data.user_id],
-        vars: {
-          slug: `Salary ${monthLabel}`,
-          amount: `${data.currency} ${net.toLocaleString()}`,
-        },
-        dedupeKey: `salary:${(slipRow as { id: string }).id}:issued`,
+        vars,
+        dedupeKey: `salary:${slipId}:issued:employee`,
+        actorId: context.userId,
+      });
+      // …and Finance / Accounts + admins get the desk copy.
+      await notify({
+        event: "salary.slip.issued",
+        recipientRoles: ["finance", "admin", "super_admin"],
+        vars,
+        dedupeKey: `salary:${slipId}:issued:finance`,
         actorId: context.userId,
       });
     } catch (e) {
       console.error("[issueSalarySlip] notify failed:", e);
     }
+
 
     return {
       ...(slipRow as unknown as SalarySlipRow),
@@ -420,8 +461,49 @@ export const setSalarySignedSlip = createServerFn({ method: "POST" })
       } as never)
       .eq("id", data.id);
     if (error) throw new Error(error.message);
+
+    if (data.path) {
+      try {
+        const { data: row } = await context.supabase
+          .from("salary_slips")
+          .select("id, slip_no, user_id, period_month")
+          .eq("id", data.id)
+          .maybeSingle();
+        const slip = row as { slip_no: string | null; user_id: string; period_month: string } | null;
+        if (slip) {
+          const { data: prof } = await context.supabase
+            .from("profiles").select("full_name").eq("user_id", slip.user_id).maybeSingle();
+          const vars = {
+            slip: slip.slip_no ?? "Salary slip",
+            user: (prof as { full_name: string | null } | null)?.full_name ?? "Employee",
+            month: new Date(`${slip.period_month}T00:00:00Z`).toLocaleDateString("en-US", {
+              month: "long", year: "numeric", timeZone: "UTC",
+            }),
+          };
+          const { notify } = await import("@/lib/notify.server");
+          await notify({
+            event: "salary.slip.signed",
+            recipients: [slip.user_id],
+            vars,
+            dedupeKey: `salary:${data.id}:signed:employee`,
+            actorId: context.userId,
+          });
+          await notify({
+            event: "salary.slip.signed",
+            recipientRoles: ["finance", "admin", "super_admin"],
+            vars,
+            dedupeKey: `salary:${data.id}:signed:finance`,
+            actorId: context.userId,
+          });
+        }
+      } catch (e) {
+        console.error("[setSalarySignedSlip] notify failed:", e);
+      }
+    }
+
     return { ok: true as const };
   });
+
 
 /**
  * Signed storage URL for the sealed copy. Finance sees every slip; an employee

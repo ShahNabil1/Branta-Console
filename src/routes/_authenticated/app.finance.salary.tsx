@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Plus, X, Eye, Download, Printer, Ban, Wallet, Stamp, FileText } from "lucide-react";
+import { Loader2, Plus, X, Eye, Download, Printer, Ban, Wallet, Stamp, FileText, ReceiptText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,8 @@ import {
   getSalarySealedFileUrl,
   type SalaryComponent,
 } from "@/lib/salary.functions";
+import { getSignedExpenseVoucherUrl } from "@/lib/finance.functions";
+
 
 export const Route = createFileRoute("/_authenticated/app/finance/salary")({
   head: () => ({
@@ -70,6 +72,8 @@ function SalaryPage() {
   const invFn = useServerFn(listSalaryInvoiceOptions);
   const sealFn = useServerFn(setSalarySignedSlip);
   const sealedUrlFn = useServerFn(getSalarySealedFileUrl);
+  const voucherFn = useServerFn(getSignedExpenseVoucherUrl);
+
 
   const slipsQ = useQuery({ queryKey: ["salary.slips"], queryFn: () => listFn() });
   const empQ = useQuery({ queryKey: ["salary.employees"], queryFn: () => empFn() });
@@ -162,6 +166,19 @@ function SalaryPage() {
     }
   };
 
+  /** Voucher PDF of the salary expense this slip created. */
+  const openVoucher = async (expenseId: string | null, mode?: "print", download?: boolean) => {
+    if (!expenseId) { toast.error("No linked salary expense for this slip"); return; }
+    try {
+      setBusyId(expenseId + (mode ?? "v"));
+      const r = await voucherFn({ data: { id: expenseId, ...(mode ? { mode } : {}) } });
+      window.open(download ? `${r.url}&dl=1` : r.url, "_blank", "noopener");
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBusyId(null); }
+  };
+
+
+
   const uploadSealedCopy = async (id: string, file: File) => {
     try {
       if (file.size > MAX_SLIP_MB * 1024 * 1024) throw new Error(`File must be ≤ ${MAX_SLIP_MB} MB`);
@@ -240,21 +257,23 @@ function SalaryPage() {
               <th className="px-3 py-2 text-right font-semibold">Net</th>
               <th className="px-3 py-2 text-left font-semibold">Paid on</th>
               <th className="px-3 py-2 text-left font-semibold">Status</th>
+              <th className="px-3 py-2 text-left font-semibold">Expense voucher</th>
               <th className="px-3 py-2 text-left font-semibold">Sealed copy</th>
               <th className="px-3 py-2 text-right font-semibold">Actions</th>
             </tr>
           </thead>
           <tbody>
             {slipsQ.isLoading && (
-              <tr><td colSpan={8} className="px-3 py-8 text-center text-muted-foreground">
+              <tr><td colSpan={9} className="px-3 py-8 text-center text-muted-foreground">
                 <Loader2 className="mx-auto size-4 animate-spin" />
               </td></tr>
             )}
             {!slipsQ.isLoading && (slipsQ.data ?? []).length === 0 && (
-              <tr><td colSpan={8} className="px-3 py-10 text-center text-[12.5px] text-muted-foreground">
+              <tr><td colSpan={9} className="px-3 py-10 text-center text-[12.5px] text-muted-foreground">
                 No salary slips yet.
               </td></tr>
             )}
+
             {(slipsQ.data ?? []).map((s) => (
               <tr key={s.id} className="border-t border-border">
                 <td className="px-3 py-2 font-mono text-[12px]">{s.slip_no ?? "—"}</td>
@@ -270,6 +289,29 @@ function SalaryPage() {
                     {s.status === "void" ? "Void" : "Issued"}
                   </span>
                 </td>
+                <td className="px-3 py-2">
+                  <div className="flex items-center gap-1">
+                    <span className="font-mono text-[11.5px] text-muted-foreground">{s.voucher_no ?? "—"}</span>
+                    <Button size="sm" variant="ghost" className="h-7 px-2" title="View expense voucher"
+                      disabled={!s.expense_id || busyId === (s.expense_id ?? "") + "v"}
+                      onClick={() => openVoucher(s.expense_id)}>
+                      {busyId === (s.expense_id ?? "") + "v"
+                        ? <Loader2 className="size-3.5 animate-spin" />
+                        : <ReceiptText className="size-3.5" />}
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-7 px-2" title="Download voucher PDF"
+                      disabled={!s.expense_id}
+                      onClick={() => openVoucher(s.expense_id, undefined, true)}>
+                      <Download className="size-3.5" />
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-7 px-2" title="Print on letterhead"
+                      disabled={!s.expense_id || busyId === (s.expense_id ?? "") + "print"}
+                      onClick={() => openVoucher(s.expense_id, "print")}>
+                      <Printer className="size-3.5" />
+                    </Button>
+                  </div>
+                </td>
+
                 <td className="px-3 py-2">
                   {s.signed_slip_url ? (
                     <div className="flex items-center gap-1">
