@@ -214,7 +214,7 @@ async function fetchExpense(supabase: Sb, f: ServerFilters): Promise<ReportRow[]
     paid_by: string | null; created_by: string | null; linked_invoice_id: string | null;
     request_purpose: string | null;
   };
-  const rows = (data ?? []) as Exp[];
+  const rows = await fetchAllRows<Exp>((a, b) => makeExpenses(a, b) as never);
 
   // Resolve linked invoice titles for the "Project" column.
   const invIds = Array.from(new Set(rows.map((r) => r.linked_invoice_id).filter(Boolean))) as string[];
