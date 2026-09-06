@@ -253,7 +253,7 @@ export async function buildFinanceReportPdf(input: PdfReportInput): Promise<Uint
   }
 
   // Footer on every page
-  const stamp = generatedByLine(input.generatedBy);
+  const stamp = generatedByLine(input.generatedBy).replace(/·/g, "|");
   pages.forEach((p, i) => {
     p.drawLine({ start: { x: M, y: M - 6 }, end: { x: A4.w - M, y: M - 6 }, thickness: 0.6, color: HAIR });
     p.drawText(fit(stamp, font, 7, contentW - 90), { x: M, y: M - 18, size: 7, font, color: MUTED });
@@ -412,7 +412,7 @@ export async function buildGenericReportPdf(input: GenericReportInput): Promise<
     text(input.emptyText ?? "No records match the selected filters.", M + 4, y - 4, { size: 8.5, color: MUTED });
   }
 
-  const stamp = generatedByLine(input.generatedBy);
+  const stamp = generatedByLine(input.generatedBy).replace(/·/g, "|");
   pages.forEach((p, i) => {
     p.drawLine({ start: { x: M, y: M - 6 }, end: { x: A4.w - M, y: M - 6 }, thickness: 0.6, color: HAIR });
     p.drawText(fit(stamp, font, 7, contentW - 90), { x: M, y: M - 18, size: 7, font, color: MUTED });
