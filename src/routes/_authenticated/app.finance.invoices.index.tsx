@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { listInvoices, type InvoiceRow, type InvoiceStatus } from "@/lib/finance.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { RecordCard } from "@/components/finance/responsive-record-list";
 import { Plus, Search, FileText, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -60,7 +61,7 @@ function InvoicesPage() {
   }, [q.data, search, statusFilter]);
 
   return (
-    <div className="mx-auto max-w-7xl space-y-4 px-6 py-6">
+    <div className="mx-auto max-w-7xl space-y-4 px-4 py-6 sm:px-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-[20px] font-semibold text-foreground">Invoices</h1>
@@ -74,13 +75,13 @@ function InvoicesPage() {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative">
+        <div className="relative w-full sm:w-auto">
           <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input value={search} onChange={(e) => setSearch(e.target.value)}
             placeholder="Search BT-01, title, customer…"
-            className="h-8 w-72 rounded-sm pl-7 text-[12.5px]" />
+            className="h-8 w-full rounded-sm pl-7 text-[12.5px] sm:w-72" />
         </div>
-        <div className="inline-flex items-center rounded-sm border border-border bg-card p-0.5">
+        <div className="-mx-1 inline-flex max-w-full items-center overflow-x-auto rounded-sm border border-border bg-card p-0.5">
           {(["all","draft","sent","partially_paid","paid","overdue","void"] as const).map((s) => (
             <button key={s} onClick={() => setStatusFilter(s)}
               className={cn(
@@ -93,8 +94,8 @@ function InvoicesPage() {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-md border border-border bg-card">
-        <table className="w-full text-[12.5px]">
+      <div className="hidden overflow-x-auto rounded-md border border-border bg-card md:block">
+        <table className="w-full min-w-[800px] text-[12.5px]">
           <thead className="border-b border-border bg-muted/30 text-left text-[10.5px] uppercase tracking-wider text-muted-foreground">
             <tr>
               <th className="px-3 py-2">Slug</th>
@@ -139,7 +140,34 @@ function InvoicesPage() {
         </table>
       </div>
 
-      
+      {/* Mobile cards */}
+      <div className="rounded-md border border-border bg-card md:hidden">
+        {q.isLoading ? (
+          <div className="px-3 py-10 text-center text-muted-foreground"><Loader2 className="mx-auto size-4 animate-spin" /></div>
+        ) : rows.length === 0 ? (
+          <div className="px-3 py-16 text-center text-muted-foreground">
+            <FileText className="mx-auto mb-2 size-6 opacity-40" />
+            No invoices yet.
+          </div>
+        ) : rows.map((r) => (
+          <RecordCard
+            key={`m-${r.id}`}
+            title={<Link to="/app/finance/invoices/$slug" params={{ slug: r.slug }}>{r.title}</Link>}
+            subtitle={r.customer_name ?? "—"}
+            amount={fmt(r.total_amount, r.currency)}
+            badge={
+              <span className={cn("inline-flex rounded-sm border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider", STATUS_STYLES[r.status])}>
+                {r.status.replace("_"," ")}
+              </span>
+            }
+            fields={[
+              { label: "Slug", value: <Link to="/app/finance/invoices/$slug" params={{ slug: r.slug }} className="font-mono font-semibold text-brand">{r.slug}</Link>, primary: true },
+              { label: "Paid", value: fmt(r.paid_amount, r.currency) },
+              { label: "Created", value: new Date(r.created_at).toLocaleDateString() },
+            ]}
+          />
+        ))}
+      </div>
     </div>
   );
 }
