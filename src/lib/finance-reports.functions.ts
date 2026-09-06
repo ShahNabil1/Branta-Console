@@ -82,10 +82,25 @@ function applyCommon(rows: ReportRow[], f: ServerFilters) {
 }
 
 // ---------------- Income ----------------
+// Pages through PostgREST 1000-row windows so exports are never truncated.
+const CHUNK = 1000;
+async function fetchAllRows<T>(make: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>): Promise<T[]> {
+  const out: T[] = [];
+  for (let offset = 0; offset < 100_000; offset += CHUNK) {
+    const { data, error } = await make(offset, offset + CHUNK - 1);
+    if (error) throw new Error(error.message);
+    const batch = data ?? [];
+    out.push(...batch);
+    if (batch.length < CHUNK) break;
+  }
+  return out;
+}
+
 async function fetchIncome(supabase: Sb, f: ServerFilters): Promise<ReportRow[]> {
   if (f.type === "expense") return [];
 
-  let q = supabase
+  const makeInstallments = (from: number, to: number) => {
+    let q = supabase
     .from("invoice_installments")
     .select(
       "id, label, amount, paid_amount, paid_at, payment_method, payment_ref, status, invoice_id, invoices!inner(id, slug, title, currency, customer_id, customers(name, customer_code))",
@@ -95,12 +110,11 @@ async function fetchIncome(supabase: Sb, f: ServerFilters): Promise<ReportRow[]>
     .lte("paid_at", `${f.to}T23:59:59Z`)
     .eq("invoices.currency", f.currency)
     .order("paid_at", { ascending: false })
-    .limit(5000);
-  if (f.invoiceId) q = q.eq("invoice_id", f.invoiceId);
-  if (f.clientId) q = q.eq("invoices.customer_id", f.clientId);
-
-  const { data, error } = await q;
-  if (error) throw new Error(error.message);
+    .range(from, to);
+    if (f.invoiceId) q = q.eq("invoice_id", f.invoiceId);
+    if (f.clientId) q = q.eq("invoices.customer_id", f.clientId);
+    return q;
+  };
 
   type Inst = {
     id: string; label: string | null; amount: number; paid_amount: number | null;
@@ -112,7 +126,9 @@ async function fetchIncome(supabase: Sb, f: ServerFilters): Promise<ReportRow[]>
     } | null;
   };
 
-  const invoiceRows: ReportRow[] = ((data ?? []) as Inst[]).map((r) => ({
+  const data = await fetchAllRows<Inst>((a, b) => makeInstallments(a, b) as never);
+
+  const invoiceRows: ReportRow[] = (data as Inst[]).map((r) => ({
     id: r.id,
     date: (r.paid_at ?? "").slice(0, 10),
     type: "income" as const,
@@ -133,7 +149,7 @@ async function fetchIncome(supabase: Sb, f: ServerFilters): Promise<ReportRow[]>
   // Manual (non-invoice) income recorded on the Company Wallet ledger.
   let ledger: ReportRow[] = [];
   if (!f.clientId && !f.invoiceId) {
-    const { data: led, error: lerr } = await supabase
+    const makeLedger = (from: number, to: number) => supabase
       .from("company_ledger")
       .select("id, kind, currency, amount, notes, occurred_on, created_by")
       .eq("currency", f.currency)
@@ -141,13 +157,13 @@ async function fetchIncome(supabase: Sb, f: ServerFilters): Promise<ReportRow[]>
       .lte("occurred_on", f.to)
       .gt("amount", 0)
       .order("occurred_on", { ascending: false })
-      .limit(5000);
-    if (lerr) throw new Error(lerr.message);
+      .range(from, to);
     type Led = {
       id: string; kind: string; currency: "BDT" | "USD"; amount: number;
       notes: string | null; occurred_on: string; created_by: string | null;
     };
-    ledger = ((led ?? []) as Led[]).map((r) => ({
+    const led = await fetchAllRows<Led>((a, b) => makeLedger(a, b) as never);
+    ledger = (led as Led[]).map((r) => ({
       id: r.id,
       date: r.occurred_on,
       type: "income" as const,
@@ -173,7 +189,8 @@ async function fetchIncome(supabase: Sb, f: ServerFilters): Promise<ReportRow[]>
 async function fetchExpense(supabase: Sb, f: ServerFilters): Promise<ReportRow[]> {
   if (f.type === "income") return [];
 
-  let q = supabase
+  const makeExpenses = (from: number, to: number) => {
+    let q = supabase
     .from("expenses")
     .select(
       "id, category, amount, currency, spent_on, vendor, notes, voucher_no, txn_id, payment_method, department, requested_by, paid_by, created_by, linked_invoice_id, request_purpose",
@@ -182,14 +199,13 @@ async function fetchExpense(supabase: Sb, f: ServerFilters): Promise<ReportRow[]
     .gte("spent_on", f.from)
     .lte("spent_on", f.to)
     .order("spent_on", { ascending: false })
-    .limit(5000);
-  if (f.invoiceId) q = q.eq("linked_invoice_id", f.invoiceId);
-  if (f.department) q = q.eq("department", f.department);
-  if (f.vendor) q = q.ilike("vendor", `%${f.vendor}%`);
-  if (f.createdBy) q = q.or(`created_by.eq.${f.createdBy},requested_by.eq.${f.createdBy},paid_by.eq.${f.createdBy}`);
-
-  const { data, error } = await q;
-  if (error) throw new Error(error.message);
+    .range(from, to);
+    if (f.invoiceId) q = q.eq("linked_invoice_id", f.invoiceId);
+    if (f.department) q = q.eq("department", f.department);
+    if (f.vendor) q = q.ilike("vendor", `%${f.vendor}%`);
+    if (f.createdBy) q = q.or(`created_by.eq.${f.createdBy},requested_by.eq.${f.createdBy},paid_by.eq.${f.createdBy}`);
+    return q;
+  };
 
   type Exp = {
     id: string; category: string; amount: number; currency: "BDT" | "USD"; spent_on: string;
