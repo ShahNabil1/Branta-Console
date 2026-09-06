@@ -9,7 +9,66 @@
 // letterhead artwork. In "print" mode they are left completely blank so the
 // content never overlaps pre-printed letterhead paper.
 
-import type { PDFDocument, PDFFont, PDFPage, RGB } from "pdf-lib";
+import type { PDFDocument, PDFFont, PDFImage, PDFPage, RGB } from "pdf-lib";
+import { embedBrandLogo, generatedByLine, type GeneratedBy } from "@/lib/brand/pdf-brand.server";
+
+export type { GeneratedBy };
+
+/** Header band: brand logo only, plus the orange rule. No marketing copy. */
+function drawBrandHeader(p: PDFPage, logo: PDFImage | null, brand: RGB) {
+  const bandH = 92;
+  const bandY = PAGE_H - bandH;
+  p.drawRectangle({ x: 0, y: bandY - 6, width: PAGE_W, height: 4, color: brand });
+  if (logo) {
+    const h = 46;
+    const w = (logo.width / logo.height) * h;
+    p.drawImage(logo, { x: SIDE, y: bandY + (bandH - h) / 2, width: w, height: h });
+  }
+}
+
+/** Footer band: white logo + contact strip, then the provenance line. */
+function drawBrandFooter(
+  p: PDFPage,
+  opts: {
+    logo: PDFImage | null;
+    font: PDFFont;
+    brand: RGB;
+    white: RGB;
+    muted: RGB;
+    phone?: string | null;
+    email?: string | null;
+    website?: string | null;
+    generatedBy?: GeneratedBy | null;
+  },
+) {
+  const fH = 20;
+  p.drawRectangle({ x: 0, y: 24, width: PAGE_W, height: fH, color: opts.brand });
+
+  let left = SIDE;
+  if (opts.logo) {
+    const h = 11;
+    const w = (opts.logo.width / opts.logo.height) * h;
+    p.drawImage(opts.logo, { x: SIDE, y: 24 + (fH - h) / 2, width: w, height: h });
+    left = SIDE + w + 14;
+  }
+
+  const segs = [
+    opts.phone ? `Phone: ${opts.phone}` : null,
+    opts.email ? `Email: ${opts.email}` : null,
+    opts.website ? `Web: ${opts.website.replace(/^https?:\/\//, "")}` : null,
+  ].filter(Boolean) as string[];
+  const area = PAGE_W - SIDE - left;
+  const segW = area / Math.max(1, segs.length);
+  segs.forEach((t, i) => {
+    const txt = safeText(t);
+    const w = opts.font.widthOfTextAtSize(txt, 8);
+    p.drawText(txt, { x: left + i * segW + (segW - w) / 2, y: 30, size: 8, font: opts.font, color: opts.white });
+  });
+
+  const line = safeText(generatedByLine(opts.generatedBy));
+  const lw = opts.font.widthOfTextAtSize(line, 7);
+  p.drawText(line, { x: (PAGE_W - lw) / 2, y: 12, size: 7, font: opts.font, color: opts.muted });
+}
 
 export interface InvoiceLineItem {
   sequence: number;
