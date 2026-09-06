@@ -8,7 +8,7 @@ import regeneratorRuntime from "regenerator-runtime";
 import fontkit from "@pdf-lib/fontkit";
 import { NOTO_BENGALI_REGULAR_B64 } from "@/lib/fonts/noto-bengali-regular.server";
 import { NOTO_BENGALI_BOLD_B64 } from "@/lib/fonts/noto-bengali-bold.server";
-import { embedBrandLogo, generatedByLine, type GeneratedBy } from "@/lib/brand/pdf-brand.server";
+import { brandEmailList, BRAND_HOTLINE, embedBrandLogo, generatedByLine, type GeneratedBy } from "@/lib/brand/pdf-brand.server";
 
 export type PdfReportRow = {
   date: string;
@@ -257,6 +257,8 @@ export async function buildFinanceReportPdf(input: PdfReportInput): Promise<Uint
   pages.forEach((p, i) => {
     p.drawLine({ start: { x: M, y: M - 6 }, end: { x: A4.w - M, y: M - 6 }, thickness: 0.6, color: HAIR });
     p.drawText(fit(stamp, font, 7, contentW - 90), { x: M, y: M - 18, size: 7, font, color: MUTED });
+    const contact = `Hotline: ${BRAND_HOTLINE}  |  ${brandEmailList(null)}  |  brantatech.com`;
+    p.drawText(fit(contact, font, 6.8, contentW - 90), { x: M, y: M - 28, size: 6.8, font, color: MUTED });
     const lbl = `Page ${i + 1} of ${pages.length}`;
     p.drawText(lbl, {
       x: A4.w - M - font.widthOfTextAtSize(lbl, 7),
@@ -416,6 +418,8 @@ export async function buildGenericReportPdf(input: GenericReportInput): Promise<
   pages.forEach((p, i) => {
     p.drawLine({ start: { x: M, y: M - 6 }, end: { x: A4.w - M, y: M - 6 }, thickness: 0.6, color: HAIR });
     p.drawText(fit(stamp, font, 7, contentW - 90), { x: M, y: M - 18, size: 7, font, color: MUTED });
+    const contact = `Hotline: ${BRAND_HOTLINE}  |  ${brandEmailList(null)}  |  brantatech.com`;
+    p.drawText(fit(contact, font, 6.8, contentW - 90), { x: M, y: M - 28, size: 6.8, font, color: MUTED });
     const lbl = `Page ${i + 1} of ${pages.length}`;
     p.drawText(lbl, { x: A4.w - M - font.widthOfTextAtSize(lbl, 7), y: M - 18, size: 7, font, color: MUTED });
   });
