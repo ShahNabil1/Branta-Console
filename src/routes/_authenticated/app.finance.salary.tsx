@@ -366,6 +366,85 @@ function SalaryPage() {
         </table>
       </div>
 
+      {/* Mobile / tablet cards */}
+      <div className="rounded-sm border border-border bg-card lg:hidden">
+        {slipsQ.isLoading && (
+          <div className="px-3 py-8 text-center text-muted-foreground"><Loader2 className="mx-auto size-4 animate-spin" /></div>
+        )}
+        {!slipsQ.isLoading && (slipsQ.data ?? []).length === 0 && (
+          <div className="px-3 py-10 text-center text-[12.5px] text-muted-foreground">No salary slips yet.</div>
+        )}
+        {(slipsQ.data ?? []).map((s) => (
+          <RecordCard
+            key={`m-${s.id}`}
+            title={s.employee_name ?? "—"}
+            subtitle={`${s.employee_code ?? ""} · ${monthLabel(s.period_month)}`}
+            amount={fmt(s.net_amount, s.currency)}
+            badge={
+              <span className={`rounded-sm px-1.5 py-0.5 text-[10px] font-semibold uppercase ${s.status === "void" ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-700"}`}>
+                {s.status === "void" ? "Void" : "Issued"}
+              </span>
+            }
+            fields={[
+              { label: "Slip", value: <span className="font-mono">{s.slip_no ?? "—"}</span>, primary: true },
+              { label: "Paid on", value: String(s.paid_on).slice(0, 10) },
+              { label: "Expense voucher", value: <span className="font-mono">{s.voucher_no ?? "—"}</span> },
+              { label: "Sealed copy", value: s.signed_slip_url ? "Uploaded" : "Not uploaded" },
+            ]}
+            actions={
+              <RowActionsMenu>
+                <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]" onClick={() => openPdf(s.id)}>
+                  <Eye className="mr-2 size-3.5" /> View slip
+                </Button>
+                <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]" onClick={() => openPdf(s.id, undefined, true)}>
+                  <Download className="mr-2 size-3.5" /> Download slip
+                </Button>
+                <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]" onClick={() => openPdf(s.id, "print")}>
+                  <Printer className="mr-2 size-3.5" /> Print (letterhead)
+                </Button>
+                <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]" disabled={!s.expense_id}
+                  onClick={() => openVoucher(s.expense_id)}>
+                  <ReceiptText className="mr-2 size-3.5" /> View expense voucher
+                </Button>
+                <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]" disabled={!s.expense_id}
+                  onClick={() => openVoucher(s.expense_id, undefined, true)}>
+                  <Download className="mr-2 size-3.5" /> Download voucher
+                </Button>
+                {s.signed_slip_url ? (
+                  <>
+                    <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]" onClick={() => openSealed(s.id)}>
+                      <FileText className="mr-2 size-3.5" /> View sealed copy
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]" onClick={() => openSealed(s.id, true)}>
+                      <Download className="mr-2 size-3.5" /> Download sealed copy
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px] text-destructive" onClick={() => removeSealed(s.id)}>
+                      <X className="mr-2 size-3.5" /> Remove sealed copy
+                    </Button>
+                  </>
+                ) : (
+                  <label className="inline-flex h-8 w-full cursor-pointer items-center rounded-sm px-3 text-[12px] hover:bg-muted">
+                    <Stamp className="mr-2 size-3.5" /> Upload sealed copy
+                    <input type="file" accept={ACCEPT} className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        e.target.value = "";
+                        if (f) void uploadSealedCopy(s.id, f);
+                      }} />
+                  </label>
+                )}
+                {s.status !== "void" && (
+                  <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px] text-destructive" onClick={() => doVoid(s.id, s.slip_no)}>
+                    <Ban className="mr-2 size-3.5" /> Void slip
+                  </Button>
+                )}
+              </RowActionsMenu>
+            }
+          />
+        ))}
+      </div>
+
+
       {open && (
         <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/40 p-2 sm:p-4">
           <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-sm border border-border bg-card p-5">
