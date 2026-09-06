@@ -618,9 +618,11 @@ export interface ExpenseVoucherData {
  */
 export async function renderExpenseVoucherPdf(
   data: ExpenseVoucherData,
-  opts: { mode?: "digital" | "print" } = {},
+  opts: { mode?: "digital" | "print"; kind?: "expense" | "income" } = {},
 ): Promise<Uint8Array> {
   const mode = opts.mode ?? "digital";
+  const kind = opts.kind ?? "expense";
+
   const { PDFDocument: PDoc, StandardFonts, rgb } = await import("pdf-lib");
 
   const s = data.settings;
