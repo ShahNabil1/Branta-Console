@@ -1124,14 +1124,8 @@ export async function renderSalarySlipPdf(
   });
 
   /* ---- verification footer ---- */
-  const printedAt = new Date().toLocaleString("en-GB", {
-    timeZone: "Asia/Dhaka",
-    day: "2-digit", month: "short", year: "numeric",
-    hour: "2-digit", minute: "2-digit", hour12: false,
-  });
-  const left = `Verified online · ${(s.company_website || "brantatech.com").replace(/^https?:\/\//, "")} · Slip ${slipNo}`;
-  const right = `Printed: ${printedAt} (GMT+6)`;
-  draw(left, SIDE, CONTENT_BOTTOM + 6, 7, font, muted);
+  draw(`Slip ${slipNo}`, SIDE, CONTENT_BOTTOM + 6, 7, font, muted);
+  const right = generatedByLine(opts.generatedBy);
   const rw = font.widthOfTextAtSize(safeText(right), 7);
   draw(right, PAGE_W - SIDE - rw, CONTENT_BOTTOM + 6, 7, font, muted);
 
