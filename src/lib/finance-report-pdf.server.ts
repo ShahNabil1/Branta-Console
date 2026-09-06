@@ -8,6 +8,7 @@ import regeneratorRuntime from "regenerator-runtime";
 import fontkit from "@pdf-lib/fontkit";
 import { NOTO_BENGALI_REGULAR_B64 } from "@/lib/fonts/noto-bengali-regular.server";
 import { NOTO_BENGALI_BOLD_B64 } from "@/lib/fonts/noto-bengali-bold.server";
+import { embedBrandLogo, generatedByLine, type GeneratedBy } from "@/lib/brand/pdf-brand.server";
 
 export type PdfReportRow = {
   date: string;
@@ -30,6 +31,7 @@ export type PdfReportInput = {
   filters: string[];
   summary: { label: string; value: string }[];
   rows: PdfReportRow[];
+  generatedBy?: GeneratedBy | null;
   company: { name: string; address?: string | null; email?: string | null; website?: string | null };
 };
 
@@ -71,6 +73,7 @@ export async function buildFinanceReportPdf(input: PdfReportInput): Promise<Uint
   pdf.registerFontkit(fontkit);
   const font = await pdf.embedFont(b64ToBytes(NOTO_BENGALI_REGULAR_B64), { subset: true });
   const bold = await pdf.embedFont(b64ToBytes(NOTO_BENGALI_BOLD_B64), { subset: true });
+  const logo = await embedBrandLogo(pdf, "color");
 
   const contentW = A4.w - M * 2;
   const cols: Cols = [
@@ -108,15 +111,15 @@ export async function buildFinanceReportPdf(input: PdfReportInput): Promise<Uint
   const drawHeader = () => {
     // Brand bar
     page.drawRectangle({ x: M, y: y - 4, width: contentW, height: 3, color: BRAND });
-    y -= 26;
-    text(input.company.name, M, y, { size: 15, font: bold });
+    y -= 30;
+    if (logo) {
+      const h = 26;
+      const w = (logo.width / logo.height) * h;
+      page.drawImage(logo, { x: M, y: y - 6, width: w, height: h });
+    }
     const metaRight = A4.w - M;
-    text(input.title, metaRight, y, { size: 12, font: bold, align: "right" });
-    y -= 14;
-    const contact = [input.company.address, input.company.email, input.company.website]
-      .filter(Boolean)
-      .join("   |   ");
-    if (contact) text(contact, M, y, { size: 7.5, color: MUTED, maxW: contentW * 0.55 });
+    text(input.title, metaRight, y + 10, { size: 12, font: bold, align: "right" });
+    y -= 10;
     text(`Period: ${input.periodLabel}`, metaRight, y, { size: 8, color: MUTED, align: "right" });
     y -= 11;
     text(`Generated: ${input.generatedAt}`, metaRight, y, { size: 8, color: MUTED, align: "right" });
@@ -252,7 +255,7 @@ export async function buildFinanceReportPdf(input: PdfReportInput): Promise<Uint
   }
 
   // Footer on every page
-  const stamp = `${input.company.name}  |  ${input.title}  |  Generated ${input.generatedAt}`;
+  const stamp = generatedByLine(input.generatedBy);
   pages.forEach((p, i) => {
     p.drawLine({ start: { x: M, y: M - 6 }, end: { x: A4.w - M, y: M - 6 }, thickness: 0.6, color: HAIR });
     p.drawText(fit(stamp, font, 7, contentW - 90), { x: M, y: M - 18, size: 7, font, color: MUTED });
@@ -283,6 +286,7 @@ export type GenericReportInput = {
   columns: GenericColumn[];
   rows: string[][];
   emptyText?: string;
+  generatedBy?: GeneratedBy | null;
   company: { name: string; address?: string | null; email?: string | null; website?: string | null };
 };
 
@@ -295,6 +299,7 @@ export async function buildGenericReportPdf(input: GenericReportInput): Promise<
   pdf.registerFontkit(fontkit);
   const font = await pdf.embedFont(b64ToBytes(NOTO_BENGALI_REGULAR_B64), { subset: true });
   const bold = await pdf.embedFont(b64ToBytes(NOTO_BENGALI_BOLD_B64), { subset: true });
+  const logo = await embedBrandLogo(pdf, "color");
 
   const contentW = A4.w - M * 2;
   const scale = contentW / input.columns.reduce((a, c) => a + c.w, 0);
@@ -321,14 +326,15 @@ export async function buildGenericReportPdf(input: GenericReportInput): Promise<
 
   const drawHeader = () => {
     page.drawRectangle({ x: M, y: y - 4, width: contentW, height: 3, color: BRAND });
-    y -= 26;
-    text(input.company.name, M, y, { size: 15, font: bold });
+    y -= 30;
+    if (logo) {
+      const h = 26;
+      const w = (logo.width / logo.height) * h;
+      page.drawImage(logo, { x: M, y: y - 6, width: w, height: h });
+    }
     const metaRight = A4.w - M;
-    text(input.title, metaRight, y, { size: 12, font: bold, align: "right" });
-    y -= 14;
-    const contact = [input.company.address, input.company.email, input.company.website]
-      .filter(Boolean).join("   |   ");
-    if (contact) text(contact, M, y, { size: 7.5, color: MUTED, maxW: contentW * 0.55 });
+    text(input.title, metaRight, y + 10, { size: 12, font: bold, align: "right" });
+    y -= 10;
     text(`Period: ${input.periodLabel}`, metaRight, y, { size: 8, color: MUTED, align: "right" });
     y -= 11;
     text(`Generated: ${input.generatedAt}`, metaRight, y, { size: 8, color: MUTED, align: "right" });
@@ -410,7 +416,7 @@ export async function buildGenericReportPdf(input: GenericReportInput): Promise<
     text(input.emptyText ?? "No records match the selected filters.", M + 4, y - 4, { size: 8.5, color: MUTED });
   }
 
-  const stamp = `${input.company.name}  |  ${input.title}  |  Generated ${input.generatedAt}`;
+  const stamp = generatedByLine(input.generatedBy);
   pages.forEach((p, i) => {
     p.drawLine({ start: { x: M, y: M - 6 }, end: { x: A4.w - M, y: M - 6 }, thickness: 0.6, color: HAIR });
     p.drawText(fit(stamp, font, 7, contentW - 90), { x: M, y: M - 18, size: 7, font, color: MUTED });
