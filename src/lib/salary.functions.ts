@@ -98,13 +98,25 @@ export const listSalarySlips = createServerFn({ method: "GET" })
       ((profs ?? []) as Array<{ user_id: string; full_name: string | null; employee_code: string | null }>)
         .map((p) => [p.user_id, p]),
     );
+    // Voucher numbers of the linked salary expenses (printable expense voucher).
+    const expIds = [...new Set(rows.map((r) => r.expense_id).filter(Boolean))] as string[];
+    let vouchers = new Map<string, string | null>();
+    if (expIds.length) {
+      const { data: exps } = await context.supabase
+        .from("expenses").select("id, voucher_no").in("id", expIds);
+      vouchers = new Map(
+        ((exps ?? []) as Array<{ id: string; voucher_no: string | null }>).map((e) => [e.id, e.voucher_no]),
+      );
+    }
     return rows.map((r) => ({
       ...r,
       components: Array.isArray(r.components) ? r.components : [],
       employee_name: byId.get(r.user_id)?.full_name ?? null,
       employee_code: byId.get(r.user_id)?.employee_code ?? null,
+      voucher_no: r.expense_id ? vouchers.get(r.expense_id) ?? null : null,
     }));
   });
+
 
 export const listMySalarySlips = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
