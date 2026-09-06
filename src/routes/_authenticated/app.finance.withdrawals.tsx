@@ -11,6 +11,8 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { RecordCard } from "@/components/finance/responsive-record-list";
+
 import { Loader2, CheckCircle2, XCircle, Banknote, Copy, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
