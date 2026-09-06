@@ -21,8 +21,7 @@ import {
   ArrowLeftRight,
   Palette,
   Bell,
-  BadgeDollarSign,
-} from "lucide-react";
+  BadgeDollarSign, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import brandLogo from "@/assets/brand-logo.png.asset.json";
 import type { LucideIcon } from "lucide-react";
@@ -52,6 +51,7 @@ const NAV: NavGroup[] = [
     label: "Finance",
     items: [
       { label: "Dashboard", to: "/app/finance", icon: PiggyBank },
+      { label: "Income", to: "/app/finance/income", icon: TrendingUp },
       { label: "Invoices", to: "/app/finance/invoices", icon: FileText },
       { label: "Wallet", to: "/app/finance/wallet", icon: Wallet },
       { label: "Withdrawals", to: "/app/finance/withdrawals", icon: Banknote },

@@ -4,8 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { getFinanceReport, type Currency } from "@/lib/finance.functions";
 import { KpiTile } from "@/components/branta/kpi-tile";
-import { Button } from "@/components/ui/button";
-import { FileText, Download, TrendingUp, TrendingDown } from "lucide-react";
+import { FileText, TrendingUp, TrendingDown } from "lucide-react";
+import { ReportWorkspace } from "@/components/finance/report-workspace";
 
 export const Route = createFileRoute("/_authenticated/app/finance/")({
   head: () => ({ meta: [{ title: "Finance Dashboard · Branta" }] }),
@@ -80,9 +80,6 @@ function FinanceDashboard() {
               </button>
             ))}
           </div>
-          <Button variant="outline" size="sm" disabled className="h-8 rounded-sm text-[12px]">
-            <Download className="mr-1.5 size-3.5" /> PDF report
-          </Button>
         </div>
       </div>
 
@@ -91,6 +88,14 @@ function FinanceDashboard() {
         <KpiTile label="Expense" value={fmt(r?.expense ?? 0, currency)} delta="spent" positive={false} />
         <KpiTile label="Net profit" value={fmt(r?.profit ?? 0, currency)} delta={(r?.profit ?? 0) >= 0 ? "positive" : "loss"} positive={(r?.profit ?? 0) >= 0} />
         <KpiTile label="Outstanding" value={fmt(r?.outstanding ?? 0, currency)} delta="unpaid" positive={null} />
+      </div>
+
+      <div className="rounded-md border border-border bg-card p-4">
+        <ReportWorkspace
+          kind="finance"
+          title="Combined finance report"
+          description="Income and expense together — filter, then export to PDF, Excel or CSV."
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">

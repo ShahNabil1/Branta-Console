@@ -34,8 +34,7 @@ import {
   Activity,
   Link2,
   FileSignature,
-  Loader2,
-} from "lucide-react";
+  Loader2, TrendingUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { globalSearch, type GlobalSearchHit } from "@/lib/global-search.functions";
 import type { LucideIcon } from "lucide-react";
@@ -61,6 +60,7 @@ const STATIC_ENTRIES: StaticEntry[] = [
   { label: "Inbox", group: "CRM", icon: Inbox, to: "/app/inbox", keywords: "email gmail" },
   // Finance
   { label: "Finance dashboard", group: "Finance", icon: PiggyBank, to: "/app/finance", keywords: "profit loss report" },
+  { label: "Income", group: "Finance", icon: TrendingUp, to: "/app/finance/income", keywords: "revenue received payments report export" },
   { label: "Invoices", group: "Finance", icon: FileText, to: "/app/finance/invoices", keywords: "billing bt" },
   { label: "New invoice", group: "Finance", icon: FileSignature, to: "/app/finance/invoices/new", keywords: "create invoice" },
   { label: "Company Wallet", group: "Finance", icon: Wallet, to: "/app/finance/wallet", keywords: "balance ledger" },
