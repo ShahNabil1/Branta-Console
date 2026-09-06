@@ -166,6 +166,19 @@ function SalaryPage() {
     }
   };
 
+  /** Voucher PDF of the salary expense this slip created. */
+  const openVoucher = async (expenseId: string | null, mode?: "print", download?: boolean) => {
+    if (!expenseId) { toast.error("No linked salary expense for this slip"); return; }
+    try {
+      setBusyId(expenseId + (mode ?? "v"));
+      const r = await voucherFn({ data: { id: expenseId, ...(mode ? { mode } : {}) } });
+      window.open(download ? `${r.url}&dl=1` : r.url, "_blank", "noopener");
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBusyId(null); }
+  };
+
+
+
   const uploadSealedCopy = async (id: string, file: File) => {
     try {
       if (file.size > MAX_SLIP_MB * 1024 * 1024) throw new Error(`File must be ≤ ${MAX_SLIP_MB} MB`);
