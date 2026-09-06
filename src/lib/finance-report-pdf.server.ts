@@ -60,8 +60,8 @@ function fit(text: string, font: PDFFont, size: number, max: number) {
   let t = (text ?? "").toString();
   if (!t) return "";
   if (font.widthOfTextAtSize(t, size) <= max) return t;
-  while (t.length > 1 && font.widthOfTextAtSize(t + "…", size) > max) t = t.slice(0, -1);
-  return t + "…";
+  while (t.length > 1 && font.widthOfTextAtSize(t + "..", size) > max) t = t.slice(0, -1);
+  return t + "..";
 }
 
 type Cols = { key: keyof PdfReportRow | "sl"; label: string; w: number; align?: "left" | "right" }[];
@@ -74,15 +74,15 @@ export async function buildFinanceReportPdf(input: PdfReportInput): Promise<Uint
 
   const contentW = A4.w - M * 2;
   const cols: Cols = [
-    { key: "sl", label: "#", w: 24 },
-    { key: "date", label: "Date", w: 60 },
-    { key: "type", label: "Type", w: 46 },
-    { key: "reference", label: "Reference", w: 74 },
-    { key: "party", label: "Client / Vendor", w: 96 },
+    { key: "sl", label: "#", w: 20 },
+    { key: "date", label: "Date", w: 52 },
+    { key: "type", label: "Type", w: 40 },
+    { key: "reference", label: "Reference", w: 62 },
+    { key: "party", label: "Client / Vendor", w: 88 },
     { key: "project", label: "Project", w: 78 },
-    { key: "category", label: "Category", w: 58 },
-    { key: "method", label: "Method", w: 52 },
-    { key: "amount", label: `Amount (${input.currency})`, w: contentW - (24 + 60 + 46 + 74 + 96 + 78 + 58 + 52), align: "right" },
+    { key: "category", label: "Category", w: 48 },
+    { key: "method", label: "Method", w: 40 },
+    { key: "amount", label: `Amount (${input.currency})`, w: contentW - (20 + 52 + 40 + 62 + 88 + 78 + 48 + 40), align: "right" },
   ];
 
   const pages: PDFPage[] = [];
@@ -113,7 +113,7 @@ export async function buildFinanceReportPdf(input: PdfReportInput): Promise<Uint
     y -= 14;
     const contact = [input.company.address, input.company.email, input.company.website]
       .filter(Boolean)
-      .join("  ·  ");
+      .join("   |   ");
     if (contact) text(contact, M, y, { size: 7.5, color: MUTED, maxW: contentW * 0.55 });
     text(`Period: ${input.periodLabel}`, metaRight, y, { size: 8, color: MUTED, align: "right" });
     y -= 11;
@@ -154,7 +154,7 @@ export async function buildFinanceReportPdf(input: PdfReportInput): Promise<Uint
   if (input.filters.length) {
     text("Applied filters", M, y, { size: 8, font: bold, color: MUTED });
     y -= 12;
-    const line = input.filters.join("   ·   ");
+    const line = input.filters.join("   |   ");
     // wrap
     const words = line.split(" ");
     let cur = "";
@@ -250,7 +250,7 @@ export async function buildFinanceReportPdf(input: PdfReportInput): Promise<Uint
   }
 
   // Footer on every page
-  const stamp = `${input.company.name} · ${input.title} · Generated ${input.generatedAt}`;
+  const stamp = `${input.company.name}  |  ${input.title}  |  Generated ${input.generatedAt}`;
   pages.forEach((p, i) => {
     p.drawLine({ start: { x: M, y: M - 6 }, end: { x: A4.w - M, y: M - 6 }, thickness: 0.6, color: HAIR });
     p.drawText(fit(stamp, font, 7, contentW - 90), { x: M, y: M - 18, size: 7, font, color: MUTED });
