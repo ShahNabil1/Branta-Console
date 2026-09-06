@@ -86,7 +86,7 @@ export function ReportWorkspace({
 
       <ReportFilterBar filters={filters} onChange={setFilters} kind={kind} onFacets={setLabels} />
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <KpiTile label="Total income · মোট আয়" value={formatMoney(s?.income ?? 0, cur)} delta="received" positive={true} />
         <KpiTile label="Total expense · মোট খরচ" value={formatMoney(s?.expense ?? 0, cur)} delta="spent" positive={false} />
         <KpiTile
