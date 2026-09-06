@@ -138,3 +138,47 @@ export async function loadSalarySlipPayload(adminClient: any, slipNo: string) {
     settings: settings ?? null,
   };
 }
+
+
+/* ================= Income vouchers ================= */
+
+/** Signed URL for an income (money receipt) voucher PDF. */
+export function buildSignedIncomeVoucherUrl(
+  baseUrl: string,
+  voucherNo: string,
+  ttlSeconds = 60 * 60 * 24 * 30,
+): string {
+  const exp = Math.floor(Date.now() / 1000) + ttlSeconds;
+  const sig = signInvoiceSlug(`inc:${voucherNo}`, exp);
+  return `${baseUrl}/api/public/income/${encodeURIComponent(voucherNo)}.pdf?exp=${exp}&sig=${sig}`;
+}
+
+export function verifyIncomeVoucherSig(voucherNo: string, exp: number, sig: string): boolean {
+  return verifyInvoiceSlug(`inc:${voucherNo}`, exp, sig);
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function loadIncomeVoucherPayload(adminClient: any, voucherNo: string) {
+  const { data: v, error } = await adminClient
+    .from("income_vouchers").select("*").eq("voucher_no", voucherNo).maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!v) return null;
+  const uids = [v.created_by].filter(Boolean) as string[];
+  const [{ data: profs }, { data: settings }, inv] = await Promise.all([
+    uids.length
+      ? adminClient.from("profiles").select("user_id, full_name").in("user_id", uids)
+      : Promise.resolve({ data: [] }),
+    adminClient.from("invoice_pdf_settings").select("*").eq("id", "default").maybeSingle(),
+    v.invoice_id
+      ? adminClient.from("invoices").select("slug").eq("id", v.invoice_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+  const nameOf = (id: string | null) =>
+    (id && (profs ?? []).find((p: { user_id: string }) => p.user_id === id)?.full_name) || null;
+  return {
+    voucher: v,
+    preparedByName: nameOf(v.created_by),
+    linkedInvoiceSlug: inv?.data?.slug ?? null,
+    settings: settings ?? null,
+  };
+}

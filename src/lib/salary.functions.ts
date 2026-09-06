@@ -535,3 +535,263 @@ export const getSalarySealedFileUrl = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     return { url: signed.signedUrl, path: slip.signed_slip_url };
   });
+
+
+/* ================= Salary report ================= */
+
+export interface SalaryReportRow {
+  id: string;
+  slip_no: string | null;
+  employee: string;
+  employee_code: string | null;
+  month: string;
+  currency: SalaryCurrency;
+  basic: number;
+  bonus: number;
+  deduction: number;
+  net: number;
+  payment_method: string | null;
+  txn_id: string | null;
+  paid_on: string;
+  status: string;
+}
+
+const SalaryReportIn = z.object({
+  from: z.string(),
+  to: z.string(),
+  currency: z.enum(["BDT", "USD"]).default("BDT"),
+  userId: z.string().uuid().nullable().default(null),
+  status: z.enum(["all", "issued", "void"]).default("all"),
+  search: z.string().default(""),
+});
+
+type SalaryReportFilters = z.infer<typeof SalaryReportIn>;
+
+async function collectSalaryRows(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  f: SalaryReportFilters,
+): Promise<SalaryReportRow[]> {
+  let q = supabase
+    .from("salary_slips")
+    .select("*")
+    .eq("currency", f.currency)
+    .gte("period_month", `${f.from.slice(0, 7)}-01`)
+    .lte("period_month", `${f.to.slice(0, 7)}-01`)
+    .order("period_month", { ascending: false })
+    .limit(5000);
+  if (f.userId) q = q.eq("user_id", f.userId);
+  if (f.status !== "all") q = q.eq("status", f.status);
+  const { data, error } = await q;
+  if (error) throw new Error(error.message);
+  const slips = (data ?? []) as unknown as SalarySlipRow[];
+
+  const ids = [...new Set(slips.map((s) => s.user_id))];
+  const byId = new Map<string, { full_name: string | null; employee_code: string | null }>();
+  if (ids.length) {
+    const { data: profs } = await supabase
+      .from("profiles").select("user_id, full_name, employee_code").in("user_id", ids);
+    ((profs ?? []) as Array<{ user_id: string; full_name: string | null; employee_code: string | null }>)
+      .forEach((p) => byId.set(p.user_id, p));
+  }
+
+  const term = f.search.trim().toLowerCase();
+  return slips
+    .map((s) => {
+      const comps = (Array.isArray(s.components) ? s.components : []) as SalaryComponent[];
+      const bonus = comps.filter((c) => Number(c.amount) > 0).reduce((a, c) => a + Number(c.amount), 0);
+      const deduction = comps.filter((c) => Number(c.amount) < 0).reduce((a, c) => a + Math.abs(Number(c.amount)), 0);
+      const p = byId.get(s.user_id);
+      return {
+        id: s.id,
+        slip_no: s.slip_no,
+        employee: p?.full_name ?? s.user_id.slice(0, 8),
+        employee_code: p?.employee_code ?? null,
+        month: String(s.period_month).slice(0, 7),
+        currency: s.currency,
+        basic: Number(s.base_amount),
+        bonus: Number(bonus.toFixed(2)),
+        deduction: Number(deduction.toFixed(2)),
+        net: Number(s.net_amount),
+        payment_method: s.payment_method,
+        txn_id: s.txn_id,
+        paid_on: s.paid_on,
+        status: s.status,
+      } as SalaryReportRow;
+    })
+    .filter((r) =>
+      !term ||
+      [r.slip_no, r.employee, r.employee_code, r.month, r.payment_method, r.txn_id, String(r.net)]
+        .join(" ").toLowerCase().includes(term),
+    );
+}
+
+function summarizeSalary(rows: SalaryReportRow[]) {
+  return rows.reduce(
+    (a, r) => ({
+      basic: a.basic + r.basic,
+      bonus: a.bonus + r.bonus,
+      deduction: a.deduction + r.deduction,
+      net: a.net + (r.status === "void" ? 0 : r.net),
+      count: a.count + 1,
+    }),
+    { basic: 0, bonus: 0, deduction: 0, net: 0, count: 0 },
+  );
+}
+
+export const getSalaryReport = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => SalaryReportIn.parse(d))
+  .handler(async ({ data, context }) => {
+    await ensureFinanceAdmin(context.supabase as never, context.userId);
+    const rows = await collectSalaryRows(context.supabase, data);
+    return { rows, summary: summarizeSalary(rows) };
+  });
+
+export const exportSalaryReport = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    SalaryReportIn.extend({
+      format: z.enum(["pdf", "xlsx", "csv"]),
+      periodLabel: z.string().default(""),
+      filterLabels: z.array(z.string()).default([]),
+      fileBase: z.string().default("salary-report"),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await ensureFinanceAdmin(context.supabase as never, context.userId);
+    const rows = await collectSalaryRows(context.supabase, data);
+    const sum = summarizeSalary(rows);
+    const cur = data.currency;
+    const sym = cur === "BDT" ? "৳ " : "$ ";
+    const fmt = (n: number) =>
+      `${n < 0 ? "-" : ""}${sym}${Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const generatedAt =
+      new Date(Date.now() + 6 * 3600_000).toISOString().replace("T", " ").slice(0, 16) + " (GMT+6)";
+    const periodLabel = data.periodLabel || `${data.from} → ${data.to}`;
+    const filename = `${data.fileBase}.${data.format}`;
+    const title = "Salary Report";
+
+    const headers = [
+      "#", "Slip No", "Employee", "Emp ID", "Month",
+      "Basic", "Bonus / Allowance", "Deduction", "Net Payable",
+      "Method", "TrxID", "Paid On", "Status",
+    ];
+    const body = rows.map((r, i) => [
+      i + 1, r.slip_no ?? "—", r.employee, r.employee_code ?? "—", r.month,
+      r.basic, r.bonus, r.deduction, r.net,
+      r.payment_method ?? "—", r.txn_id ?? "—", r.paid_on, r.status,
+    ]);
+
+    if (data.format === "pdf") {
+      const { buildGenericReportPdf } = await import("@/lib/finance-report-pdf.server");
+      const { data: settings } = await context.supabase
+        .from("invoice_pdf_settings")
+        .select("company_name, company_address, company_email, company_website")
+        .eq("id", "default")
+        .maybeSingle();
+      const s = (settings ?? {}) as {
+        company_name?: string; company_address?: string | null;
+        company_email?: string | null; company_website?: string | null;
+      };
+      const bytes = await buildGenericReportPdf({
+        title,
+        subtitle: "Monthly salary disbursement summary",
+        periodLabel,
+        generatedAt,
+        filters: data.filterLabels,
+        summary: [
+          { label: "Total basic", value: fmt(sum.basic) },
+          { label: "Total bonus", value: fmt(sum.bonus) },
+          { label: "Total deduction", value: fmt(sum.deduction) },
+          { label: "Total net paid", value: fmt(sum.net) },
+          { label: "Slips", value: String(sum.count) },
+        ],
+        columns: [
+          { label: "#", w: 20 },
+          { label: "Slip No", w: 58 },
+          { label: "Employee", w: 90 },
+          { label: "Month", w: 46 },
+          { label: "Basic", w: 56, align: "right" },
+          { label: "Bonus", w: 56, align: "right" },
+          { label: "Deduction", w: 56, align: "right" },
+          { label: `Net (${cur})`, w: 62, align: "right" },
+          { label: "Method", w: 48 },
+          { label: "Status", w: 38 },
+        ],
+        rows: rows.map((r, i) => [
+          String(i + 1), r.slip_no ?? "—", `${r.employee}${r.employee_code ? ` (${r.employee_code})` : ""}`,
+          r.month, fmt(r.basic), fmt(r.bonus), fmt(-r.deduction), fmt(r.net),
+          r.payment_method ?? "—", r.status,
+        ]),
+        emptyText: "No salary slips match the selected filters.",
+        company: {
+          name: s.company_name || "Branta Tech",
+          address: s.company_address ?? null,
+          email: s.company_email ?? null,
+          website: s.company_website ?? null,
+        },
+      });
+      return { filename, mime: "application/pdf", base64: bytesToBase64(bytes), count: rows.length };
+    }
+
+    const preamble = [
+      `${title} — ${periodLabel}`,
+      `Currency: ${cur}`,
+      `Generated: ${generatedAt}`,
+      data.filterLabels.length ? `Filters: ${data.filterLabels.join(" | ")}` : "Filters: none",
+      `Basic: ${fmt(sum.basic)} | Bonus: ${fmt(sum.bonus)} | Deduction: ${fmt(sum.deduction)} | Net paid: ${fmt(sum.net)} | Slips: ${sum.count}`,
+    ];
+
+    if (data.format === "csv") {
+      const { buildCsv } = await import("@/lib/xlsx.server");
+      const csv = buildCsv(headers, body, preamble);
+      return {
+        filename,
+        mime: "text/csv;charset=utf-8",
+        base64: bytesToBase64(new TextEncoder().encode(csv)),
+        count: rows.length,
+      };
+    }
+
+    const { buildXlsx } = await import("@/lib/xlsx.server");
+    const bytes = buildXlsx([
+      {
+        name: "Salary Report",
+        preamble,
+        columns: [
+          { header: "#", width: 6 },
+          { header: "Slip No", width: 16 },
+          { header: "Employee", width: 26 },
+          { header: "Emp ID", width: 12 },
+          { header: "Month", width: 11 },
+          { header: `Basic (${cur})`, width: 15, type: "number" },
+          { header: `Bonus / Allowance (${cur})`, width: 20, type: "number" },
+          { header: `Deduction (${cur})`, width: 15, type: "number" },
+          { header: `Net Payable (${cur})`, width: 17, type: "number" },
+          { header: "Method", width: 14 },
+          { header: "TrxID", width: 20 },
+          { header: "Paid On", width: 13, type: "date" },
+          { header: "Status", width: 10 },
+        ],
+        rows: body,
+        totals: ["", "", "", "", "Total", sum.basic, sum.bonus, sum.deduction, sum.net, "", "", "", `${sum.count} slips`],
+      },
+    ]);
+    return {
+      filename,
+      mime: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      base64: bytesToBase64(bytes),
+      count: rows.length,
+    };
+  });
+
+/** Chunked base64 — spreading a large Uint8Array into fromCharCode overflows the stack. */
+function bytesToBase64(bytes: Uint8Array): string {
+  let bin = "";
+  const size = 8192;
+  for (let i = 0; i < bytes.length; i += size) {
+    bin += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + size)) as unknown as number[]);
+  }
+  return btoa(bin);
+}

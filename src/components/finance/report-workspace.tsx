@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { listReportRows } from "@/lib/finance-reports.functions";
+import { listReportRows, type ReportRow } from "@/lib/finance-reports.functions";
 import { defaultFilters, formatMoney, type ReportFilters } from "@/lib/report-filters";
 import { ReportFilterBar } from "@/components/finance/report-filter-bar";
 import { ReportTable } from "@/components/finance/report-table";
 import { ExportMenu } from "@/components/finance/export-menu";
 import { KpiTile } from "@/components/branta/kpi-tile";
+import { IncomeVoucherCell } from "@/components/finance/income-voucher-cell";
+import { listIncomeVouchers } from "@/lib/income-vouchers.functions";
 
 const PAGE_SIZE = 25;
 
@@ -60,6 +62,15 @@ export function ReportWorkspace({
     placeholderData: (prev) => prev,
   });
 
+  const vouchersFn = useServerFn(listIncomeVouchers);
+  const vouchers = useQuery({
+    queryKey: ["income-vouchers"],
+    queryFn: () => vouchersFn(),
+    staleTime: 30_000,
+    enabled: kind === "income",
+  });
+  const voucherBySource = new Map((vouchers.data ?? []).map((v) => [v.source_id, v]));
+
   const s = q.data?.summary;
   const cur = filters.currency;
 
@@ -76,15 +87,15 @@ export function ReportWorkspace({
       <ReportFilterBar filters={filters} onChange={setFilters} kind={kind} onFacets={setLabels} />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <KpiTile label="Total income" value={formatMoney(s?.income ?? 0, cur)} delta="received" positive={true} />
-        <KpiTile label="Total expense" value={formatMoney(s?.expense ?? 0, cur)} delta="spent" positive={false} />
+        <KpiTile label="Total income · মোট আয়" value={formatMoney(s?.income ?? 0, cur)} delta="received" positive={true} />
+        <KpiTile label="Total expense · মোট খরচ" value={formatMoney(s?.expense ?? 0, cur)} delta="spent" positive={false} />
         <KpiTile
-          label="Net balance"
+          label="Net balance · নিট ব্যালেন্স"
           value={formatMoney(s?.net ?? 0, cur)}
           delta={(s?.net ?? 0) >= 0 ? "profit" : "loss"}
           positive={(s?.net ?? 0) >= 0}
         />
-        <KpiTile label="Transactions" value={String(s?.count ?? 0)} delta="in range" positive={null} />
+        <KpiTile label="Transactions · লেনদেন" value={String(s?.count ?? 0)} delta="in range" positive={null} />
       </div>
 
       <ReportTable
@@ -96,6 +107,18 @@ export function ReportWorkspace({
         total={q.data?.total ?? 0}
         onPage={setPage}
         hideType={kind !== "finance"}
+        {...(kind === "income"
+          ? {
+              actionsLabel: "Money receipt · রসিদ",
+              renderActions: (row: ReportRow) => (
+                <IncomeVoucherCell
+                  row={row}
+                  voucher={voucherBySource.get(row.id)}
+                  onChanged={() => void vouchers.refetch()}
+                />
+              ),
+            }
+          : {})}
       />
 
       {q.isError && (
