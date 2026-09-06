@@ -74,15 +74,15 @@ export async function buildFinanceReportPdf(input: PdfReportInput): Promise<Uint
 
   const contentW = A4.w - M * 2;
   const cols: Cols = [
-    { key: "sl", label: "#", w: 20 },
+    { key: "sl", label: "#", w: 28 },
     { key: "date", label: "Date", w: 52 },
     { key: "type", label: "Type", w: 40 },
     { key: "reference", label: "Reference", w: 62 },
     { key: "party", label: "Client / Vendor", w: 88 },
-    { key: "project", label: "Project", w: 78 },
+    { key: "project", label: "Project", w: 70 },
     { key: "category", label: "Category", w: 48 },
     { key: "method", label: "Method", w: 40 },
-    { key: "amount", label: `Amount (${input.currency})`, w: contentW - (20 + 52 + 40 + 62 + 88 + 78 + 48 + 40), align: "right" },
+    { key: "amount", label: `Amount (${input.currency})`, w: contentW - (28 + 52 + 40 + 62 + 88 + 70 + 48 + 40), align: "right" },
   ];
 
   const pages: PDFPage[] = [];
