@@ -105,6 +105,49 @@ export function ReportTable({
         </table>
       </div>
 
+      {/* Mobile / tablet cards */}
+      <div className="lg:hidden">
+        {loading ? (
+          <div className="px-3 py-10 text-center text-muted-foreground">
+            <Loader2 className="mx-auto size-4 animate-spin" />
+          </div>
+        ) : rows.length === 0 ? (
+          <div className="px-3 py-10 text-center text-[12.5px] text-muted-foreground">
+            No transactions match the selected filters.
+          </div>
+        ) : (
+          rows.map((r) => (
+            <RecordCard
+              key={`m-${r.type}-${r.id}`}
+              title={r.party || r.reference}
+              subtitle={r.project}
+              amount={`${r.type === "expense" ? "-" : ""}${formatMoney(Math.abs(r.amount), currency)}`}
+              amountTone={r.type === "income" ? "income" : "expense"}
+              badge={
+                hideType ? null : (
+                  <span
+                    className={`rounded-[3px] px-1.5 py-0.5 text-[10px] font-semibold uppercase ${
+                      r.type === "income" ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
+                    }`}
+                  >
+                    {r.type === "income" ? "আয়" : "খরচ"}
+                  </span>
+                )
+              }
+              actions={renderActions ? renderActions(r) : undefined}
+              fields={[
+                { label: "Date · তারিখ", value: r.date, primary: true },
+                { label: "Reference · রেফারেন্স", value: r.reference },
+                { label: "Category · খাত", value: <span className="capitalize">{r.category}</span> },
+                { label: "Method · মাধ্যম", value: r.method },
+                { label: "Status · অবস্থা", value: <span className="capitalize">{r.status}</span> },
+              ]}
+            />
+          ))
+        )}
+      </div>
+
+
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-3 py-2 text-[11.5px] text-muted-foreground">
         <span>
           {total === 0 ? "0 records" : `Showing ${start}–${end} of ${total} records`}
