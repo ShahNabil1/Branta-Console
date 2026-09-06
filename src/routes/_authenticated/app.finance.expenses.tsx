@@ -21,6 +21,8 @@ import { Input } from "@/components/ui/input";
 import { SearchableSelect, type SearchableItem } from "@/components/finance/searchable-select";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { ReportFilterBar } from "@/components/finance/report-filter-bar";
+import { RecordCard, RowActionsMenu } from "@/components/finance/responsive-record-list";
+
 import { ExportMenu } from "@/components/finance/export-menu";
 import { defaultFilters, type ReportFilters } from "@/lib/report-filters";
 import { Loader2, Plus, Trash2, Receipt, Upload, Eye, Download, X, FileText, Printer, Stamp, Pencil } from "lucide-react";
