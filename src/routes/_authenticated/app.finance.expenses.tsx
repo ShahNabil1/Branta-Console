@@ -20,6 +20,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SearchableSelect, type SearchableItem } from "@/components/finance/searchable-select";
 import { useConfirm } from "@/components/ui/confirm-dialog";
+import { ReportFilterBar } from "@/components/finance/report-filter-bar";
+import { ExportMenu } from "@/components/finance/export-menu";
+import { defaultFilters, type ReportFilters } from "@/lib/report-filters";
 import { Loader2, Plus, Trash2, Receipt, Upload, Eye, Download, X, FileText, Printer, Stamp, Pencil } from "lucide-react";
 
 const DEPARTMENTS = ["Management", "Finance", "Sales & Outreach", "Marketing", "Production", "Development", "HR & Admin", "Operations", "Other"];
@@ -118,6 +121,34 @@ function ExpensesPage() {
     requested_by: "",
     request_purpose: "",
   };
+
+  // Advanced filtering — same model the export uses, so what you see is what
+  // you export (export re-queries the server for the complete filtered set).
+  const [filters, setFilters] = useState<ReportFilters>(() => defaultFilters("expense"));
+  const visible = (q.data ?? []).filter((r) => {
+    if (r.currency !== filters.currency) return false;
+    if (filters.preset !== "all" && (r.spent_on < filters.from || r.spent_on > filters.to)) return false;
+    if (filters.categories.length && !filters.categories.includes(r.category)) return false;
+    if (filters.invoiceId && r.linked_invoice_id !== filters.invoiceId) return false;
+    if (filters.paymentMethod && (r.payment_method ?? "").toLowerCase() !== filters.paymentMethod.toLowerCase()) return false;
+    if (filters.department && (r.department ?? "") !== filters.department) return false;
+    if (filters.vendor && !(r.vendor ?? "").toLowerCase().includes(filters.vendor.toLowerCase())) return false;
+    if (filters.createdBy && ![r.created_by, r.requested_by, r.paid_by].includes(filters.createdBy)) return false;
+    if (filters.status) {
+      const st = r.txn_id ? "paid" : "recorded";
+      if (st !== filters.status.toLowerCase()) return false;
+    }
+    if (filters.minAmount != null && Number(r.amount) < filters.minAmount) return false;
+    if (filters.maxAmount != null && Number(r.amount) > filters.maxAmount) return false;
+    const term = filters.search.trim().toLowerCase();
+    if (term) {
+      const hay = [r.vendor, r.notes, r.request_purpose, r.txn_id, r.voucher_no, r.category,
+        r.department, r.payment_method, r.requested_by_name, String(r.amount)]
+        .filter(Boolean).join(" ").toLowerCase();
+      if (!term.split(/\s+/).every((t) => hay.includes(t))) return false;
+    }
+    return true;
+  });
 
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -302,19 +333,24 @@ function ExpensesPage() {
 
 
   return (
-    <div className="mx-auto max-w-7xl space-y-4 px-6 py-6">
-      <div className="flex items-center justify-between">
+    <div className="mx-auto max-w-7xl space-y-4 px-4 py-6 sm:px-6">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="text-[20px] font-semibold text-foreground">Expenses</h1>
           <p className="text-[12.5px] text-muted-foreground">Track company outflow — reflected in the dashboard.</p>
         </div>
-        <Button onClick={startCreate} className="h-9 rounded-sm bg-primary hover:bg-brand-700">
-          <Plus className="mr-1.5 size-3.5" /> Add expense
-        </Button>
+        <div className="flex items-center gap-2">
+          <ExportMenu filters={filters} kind="expense" />
+          <Button onClick={startCreate} className="h-9 rounded-sm bg-primary hover:bg-brand-700">
+            <Plus className="mr-1.5 size-3.5" /> Add expense
+          </Button>
+        </div>
       </div>
 
-      <div className="overflow-hidden rounded-md border border-border bg-card">
-        <table className="w-full text-[12.5px]">
+      <ReportFilterBar filters={filters} onChange={setFilters} kind="expense" />
+
+      <div className="overflow-x-auto rounded-md border border-border bg-card">
+        <table className="w-full min-w-[1000px] text-[12.5px]">
           <thead className="border-b border-border bg-muted/30 text-left text-[10.5px] uppercase tracking-wider text-muted-foreground">
             <tr>
               <th className="px-3 py-2">Date</th>
@@ -332,9 +368,11 @@ function ExpensesPage() {
             </tr>
           </thead>
           <tbody>
-            {(q.data ?? []).length === 0 ? (
-              <tr><td colSpan={12} className="px-3 py-10 text-center text-muted-foreground">No expenses yet.</td></tr>
-            ) : q.data?.map((r) => (
+            {visible.length === 0 ? (
+              <tr><td colSpan={12} className="px-3 py-10 text-center text-muted-foreground">
+                {(q.data ?? []).length === 0 ? "No expenses yet." : "No expenses match the selected filters."}
+              </td></tr>
+            ) : visible.map((r) => (
               <tr key={r.id} className="border-t border-border">
                 <td className="px-3 py-2 text-muted-foreground">{r.spent_on}</td>
                 <td className="px-3 py-2 capitalize">{r.category}</td>
