@@ -34,8 +34,9 @@ export function ReportTable({
 
   return (
     <div className="rounded-md border border-border bg-card">
-      <div className="overflow-x-auto">
+      <div className="hidden overflow-x-auto lg:block">
         <table className="w-full min-w-[880px] text-[12px]">
+
           <thead>
             <tr className="border-b border-border bg-muted/40 text-left text-[11px] uppercase tracking-wide text-muted-foreground">
               <th className="px-3 py-2 font-semibold">Date · তারিখ</th>
