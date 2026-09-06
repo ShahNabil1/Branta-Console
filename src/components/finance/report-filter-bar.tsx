@@ -57,10 +57,11 @@ export function ReportFilterBar({
   const createdByLabel =
     facets.data?.people.find((p) => p.user_id === filters.createdBy)?.full_name ?? null;
 
-  useMemo(() => {
+  useEffect(() => {
     onFacets?.({ client: clientLabel, invoice: invoiceLabel, createdBy: createdByLabel });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientLabel, invoiceLabel, createdByLabel]);
+
 
   const chips = activeFilterChips(filters, {
     client: clientLabel,
