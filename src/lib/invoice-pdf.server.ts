@@ -703,48 +703,18 @@ export async function renderExpenseVoucherPdf(
 
   /* ---- letterhead (digital only) ---- */
   if (mode === "digital") {
-    const bandH = 92;
-    const bandY = PAGE_H - bandH;
-    page.drawRectangle({ x: PAGE_W * 0.55, y: bandY, width: PAGE_W * 0.45, height: bandH, color: brand });
-    page.drawRectangle({ x: 0, y: bandY - 6, width: PAGE_W, height: 5, color: brand });
-    let lx = SIDE;
-    if (logo) {
-      const h = 40;
-      const w = (logo.width / logo.height) * h;
-      page.drawImage(logo, { x: SIDE, y: bandY + (bandH - h) / 2, width: w, height: h });
-      lx = SIDE + w + 10;
-    }
-    draw(s.company_name, lx, bandY + 48, 22, bold, brand);
-    if (s.company_tagline) draw(s.company_tagline, lx, bandY + 32, 8.5, font, muted);
-
-    const rx = PAGE_W * 0.55 + 14;
-    draw("Creative Technology Company", rx, bandY + 68, 9, font, white);
-    draw("Grow Smarter with AI", rx, bandY + 55, 11, bold, white);
-    if (s.company_address) {
-      const maxW = PAGE_W - rx - 14;
-      const raw = s.company_address.split(/\n|;/).map((l) => safeText(l).trim()).filter(Boolean);
-      const lines: string[] = [];
-      for (const ln of raw) lines.push(...wrap(ln, font, 7.5, maxW));
-      draw("Address:", rx, bandY + 38, 8, bold, white);
-      lines.slice(0, 3).forEach((ln, i) => draw(ln, rx, bandY + 27 - i * 9.5, 7.5, font, white));
-    }
-
-    const fH = 20;
-    page.drawRectangle({ x: 0, y: 24, width: PAGE_W, height: fH, color: brand });
-    const segs = [
-      s.company_phone ? `Phone: ${s.company_phone}` : null,
-      s.company_email ? `Email: ${s.company_email}` : null,
-      s.company_website ? `Web: ${s.company_website.replace(/^https?:\/\//, "")}` : null,
-    ].filter(Boolean) as string[];
-    const segW = PAGE_W / Math.max(1, segs.length);
-    segs.forEach((t, i) => {
-      const w = font.widthOfTextAtSize(safeText(t), 8.5);
-      draw(t, i * segW + (segW - w) / 2, 30, 8.5, font, white);
-      if (i > 0) page.drawLine({ start: { x: i * segW, y: 24 }, end: { x: i * segW, y: 24 + fH }, thickness: 1, color: white });
+    drawBrandHeader(page, logo, brand);
+    drawBrandFooter(page, {
+      logo: whiteLogo,
+      font,
+      brand,
+      white,
+      muted,
+      phone: s.company_phone,
+      email: s.company_email,
+      website: s.company_website,
+      generatedBy: opts.generatedBy,
     });
-    const foot = safeText(s.footer_text);
-    const fw = font.widthOfTextAtSize(foot, 7.5);
-    draw(foot, (PAGE_W - fw) / 2, 12, 7.5, font, muted);
   }
 
   const e = data.expense;
