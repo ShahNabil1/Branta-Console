@@ -586,7 +586,7 @@ function PayEmployeeModal({ cur, employees, onClose, onSubmit, submitting }: {
             )}
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
               <label className="text-[11px] font-semibold uppercase text-muted-foreground">Reason</label>
               <select value={kind} onChange={(e) => setKind(e.target.value as PayoutKind)}

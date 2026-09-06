@@ -583,7 +583,7 @@ function ExpensesPage() {
           <div className="max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-md border border-border bg-card p-5 shadow-lg">
             <h3 className="text-[14px] font-semibold">{editingId ? "Edit expense" : "Add expense"}</h3>
             <div className="mt-4 space-y-3">
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <div>
                   <label className="text-[11px] font-semibold uppercase text-muted-foreground">Category</label>
                   <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value as ExpenseCategory })}
@@ -600,7 +600,7 @@ function ExpensesPage() {
                   </select>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <div>
                   <label className="text-[11px] font-semibold uppercase text-muted-foreground">Amount</label>
                   <Input type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })}
@@ -612,7 +612,7 @@ function ExpensesPage() {
                     className="mt-1 h-9 rounded-sm" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <div>
                   <label className="text-[11px] font-semibold uppercase text-muted-foreground">Vendor</label>
                   <Input value={form.vendor} onChange={(e) => setForm({ ...form, vendor: e.target.value })}
@@ -639,7 +639,7 @@ function ExpensesPage() {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <div>
                   <label className="text-[11px] font-semibold uppercase text-muted-foreground">Payment method</label>
                   <select value={form.payment_method} onChange={(e) => setForm({ ...form, payment_method: e.target.value })}

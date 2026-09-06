@@ -375,7 +375,7 @@ function SalaryPage() {
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="col-span-2">
                 <label className="mb-1 block text-[12px] text-muted-foreground">Employee *</label>
                 <SearchableSelect items={employees} value={userId} onChange={setUserId} placeholder="Select employee" />

@@ -737,7 +737,7 @@ function EditInvoiceDialog({
               <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Total amount *</Label>
               <Input type="number" value={total} onChange={(e) => setTotal(e.target.value)} className="mt-1 h-9 rounded-sm font-mono" />
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <div><Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Starts</Label><Input type="date" value={startsOn} onChange={(e) => setStartsOn(e.target.value)} className="mt-1 h-9 rounded-sm" /></div>
               <div><Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Ends</Label><Input type="date" value={endsOn} onChange={(e) => setEndsOn(e.target.value)} className="mt-1 h-9 rounded-sm" /></div>
             </div>
