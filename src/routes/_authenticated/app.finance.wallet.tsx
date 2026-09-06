@@ -26,6 +26,7 @@ import {
   PlusCircle, Trash2, Loader2, Banknote, Lock, HandCoins, Undo2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { RecordCard } from "@/components/finance/responsive-record-list";
 
 export const Route = createFileRoute("/_authenticated/app/finance/wallet")({
   head: () => ({ meta: [{ title: "Company Wallet · Finance · Branta" }] }),
@@ -232,7 +233,7 @@ function CompanyWalletPage() {
         <div className="border-b border-border px-4 py-2.5">
           <h2 className="text-[13px] font-semibold">Invoices ({cur})</h2>
         </div>
-        <div className="overflow-x-auto">
+        <div className="hidden overflow-x-auto md:block">
         <table className="w-full min-w-[760px] text-[12.5px]">
           <thead className="text-left text-[10.5px] uppercase tracking-wider text-muted-foreground">
             <tr>
@@ -272,6 +273,24 @@ function CompanyWalletPage() {
           </tbody>
         </table>
         </div>
+      <div className="divide-y divide-border md:hidden">
+        {invsInCur.length === 0 ? (
+          <div className="px-3 py-10 text-center text-[12.5px] text-muted-foreground">No invoices in {cur}.</div>
+        ) : invsInCur.map((r) => (
+          <RecordCard
+            key={`m-${r.invoice_id}`}
+            title={<Link to="/app/finance/invoices/$slug" params={{ slug: r.slug }} className="font-mono text-brand">{r.slug}</Link>}
+            subtitle={r.customer_name ?? "—"}
+            amount={fmt(r.total, cur)}
+            badge={<span className="rounded-[3px] border border-border px-1.5 py-0.5 text-[10px] font-semibold uppercase">{r.status.replace("_", " ")}</span>}
+            fields={[
+              { label: "Outstanding", value: fmt(r.outstanding, cur), primary: true },
+              { label: "Paid", value: fmt(r.paid, cur) },
+              { label: "Next due", value: r.next_due ?? "—" },
+            ]}
+          />
+        ))}
+      </div>
       </section>
 
       {/* Company ledger */}
@@ -282,7 +301,7 @@ function CompanyWalletPage() {
             <p className="text-[11px] text-muted-foreground">Manual entries — seed capital, other income, adjustments. Positive = credit, negative = debit.</p>
           </div>
         </div>
-        <div className="overflow-x-auto">
+        <div className="hidden overflow-x-auto md:block">
         <table className="w-full min-w-[760px] text-[12.5px]">
           <thead className="text-left text-[10.5px] uppercase tracking-wider text-muted-foreground">
             <tr>
@@ -318,6 +337,29 @@ function CompanyWalletPage() {
           </tbody>
         </table>
         </div>
+      <div className="divide-y divide-border md:hidden">
+        {ledgerInCur.length === 0 ? (
+          <div className="px-3 py-10 text-center text-[12.5px] text-muted-foreground">No ledger entries in {cur} yet.</div>
+        ) : ledgerInCur.map((r) => (
+          <RecordCard
+            key={`m-${r.id}`}
+            title={r.kind.replace("_", " ")}
+            subtitle={r.occurred_on}
+            amount={fmt(r.amount, cur)}
+            amountTone={Number(r.amount) >= 0 ? "income" : "expense"}
+            fields={[
+              { label: "Notes", value: r.notes ?? "—" },
+              { label: "By", value: r.created_by_name ?? "—" },
+            ]}
+            actions={
+              <Button variant="ghost" size="sm" onClick={() => del(r.id)}
+                className="h-7 rounded-sm text-[11px] text-rose-600 hover:bg-rose-50">
+                <Trash2 className="size-3" />
+              </Button>
+            }
+          />
+        ))}
+      </div>
       </section>
 
       {/* Manual employee payouts */}
@@ -336,7 +378,7 @@ function CompanyWalletPage() {
             <HandCoins className="mr-1.5 size-3.5" /> Pay employee
           </Button>
         </div>
-        <div className="overflow-x-auto">
+        <div className="hidden overflow-x-auto md:block">
         <table className="w-full min-w-[760px] text-[12.5px]">
           <thead className="text-left text-[10.5px] uppercase tracking-wider text-muted-foreground">
             <tr>
@@ -383,6 +425,32 @@ function CompanyWalletPage() {
           </tbody>
         </table>
         </div>
+      <div className="divide-y divide-border md:hidden">
+        {manualsInCur.length === 0 ? (
+          <div className="px-3 py-10 text-center text-[12.5px] text-muted-foreground">No manual payouts in {cur} yet.</div>
+        ) : manualsInCur.map((r) => (
+          <RecordCard
+            key={`m-${r.id}`}
+            title={r.user_name ?? r.user_id.slice(0, 8)}
+            subtitle={(r.kind ?? "—").replace("_", " ")}
+            amount={fmt(r.amount, cur)}
+            amountTone="income"
+            badge={<span className="rounded-[3px] border border-border px-1.5 py-0.5 text-[10px] font-semibold uppercase">{r.status}</span>}
+            fields={[
+              { label: "Date", value: r.created_at.slice(0, 10), primary: true },
+              { label: "Notes", value: r.notes ?? "—" },
+            ]}
+            actions={
+              (r.status === "available" || r.status === "paid") && (r.amount ?? 0) >= 0 ? (
+                <Button variant="ghost" size="sm" onClick={() => revokeManual({ id: r.id, status: r.status, amount: r.amount })}
+                  className="h-7 rounded-sm text-[11px] text-rose-600 hover:bg-rose-50">
+                  <Undo2 className="mr-1 size-3" /> Revoke
+                </Button>
+              ) : undefined
+            }
+          />
+        ))}
+      </div>
       </section>
 
       <div className="rounded-md border border-dashed border-border bg-muted/30 p-4 text-[11.5px] text-muted-foreground">
