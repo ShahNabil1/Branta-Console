@@ -197,6 +197,62 @@ function WithdrawalsPage() {
         </table>
       </div>
 
+      {/* Mobile cards */}
+      <div className="rounded-md border border-border bg-card md:hidden">
+        {q.isLoading ? (
+          <div className="px-3 py-10 text-center"><Loader2 className="mx-auto size-4 animate-spin" /></div>
+        ) : (q.data ?? []).length === 0 ? (
+          <div className="px-3 py-16 text-center text-muted-foreground">No withdrawal requests.</div>
+        ) : q.data?.map((r) => (
+          <RecordCard
+            key={`m-${r.id}`}
+            title={r.user_name ?? r.user_id.slice(0, 8)}
+            subtitle={r.payment_method_snapshot?.label ?? "—"}
+            amount={fmt(r.amount, r.currency)}
+            badge={
+              <span className={cn("inline-flex rounded-sm border px-1.5 py-0.5 text-[10px] font-semibold uppercase",
+                r.status === "paid" ? "border-blue-200 bg-blue-50 text-blue-700"
+                : r.status === "approved" ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                : r.status === "rejected" ? "border-rose-200 bg-rose-50 text-rose-700"
+                : "border-amber-200 bg-amber-50 text-amber-700")}>
+                {r.status}
+              </span>
+            }
+            fields={[
+              { label: "Requested", value: new Date(r.requested_at).toLocaleString() },
+              {
+                label: "Account",
+                value: (
+                  <button onClick={() => setMethodView(r.payment_method_snapshot as MethodSnap)} className="font-mono underline">
+                    {r.payment_method_snapshot?.account ?? "View details"}
+                  </button>
+                ),
+              },
+            ]}
+            actions={
+              r.status === "pending" ? (
+                <div className="flex gap-1">
+                  <Button size="sm" variant="outline" onClick={() => setDialog({ id: r.id, action: "approve" })}
+                    className="h-7 rounded-sm text-[11px] text-emerald-700">
+                    <CheckCircle2 className="mr-1 size-3" /> Approve
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setDialog({ id: r.id, action: "reject" })}
+                    className="h-7 rounded-sm text-[11px] text-rose-700">
+                    <XCircle className="mr-1 size-3" /> Reject
+                  </Button>
+                </div>
+              ) : r.status === "approved" ? (
+                <Button size="sm" onClick={() => setDialog({ id: r.id, action: "paid" })}
+                  className="h-7 rounded-sm bg-blue-600 text-[11px] text-white hover:bg-blue-700">
+                  <Banknote className="mr-1 size-3" /> Mark paid
+                </Button>
+              ) : undefined
+            }
+          />
+        ))}
+      </div>
+
+
       {dialog && (
         <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-background/80 p-2 sm:p-4">
           <div className="w-full max-w-md rounded-md border border-border bg-card p-5 shadow-lg">
