@@ -253,9 +253,31 @@ async function tryFetchImage(url: string): Promise<Uint8Array | null> {
 
 /* ---------------- renderer ---------------- */
 
+/** Colour logo for the header (custom URL wins), white logo for the footer. */
+async function loadBrandLogos(
+  pdf: PDFDocument,
+  s: PdfSettings,
+  mode: "digital" | "print",
+): Promise<{ logo: PDFImage | null; whiteLogo: PDFImage | null }> {
+  if (mode !== "digital") return { logo: null, whiteLogo: null };
+  let logo: PDFImage | null = null;
+  if (s.logo_url) {
+    const buf = await tryFetchImage(s.logo_url);
+    if (buf) {
+      try {
+        const isJpg = /\.jpe?g($|\?)/i.test(s.logo_url);
+        logo = isJpg ? await pdf.embedJpg(buf) : await pdf.embedPng(buf);
+      } catch { /* ignore */ }
+    }
+  }
+  if (!logo) logo = await embedBrandLogo(pdf, "color");
+  const whiteLogo = await embedBrandLogo(pdf, "white");
+  return { logo, whiteLogo };
+}
+
 export async function renderInvoicePdf(
   data: InvoicePdfData,
-  opts: { mode?: "digital" | "print" } = {},
+  opts: { mode?: "digital" | "print"; generatedBy?: GeneratedBy | null } = {},
 ): Promise<Uint8Array> {
   const mode = opts.mode ?? "digital";
   const { PDFDocument: PDoc, StandardFonts, rgb } = await import("pdf-lib");
