@@ -296,17 +296,8 @@ export async function renderInvoicePdf(
   const mono = await pdf.embedFont(StandardFonts.Courier);
   const monoBold = await pdf.embedFont(StandardFonts.CourierBold);
 
-  // Logo embedded once, reused on every page.
-  let logo: Awaited<ReturnType<PDFDocument["embedPng"]>> | null = null;
-  if (mode === "digital" && s.logo_url) {
-    const buf = await tryFetchImage(s.logo_url);
-    if (buf) {
-      try {
-        const isJpg = /\.jpe?g($|\?)/i.test(s.logo_url);
-        logo = isJpg ? await pdf.embedJpg(buf) : await pdf.embedPng(buf);
-      } catch { /* ignore */ }
-    }
-  }
+  // Logos embedded once, reused on every page.
+  const { logo, whiteLogo } = await loadBrandLogos(pdf, s, mode);
 
   const CONTENT_TOP = PAGE_H - TOP_MARGIN;
   const CONTENT_BOTTOM = BOTTOM_MARGIN;
