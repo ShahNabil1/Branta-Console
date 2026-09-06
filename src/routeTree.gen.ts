@@ -51,6 +51,7 @@ import { Route as AuthenticatedAppLeadsSlugRouteImport } from './routes/_authent
 import { Route as AuthenticatedAppFinanceWithdrawalsRouteImport } from './routes/_authenticated/app.finance.withdrawals'
 import { Route as AuthenticatedAppFinanceWalletRouteImport } from './routes/_authenticated/app.finance.wallet'
 import { Route as AuthenticatedAppFinanceTemplatesRouteImport } from './routes/_authenticated/app.finance.templates'
+import { Route as AuthenticatedAppFinanceSalaryReportRouteImport } from './routes/_authenticated/app.finance.salary-report'
 import { Route as AuthenticatedAppFinanceSalaryRouteImport } from './routes/_authenticated/app.finance.salary'
 import { Route as AuthenticatedAppFinanceIncomeRouteImport } from './routes/_authenticated/app.finance.income'
 import { Route as AuthenticatedAppFinanceExpensesRouteImport } from './routes/_authenticated/app.finance.expenses'
@@ -299,6 +300,12 @@ const AuthenticatedAppFinanceTemplatesRoute =
     path: '/templates',
     getParentRoute: () => AuthenticatedAppFinanceRoute,
   } as any)
+const AuthenticatedAppFinanceSalaryReportRoute =
+  AuthenticatedAppFinanceSalaryReportRouteImport.update({
+    id: '/salary-report',
+    path: '/salary-report',
+    getParentRoute: () => AuthenticatedAppFinanceRoute,
+  } as any)
 const AuthenticatedAppFinanceSalaryRoute =
   AuthenticatedAppFinanceSalaryRouteImport.update({
     id: '/salary',
@@ -371,6 +378,7 @@ export interface FileRoutesByFullPath {
   '/app/finance/expenses': typeof AuthenticatedAppFinanceExpensesRoute
   '/app/finance/income': typeof AuthenticatedAppFinanceIncomeRoute
   '/app/finance/salary': typeof AuthenticatedAppFinanceSalaryRoute
+  '/app/finance/salary-report': typeof AuthenticatedAppFinanceSalaryReportRoute
   '/app/finance/templates': typeof AuthenticatedAppFinanceTemplatesRoute
   '/app/finance/wallet': typeof AuthenticatedAppFinanceWalletRoute
   '/app/finance/withdrawals': typeof AuthenticatedAppFinanceWithdrawalsRoute
@@ -417,6 +425,7 @@ export interface FileRoutesByTo {
   '/app/finance/expenses': typeof AuthenticatedAppFinanceExpensesRoute
   '/app/finance/income': typeof AuthenticatedAppFinanceIncomeRoute
   '/app/finance/salary': typeof AuthenticatedAppFinanceSalaryRoute
+  '/app/finance/salary-report': typeof AuthenticatedAppFinanceSalaryReportRoute
   '/app/finance/templates': typeof AuthenticatedAppFinanceTemplatesRoute
   '/app/finance/wallet': typeof AuthenticatedAppFinanceWalletRoute
   '/app/finance/withdrawals': typeof AuthenticatedAppFinanceWithdrawalsRoute
@@ -470,6 +479,7 @@ export interface FileRoutesById {
   '/_authenticated/app/finance/expenses': typeof AuthenticatedAppFinanceExpensesRoute
   '/_authenticated/app/finance/income': typeof AuthenticatedAppFinanceIncomeRoute
   '/_authenticated/app/finance/salary': typeof AuthenticatedAppFinanceSalaryRoute
+  '/_authenticated/app/finance/salary-report': typeof AuthenticatedAppFinanceSalaryReportRoute
   '/_authenticated/app/finance/templates': typeof AuthenticatedAppFinanceTemplatesRoute
   '/_authenticated/app/finance/wallet': typeof AuthenticatedAppFinanceWalletRoute
   '/_authenticated/app/finance/withdrawals': typeof AuthenticatedAppFinanceWithdrawalsRoute
@@ -523,6 +533,7 @@ export interface FileRouteTypes {
     | '/app/finance/expenses'
     | '/app/finance/income'
     | '/app/finance/salary'
+    | '/app/finance/salary-report'
     | '/app/finance/templates'
     | '/app/finance/wallet'
     | '/app/finance/withdrawals'
@@ -569,6 +580,7 @@ export interface FileRouteTypes {
     | '/app/finance/expenses'
     | '/app/finance/income'
     | '/app/finance/salary'
+    | '/app/finance/salary-report'
     | '/app/finance/templates'
     | '/app/finance/wallet'
     | '/app/finance/withdrawals'
@@ -621,6 +633,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/finance/expenses'
     | '/_authenticated/app/finance/income'
     | '/_authenticated/app/finance/salary'
+    | '/_authenticated/app/finance/salary-report'
     | '/_authenticated/app/finance/templates'
     | '/_authenticated/app/finance/wallet'
     | '/_authenticated/app/finance/withdrawals'
@@ -962,6 +975,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppFinanceTemplatesRouteImport
       parentRoute: typeof AuthenticatedAppFinanceRoute
     }
+    '/_authenticated/app/finance/salary-report': {
+      id: '/_authenticated/app/finance/salary-report'
+      path: '/salary-report'
+      fullPath: '/app/finance/salary-report'
+      preLoaderRoute: typeof AuthenticatedAppFinanceSalaryReportRouteImport
+      parentRoute: typeof AuthenticatedAppFinanceRoute
+    }
     '/_authenticated/app/finance/salary': {
       id: '/_authenticated/app/finance/salary'
       path: '/salary'
@@ -1041,6 +1061,7 @@ interface AuthenticatedAppFinanceRouteChildren {
   AuthenticatedAppFinanceExpensesRoute: typeof AuthenticatedAppFinanceExpensesRoute
   AuthenticatedAppFinanceIncomeRoute: typeof AuthenticatedAppFinanceIncomeRoute
   AuthenticatedAppFinanceSalaryRoute: typeof AuthenticatedAppFinanceSalaryRoute
+  AuthenticatedAppFinanceSalaryReportRoute: typeof AuthenticatedAppFinanceSalaryReportRoute
   AuthenticatedAppFinanceTemplatesRoute: typeof AuthenticatedAppFinanceTemplatesRoute
   AuthenticatedAppFinanceWalletRoute: typeof AuthenticatedAppFinanceWalletRoute
   AuthenticatedAppFinanceWithdrawalsRoute: typeof AuthenticatedAppFinanceWithdrawalsRoute
@@ -1055,6 +1076,8 @@ const AuthenticatedAppFinanceRouteChildren: AuthenticatedAppFinanceRouteChildren
     AuthenticatedAppFinanceExpensesRoute: AuthenticatedAppFinanceExpensesRoute,
     AuthenticatedAppFinanceIncomeRoute: AuthenticatedAppFinanceIncomeRoute,
     AuthenticatedAppFinanceSalaryRoute: AuthenticatedAppFinanceSalaryRoute,
+    AuthenticatedAppFinanceSalaryReportRoute:
+      AuthenticatedAppFinanceSalaryReportRoute,
     AuthenticatedAppFinanceTemplatesRoute:
       AuthenticatedAppFinanceTemplatesRoute,
     AuthenticatedAppFinanceWalletRoute: AuthenticatedAppFinanceWalletRoute,
