@@ -12,6 +12,7 @@ import {
   listSalaryEmployees,
 } from "@/lib/salary.functions";
 import { isFinanceAdminCheck } from "@/lib/finance.functions";
+import { RecordCard } from "@/components/finance/responsive-record-list";
 import { KpiTile } from "@/components/branta/kpi-tile";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -245,7 +246,7 @@ function SalaryReportPage() {
       </div>
 
       <div className="rounded-md border border-border bg-card">
-        <div className="overflow-x-auto">
+        <div className="hidden overflow-x-auto lg:block">
           <table className="w-full min-w-[900px] text-[12px]">
             <thead>
               <tr className="border-b border-border bg-muted/40 text-left text-[11px] uppercase tracking-wide text-muted-foreground">
@@ -285,6 +286,28 @@ function SalaryReportPage() {
               )}
             </tbody>
           </table>
+        </div>
+        <div className="divide-y divide-border lg:hidden">
+          {q.isLoading ? (
+            <div className="px-3 py-10 text-center"><Loader2 className="mx-auto size-4 animate-spin text-muted-foreground" /></div>
+          ) : rows.length === 0 ? (
+            <div className="px-3 py-10 text-center text-[12.5px] text-muted-foreground">No salary slips match the selected filters.</div>
+          ) : rows.map((r) => (
+            <RecordCard
+              key={`m-${r.id}`}
+              title={r.employee}
+              subtitle={`${r.slip_no ?? "—"} · ${r.month}`}
+              amount={fmtMoney(r.net, currency)}
+              badge={<span className="rounded-[3px] border border-border px-1.5 py-0.5 text-[10px] font-semibold uppercase">{r.status}</span>}
+              fields={[
+                { label: "Basic · মূল", value: fmtMoney(r.basic, currency), primary: true },
+                { label: "Bonus · বোনাস", value: fmtMoney(r.bonus, currency) },
+                { label: "Deduction · কর্তন", value: `${r.deduction ? "-" : ""}${fmtMoney(r.deduction, currency)}` },
+                { label: "Employee code", value: r.employee_code ?? "—" },
+                { label: "Method", value: r.payment_method ?? "—" },
+              ]}
+            />
+          ))}
         </div>
         <div className="border-t border-border px-3 py-2 text-[11.5px] text-muted-foreground">
           {rows.length} slip{rows.length === 1 ? "" : "s"} · export includes every filtered record
