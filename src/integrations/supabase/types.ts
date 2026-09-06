@@ -348,6 +348,93 @@ export type Database = {
           },
         ]
       }
+      income_vouchers: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string
+          created_by: string | null
+          currency: string
+          customer_id: string | null
+          id: string
+          invoice_id: string | null
+          notes: string | null
+          party: string | null
+          payment_method: string | null
+          project: string | null
+          received_on: string
+          signed_voucher_at: string | null
+          signed_voucher_by: string | null
+          signed_voucher_url: string | null
+          source: string
+          source_id: string
+          txn_id: string | null
+          updated_at: string
+          voucher_no: string | null
+        }
+        Insert: {
+          amount: number
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          customer_id?: string | null
+          id?: string
+          invoice_id?: string | null
+          notes?: string | null
+          party?: string | null
+          payment_method?: string | null
+          project?: string | null
+          received_on: string
+          signed_voucher_at?: string | null
+          signed_voucher_by?: string | null
+          signed_voucher_url?: string | null
+          source: string
+          source_id: string
+          txn_id?: string | null
+          updated_at?: string
+          voucher_no?: string | null
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          customer_id?: string | null
+          id?: string
+          invoice_id?: string | null
+          notes?: string | null
+          party?: string | null
+          payment_method?: string | null
+          project?: string | null
+          received_on?: string
+          signed_voucher_at?: string | null
+          signed_voucher_by?: string | null
+          signed_voucher_url?: string | null
+          source?: string
+          source_id?: string
+          txn_id?: string | null
+          updated_at?: string
+          voucher_no?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "income_vouchers_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "income_vouchers_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       integration_sync_state: {
         Row: {
           created_at: string
