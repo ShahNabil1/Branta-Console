@@ -348,6 +348,7 @@ function InvoiceDetail() {
             </tbody>
           </table>
         </div>
+        </div>
 
         <div className="space-y-4">
         <div className="rounded-md border border-border bg-card">
@@ -447,6 +448,7 @@ function InvoiceDetail() {
             })}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Delivery */}
