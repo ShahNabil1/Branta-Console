@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Loader2 } from "lucide-react";
 import { formatMoney, type ReportCurrency } from "@/lib/report-filters";
 import type { ReportRow } from "@/lib/finance-reports.functions";
@@ -12,6 +13,8 @@ export function ReportTable({
   total,
   onPage,
   hideType,
+  renderActions,
+  actionsLabel,
 }: {
   rows: ReportRow[];
   currency: ReportCurrency;
@@ -21,6 +24,9 @@ export function ReportTable({
   total: number;
   onPage: (p: number) => void;
   hideType?: boolean;
+  /** Optional trailing cell, e.g. money-receipt actions on the Income page. */
+  renderActions?: (row: ReportRow) => ReactNode;
+  actionsLabel?: string;
 }) {
   const pages = Math.max(1, Math.ceil(total / pageSize));
   const start = total === 0 ? 0 : (page - 1) * pageSize + 1;
@@ -32,27 +38,30 @@ export function ReportTable({
         <table className="w-full min-w-[880px] text-[12px]">
           <thead>
             <tr className="border-b border-border bg-muted/40 text-left text-[11px] uppercase tracking-wide text-muted-foreground">
-              <th className="px-3 py-2 font-semibold">Date</th>
-              {!hideType && <th className="px-3 py-2 font-semibold">Type</th>}
-              <th className="px-3 py-2 font-semibold">Reference</th>
-              <th className="px-3 py-2 font-semibold">Client / Vendor</th>
-              <th className="px-3 py-2 font-semibold">Project</th>
-              <th className="px-3 py-2 font-semibold">Category</th>
-              <th className="px-3 py-2 font-semibold">Method</th>
-              <th className="px-3 py-2 font-semibold">Status</th>
-              <th className="px-3 py-2 text-right font-semibold">Amount</th>
+              <th className="px-3 py-2 font-semibold">Date · তারিখ</th>
+              {!hideType && <th className="px-3 py-2 font-semibold">Type · ধরন</th>}
+              <th className="px-3 py-2 font-semibold">Reference · রেফারেন্স</th>
+              <th className="px-3 py-2 font-semibold">Client / Vendor · পক্ষ</th>
+              <th className="px-3 py-2 font-semibold">Project · প্রকল্প</th>
+              <th className="px-3 py-2 font-semibold">Category · খাত</th>
+              <th className="px-3 py-2 font-semibold">Method · মাধ্যম</th>
+              <th className="px-3 py-2 font-semibold">Status · অবস্থা</th>
+              <th className="px-3 py-2 text-right font-semibold">Amount · পরিমাণ</th>
+              {renderActions && (
+                <th className="px-3 py-2 font-semibold">{actionsLabel ?? "Receipt · রসিদ"}</th>
+              )}
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={9} className="px-3 py-10 text-center text-muted-foreground">
+                <td colSpan={renderActions ? 10 : 9} className="px-3 py-10 text-center text-muted-foreground">
                   <Loader2 className="mx-auto size-4 animate-spin" />
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-3 py-10 text-center text-[12.5px] text-muted-foreground">
+                <td colSpan={renderActions ? 10 : 9} className="px-3 py-10 text-center text-[12.5px] text-muted-foreground">
                   No transactions match the selected filters.
                 </td>
               </tr>
@@ -69,7 +78,7 @@ export function ReportTable({
                             : "bg-rose-50 text-rose-700"
                         }`}
                       >
-                        {r.type}
+                        {r.type === "income" ? "income · আয়" : "expense · খরচ"}
                       </span>
                     </td>
                   )}
@@ -87,6 +96,7 @@ export function ReportTable({
                     {r.type === "expense" ? "-" : ""}
                     {formatMoney(Math.abs(r.amount), currency)}
                   </td>
+                  {renderActions && <td className="px-3 py-2">{renderActions(r)}</td>}
                 </tr>
               ))
             )}
