@@ -257,21 +257,23 @@ function SalaryPage() {
               <th className="px-3 py-2 text-right font-semibold">Net</th>
               <th className="px-3 py-2 text-left font-semibold">Paid on</th>
               <th className="px-3 py-2 text-left font-semibold">Status</th>
+              <th className="px-3 py-2 text-left font-semibold">Expense voucher</th>
               <th className="px-3 py-2 text-left font-semibold">Sealed copy</th>
               <th className="px-3 py-2 text-right font-semibold">Actions</th>
             </tr>
           </thead>
           <tbody>
             {slipsQ.isLoading && (
-              <tr><td colSpan={8} className="px-3 py-8 text-center text-muted-foreground">
+              <tr><td colSpan={9} className="px-3 py-8 text-center text-muted-foreground">
                 <Loader2 className="mx-auto size-4 animate-spin" />
               </td></tr>
             )}
             {!slipsQ.isLoading && (slipsQ.data ?? []).length === 0 && (
-              <tr><td colSpan={8} className="px-3 py-10 text-center text-[12.5px] text-muted-foreground">
+              <tr><td colSpan={9} className="px-3 py-10 text-center text-[12.5px] text-muted-foreground">
                 No salary slips yet.
               </td></tr>
             )}
+
             {(slipsQ.data ?? []).map((s) => (
               <tr key={s.id} className="border-t border-border">
                 <td className="px-3 py-2 font-mono text-[12px]">{s.slip_no ?? "—"}</td>
