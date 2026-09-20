@@ -183,6 +183,11 @@ export interface ExpenseRow {
   requested_by?: string | null;
   request_purpose?: string | null;
   requested_by_name?: string | null;
+  is_project_cost?: boolean | null;
+  share_enabled?: boolean | null;
+  share_token?: string | null;
+  items?: ExpenseItemRow[];
+  attachments?: ExpenseAttachmentRow[];
 }
 
 
