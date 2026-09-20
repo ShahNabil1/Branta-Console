@@ -413,7 +413,18 @@ function ExpensesPage() {
                   </div>
                 </td>
                 <td className="px-3 py-2">
-                  {r.receipt_url ? (
+                  {(r.attachments ?? []).length > 0 ? (
+                    <div className="flex flex-wrap items-center gap-1">
+                      {(r.attachments ?? []).map((a, i) => (
+                        <Button key={a.id} size="sm" variant="ghost" className="h-7 rounded-sm px-2 text-[11.5px]"
+                          onClick={() => openReceipt(a.path)}
+                          title={a.caption || `Receipt ${i + 1}`}>
+                          {isPdfPath(a.path) ? <FileText className="size-3.5" /> : <Eye className="size-3.5" />}
+                          <span className="ml-1">{i + 1}</span>
+                        </Button>
+                      ))}
+                    </div>
+                  ) : r.receipt_url ? (
                     <div className="flex items-center gap-1">
                       <Button size="sm" variant="ghost" className="h-7 rounded-sm px-2 text-[11.5px]"
                         onClick={() => openReceipt(r.receipt_url as string)}
