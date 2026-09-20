@@ -75,6 +75,7 @@ export const globalSearch = createServerFn({ method: "POST" })
       supabase
         .from("expenses")
         .select("id, voucher_no, vendor, txn_id, amount, currency, spent_on")
+        .is("deleted_at", null)
         .or(`voucher_no.ilike.${like},vendor.ilike.${like},txn_id.ilike.${like}`)
         .limit(limit),
     ]);
