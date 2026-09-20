@@ -461,6 +461,12 @@ function ExpensesPage() {
                   )}
                 </td>
                 <td className="px-3 py-2 text-right">
+                  <Button size="sm" variant="ghost" onClick={() => toggleShare(r.id, !r.share_enabled)}
+                    className={`h-7 rounded-sm ${r.share_enabled ? "text-primary" : ""}`}
+                    disabled={busyId === r.id + "share"}
+                    title={r.share_enabled ? "Public link on — click to copy / turn off" : "Create public share link"}>
+                    {busyId === r.id + "share" ? <Loader2 className="size-3.5 animate-spin" /> : <Link2 className="size-3.5" />}
+                  </Button>
                   <Button size="sm" variant="ghost" onClick={() => startEdit(r)}
                     className="h-7 rounded-sm" title="Edit expense">
                     <Pencil className="size-3.5" />
