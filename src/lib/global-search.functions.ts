@@ -9,6 +9,7 @@ export type GlobalSearchKind =
   | "lead"
   | "customer"
   | "invoice"
+  | "expense"
   | "employee";
 
 export interface GlobalSearchHit {
@@ -20,6 +21,8 @@ export interface GlobalSearchHit {
   to: string;
   /** Optional route params for typed <Link> navigation. */
   params?: Record<string, string>;
+  /** Optional search params (e.g. row highlight target). */
+  search?: Record<string, string>;
 }
 
 const inputSchema = z.object({
@@ -41,7 +44,7 @@ export const globalSearch = createServerFn({ method: "POST" })
     const limit = data.limit ?? 8;
     const like = `%${esc(q)}%`;
 
-    const [leadsRes, customersRes, invoicesRes, profilesRes] = await Promise.all([
+    const [leadsRes, customersRes, invoicesRes, profilesRes, expensesRes] = await Promise.all([
       supabase
         .from("leads")
         .select("id, slug, lead_code, name, company")
@@ -68,6 +71,11 @@ export const globalSearch = createServerFn({ method: "POST" })
         .or(
           `full_name.ilike.${like},employee_code.ilike.${like},personal_gmail.ilike.${like}`,
         )
+        .limit(limit),
+      supabase
+        .from("expenses")
+        .select("id, voucher_no, vendor, txn_id, amount, currency, spent_on")
+        .or(`voucher_no.ilike.${like},vendor.ilike.${like},txn_id.ilike.${like}`)
         .limit(limit),
     ]);
 
@@ -105,6 +113,17 @@ export const globalSearch = createServerFn({ method: "POST" })
         code: inv.slug,
         to: "/app/finance/invoices/$slug",
         params: { slug: inv.slug! },
+      });
+    }
+    for (const e of expensesRes.data ?? []) {
+      out.push({
+        kind: "expense",
+        id: e.id,
+        title: e.vendor || "Expense",
+        subtitle: `${e.currency} ${Number(e.amount).toLocaleString("en-US")} · ${e.spent_on}`,
+        code: e.voucher_no,
+        to: "/app/finance/expenses",
+        search: { highlight: e.id },
       });
     }
     for (const p of profilesRes.data ?? []) {

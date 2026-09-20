@@ -95,6 +95,7 @@ const KIND_META: Record<
   lead: { icon: Users, group: "Leads" },
   customer: { icon: Building2, group: "Customers" },
   invoice: { icon: FileText, group: "Invoices" },
+  expense: { icon: Receipt, group: "Expenses" },
   employee: { icon: UserPlus, group: "Employees" },
 };
 
@@ -175,6 +176,7 @@ export function CommandPalette() {
     navigate({
       to: h.to as unknown as "/app",
       params: h.params as never,
+      search: h.search as never,
     });
   };
 

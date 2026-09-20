@@ -73,6 +73,8 @@ async function uploadToBucket(file: File, prefix: string) {
 
 export const Route = createFileRoute("/_authenticated/app/finance/expenses")({
   head: () => ({ meta: [{ title: "Expenses · Finance · Branta" }] }),
+  validateSearch: (s: Record<string, unknown>): { highlight?: string } =>
+    typeof s.highlight === "string" ? { highlight: s.highlight } : {},
   component: ExpensesPage,
 });
 
@@ -92,11 +94,32 @@ function ExpensesPage() {
   const setSignedFn = useServerFn(setExpenseSignedVoucher);
   const shareFn = useServerFn(setExpenseShare);
   const confirm = useConfirm();
+  const { highlight } = Route.useSearch();
+  const [highlightId, setHighlightId] = useState<string | null>(null);
   const isAdmin = useQuery({ queryKey: ["is-finance-admin"], queryFn: () => check(), staleTime: 60_000 });
   const q = useQuery({
     queryKey: ["expenses"], queryFn: () => listFn(), staleTime: 15_000,
     enabled: !!isAdmin.data?.isAdmin,
   });
+
+  // ⌘K search lands here with ?highlight=<expense id> — scroll to the row and
+  // flash a brand ring so the user sees exactly which voucher matched.
+  useEffect(() => {
+    if (!highlight || !q.data?.length) return;
+    const row = q.data.find((r) => r.id === highlight);
+    if (!row) return;
+    setHighlightId(highlight);
+    const t = setTimeout(() => {
+      document
+        .getElementById(`exp-${highlight}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 150);
+    const off = setTimeout(() => setHighlightId(null), 6000);
+    return () => {
+      clearTimeout(t);
+      clearTimeout(off);
+    };
+  }, [highlight, q.data]);
 
   useEffect(() => {
     const ch = supabase.channel("expenses").on("postgres_changes",
@@ -444,7 +467,10 @@ function ExpensesPage() {
                 {(q.data ?? []).length === 0 ? "No expenses yet." : "No expenses match the selected filters."}
               </td></tr>
             ) : visible.map((r) => (
-              <tr key={r.id} className="border-t border-border align-top [&>td]:whitespace-nowrap">
+              <tr key={r.id} id={`exp-${r.id}`}
+                className={`border-t border-border align-top transition-colors duration-500 [&>td]:whitespace-nowrap ${
+                  highlightId === r.id ? "bg-brand/10 shadow-[inset_0_0_0_2px_var(--color-brand)]" : ""
+                }`}>
                 <td className="px-3 py-2 font-mono text-[11.5px] text-muted-foreground">{r.spent_on}</td>
                 <td className="px-3 py-2 capitalize">{r.category}</td>
                 <td className="px-3 py-2">
@@ -583,8 +609,14 @@ function ExpensesPage() {
             {(q.data ?? []).length === 0 ? "No expenses yet." : "No expenses match the selected filters."}
           </div>
         ) : visible.map((r) => (
-          <RecordCard
+          <div
             key={`m-${r.id}`}
+            id={`exp-${r.id}`}
+            className={`transition-all duration-500 ${
+              highlightId === r.id ? "bg-brand/10 shadow-[inset_0_0_0_2px_var(--color-brand)]" : ""
+            }`}
+          >
+          <RecordCard
             code={r.voucher_no}
             title={r.vendor || r.category}
             subtitle={r.request_purpose || r.notes || ""}
@@ -669,6 +701,7 @@ function ExpensesPage() {
               </RowActionsMenu>
             }
           />
+          </div>
         ))}
       </div>
 
