@@ -73,9 +73,8 @@ async function uploadToBucket(file: File, prefix: string) {
 
 export const Route = createFileRoute("/_authenticated/app/finance/expenses")({
   head: () => ({ meta: [{ title: "Expenses · Finance · Branta" }] }),
-  validateSearch: (s: Record<string, unknown>) => ({
-    highlight: typeof s.highlight === "string" ? s.highlight : undefined,
-  }),
+  validateSearch: (s: Record<string, unknown>): { highlight?: string } =>
+    typeof s.highlight === "string" ? { highlight: s.highlight } : {},
   component: ExpensesPage,
 });
 
