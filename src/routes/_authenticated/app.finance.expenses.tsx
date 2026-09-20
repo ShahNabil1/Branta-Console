@@ -164,15 +164,11 @@ function ExpensesPage() {
   const startCreate = () => {
     setEditingId(null);
     setForm(emptyForm);
-    setReceiptFile(null);
+    setItems([]);
+    setReceipts([]);
     setOpen(true);
   };
-  const startEdit = (r: {
-    id: string; category: ExpenseCategory; amount: number; currency: Currency;
-    spent_on: string; vendor: string | null; notes: string | null;
-    txn_id?: string | null; payment_method?: string | null; department?: string | null;
-    requested_by?: string | null; request_purpose?: string | null;
-  }) => {
+  const startEdit = (r: ExpenseRow) => {
     setEditingId(r.id);
     setForm({
       category: r.category,
@@ -185,9 +181,24 @@ function ExpensesPage() {
       payment_method: r.payment_method ?? "",
       department: r.department ?? "",
       requested_by: r.requested_by ?? "",
+      paid_by: r.paid_by ?? "",
+      linked_invoice_id: r.linked_invoice_id ?? "",
+      is_project_cost: !!r.is_project_cost,
       request_purpose: r.request_purpose ?? "",
     });
-    setReceiptFile(null);
+    setItems((r.items ?? []).map((i) => ({
+      name: i.name,
+      quantity: Number(i.quantity),
+      unit: i.unit ?? "",
+      unit_price: Number(i.unit_price),
+      note: i.note ?? "",
+    })));
+    setReceipts((r.attachments ?? []).map((a) => ({
+      path: a.path,
+      caption: a.caption ?? "",
+      name: a.path.split("/").pop() ?? "receipt",
+      isPdf: isPdfPath(a.path),
+    })));
     setOpen(true);
   };
 
