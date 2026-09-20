@@ -637,6 +637,21 @@ export interface ExpenseVoucherData {
     department?: string | null;
     request_purpose?: string | null;
   };
+  items?: Array<{
+    name: string;
+    quantity: number;
+    unit: string | null;
+    unit_price: number;
+    amount: number;
+    note: string | null;
+  }>;
+  attachments?: Array<{
+    caption: string | null;
+    name: string;
+    isPdf: boolean;
+    bytes?: Uint8Array;
+    kind: "png" | "jpg" | null;
+  }>;
   linkedInvoiceSlug?: string | null;
   preparedByName?: string | null;
   paidToName?: string | null;
