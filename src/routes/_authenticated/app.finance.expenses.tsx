@@ -577,7 +577,7 @@ function ExpensesPage() {
       </div>
 
       {/* Mobile / tablet cards */}
-      <div className="rounded-md border border-border bg-card lg:hidden">
+      <div className="w-full min-w-0 overflow-hidden rounded-md border border-border bg-card xl:hidden">
         {visible.length === 0 ? (
           <div className="px-3 py-10 text-center text-[12.5px] text-muted-foreground">
             {(q.data ?? []).length === 0 ? "No expenses yet." : "No expenses match the selected filters."}
