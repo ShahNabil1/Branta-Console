@@ -444,20 +444,30 @@ function ExpensesPage() {
                 {(q.data ?? []).length === 0 ? "No expenses yet." : "No expenses match the selected filters."}
               </td></tr>
             ) : visible.map((r) => (
-              <tr key={r.id} className="border-t border-border">
-                <td className="px-3 py-2 text-muted-foreground">{r.spent_on}</td>
+              <tr key={r.id} className="border-t border-border align-top [&>td]:whitespace-nowrap">
+                <td className="px-3 py-2 font-mono text-[11.5px] text-muted-foreground">{r.spent_on}</td>
                 <td className="px-3 py-2 capitalize">{r.category}</td>
-                <td className="px-3 py-2">{r.department ?? "—"}</td>
-                <td className="px-3 py-2">{r.requested_by_name ?? "—"}</td>
-                <td className="px-3 py-2">{r.vendor ?? "—"}</td>
                 <td className="px-3 py-2">
-                  <div className="leading-tight">
-                    <div>{r.payment_method ?? "—"}</div>
-                    {r.txn_id && <div className="font-mono text-[11px] text-muted-foreground">{r.txn_id}</div>}
+                  <span className="block max-w-[130px] truncate">{r.department ?? "—"}</span>
+                </td>
+                <td className="px-3 py-2">
+                  <span className="block max-w-[150px] truncate">{r.requested_by_name ?? "—"}</span>
+                </td>
+                <td className="px-3 py-2">
+                  <span className="block max-w-[160px] truncate" title={r.vendor ?? ""}>{r.vendor ?? "—"}</span>
+                </td>
+                <td className="px-3 py-2">
+                  <div className="max-w-[150px] leading-tight">
+                    <div className="truncate">{r.payment_method ?? "—"}</div>
+                    {r.txn_id && <div className="truncate font-mono text-[11px] text-muted-foreground">{r.txn_id}</div>}
                   </div>
                 </td>
                 <td className="px-3 py-2 text-right font-mono">{fmt(r.amount, r.currency)}</td>
-                <td className="px-3 py-2 text-muted-foreground truncate max-w-xs">{r.request_purpose || r.notes || ""}</td>
+                <td className="px-3 py-2 text-muted-foreground">
+                  <span className="block max-w-[220px] truncate" title={r.request_purpose || r.notes || ""}>
+                    {r.request_purpose || r.notes || "—"}
+                  </span>
+                </td>
                 <td className="px-3 py-2">
                   <div className="flex items-center gap-1">
                     <span className="font-mono text-[11.5px] text-muted-foreground">{r.voucher_no ?? "—"}</span>
