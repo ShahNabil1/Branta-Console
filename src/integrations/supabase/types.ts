@@ -163,6 +163,106 @@ export type Database = {
         }
         Relationships: []
       }
+      expense_attachments: {
+        Row: {
+          caption: string | null
+          created_at: string
+          created_by: string | null
+          expense_id: string
+          id: string
+          kind: string
+          mime_type: string | null
+          path: string
+          sequence: number
+          size_bytes: number | null
+          updated_at: string
+        }
+        Insert: {
+          caption?: string | null
+          created_at?: string
+          created_by?: string | null
+          expense_id: string
+          id?: string
+          kind?: string
+          mime_type?: string | null
+          path: string
+          sequence?: number
+          size_bytes?: number | null
+          updated_at?: string
+        }
+        Update: {
+          caption?: string | null
+          created_at?: string
+          created_by?: string | null
+          expense_id?: string
+          id?: string
+          kind?: string
+          mime_type?: string | null
+          path?: string
+          sequence?: number
+          size_bytes?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expense_attachments_expense_id_fkey"
+            columns: ["expense_id"]
+            isOneToOne: false
+            referencedRelation: "expenses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      expense_items: {
+        Row: {
+          amount: number
+          created_at: string
+          expense_id: string
+          id: string
+          name: string
+          note: string | null
+          quantity: number
+          sequence: number
+          unit: string | null
+          unit_price: number
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          expense_id: string
+          id?: string
+          name: string
+          note?: string | null
+          quantity?: number
+          sequence?: number
+          unit?: string | null
+          unit_price?: number
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          expense_id?: string
+          id?: string
+          name?: string
+          note?: string | null
+          quantity?: number
+          sequence?: number
+          unit?: string | null
+          unit_price?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expense_items_expense_id_fkey"
+            columns: ["expense_id"]
+            isOneToOne: false
+            referencedRelation: "expenses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       expenses: {
         Row: {
           amount: number
@@ -172,6 +272,7 @@ export type Database = {
           currency: string
           department: string | null
           id: string
+          is_project_cost: boolean
           linked_invoice_id: string | null
           notes: string | null
           paid_by: string | null
@@ -179,6 +280,8 @@ export type Database = {
           receipt_url: string | null
           request_purpose: string | null
           requested_by: string | null
+          share_enabled: boolean
+          share_token: string | null
           signed_voucher_at: string | null
           signed_voucher_by: string | null
           signed_voucher_url: string | null
@@ -196,6 +299,7 @@ export type Database = {
           currency?: string
           department?: string | null
           id?: string
+          is_project_cost?: boolean
           linked_invoice_id?: string | null
           notes?: string | null
           paid_by?: string | null
@@ -203,6 +307,8 @@ export type Database = {
           receipt_url?: string | null
           request_purpose?: string | null
           requested_by?: string | null
+          share_enabled?: boolean
+          share_token?: string | null
           signed_voucher_at?: string | null
           signed_voucher_by?: string | null
           signed_voucher_url?: string | null
@@ -220,6 +326,7 @@ export type Database = {
           currency?: string
           department?: string | null
           id?: string
+          is_project_cost?: boolean
           linked_invoice_id?: string | null
           notes?: string | null
           paid_by?: string | null
@@ -227,6 +334,8 @@ export type Database = {
           receipt_url?: string | null
           request_purpose?: string | null
           requested_by?: string | null
+          share_enabled?: boolean
+          share_token?: string | null
           signed_voucher_at?: string | null
           signed_voucher_by?: string | null
           signed_voucher_url?: string | null
