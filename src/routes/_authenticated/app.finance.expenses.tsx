@@ -654,49 +654,31 @@ function ExpensesPage() {
                     className="mt-1 h-9 rounded-sm font-mono" placeholder="e.g. 9K3D8AB21X" />
                 </div>
               </div>
+              <ExpenseItemsEditor
+                items={items}
+                onChange={(next) => {
+                  setItems(next);
+                  const s = sumItems(next);
+                  if (next.length) setForm((f) => ({ ...f, amount: s ? String(s) : f.amount }));
+                }}
+                currency={form.currency}
+              />
+
               <div>
                 <label className="text-[11px] font-semibold uppercase text-muted-foreground">Purpose of request</label>
-                <Input value={form.request_purpose} onChange={(e) => setForm({ ...form, request_purpose: e.target.value })}
-                  className="mt-1 h-9 rounded-sm" placeholder="Why was this expense needed?" />
+                <textarea value={form.request_purpose} onChange={(e) => setForm({ ...form, request_purpose: e.target.value })}
+                  rows={3}
+                  className="mt-1 w-full rounded-sm border border-input bg-background px-2 py-1.5 text-[13.5px] font-semibold leading-snug"
+                  placeholder="Why was this expense needed? Write the full reason — it prints on the voucher." />
               </div>
               <div>
                 <label className="text-[11px] font-semibold uppercase text-muted-foreground">Notes</label>
-                <Input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                  className="mt-1 h-9 rounded-sm" />
+                <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                  rows={2}
+                  className="mt-1 w-full rounded-sm border border-input bg-background px-2 py-1.5 text-[13px] leading-snug" />
               </div>
 
-              <div>
-                <label className="text-[11px] font-semibold uppercase text-muted-foreground">
-                  {editingId ? "Replace receipt" : "Receipt"} <span className="text-muted-foreground/70 normal-case font-normal">(optional — image or PDF, ≤ {MAX_RECEIPT_MB} MB)</span>
-                </label>
-                {!receiptFile ? (
-                  <label className="mt-1 flex h-20 cursor-pointer items-center justify-center gap-2 rounded-sm border border-dashed border-input bg-background text-[12px] text-muted-foreground hover:border-primary hover:text-primary">
-                    <Upload className="size-3.5" />
-                    <span>Click to upload proof / receipt</span>
-                    <input type="file" accept={ACCEPT} className="hidden"
-                      onChange={(e) => {
-                        const f = e.target.files?.[0] ?? null;
-                        if (f && f.size > MAX_RECEIPT_MB * 1024 * 1024) {
-                          toast.error(`File must be ≤ ${MAX_RECEIPT_MB} MB`);
-                          e.target.value = ""; return;
-                        }
-                        setReceiptFile(f);
-                      }} />
-                  </label>
-                ) : (
-                  <div className="mt-1 flex items-center justify-between rounded-sm border border-input bg-background px-2 py-1.5 text-[12px]">
-                    <div className="flex min-w-0 items-center gap-2">
-                      {receiptFile.type.startsWith("image/") ? <Eye className="size-3.5 shrink-0" /> : <FileText className="size-3.5 shrink-0" />}
-                      <span className="truncate">{receiptFile.name}</span>
-                      <span className="shrink-0 text-muted-foreground">({(receiptFile.size / 1024).toFixed(0)} KB)</span>
-                    </div>
-                    <Button size="sm" variant="ghost" className="h-6 rounded-sm px-1.5"
-                      onClick={() => setReceiptFile(null)} disabled={uploading}>
-                      <X className="size-3.5" />
-                    </Button>
-                  </div>
-                )}
-              </div>
+              <ExpenseReceiptsEditor receipts={receipts} onChange={setReceipts} />
             </div>
             <div className="mt-4 flex justify-end gap-2">
               <Button variant="ghost" onClick={() => { setOpen(false); setEditingId(null); }} className="h-9 rounded-sm" disabled={add.isPending}>Cancel</Button>
