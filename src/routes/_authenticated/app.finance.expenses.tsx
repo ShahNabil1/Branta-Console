@@ -585,6 +585,7 @@ function ExpensesPage() {
         ) : visible.map((r) => (
           <RecordCard
             key={`m-${r.id}`}
+            code={r.voucher_no}
             title={r.vendor || r.category}
             subtitle={r.request_purpose || r.notes || ""}
             amount={fmt(r.amount, r.currency)}
@@ -601,7 +602,6 @@ function ExpensesPage() {
               { label: "Requested by", value: r.requested_by_name ?? "—" },
               { label: "Method", value: r.payment_method ?? "—" },
               { label: "TrxID", value: r.txn_id ? <span className="font-mono">{r.txn_id}</span> : "—" },
-              { label: "Voucher", value: <span className="font-mono">{r.voucher_no ?? "—"}</span> },
               { label: "Purpose", value: r.request_purpose || r.notes || "—" },
               { label: "Receipt", value: r.receipt_url ? "Attached" : "—" },
             ]}

@@ -84,6 +84,11 @@ export function RecordCard({
     <div className="border-b border-border p-3.5 last:border-0">
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
         <div className="min-w-0">
+          {code ? (
+            <div className="mb-1">
+              <CopyableCode value={code} />
+            </div>
+          ) : null}
           <div className="flex min-w-0 flex-wrap items-center gap-1.5">
             <span className="truncate text-[15px] font-bold text-foreground">{title}</span>
             {badge}
