@@ -149,21 +149,6 @@ export function ReportFilterBar({
       {/* Row 2 — advanced facets */}
       {open && (
         <div className="grid grid-cols-1 gap-2.5 border-b border-border p-2.5 sm:grid-cols-2 lg:grid-cols-4">
-          {filters.preset === "custom" && (
-            <>
-              <label className="space-y-1">
-                <span className="text-[11px] text-muted-foreground">From</span>
-                <input type="date" className={selectCls} value={filters.from}
-                  onChange={(e) => set({ from: e.target.value })} />
-              </label>
-              <label className="space-y-1">
-                <span className="text-[11px] text-muted-foreground">To</span>
-                <input type="date" className={selectCls} value={filters.to}
-                  onChange={(e) => set({ to: e.target.value })} />
-              </label>
-            </>
-          )}
-
           {kind === "finance" && (
             <label className="space-y-1">
               <span className="text-[11px] text-muted-foreground">Transaction type</span>
