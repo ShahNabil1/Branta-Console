@@ -627,17 +627,58 @@ function ExpensesPage() {
                   </select>
                 </div>
               </div>
-              <div>
-                <label className="text-[11px] font-semibold uppercase text-muted-foreground">Requested by</label>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <div>
+                  <label className="text-[11px] font-semibold uppercase text-muted-foreground">Requested by</label>
+                  <div className="mt-1">
+                    <SearchableSelect
+                      items={employeeItems}
+                      value={form.requested_by}
+                      onChange={(v) => setForm({ ...form, requested_by: v })}
+                      placeholder="— Who requested this expense —"
+                      emptyText="No employee matches"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold uppercase text-muted-foreground">Paid by</label>
+                  <div className="mt-1">
+                    <SearchableSelect
+                      items={employeeItems}
+                      value={form.paid_by}
+                      onChange={(v) => setForm({ ...form, paid_by: v })}
+                      placeholder="— Who actually paid —"
+                      emptyText="No employee matches"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-sm border border-border bg-muted/30 p-2.5">
+                <label className="text-[11px] font-semibold uppercase text-muted-foreground">Linked invoice / project</label>
                 <div className="mt-1">
                   <SearchableSelect
-                    items={employeeItems}
-                    value={form.requested_by}
-                    onChange={(v) => setForm({ ...form, requested_by: v })}
-                    placeholder="— Who requested this expense —"
-                    emptyText="No employee matches"
+                    items={invoiceItems}
+                    value={form.linked_invoice_id}
+                    onChange={(v) => setForm({ ...form, linked_invoice_id: v })}
+                    placeholder="— Not linked to a client project —"
+                    emptyText="No invoice matches"
                   />
                 </div>
+                <label className="mt-2 flex items-start gap-2 text-[12.5px]">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 size-3.5 accent-[hsl(var(--primary))]"
+                    checked={form.is_project_cost}
+                    disabled={!form.linked_invoice_id}
+                    onChange={(e) => setForm({ ...form, is_project_cost: e.target.checked })}
+                  />
+                  <span>
+                    Count as project cost
+                    <span className="block text-[11.5px] text-muted-foreground">
+                      Deducted from that invoice total before the stakeholder split — net distributable updates automatically.
+                    </span>
+                  </span>
+                </label>
               </div>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <div>
