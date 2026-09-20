@@ -41,6 +41,18 @@ export function ReportFilterBar({
     staleTime: 5 * 60_000,
   });
   const [open, setOpen] = useState(false);
+  const [customOpen, setCustomOpen] = useState(false);
+  const [draftRange, setDraftRange] = useState({ from: filters.from, to: filters.to });
+
+  const openCustom = () => {
+    setDraftRange({ from: filters.from, to: filters.to });
+    setCustomOpen(true);
+  };
+  const applyCustom = () => {
+    if (!draftRange.from || !draftRange.to) return;
+    set({ preset: "custom", from: draftRange.from, to: draftRange.to });
+    setCustomOpen(false);
+  };
 
   const set = (patch: Partial<ReportFilters>) => onChange({ ...filters, ...patch });
 
@@ -64,11 +76,13 @@ export function ReportFilterBar({
   }, [clientLabel, invoiceLabel, createdByLabel]);
 
 
+  // Date state already shows in the preset row, so no date chips; on
+  // income/expense pages the type is locked, so its chip is noise too.
   const chips = activeFilterChips(filters, {
     client: clientLabel,
     invoice: invoiceLabel,
     createdBy: createdByLabel,
-  });
+  }).filter((c) => c.key !== "date" && !(kind !== "finance" && c.key === "type"));
 
   const categories = kind === "income" ? INCOME_CATEGORIES : kind === "expense" ? EXPENSE_CATEGORIES : [...INCOME_CATEGORIES, ...EXPENSE_CATEGORIES];
 
