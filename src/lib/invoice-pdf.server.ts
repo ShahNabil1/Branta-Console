@@ -906,6 +906,28 @@ export async function renderExpenseVoucherPdf(
   const w = font.widthOfTextAtSize(safeText(label), 7.5);
   page.drawText(safeText(label), { x: (PAGE_W - w) / 2, y: CONTENT_BOTTOM + 6, size: 7.5, font, color: muted });
 
+  /* ---- one page per embedded image proof ---- */
+  for (const [i, p] of (data.attachments ?? []).entries()) {
+    if (!p.bytes || !p.kind) continue;
+    try {
+      const img = p.kind === "png" ? await pdf.embedPng(p.bytes) : await pdf.embedJpg(p.bytes);
+      const ap: PDFPage = pdf.addPage([PAGE_W, PAGE_H]);
+      const capTop = PAGE_H - TOP_MARGIN;
+      ap.drawText(safeText(`PROOF ${i + 1} — ${p.caption || p.name}`), {
+        x: SIDE, y: capTop - 12, size: 9, font: bold, color: brand,
+      });
+      const maxW = CONTENT_W;
+      const maxH = capTop - 34 - CONTENT_BOTTOM;
+      const scale = Math.min(maxW / img.width, maxH / img.height, 1);
+      const dw = img.width * scale;
+      const dh = img.height * scale;
+      ap.drawImage(img, { x: SIDE + (maxW - dw) / 2, y: capTop - 30 - dh, width: dw, height: dh });
+      ap.drawText(safeText(`${voucherNo} — proof ${i + 1}`), {
+        x: SIDE, y: CONTENT_BOTTOM + 6, size: 7.5, font, color: muted,
+      });
+    } catch { /* skip unreadable image */ }
+  }
+
   void mono;
   return await pdf.save();
 }
