@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as XVoucherRouteImport } from './routes/x.$voucher'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app.index'
 import { Route as ApiPublicR2HealthRouteImport } from './routes/api/public/r2-health'
@@ -73,6 +74,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const XVoucherRoute = XVoucherRouteImport.update({
+  id: '/x/$voucher',
+  path: '/x/$voucher',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAppRoute = AuthenticatedAppRouteImport.update({
@@ -359,6 +365,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/app': typeof AuthenticatedAppRouteWithChildren
+  '/x/$voucher': typeof XVoucherRoute
   '/app/analytics': typeof AuthenticatedAppAnalyticsRoute
   '/app/customers': typeof AuthenticatedAppCustomersRouteWithChildren
   '/app/finance': typeof AuthenticatedAppFinanceRouteWithChildren
@@ -410,6 +417,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/x/$voucher': typeof XVoucherRoute
   '/app/analytics': typeof AuthenticatedAppAnalyticsRoute
   '/app/inbox': typeof AuthenticatedAppInboxRoute
   '/app/mail-queue': typeof AuthenticatedAppMailQueueRoute
@@ -460,6 +468,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/login': typeof LoginRoute
   '/_authenticated/app': typeof AuthenticatedAppRouteWithChildren
+  '/x/$voucher': typeof XVoucherRoute
   '/_authenticated/app/analytics': typeof AuthenticatedAppAnalyticsRoute
   '/_authenticated/app/customers': typeof AuthenticatedAppCustomersRouteWithChildren
   '/_authenticated/app/finance': typeof AuthenticatedAppFinanceRouteWithChildren
@@ -514,6 +523,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/app'
+    | '/x/$voucher'
     | '/app/analytics'
     | '/app/customers'
     | '/app/finance'
@@ -565,6 +575,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
+    | '/x/$voucher'
     | '/app/analytics'
     | '/app/inbox'
     | '/app/mail-queue'
@@ -614,6 +625,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/login'
     | '/_authenticated/app'
+    | '/x/$voucher'
     | '/_authenticated/app/analytics'
     | '/_authenticated/app/customers'
     | '/_authenticated/app/finance'
@@ -667,6 +679,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   LoginRoute: typeof LoginRoute
+  XVoucherRoute: typeof XVoucherRoute
   ApiPublicR2HealthRoute: typeof ApiPublicR2HealthRoute
   ApiPublicBrevoWebhookRoute: typeof ApiPublicBrevoWebhookRoute
   ApiPublicExpensesVoucherDotpdfRoute: typeof ApiPublicExpensesVoucherDotpdfRoute
@@ -700,6 +713,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/x/$voucher': {
+      id: '/x/$voucher'
+      path: '/x/$voucher'
+      fullPath: '/x/$voucher'
+      preLoaderRoute: typeof XVoucherRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/app': {
@@ -1192,6 +1212,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   LoginRoute: LoginRoute,
+  XVoucherRoute: XVoucherRoute,
   ApiPublicR2HealthRoute: ApiPublicR2HealthRoute,
   ApiPublicBrevoWebhookRoute: ApiPublicBrevoWebhookRoute,
   ApiPublicExpensesVoucherDotpdfRoute: ApiPublicExpensesVoucherDotpdfRoute,

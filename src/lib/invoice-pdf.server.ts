@@ -637,6 +637,21 @@ export interface ExpenseVoucherData {
     department?: string | null;
     request_purpose?: string | null;
   };
+  items?: Array<{
+    name: string;
+    quantity: number;
+    unit: string | null;
+    unit_price: number;
+    amount: number;
+    note: string | null;
+  }>;
+  attachments?: Array<{
+    caption: string | null;
+    name: string;
+    isPdf: boolean;
+    bytes?: Uint8Array;
+    kind: "png" | "jpg" | null;
+  }>;
   linkedInvoiceSlug?: string | null;
   preparedByName?: string | null;
   paidToName?: string | null;
@@ -778,6 +793,41 @@ export async function renderExpenseVoucherPdf(
   });
   y -= gridH + 20;
 
+  /* ---- line items (quantity breakdown) ---- */
+  const lineItems = (data.items ?? []).filter((i) => i.name);
+  if (lineItems.length) {
+    draw("BREAKDOWN", SIDE, y, 8.5, bold, brand);
+    y -= 6;
+    page.drawLine({ start: { x: SIDE, y }, end: { x: PAGE_W - SIDE, y }, thickness: 0.5, color: hair });
+    y -= 14;
+    const cQty = SIDE + CONTENT_W - 210;
+    const cUnit = SIDE + CONTENT_W - 150;
+    const cAmt = SIDE + CONTENT_W;
+    draw("ITEM", SIDE, y, 7, bold, muted);
+    draw("QTY", cQty, y, 7, bold, muted);
+    draw("UNIT PRICE", cUnit, y, 7, bold, muted);
+    const hw = bold.widthOfTextAtSize("AMOUNT", 7);
+    draw("AMOUNT", cAmt - hw, y, 7, bold, muted);
+    y -= 11;
+    for (const it of lineItems.slice(0, 20)) {
+      page.drawLine({ start: { x: SIDE, y: y + 7 }, end: { x: PAGE_W - SIDE, y: y + 7 }, thickness: 0.4, color: hair });
+      draw(it.name, SIDE, y - 2, 9, font, text);
+      const qty = `${Number(it.quantity) || 0}${it.unit ? ` ${it.unit}` : ""}`;
+      draw(qty, cQty, y - 2, 9, font, text);
+      draw(money(Number(it.unit_price) || 0, cur), cUnit, y - 2, 9, font, text);
+      const amtTxt = money(Number(it.amount) || 0, cur);
+      const w2 = mono.widthOfTextAtSize(safeText(amtTxt), 9);
+      draw(amtTxt, cAmt - w2, y - 2, 9, mono, text);
+      y -= 13;
+      if (it.note) {
+        wrap(it.note, font, 7.5, CONTENT_W - 220).slice(0, 2).forEach((ln) => {
+          draw(ln, SIDE + 8, y, 7.5, font, muted); y -= 9;
+        });
+      }
+    }
+    y -= 10;
+  }
+
   /* ---- amount block ---- */
   const amtH = 58;
   page.drawRectangle({ x: SIDE, y: y - amtH, width: CONTENT_W, height: amtH, borderColor: hair, borderWidth: 0.5 });
@@ -792,19 +842,40 @@ export async function renderExpenseVoucherPdf(
   });
   y -= amtH + 20;
 
-  /* ---- purpose / notes ---- */
-  const purposeBody = [
-    e.request_purpose ? `Purpose of request: ${e.request_purpose}` : null,
-    e.notes || null,
-  ].filter(Boolean).join("\n");
-  if (purposeBody) {
-    draw("PURPOSE / NOTES", SIDE, y, 8.5, bold, brand);
+  /* ---- purpose (prominent) + notes ---- */
+  if (e.request_purpose) {
+    draw("PURPOSE OF THIS PAYMENT", SIDE, y, 8.5, bold, brand);
     y -= 6;
     page.drawLine({ start: { x: SIDE, y }, end: { x: PAGE_W - SIDE, y }, thickness: 0.5, color: hair });
-    y -= 14;
-    wrap(purposeBody, font, 9, CONTENT_W).slice(0, 12).forEach((ln) => { draw(ln, SIDE, y, 9, font, muted); y -= 11; });
+    y -= 17;
+    wrap(e.request_purpose, bold, 12, CONTENT_W).slice(0, 8).forEach((ln) => {
+      draw(ln, SIDE, y, 12, bold, text); y -= 15;
+    });
+    y -= 6;
+  }
+  if (e.notes) {
+    draw("NOTES", SIDE, y, 8.5, bold, brand);
+    y -= 6;
+    page.drawLine({ start: { x: SIDE, y }, end: { x: PAGE_W - SIDE, y }, thickness: 0.5, color: hair });
+    y -= 13;
+    wrap(e.notes, font, 9, CONTENT_W).slice(0, 8).forEach((ln) => { draw(ln, SIDE, y, 9, font, muted); y -= 11; });
     y -= 8;
   }
+
+  /* ---- attached proofs index ---- */
+  const proofs = data.attachments ?? [];
+  if (proofs.length) {
+    draw("ATTACHED PROOFS", SIDE, y, 8.5, bold, brand);
+    y -= 6;
+    page.drawLine({ start: { x: SIDE, y }, end: { x: PAGE_W - SIDE, y }, thickness: 0.5, color: hair });
+    y -= 13;
+    proofs.slice(0, 20).forEach((p, i) => {
+      draw(`${i + 1}. ${p.caption || p.name}${p.isPdf ? "  (PDF)" : ""}`, SIDE, y, 9, font, muted);
+      y -= 11;
+    });
+    y -= 8;
+  }
+
 
 
   /* ---- signature / seal ---- */
@@ -834,6 +905,28 @@ export async function renderExpenseVoucherPdf(
 
   const w = font.widthOfTextAtSize(safeText(label), 7.5);
   page.drawText(safeText(label), { x: (PAGE_W - w) / 2, y: CONTENT_BOTTOM + 6, size: 7.5, font, color: muted });
+
+  /* ---- one page per embedded image proof ---- */
+  for (const [i, p] of (data.attachments ?? []).entries()) {
+    if (!p.bytes || !p.kind) continue;
+    try {
+      const img = p.kind === "png" ? await pdf.embedPng(p.bytes) : await pdf.embedJpg(p.bytes);
+      const ap: PDFPage = pdf.addPage([PAGE_W, PAGE_H]);
+      const capTop = PAGE_H - TOP_MARGIN;
+      ap.drawText(safeText(`PROOF ${i + 1} — ${p.caption || p.name}`), {
+        x: SIDE, y: capTop - 12, size: 9, font: bold, color: brand,
+      });
+      const maxW = CONTENT_W;
+      const maxH = capTop - 34 - CONTENT_BOTTOM;
+      const scale = Math.min(maxW / img.width, maxH / img.height, 1);
+      const dw = img.width * scale;
+      const dh = img.height * scale;
+      ap.drawImage(img, { x: SIDE + (maxW - dw) / 2, y: capTop - 30 - dh, width: dw, height: dh });
+      ap.drawText(safeText(`${voucherNo} — proof ${i + 1}`), {
+        x: SIDE, y: CONTENT_BOTTOM + 6, size: 7.5, font, color: muted,
+      });
+    } catch { /* skip unreadable image */ }
+  }
 
   void mono;
   return await pdf.save();

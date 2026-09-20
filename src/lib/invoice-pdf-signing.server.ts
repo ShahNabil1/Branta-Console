@@ -46,7 +46,7 @@ export async function loadExpenseVoucherPayload(adminClient: any, voucherNo: str
   if (error) throw new Error(error.message);
   if (!exp) return null;
   const uids = [exp.created_by, exp.paid_by, exp.requested_by].filter(Boolean) as string[];
-  const [{ data: profs }, { data: settings }, inv] = await Promise.all([
+  const [{ data: profs }, { data: settings }, inv, { data: items }, { data: atts }] = await Promise.all([
     uids.length
       ? adminClient.from("profiles").select("user_id, full_name").in("user_id", uids)
       : Promise.resolve({ data: [] }),
@@ -54,11 +54,32 @@ export async function loadExpenseVoucherPayload(adminClient: any, voucherNo: str
     exp.linked_invoice_id
       ? adminClient.from("invoices").select("slug").eq("id", exp.linked_invoice_id).maybeSingle()
       : Promise.resolve({ data: null }),
+    adminClient.from("expense_items").select("*").eq("expense_id", exp.id).order("sequence"),
+    adminClient.from("expense_attachments").select("*").eq("expense_id", exp.id).order("sequence"),
   ]);
   const nameOf = (id: string | null) =>
     (id && (profs ?? []).find((p: { user_id: string }) => p.user_id === id)?.full_name) || null;
+
+  // Embed up to 8 image proofs directly into the voucher PDF.
+  const attachments: Array<{ caption: string | null; name: string; isPdf: boolean; bytes?: Uint8Array; kind: "png" | "jpg" | null }> = [];
+  for (const a of ((atts ?? []) as { path: string; caption: string | null }[]).slice(0, 12)) {
+    const name = a.path.split("/").pop() ?? "receipt";
+    const isPdf = /\.pdf$/i.test(a.path);
+    const kind = /\.png$/i.test(a.path) ? "png" : /\.(jpe?g)$/i.test(a.path) ? "jpg" : null;
+    let bytes: Uint8Array | undefined;
+    if (kind && attachments.filter((x) => x.bytes).length < 8) {
+      try {
+        const { data: file } = await adminClient.storage.from("expense-receipts").download(a.path);
+        if (file) bytes = new Uint8Array(await file.arrayBuffer());
+      } catch { /* keep the caption even if the file can't be read */ }
+    }
+    attachments.push({ caption: a.caption, name, isPdf, bytes, kind });
+  }
+
   return {
     expense: exp,
+    items: items ?? [],
+    attachments,
     preparedByName: nameOf(exp.created_by),
     paidToName: nameOf(exp.paid_by),
     requestedByName: nameOf(exp.requested_by ?? null),

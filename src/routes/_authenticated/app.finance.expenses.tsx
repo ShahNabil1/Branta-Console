@@ -11,8 +11,11 @@ import {
   isFinanceAdminCheck,
   getSignedExpenseVoucherUrl,
   setExpenseSignedVoucher,
+  setExpenseShare,
   listEmployeesForFinance,
+  listInvoices,
   type ExpenseCategory,
+  type ExpenseRow,
   type Currency,
 } from "@/lib/finance.functions";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,10 +25,12 @@ import { SearchableSelect, type SearchableItem } from "@/components/finance/sear
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { ReportFilterBar } from "@/components/finance/report-filter-bar";
 import { RecordCard, RowActionsMenu } from "@/components/finance/responsive-record-list";
+import { ExpenseItemsEditor, sumItems, type ExpenseItem } from "@/components/finance/expense-items-editor";
+import { ExpenseReceiptsEditor, type ReceiptDraft } from "@/components/finance/expense-receipts-editor";
 
 import { ExportMenu } from "@/components/finance/export-menu";
 import { defaultFilters, type ReportFilters } from "@/lib/report-filters";
-import { Loader2, Plus, Trash2, Receipt, Upload, Eye, Download, X, FileText, Printer, Stamp, Pencil } from "lucide-react";
+import { Loader2, Plus, Trash2, Receipt, Eye, Download, X, FileText, Printer, Stamp, Pencil, Link2 } from "lucide-react";
 
 const DEPARTMENTS = ["Management", "Finance", "Sales & Outreach", "Marketing", "Production", "Development", "HR & Admin", "Operations", "Other"];
 const PAYMENT_METHODS = ["Cash", "bKash", "Nagad", "Rocket", "Bank Transfer", "Card", "Cheque", "Other"];
@@ -85,6 +90,7 @@ function ExpensesPage() {
   const check = useServerFn(isFinanceAdminCheck);
   const voucherUrlFn = useServerFn(getSignedExpenseVoucherUrl);
   const setSignedFn = useServerFn(setExpenseSignedVoucher);
+  const shareFn = useServerFn(setExpenseShare);
   const confirm = useConfirm();
   const isAdmin = useQuery({ queryKey: ["is-finance-admin"], queryFn: () => check(), staleTime: 60_000 });
   const q = useQuery({
@@ -110,6 +116,18 @@ function ExpensesPage() {
     keywords: [e.full_name, e.employee_code, e.job_role],
   }));
 
+  const invListFn = useServerFn(listInvoices);
+  const invoices = useQuery({
+    queryKey: ["finance-invoices-lite"], queryFn: () => invListFn(), staleTime: 60_000,
+    enabled: !!isAdmin.data?.isAdmin,
+  });
+  const invoiceItems: SearchableItem[] = (invoices.data ?? []).map((i) => ({
+    value: i.id,
+    label: `${i.slug ?? i.id.slice(0, 8)} — ${i.title}`,
+    hint: i.customer_name ?? undefined,
+    keywords: [i.slug, i.title, i.customer_name, i.customer_code],
+  }));
+
   const emptyForm = {
     category: "office" as ExpenseCategory,
     amount: "",
@@ -121,6 +139,9 @@ function ExpensesPage() {
     payment_method: "",
     department: "",
     requested_by: "",
+    paid_by: "",
+    linked_invoice_id: "",
+    is_project_cost: false,
     request_purpose: "",
   };
 
@@ -155,7 +176,8 @@ function ExpensesPage() {
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
-  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [items, setItems] = useState<ExpenseItem[]>([]);
+  const [receipts, setReceipts] = useState<ReceiptDraft[]>([]);
   const [uploading, setUploading] = useState(false);
   const [viewer, setViewer] = useState<{ url: string; name: string } | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -164,15 +186,11 @@ function ExpensesPage() {
   const startCreate = () => {
     setEditingId(null);
     setForm(emptyForm);
-    setReceiptFile(null);
+    setItems([]);
+    setReceipts([]);
     setOpen(true);
   };
-  const startEdit = (r: {
-    id: string; category: ExpenseCategory; amount: number; currency: Currency;
-    spent_on: string; vendor: string | null; notes: string | null;
-    txn_id?: string | null; payment_method?: string | null; department?: string | null;
-    requested_by?: string | null; request_purpose?: string | null;
-  }) => {
+  const startEdit = (r: ExpenseRow) => {
     setEditingId(r.id);
     setForm({
       category: r.category,
@@ -185,9 +203,24 @@ function ExpensesPage() {
       payment_method: r.payment_method ?? "",
       department: r.department ?? "",
       requested_by: r.requested_by ?? "",
+      paid_by: r.paid_by ?? "",
+      linked_invoice_id: r.linked_invoice_id ?? "",
+      is_project_cost: !!r.is_project_cost,
       request_purpose: r.request_purpose ?? "",
     });
-    setReceiptFile(null);
+    setItems((r.items ?? []).map((i) => ({
+      name: i.name,
+      quantity: Number(i.quantity),
+      unit: i.unit ?? "",
+      unit_price: Number(i.unit_price),
+      note: i.note ?? "",
+    })));
+    setReceipts((r.attachments ?? []).map((a) => ({
+      path: a.path,
+      caption: a.caption ?? "",
+      name: a.path.split("/").pop() ?? "receipt",
+      isPdf: isPdfPath(a.path),
+    })));
     setOpen(true);
   };
 
@@ -279,19 +312,38 @@ function ExpensesPage() {
     } catch (e) { toast.error((e as Error).message); }
   };
 
+  const toggleShare = async (id: string, enabled: boolean) => {
+    try {
+      setBusyId(id + "share");
+      const res = await shareFn({ data: { id, enabled } });
+      if (enabled) {
+        const link = `${window.location.origin}/x/${res.voucher_no ?? id}?t=${res.token}`;
+        try { await navigator.clipboard.writeText(link); } catch { /* clipboard blocked */ }
+        toast.success("Public link on — copied to clipboard");
+      } else {
+        toast.success("Public link turned off");
+      }
+      void q.refetch();
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBusyId(null); }
+  };
+
   const add = useMutation({
     mutationFn: async () => {
-      let receipt_url: string | null = null;
-      if (receiptFile) {
-        if (receiptFile.size > MAX_RECEIPT_MB * 1024 * 1024) {
-          throw new Error(`Receipt must be ≤ ${MAX_RECEIPT_MB} MB`);
-        }
-        setUploading(true);
-        try {
-          receipt_url = await uploadToBucket(receiptFile, "");
-        } finally {
-          setUploading(false);
-        }
+      setUploading(true);
+      let attachments: { path: string; caption: string | null; mime_type: string | null; size_bytes: number | null; kind: "receipt" }[] = [];
+      try {
+        attachments = await Promise.all(
+          receipts.map(async (r) => ({
+            path: r.path ?? (await uploadToBucket(r.file as File, "")),
+            caption: r.caption.trim() || null,
+            mime_type: r.file?.type || null,
+            size_bytes: r.file?.size ?? null,
+            kind: "receipt" as const,
+          })),
+        );
+      } finally {
+        setUploading(false);
       }
       const payload = {
         category: form.category,
@@ -304,19 +356,35 @@ function ExpensesPage() {
         payment_method: form.payment_method || null,
         department: form.department || null,
         requested_by: form.requested_by || null,
+        paid_by: form.paid_by || null,
+        linked_invoice_id: form.linked_invoice_id || null,
+        is_project_cost: !!form.linked_invoice_id && form.is_project_cost,
         request_purpose: form.request_purpose.trim() || null,
+        items: items
+          .filter((i) => i.name.trim())
+          .map((i) => ({
+            name: i.name.trim(),
+            quantity: Number(i.quantity) || 0,
+            unit: i.unit.trim() || null,
+            unit_price: Number(i.unit_price) || 0,
+            amount: (Number(i.quantity) || 0) * (Number(i.unit_price) || 0),
+            note: i.note.trim() || null,
+          })),
+        attachments,
+        receipt_url: attachments[0]?.path ?? null,
       };
       if (editingId) {
-        await update({ data: { id: editingId, ...payload, ...(receipt_url ? { receipt_url } : {}) } });
+        await update({ data: { id: editingId, ...payload } });
       } else {
-        await create({ data: { ...payload, receipt_url } });
+        await create({ data: payload });
       }
     },
     onSuccess: () => {
       toast.success(editingId ? "Expense updated" : "Expense added");
       setOpen(false);
       setEditingId(null);
-      setReceiptFile(null);
+      setReceipts([]);
+      setItems([]);
       setForm(emptyForm);
       void q.refetch();
     },
@@ -413,7 +481,18 @@ function ExpensesPage() {
                   </div>
                 </td>
                 <td className="px-3 py-2">
-                  {r.receipt_url ? (
+                  {(r.attachments ?? []).length > 0 ? (
+                    <div className="flex flex-wrap items-center gap-1">
+                      {(r.attachments ?? []).map((a, i) => (
+                        <Button key={a.id} size="sm" variant="ghost" className="h-7 rounded-sm px-2 text-[11.5px]"
+                          onClick={() => openReceipt(a.path)}
+                          title={a.caption || `Receipt ${i + 1}`}>
+                          {isPdfPath(a.path) ? <FileText className="size-3.5" /> : <Eye className="size-3.5" />}
+                          <span className="ml-1">{i + 1}</span>
+                        </Button>
+                      ))}
+                    </div>
+                  ) : r.receipt_url ? (
                     <div className="flex items-center gap-1">
                       <Button size="sm" variant="ghost" className="h-7 rounded-sm px-2 text-[11.5px]"
                         onClick={() => openReceipt(r.receipt_url as string)}
@@ -461,6 +540,12 @@ function ExpensesPage() {
                   )}
                 </td>
                 <td className="px-3 py-2 text-right">
+                  <Button size="sm" variant="ghost" onClick={() => toggleShare(r.id, !r.share_enabled)}
+                    className={`h-7 rounded-sm ${r.share_enabled ? "text-primary" : ""}`}
+                    disabled={busyId === r.id + "share"}
+                    title={r.share_enabled ? "Public link on — click to copy / turn off" : "Create public share link"}>
+                    {busyId === r.id + "share" ? <Loader2 className="size-3.5 animate-spin" /> : <Link2 className="size-3.5" />}
+                  </Button>
                   <Button size="sm" variant="ghost" onClick={() => startEdit(r)}
                     className="h-7 rounded-sm" title="Edit expense">
                     <Pencil className="size-3.5" />
@@ -627,17 +712,58 @@ function ExpensesPage() {
                   </select>
                 </div>
               </div>
-              <div>
-                <label className="text-[11px] font-semibold uppercase text-muted-foreground">Requested by</label>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <div>
+                  <label className="text-[11px] font-semibold uppercase text-muted-foreground">Requested by</label>
+                  <div className="mt-1">
+                    <SearchableSelect
+                      items={employeeItems}
+                      value={form.requested_by}
+                      onChange={(v) => setForm({ ...form, requested_by: v })}
+                      placeholder="— Who requested this expense —"
+                      emptyText="No employee matches"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold uppercase text-muted-foreground">Paid by</label>
+                  <div className="mt-1">
+                    <SearchableSelect
+                      items={employeeItems}
+                      value={form.paid_by}
+                      onChange={(v) => setForm({ ...form, paid_by: v })}
+                      placeholder="— Who actually paid —"
+                      emptyText="No employee matches"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-sm border border-border bg-muted/30 p-2.5">
+                <label className="text-[11px] font-semibold uppercase text-muted-foreground">Linked invoice / project</label>
                 <div className="mt-1">
                   <SearchableSelect
-                    items={employeeItems}
-                    value={form.requested_by}
-                    onChange={(v) => setForm({ ...form, requested_by: v })}
-                    placeholder="— Who requested this expense —"
-                    emptyText="No employee matches"
+                    items={invoiceItems}
+                    value={form.linked_invoice_id}
+                    onChange={(v) => setForm({ ...form, linked_invoice_id: v })}
+                    placeholder="— Not linked to a client project —"
+                    emptyText="No invoice matches"
                   />
                 </div>
+                <label className="mt-2 flex items-start gap-2 text-[12.5px]">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 size-3.5 accent-[hsl(var(--primary))]"
+                    checked={form.is_project_cost}
+                    disabled={!form.linked_invoice_id}
+                    onChange={(e) => setForm({ ...form, is_project_cost: e.target.checked })}
+                  />
+                  <span>
+                    Count as project cost
+                    <span className="block text-[11.5px] text-muted-foreground">
+                      Deducted from that invoice total before the stakeholder split — net distributable updates automatically.
+                    </span>
+                  </span>
+                </label>
               </div>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <div>
@@ -654,49 +780,31 @@ function ExpensesPage() {
                     className="mt-1 h-9 rounded-sm font-mono" placeholder="e.g. 9K3D8AB21X" />
                 </div>
               </div>
+              <ExpenseItemsEditor
+                items={items}
+                onChange={(next) => {
+                  setItems(next);
+                  const s = sumItems(next);
+                  if (next.length) setForm((f) => ({ ...f, amount: s ? String(s) : f.amount }));
+                }}
+                currency={form.currency}
+              />
+
               <div>
                 <label className="text-[11px] font-semibold uppercase text-muted-foreground">Purpose of request</label>
-                <Input value={form.request_purpose} onChange={(e) => setForm({ ...form, request_purpose: e.target.value })}
-                  className="mt-1 h-9 rounded-sm" placeholder="Why was this expense needed?" />
+                <textarea value={form.request_purpose} onChange={(e) => setForm({ ...form, request_purpose: e.target.value })}
+                  rows={3}
+                  className="mt-1 w-full rounded-sm border border-input bg-background px-2 py-1.5 text-[13.5px] font-semibold leading-snug"
+                  placeholder="Why was this expense needed? Write the full reason — it prints on the voucher." />
               </div>
               <div>
                 <label className="text-[11px] font-semibold uppercase text-muted-foreground">Notes</label>
-                <Input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                  className="mt-1 h-9 rounded-sm" />
+                <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                  rows={2}
+                  className="mt-1 w-full rounded-sm border border-input bg-background px-2 py-1.5 text-[13px] leading-snug" />
               </div>
 
-              <div>
-                <label className="text-[11px] font-semibold uppercase text-muted-foreground">
-                  {editingId ? "Replace receipt" : "Receipt"} <span className="text-muted-foreground/70 normal-case font-normal">(optional — image or PDF, ≤ {MAX_RECEIPT_MB} MB)</span>
-                </label>
-                {!receiptFile ? (
-                  <label className="mt-1 flex h-20 cursor-pointer items-center justify-center gap-2 rounded-sm border border-dashed border-input bg-background text-[12px] text-muted-foreground hover:border-primary hover:text-primary">
-                    <Upload className="size-3.5" />
-                    <span>Click to upload proof / receipt</span>
-                    <input type="file" accept={ACCEPT} className="hidden"
-                      onChange={(e) => {
-                        const f = e.target.files?.[0] ?? null;
-                        if (f && f.size > MAX_RECEIPT_MB * 1024 * 1024) {
-                          toast.error(`File must be ≤ ${MAX_RECEIPT_MB} MB`);
-                          e.target.value = ""; return;
-                        }
-                        setReceiptFile(f);
-                      }} />
-                  </label>
-                ) : (
-                  <div className="mt-1 flex items-center justify-between rounded-sm border border-input bg-background px-2 py-1.5 text-[12px]">
-                    <div className="flex min-w-0 items-center gap-2">
-                      {receiptFile.type.startsWith("image/") ? <Eye className="size-3.5 shrink-0" /> : <FileText className="size-3.5 shrink-0" />}
-                      <span className="truncate">{receiptFile.name}</span>
-                      <span className="shrink-0 text-muted-foreground">({(receiptFile.size / 1024).toFixed(0)} KB)</span>
-                    </div>
-                    <Button size="sm" variant="ghost" className="h-6 rounded-sm px-1.5"
-                      onClick={() => setReceiptFile(null)} disabled={uploading}>
-                      <X className="size-3.5" />
-                    </Button>
-                  </div>
-                )}
-              </div>
+              <ExpenseReceiptsEditor receipts={receipts} onChange={setReceipts} />
             </div>
             <div className="mt-4 flex justify-end gap-2">
               <Button variant="ghost" onClick={() => { setOpen(false); setEditingId(null); }} className="h-9 rounded-sm" disabled={add.isPending}>Cancel</Button>
