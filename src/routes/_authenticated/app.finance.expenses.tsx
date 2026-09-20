@@ -702,6 +702,7 @@ function ExpensesPage() {
               </RowActionsMenu>
             }
           />
+          </div>
         ))}
       </div>
 
