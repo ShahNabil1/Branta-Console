@@ -38,7 +38,7 @@ export interface ExpenseLogRow {
   title: string;
   reason: string | null;
   changes: ExpenseChange[];
-  metadata: Record<string, unknown>;
+  metadata: Record<string, string | number | boolean | null>;
   created_at: string;
 }
 
@@ -193,7 +193,7 @@ export const listDeletedExpenses = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<DeletedExpenseRow[]> => {
     await ensureFinance(context.supabase, context.userId);
     try {
-      await context.supabase.rpc("purge_expired_expenses", {});
+      await (context.supabase.rpc as unknown as (n: string) => Promise<unknown>)("purge_expired_expenses");
     } catch (e) {
       console.error("[listDeletedExpenses] purge failed:", e);
     }
