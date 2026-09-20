@@ -279,19 +279,38 @@ function ExpensesPage() {
     } catch (e) { toast.error((e as Error).message); }
   };
 
+  const toggleShare = async (id: string, enabled: boolean) => {
+    try {
+      setBusyId(id + "share");
+      const res = await shareFn({ data: { id, enabled } });
+      if (enabled) {
+        const link = `${window.location.origin}/x/${res.voucher_no ?? id}?t=${res.token}`;
+        try { await navigator.clipboard.writeText(link); } catch { /* clipboard blocked */ }
+        toast.success("Public link on — copied to clipboard");
+      } else {
+        toast.success("Public link turned off");
+      }
+      void q.refetch();
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBusyId(null); }
+  };
+
   const add = useMutation({
     mutationFn: async () => {
-      let receipt_url: string | null = null;
-      if (receiptFile) {
-        if (receiptFile.size > MAX_RECEIPT_MB * 1024 * 1024) {
-          throw new Error(`Receipt must be ≤ ${MAX_RECEIPT_MB} MB`);
-        }
-        setUploading(true);
-        try {
-          receipt_url = await uploadToBucket(receiptFile, "");
-        } finally {
-          setUploading(false);
-        }
+      setUploading(true);
+      let attachments: { path: string; caption: string | null; mime_type: string | null; size_bytes: number | null; kind: "receipt" }[] = [];
+      try {
+        attachments = await Promise.all(
+          receipts.map(async (r) => ({
+            path: r.path ?? (await uploadToBucket(r.file as File, "")),
+            caption: r.caption.trim() || null,
+            mime_type: r.file?.type || null,
+            size_bytes: r.file?.size ?? null,
+            kind: "receipt" as const,
+          })),
+        );
+      } finally {
+        setUploading(false);
       }
       const payload = {
         category: form.category,
@@ -304,19 +323,35 @@ function ExpensesPage() {
         payment_method: form.payment_method || null,
         department: form.department || null,
         requested_by: form.requested_by || null,
+        paid_by: form.paid_by || null,
+        linked_invoice_id: form.linked_invoice_id || null,
+        is_project_cost: !!form.linked_invoice_id && form.is_project_cost,
         request_purpose: form.request_purpose.trim() || null,
+        items: items
+          .filter((i) => i.name.trim())
+          .map((i) => ({
+            name: i.name.trim(),
+            quantity: Number(i.quantity) || 0,
+            unit: i.unit.trim() || null,
+            unit_price: Number(i.unit_price) || 0,
+            amount: (Number(i.quantity) || 0) * (Number(i.unit_price) || 0),
+            note: i.note.trim() || null,
+          })),
+        attachments,
+        receipt_url: attachments[0]?.path ?? null,
       };
       if (editingId) {
-        await update({ data: { id: editingId, ...payload, ...(receipt_url ? { receipt_url } : {}) } });
+        await update({ data: { id: editingId, ...payload } });
       } else {
-        await create({ data: { ...payload, receipt_url } });
+        await create({ data: payload });
       }
     },
     onSuccess: () => {
       toast.success(editingId ? "Expense updated" : "Expense added");
       setOpen(false);
       setEditingId(null);
-      setReceiptFile(null);
+      setReceipts([]);
+      setItems([]);
       setForm(emptyForm);
       void q.refetch();
     },
