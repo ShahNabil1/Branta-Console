@@ -19,16 +19,56 @@ export type RecordField = {
  * Mobile/tablet card for one table row. Shows a compact summary and folds the
  * remaining fields behind a "More" toggle so nothing is ever cut off.
  */
+/** Small mono identifier shown above the card title; tap to copy with feedback. */
+export function CopyableCode({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(value);
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = value;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      ta.remove();
+    }
+    setCopied(true);
+    toast.success("Copied", { description: value, duration: 1500 });
+    setTimeout(() => setCopied(false), 1500);
+  };
+  return (
+    <button
+      onClick={copy}
+      title="Tap to copy"
+      className={`group inline-flex max-w-full items-center gap-1 rounded-[3px] border px-1.5 py-0.5 font-mono text-[11px] font-semibold transition-all active:scale-95 ${
+        copied
+          ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+          : "border-border bg-muted/50 text-muted-foreground hover:border-brand hover:text-brand"
+      }`}
+    >
+      <span className="truncate">{value}</span>
+      <span className="relative inline-flex size-3 shrink-0 items-center justify-center">
+        <Copy className={`absolute size-3 transition-all duration-200 ${copied ? "scale-50 opacity-0" : "scale-100 opacity-100"}`} />
+        <Check className={`absolute size-3 text-emerald-600 transition-all duration-200 ${copied ? "scale-100 opacity-100" : "scale-50 opacity-0"}`} />
+      </span>
+    </button>
+  );
+}
+
 export function RecordCard({
   title,
   subtitle,
   amount,
   amountTone,
   badge,
+  code,
   fields,
   actions,
 }: {
   title: ReactNode;
+  /** Identifier (e.g. voucher no) shown above the title; tap to copy. */
+  code?: string | null;
   subtitle?: ReactNode;
   amount?: ReactNode;
   amountTone?: "income" | "expense" | "neutral";
