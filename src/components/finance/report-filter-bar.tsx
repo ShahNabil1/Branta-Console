@@ -15,6 +15,7 @@ import {
 } from "@/lib/report-filters";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const EXPENSE_CATEGORIES = ["salary", "tools", "ads", "office", "misc", "tax", "refund"];
 const INCOME_CATEGORIES = ["Invoice payment", "seed", "other income", "adjustment"];

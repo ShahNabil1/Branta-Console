@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
-import { ChevronDown, MoreHorizontal } from "lucide-react";
+import { Check, ChevronDown, Copy, MoreHorizontal } from "lucide-react";
+import { toast } from "sonner";
 import {
   DropdownMenu,
   DropdownMenuContent,
