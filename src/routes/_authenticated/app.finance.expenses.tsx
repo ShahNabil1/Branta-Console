@@ -90,6 +90,7 @@ function ExpensesPage() {
   const check = useServerFn(isFinanceAdminCheck);
   const voucherUrlFn = useServerFn(getSignedExpenseVoucherUrl);
   const setSignedFn = useServerFn(setExpenseSignedVoucher);
+  const shareFn = useServerFn(setExpenseShare);
   const confirm = useConfirm();
   const isAdmin = useQuery({ queryKey: ["is-finance-admin"], queryFn: () => check(), staleTime: 60_000 });
   const q = useQuery({
