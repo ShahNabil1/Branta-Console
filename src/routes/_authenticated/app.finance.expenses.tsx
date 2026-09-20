@@ -11,8 +11,11 @@ import {
   isFinanceAdminCheck,
   getSignedExpenseVoucherUrl,
   setExpenseSignedVoucher,
+  setExpenseShare,
   listEmployeesForFinance,
+  listInvoices,
   type ExpenseCategory,
+  type ExpenseRow,
   type Currency,
 } from "@/lib/finance.functions";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,10 +25,12 @@ import { SearchableSelect, type SearchableItem } from "@/components/finance/sear
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { ReportFilterBar } from "@/components/finance/report-filter-bar";
 import { RecordCard, RowActionsMenu } from "@/components/finance/responsive-record-list";
+import { ExpenseItemsEditor, sumItems, type ExpenseItem } from "@/components/finance/expense-items-editor";
+import { ExpenseReceiptsEditor, type ReceiptDraft } from "@/components/finance/expense-receipts-editor";
 
 import { ExportMenu } from "@/components/finance/export-menu";
 import { defaultFilters, type ReportFilters } from "@/lib/report-filters";
-import { Loader2, Plus, Trash2, Receipt, Upload, Eye, Download, X, FileText, Printer, Stamp, Pencil } from "lucide-react";
+import { Loader2, Plus, Trash2, Receipt, Eye, Download, X, FileText, Printer, Stamp, Pencil, Link2 } from "lucide-react";
 
 const DEPARTMENTS = ["Management", "Finance", "Sales & Outreach", "Marketing", "Production", "Development", "HR & Admin", "Operations", "Other"];
 const PAYMENT_METHODS = ["Cash", "bKash", "Nagad", "Rocket", "Bank Transfer", "Card", "Cheque", "Other"];
@@ -170,7 +175,8 @@ function ExpensesPage() {
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
-  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [items, setItems] = useState<ExpenseItem[]>([]);
+  const [receipts, setReceipts] = useState<ReceiptDraft[]>([]);
   const [uploading, setUploading] = useState(false);
   const [viewer, setViewer] = useState<{ url: string; name: string } | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
