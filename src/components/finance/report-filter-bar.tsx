@@ -89,6 +89,25 @@ export function ReportFilterBar({
               {p.label}
             </button>
           ))}
+          {filters.preset === "custom" && (
+            <div className="flex shrink-0 items-center gap-1">
+              <input
+                type="date"
+                aria-label="From date"
+                className="h-[26px] rounded-[3px] border border-border bg-card px-1.5 text-[11.5px] text-foreground outline-none focus:border-brand"
+                value={filters.from}
+                onChange={(e) => set({ from: e.target.value })}
+              />
+              <span className="text-[11px] text-muted-foreground">→</span>
+              <input
+                type="date"
+                aria-label="To date"
+                className="h-[26px] rounded-[3px] border border-border bg-card px-1.5 text-[11.5px] text-foreground outline-none focus:border-brand"
+                value={filters.to}
+                onChange={(e) => set({ to: e.target.value })}
+              />
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2 sm:ml-auto">
