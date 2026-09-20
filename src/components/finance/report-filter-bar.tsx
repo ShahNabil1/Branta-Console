@@ -15,6 +15,7 @@ import {
 } from "@/lib/report-filters";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const EXPENSE_CATEGORIES = ["salary", "tools", "ads", "office", "misc", "tax", "refund"];
 const INCOME_CATEGORIES = ["Invoice payment", "seed", "other income", "adjustment"];
@@ -40,6 +41,18 @@ export function ReportFilterBar({
     staleTime: 5 * 60_000,
   });
   const [open, setOpen] = useState(false);
+  const [customOpen, setCustomOpen] = useState(false);
+  const [draftRange, setDraftRange] = useState({ from: filters.from, to: filters.to });
+
+  const openCustom = () => {
+    setDraftRange({ from: filters.from, to: filters.to });
+    setCustomOpen(true);
+  };
+  const applyCustom = () => {
+    if (!draftRange.from || !draftRange.to) return;
+    set({ preset: "custom", from: draftRange.from, to: draftRange.to });
+    setCustomOpen(false);
+  };
 
   const set = (patch: Partial<ReportFilters>) => onChange({ ...filters, ...patch });
 
@@ -63,11 +76,13 @@ export function ReportFilterBar({
   }, [clientLabel, invoiceLabel, createdByLabel]);
 
 
+  // Date state already shows in the preset row, so no date chips; on
+  // income/expense pages the type is locked, so its chip is noise too.
   const chips = activeFilterChips(filters, {
     client: clientLabel,
     invoice: invoiceLabel,
     createdBy: createdByLabel,
-  });
+  }).filter((c) => c.key !== "date" && !(kind !== "finance" && c.key === "type"));
 
   const categories = kind === "income" ? INCOME_CATEGORIES : kind === "expense" ? EXPENSE_CATEGORIES : [...INCOME_CATEGORIES, ...EXPENSE_CATEGORIES];
 
@@ -76,37 +91,65 @@ export function ReportFilterBar({
       {/* Row 1 — quick dates, currency, search */}
       <div className="flex flex-col gap-2 border-b border-border p-2.5 sm:flex-row sm:flex-wrap sm:items-center">
         <div className="-mx-0.5 flex items-center gap-1 overflow-x-auto px-0.5 pb-0.5 sm:flex-wrap sm:overflow-visible">
-          {DATE_PRESETS.map((p) => (
-            <button
-              key={p.key}
-              onClick={() => setPreset(p.key)}
-              className={`shrink-0 rounded-[3px] px-2 py-1 text-[11.5px] font-medium transition-colors ${
-                filters.preset === p.key
-                  ? "bg-brand text-white"
-                  : "border border-border text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
-          {filters.preset === "custom" && (
-            <div className="flex shrink-0 items-center gap-1">
-              <input
-                type="date"
-                aria-label="From date"
-                className="h-[26px] rounded-[3px] border border-border bg-card px-1.5 text-[11.5px] text-foreground outline-none focus:border-brand"
-                value={filters.from}
-                onChange={(e) => set({ from: e.target.value })}
-              />
-              <span className="text-[11px] text-muted-foreground">→</span>
-              <input
-                type="date"
-                aria-label="To date"
-                className="h-[26px] rounded-[3px] border border-border bg-card px-1.5 text-[11.5px] text-foreground outline-none focus:border-brand"
-                value={filters.to}
-                onChange={(e) => set({ to: e.target.value })}
-              />
-            </div>
+          {DATE_PRESETS.map((p) =>
+            p.key === "custom" ? (
+              <Popover key={p.key} open={customOpen} onOpenChange={setCustomOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    onClick={openCustom}
+                    className={`shrink-0 rounded-[3px] px-2 py-1 text-[11.5px] font-medium transition-colors ${
+                      filters.preset === "custom"
+                        ? "bg-brand text-white"
+                        : "border border-border text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {filters.preset === "custom" ? `${filters.from} → ${filters.to}` : p.label}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-auto rounded-md p-3">
+                  <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Custom range
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="date"
+                      aria-label="From date"
+                      className="h-8 rounded-[3px] border border-border bg-card px-2 text-[12px] text-foreground outline-none focus:border-brand"
+                      value={draftRange.from}
+                      onChange={(e) => setDraftRange((d) => ({ ...d, from: e.target.value }))}
+                    />
+                    <span className="text-[11px] text-muted-foreground">→</span>
+                    <input
+                      type="date"
+                      aria-label="To date"
+                      className="h-8 rounded-[3px] border border-border bg-card px-2 text-[12px] text-foreground outline-none focus:border-brand"
+                      value={draftRange.to}
+                      onChange={(e) => setDraftRange((d) => ({ ...d, to: e.target.value }))}
+                    />
+                  </div>
+                  <Button
+                    size="sm"
+                    className="mt-2.5 h-7 w-full rounded-sm text-[12px]"
+                    disabled={!draftRange.from || !draftRange.to}
+                    onClick={applyCustom}
+                  >
+                    Apply range
+                  </Button>
+                </PopoverContent>
+              </Popover>
+            ) : (
+              <button
+                key={p.key}
+                onClick={() => setPreset(p.key)}
+                className={`shrink-0 rounded-[3px] px-2 py-1 text-[11.5px] font-medium transition-colors ${
+                  filters.preset === p.key
+                    ? "bg-brand text-white"
+                    : "border border-border text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {p.label}
+              </button>
+            ),
           )}
         </div>
 
