@@ -21,10 +21,7 @@ export const DATE_PRESETS: { key: DatePreset; label: string }[] = [
   { key: "yesterday", label: "Yesterday" },
   { key: "last7", label: "Last 7 days" },
   { key: "last30", label: "Last 30 days" },
-  { key: "week", label: "This week" },
   { key: "month", label: "This month" },
-  { key: "last_month", label: "Last month" },
-  { key: "year", label: "This year" },
   { key: "all", label: "All time" },
   { key: "custom", label: "Custom range" },
 ];

@@ -89,6 +89,25 @@ export function ReportFilterBar({
               {p.label}
             </button>
           ))}
+          {filters.preset === "custom" && (
+            <div className="flex shrink-0 items-center gap-1">
+              <input
+                type="date"
+                aria-label="From date"
+                className="h-[26px] rounded-[3px] border border-border bg-card px-1.5 text-[11.5px] text-foreground outline-none focus:border-brand"
+                value={filters.from}
+                onChange={(e) => set({ from: e.target.value })}
+              />
+              <span className="text-[11px] text-muted-foreground">→</span>
+              <input
+                type="date"
+                aria-label="To date"
+                className="h-[26px] rounded-[3px] border border-border bg-card px-1.5 text-[11.5px] text-foreground outline-none focus:border-brand"
+                value={filters.to}
+                onChange={(e) => set({ to: e.target.value })}
+              />
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2 sm:ml-auto">
@@ -130,21 +149,6 @@ export function ReportFilterBar({
       {/* Row 2 — advanced facets */}
       {open && (
         <div className="grid grid-cols-1 gap-2.5 border-b border-border p-2.5 sm:grid-cols-2 lg:grid-cols-4">
-          {filters.preset === "custom" && (
-            <>
-              <label className="space-y-1">
-                <span className="text-[11px] text-muted-foreground">From</span>
-                <input type="date" className={selectCls} value={filters.from}
-                  onChange={(e) => set({ from: e.target.value })} />
-              </label>
-              <label className="space-y-1">
-                <span className="text-[11px] text-muted-foreground">To</span>
-                <input type="date" className={selectCls} value={filters.to}
-                  onChange={(e) => set({ to: e.target.value })} />
-              </label>
-            </>
-          )}
-
           {kind === "finance" && (
             <label className="space-y-1">
               <span className="text-[11px] text-muted-foreground">Transaction type</span>
