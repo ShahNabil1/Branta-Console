@@ -111,15 +111,37 @@ function ExpensesPage() {
     if (!highlight || !q.data?.length) return;
     const row = q.data.find((r) => r.id === highlight);
     if (!row) return;
+    // If the active filters (date preset, currency, chips, search…) would hide
+    // the matched voucher, reset to an "All time" view in its own currency so
+    // the row is guaranteed to be rendered before we try to scroll to it.
+    setFilters((f) => {
+      const hiddenByCurrency = row.currency !== f.currency;
+      const hiddenByDate = f.preset !== "all" && (row.spent_on < f.from || row.spent_on > f.to);
+      const hiddenByChips =
+        f.categories.length > 0 || !!f.invoiceId || !!f.paymentMethod || !!f.department ||
+        !!f.vendor || !!f.createdBy || !!f.status || f.minAmount != null || f.maxAmount != null ||
+        !!f.search.trim();
+      if (!hiddenByCurrency && !hiddenByDate && !hiddenByChips) return f;
+      return { ...defaultFilters("expense"), preset: "all", currency: row.currency };
+    });
     setHighlightId(highlight);
-    const t = setTimeout(() => {
-      document
-        .getElementById(`exp-${highlight}`)
-        ?.scrollIntoView({ behavior: "smooth", block: "center" });
-    }, 150);
+    // Both the desktop table and the mobile cards carry the row — poll for the
+    // one that is actually visible (offsetParent skips display:none copies),
+    // then smooth-scroll it into the middle of the screen.
+    let tries = 0;
+    const t = setInterval(() => {
+      const els = document.querySelectorAll<HTMLElement>(`[data-exp-id="${highlight}"]`);
+      const el = Array.from(els).find((e) => e.offsetParent !== null) ?? null;
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        clearInterval(t);
+      } else if (++tries > 25) {
+        clearInterval(t);
+      }
+    }, 120);
     const off = setTimeout(() => setHighlightId(null), 6000);
     return () => {
-      clearTimeout(t);
+      clearInterval(t);
       clearTimeout(off);
     };
   }, [highlight, q.data]);
@@ -508,7 +530,7 @@ function ExpensesPage() {
                 {(q.data ?? []).length === 0 ? "No expenses yet." : "No expenses match the selected filters."}
               </td></tr>
             ) : visible.map((r) => (
-              <tr key={r.id} id={`exp-${r.id}`}
+              <tr key={r.id} id={`exp-${r.id}`} data-exp-id={r.id}
                 className={`border-t border-border align-top transition-colors duration-500 [&>td]:whitespace-nowrap ${
                   highlightId === r.id ? "bg-brand/10 shadow-[inset_0_0_0_2px_var(--color-brand)]" : ""
                 }`}>
@@ -651,7 +673,8 @@ function ExpensesPage() {
         ) : visible.map((r) => (
           <div
             key={`m-${r.id}`}
-            id={`exp-${r.id}`}
+            id={`exp-m-${r.id}`}
+            data-exp-id={r.id}
             className={`transition-all duration-500 ${
               highlightId === r.id ? "bg-brand/10 shadow-[inset_0_0_0_2px_var(--color-brand)]" : ""
             }`}
