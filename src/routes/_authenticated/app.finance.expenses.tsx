@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
@@ -29,8 +29,11 @@ import { ExpenseItemsEditor, sumItems, type ExpenseItem } from "@/components/fin
 import { ExpenseReceiptsEditor, type ReceiptDraft } from "@/components/finance/expense-receipts-editor";
 
 import { ExportMenu } from "@/components/finance/export-menu";
+import { ReasonDialog } from "@/components/finance/reason-dialog";
+import { ExpenseLogsDialog } from "@/components/finance/expense-logs-dialog";
+import { logExpenseAction } from "@/lib/expense-logs.functions";
 import { defaultFilters, type ReportFilters } from "@/lib/report-filters";
-import { Loader2, Plus, Trash2, Receipt, Eye, Download, X, FileText, Printer, Stamp, Pencil, Link2 } from "lucide-react";
+import { Loader2, Plus, Trash2, Receipt, Eye, Download, X, FileText, Printer, Stamp, Pencil, Link2, History } from "lucide-react";
 
 const DEPARTMENTS = ["Management", "Finance", "Sales & Outreach", "Marketing", "Production", "Development", "HR & Admin", "Operations", "Other"];
 const PAYMENT_METHODS = ["Cash", "bKash", "Nagad", "Rocket", "Bank Transfer", "Card", "Cheque", "Other"];
@@ -205,6 +208,32 @@ function ExpensesPage() {
   const [viewer, setViewer] = useState<{ url: string; name: string } | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [pdfViewer, setPdfViewer] = useState<{ url: string; name: string } | null>(null);
+  // Audit trail: mandatory reason before edit/delete, per-voucher activity log,
+  // and silent logging of every view / download / print.
+  const logAction = useServerFn(logExpenseAction);
+  const track = (expenseId: string, action: "voucher_viewed" | "voucher_downloaded" | "voucher_printed" | "receipt_viewed" | "receipt_downloaded", detail?: string) => {
+    void logAction({ data: { expenseId, action, detail: detail ?? null } }).catch(() => {});
+  };
+  const [editReason, setEditReason] = useState<string | null>(null);
+  const [askEditFor, setAskEditFor] = useState<ExpenseRow | null>(null);
+  const [askDeleteFor, setAskDeleteFor] = useState<ExpenseRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [logsFor, setLogsFor] = useState<{ id: string; voucher: string | null } | null>(null);
+
+  const confirmDelete = async (reason: string) => {
+    if (!askDeleteFor) return;
+    try {
+      setDeleting(true);
+      await del({ data: { id: askDeleteFor.id, reason } });
+      toast.success("Moved to Recycle Bin — recoverable for 30 days");
+      setAskDeleteFor(null);
+      void q.refetch();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const startCreate = () => {
     setEditingId(null);
@@ -213,7 +242,8 @@ function ExpensesPage() {
     setReceipts([]);
     setOpen(true);
   };
-  const startEdit = (r: ExpenseRow) => {
+  const startEdit = (r: ExpenseRow, reason: string) => {
+    setEditReason(reason);
     setEditingId(r.id);
     setForm({
       category: r.category,
@@ -252,6 +282,7 @@ function ExpensesPage() {
     try {
       setBusyId(id + "view");
       const { url } = await voucherUrlFn({ data: { id, mode: "digital" } });
+      track(id, "voucher_viewed");
       setPdfViewer({ url, name: `Voucher-${voucherNo ?? id}.pdf` });
     } catch (e) { toast.error((e as Error).message); }
     finally { setBusyId(null); }
@@ -261,6 +292,7 @@ function ExpensesPage() {
   const downloadVoucher = async (id: string, voucherNo: string | null, signedPath?: string | null) => {
     try {
       setBusyId(id + "dl");
+      track(id, "voucher_downloaded", signedPath ? "sealed copy" : "generated PDF");
       if (signedPath) {
         const name = `Voucher-${voucherNo ?? id}-sealed.${signedPath.split(".").pop() ?? "pdf"}`;
         const su = await signedDownloadUrl(signedPath, name);
@@ -286,6 +318,7 @@ function ExpensesPage() {
   const openVoucher = async (id: string, mode: "digital" | "print") => {
     try {
       setBusyId(id + mode);
+      track(id, mode === "print" ? "voucher_printed" : "voucher_viewed");
       const { url } = await voucherUrlFn({ data: { id, mode } });
       window.open(url, "_blank", "noopener,noreferrer");
     } catch (e) { toast.error((e as Error).message); }
@@ -316,9 +349,10 @@ function ExpensesPage() {
     finally { setBusyId(null); }
   };
 
-  const openReceipt = async (path: string) => {
+  const openReceipt = async (path: string, expenseId?: string) => {
     try {
       const name = path.split("/").pop() ?? "receipt";
+      if (expenseId) track(expenseId, "receipt_viewed", name);
       if (isImagePath(path)) {
         setViewer({ url: await signedUrl(path), name });
       } else {
@@ -326,9 +360,10 @@ function ExpensesPage() {
       }
     } catch (e) { toast.error((e as Error).message); }
   };
-  const downloadReceipt = async (path: string) => {
+  const downloadReceipt = async (path: string, expenseId?: string) => {
     try {
       const name = path.split("/").pop() ?? "receipt";
+      if (expenseId) track(expenseId, "receipt_downloaded", name);
       const url = await signedDownloadUrl(path, name);
       const a = document.createElement("a");
       a.href = url; a.download = name; a.rel = "noopener"; document.body.appendChild(a); a.click(); a.remove();
@@ -397,7 +432,7 @@ function ExpensesPage() {
         receipt_url: attachments[0]?.path ?? null,
       };
       if (editingId) {
-        await update({ data: { id: editingId, ...payload } });
+        await update({ data: { id: editingId, ...payload, edit_reason: editReason ?? "" } });
       } else {
         await create({ data: payload });
       }
@@ -406,6 +441,7 @@ function ExpensesPage() {
       toast.success(editingId ? "Expense updated" : "Expense added");
       setOpen(false);
       setEditingId(null);
+      setEditReason(null);
       setReceipts([]);
       setItems([]);
       setForm(emptyForm);
@@ -433,6 +469,11 @@ function ExpensesPage() {
           <p className="text-[12px] text-muted-foreground sm:text-[12.5px]">Track company outflow — reflected in the dashboard.</p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          <Button asChild variant="ghost" className="h-9 rounded-sm text-[12.5px]">
+            <Link to="/app/finance/recycle-bin">
+              <Trash2 className="mr-1.5 size-3.5" /> <span className="hidden sm:inline">Recycle Bin</span>
+            </Link>
+          </Button>
           <ExportMenu filters={filters} kind="expense" />
           <Button onClick={startCreate} className="h-9 rounded-sm bg-primary hover:bg-brand-700">
             <Plus className="mr-1.5 size-3.5" /> <span className="hidden sm:inline">Add expense</span><span className="sm:hidden">Add</span>
@@ -521,7 +562,7 @@ function ExpensesPage() {
                     <div className="flex flex-wrap items-center gap-1">
                       {(r.attachments ?? []).map((a, i) => (
                         <Button key={a.id} size="sm" variant="ghost" className="h-7 rounded-sm px-2 text-[11.5px]"
-                          onClick={() => openReceipt(a.path)}
+                          onClick={() => openReceipt(a.path, r.id)}
                           title={a.caption || `Receipt ${i + 1}`}>
                           {isPdfPath(a.path) ? <FileText className="size-3.5" /> : <Eye className="size-3.5" />}
                           <span className="ml-1">{i + 1}</span>
@@ -531,13 +572,13 @@ function ExpensesPage() {
                   ) : r.receipt_url ? (
                     <div className="flex items-center gap-1">
                       <Button size="sm" variant="ghost" className="h-7 rounded-sm px-2 text-[11.5px]"
-                        onClick={() => openReceipt(r.receipt_url as string)}
+                        onClick={() => openReceipt(r.receipt_url as string, r.id)}
                         title={isPdfPath(r.receipt_url) ? "Open PDF" : "View image"}>
                         {isPdfPath(r.receipt_url) ? <FileText className="size-3.5" /> : <Eye className="size-3.5" />}
                         <span className="ml-1">View</span>
                       </Button>
                       <Button size="sm" variant="ghost" className="h-7 rounded-sm px-2 text-[11.5px]"
-                        onClick={() => downloadReceipt(r.receipt_url as string)} title="Download">
+                        onClick={() => downloadReceipt(r.receipt_url as string, r.id)} title="Download">
                         <Download className="size-3.5" />
                       </Button>
                     </div>
@@ -550,11 +591,11 @@ function ExpensesPage() {
                     <div className="flex items-center gap-1">
                       <span className="rounded-sm bg-emerald-50 px-1.5 py-0.5 text-[10.5px] font-semibold uppercase text-emerald-700">Signed</span>
                       <Button size="sm" variant="ghost" className="h-7 rounded-sm px-2"
-                        onClick={() => openReceipt(r.signed_voucher_url as string)} title="View sealed copy">
+                        onClick={() => openReceipt(r.signed_voucher_url as string, r.id)} title="View sealed copy">
                         {isPdfPath(r.signed_voucher_url) ? <FileText className="size-3.5" /> : <Eye className="size-3.5" />}
                       </Button>
                       <Button size="sm" variant="ghost" className="h-7 rounded-sm px-2"
-                        onClick={() => downloadReceipt(r.signed_voucher_url as string)} title="Download">
+                        onClick={() => downloadReceipt(r.signed_voucher_url as string, r.id)} title="Download">
                         <Download className="size-3.5" />
                       </Button>
                       <Button size="sm" variant="ghost" className="h-7 rounded-sm px-2 text-rose-600 hover:bg-rose-50"
@@ -582,17 +623,16 @@ function ExpensesPage() {
                     title={r.share_enabled ? "Public link on — click to copy / turn off" : "Create public share link"}>
                     {busyId === r.id + "share" ? <Loader2 className="size-3.5 animate-spin" /> : <Link2 className="size-3.5" />}
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => startEdit(r)}
+                  <Button size="sm" variant="ghost" onClick={() => setLogsFor({ id: r.id, voucher: r.voucher_no })}
+                    className="h-7 rounded-sm" title="Activity log — who did what, when">
+                    <History className="size-3.5" />
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setAskEditFor(r)}
                     className="h-7 rounded-sm" title="Edit expense">
                     <Pencil className="size-3.5" />
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={async () => {
-                    const ok = await confirm({ title: "Delete expense", description: "This cannot be undone.", tone: "danger" });
-                    if (!ok) return;
-                    await del({ data: { id: r.id } });
-                    toast.success("Deleted");
-                    void q.refetch();
-                  }} className="h-7 rounded-sm text-rose-600 hover:bg-rose-50">
+                  <Button size="sm" variant="ghost" onClick={() => setAskDeleteFor(r)}
+                    className="h-7 rounded-sm text-rose-600 hover:bg-rose-50" title="Move to Recycle Bin">
                     <Trash2 className="size-3.5" />
                   </Button>
                 </td>
@@ -654,11 +694,11 @@ function ExpensesPage() {
                 {r.receipt_url && (
                   <>
                     <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]"
-                      onClick={() => openReceipt(r.receipt_url as string)}>
+                      onClick={() => openReceipt(r.receipt_url as string, r.id)}>
                       <FileText className="mr-2 size-3.5" /> View receipt
                     </Button>
                     <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]"
-                      onClick={() => downloadReceipt(r.receipt_url as string)}>
+                      onClick={() => downloadReceipt(r.receipt_url as string, r.id)}>
                       <Download className="mr-2 size-3.5" /> Download receipt
                     </Button>
                   </>
@@ -666,7 +706,7 @@ function ExpensesPage() {
                 {r.signed_voucher_url ? (
                   <>
                     <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]"
-                      onClick={() => openReceipt(r.signed_voucher_url as string)}>
+                      onClick={() => openReceipt(r.signed_voucher_url as string, r.id)}>
                       <Stamp className="mr-2 size-3.5" /> View sealed copy
                     </Button>
                     <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px] text-rose-600"
@@ -685,18 +725,16 @@ function ExpensesPage() {
                       }} />
                   </label>
                 )}
-                <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]" onClick={() => startEdit(r)}>
+                <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]"
+                  onClick={() => setLogsFor({ id: r.id, voucher: r.voucher_no })}>
+                  <History className="mr-2 size-3.5" /> Activity log
+                </Button>
+                <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]" onClick={() => setAskEditFor(r)}>
                   <Pencil className="mr-2 size-3.5" /> Edit expense
                 </Button>
                 <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px] text-rose-600"
-                  onClick={async () => {
-                    const ok = await confirm({ title: "Delete expense", description: "This cannot be undone.", tone: "danger" });
-                    if (!ok) return;
-                    await del({ data: { id: r.id } });
-                    toast.success("Deleted");
-                    void q.refetch();
-                  }}>
-                  <Trash2 className="mr-2 size-3.5" /> Delete
+                  onClick={() => setAskDeleteFor(r)}>
+                  <Trash2 className="mr-2 size-3.5" /> Delete (Recycle Bin)
                 </Button>
               </RowActionsMenu>
             }
@@ -859,6 +897,41 @@ function ExpensesPage() {
             </div>
           </div>
         </div>
+      )}
+
+      <ReasonDialog
+        open={!!askEditFor}
+        tone="default"
+        title="Why are you editing this expense?"
+        description={askEditFor ? `Voucher ${askEditFor.voucher_no ?? "—"} · the old and new values are stored in the activity log.` : undefined}
+        placeholder="e.g. Vendor invoice corrected — amount was mistyped."
+        confirmLabel="Continue to edit"
+        onCancel={() => setAskEditFor(null)}
+        onConfirm={(reason) => {
+          const target = askEditFor;
+          setAskEditFor(null);
+          if (target) startEdit(target, reason);
+        }}
+      />
+
+      <ReasonDialog
+        open={!!askDeleteFor}
+        tone="danger"
+        busy={deleting}
+        title="Move this expense to the Recycle Bin?"
+        description={askDeleteFor ? `Voucher ${askDeleteFor.voucher_no ?? "—"} will leave the Expenses list and can be recovered for 30 days, after which it deletes itself permanently.` : undefined}
+        placeholder="e.g. Duplicate entry — same bill recorded twice."
+        confirmLabel="Delete"
+        onCancel={() => setAskDeleteFor(null)}
+        onConfirm={(reason) => void confirmDelete(reason)}
+      />
+
+      {logsFor && (
+        <ExpenseLogsDialog
+          expenseId={logsFor.id}
+          voucherNo={logsFor.voucher}
+          onClose={() => setLogsFor(null)}
+        />
       )}
 
       {viewer && (

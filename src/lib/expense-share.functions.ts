@@ -40,6 +40,7 @@ export const getPublicExpense = createServerFn({ method: "GET" })
       .from("expenses")
       .select("*")
       .eq("voucher_no", data.voucher)
+      .is("deleted_at", null)
       .maybeSingle();
     const e = exp as Record<string, unknown> | null;
     if (!e || e["share_enabled"] !== true || e["share_token"] !== data.token) return null;

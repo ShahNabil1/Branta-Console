@@ -42,7 +42,7 @@ export function verifyExpenseVoucherSig(voucherNo: string, exp: number, sig: str
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function loadExpenseVoucherPayload(adminClient: any, voucherNo: string) {
   const { data: exp, error } = await adminClient
-    .from("expenses").select("*").eq("voucher_no", voucherNo).maybeSingle();
+    .from("expenses").select("*").eq("voucher_no", voucherNo).is("deleted_at", null).maybeSingle();
   if (error) throw new Error(error.message);
   if (!exp) return null;
   const uids = [exp.created_by, exp.paid_by, exp.requested_by].filter(Boolean) as string[];

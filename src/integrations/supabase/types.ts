@@ -163,6 +163,53 @@ export type Database = {
         }
         Relationships: []
       }
+      expense_activity_logs: {
+        Row: {
+          action: string
+          actor_id: string | null
+          changes: Json
+          created_at: string
+          expense_id: string | null
+          id: string
+          metadata: Json
+          reason: string | null
+          title: string
+          voucher_no: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          changes?: Json
+          created_at?: string
+          expense_id?: string | null
+          id?: string
+          metadata?: Json
+          reason?: string | null
+          title: string
+          voucher_no?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          changes?: Json
+          created_at?: string
+          expense_id?: string | null
+          id?: string
+          metadata?: Json
+          reason?: string | null
+          title?: string
+          voucher_no?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expense_activity_logs_expense_id_fkey"
+            columns: ["expense_id"]
+            isOneToOne: false
+            referencedRelation: "expenses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       expense_attachments: {
         Row: {
           caption: string | null
@@ -270,13 +317,18 @@ export type Database = {
           created_at: string
           created_by: string | null
           currency: string
+          delete_reason: string | null
+          deleted_at: string | null
+          deleted_by: string | null
           department: string | null
           id: string
           is_project_cost: boolean
+          last_edit_reason: string | null
           linked_invoice_id: string | null
           notes: string | null
           paid_by: string | null
           payment_method: string | null
+          purge_after: string | null
           receipt_url: string | null
           request_purpose: string | null
           requested_by: string | null
@@ -297,13 +349,18 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           currency?: string
+          delete_reason?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           department?: string | null
           id?: string
           is_project_cost?: boolean
+          last_edit_reason?: string | null
           linked_invoice_id?: string | null
           notes?: string | null
           paid_by?: string | null
           payment_method?: string | null
+          purge_after?: string | null
           receipt_url?: string | null
           request_purpose?: string | null
           requested_by?: string | null
@@ -324,13 +381,18 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           currency?: string
+          delete_reason?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           department?: string | null
           id?: string
           is_project_cost?: boolean
+          last_edit_reason?: string | null
           linked_invoice_id?: string | null
           notes?: string | null
           paid_by?: string | null
           payment_method?: string | null
+          purge_after?: string | null
           receipt_url?: string | null
           request_purpose?: string | null
           requested_by?: string | null
@@ -2677,6 +2739,7 @@ export type Database = {
       is_finance_admin: { Args: { _user_id?: string }; Returns: boolean }
       is_lead_owner: { Args: { _lead_id: string }; Returns: boolean }
       is_super_admin: { Args: { _user_id?: string }; Returns: boolean }
+      purge_expired_expenses: { Args: never; Returns: number }
       validate_branta_email: { Args: { _email: string }; Returns: boolean }
     }
     Enums: {
