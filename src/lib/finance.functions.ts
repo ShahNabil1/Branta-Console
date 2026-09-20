@@ -3,6 +3,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { writeExpenseLog, type ExpenseChange } from "@/lib/expense-logs.functions";
 
 // ==================== Types ====================
 export type InvoiceStatus =
@@ -1326,6 +1327,12 @@ export const decideWithdrawal = createServerFn({ method: "POST" })
  */
 const AUTO_COST_NAME = "Tagged expenses (auto)";
 
+/** Re-exported for the Recycle Bin restore flow. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function syncInvoiceExpenseCostsFor(supabase: any, invoiceId: string | null | undefined) {
+  return syncInvoiceExpenseCosts(supabase, invoiceId);
+}
+
 async function syncInvoiceExpenseCosts(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
@@ -1336,7 +1343,8 @@ async function syncInvoiceExpenseCosts(
     .from("expenses")
     .select("amount")
     .eq("linked_invoice_id", invoiceId)
-    .eq("is_project_cost", true);
+    .eq("is_project_cost", true)
+    .is("deleted_at", null);
   const sum = (tagged ?? []).reduce(
     (a: number, r: { amount: number }) => a + Number(r.amount || 0),
     0,
@@ -1404,6 +1412,7 @@ export const listExpenses = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("expenses")
       .select("*")
+      .is("deleted_at", null)
       .order("spent_on", { ascending: false })
       .limit(1000);
     if (error) throw new Error(error.message);
@@ -1737,6 +1746,7 @@ export const getFinanceReport = createServerFn({ method: "GET" })
       context.supabase
         .from("expenses")
         .select("amount, category, spent_on, currency")
+        .is("deleted_at", null)
         .gte("spent_on", data.from)
         .lte("spent_on", data.to)
         .eq("currency", data.currency),
@@ -1884,7 +1894,7 @@ export const getCompanyWallet = createServerFn({ method: "GET" })
       context.supabase.from("invoices").select("id, currency, total_amount, paid_amount, status").not("status", "in", "(void,paid)"),
       context.supabase.from("invoice_installments").select("invoice_id, amount, paid_amount, status, due_date"),
       context.supabase.from("company_ledger").select("currency, amount"),
-      context.supabase.from("expenses").select("currency, amount"),
+      context.supabase.from("expenses").select("currency, amount").is("deleted_at", null),
       context.supabase.from("invoice_payouts").select("currency, amount, status, role"),
     ]);
     const invRows = (invs ?? []) as { id: string; currency: Currency; total_amount: number; paid_amount: number; status: InvoiceStatus }[];
