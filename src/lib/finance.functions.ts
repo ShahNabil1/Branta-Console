@@ -1564,6 +1564,19 @@ export const createExpense = createServerFn({ method: "POST" })
         { event: "expense_created", expense_id: expense.id, category: expense.category, vendor: expense.vendor ?? null, related_table: "expenses", related_id: expense.id },
       );
     }
+    await writeExpenseLog(context.supabase, {
+      expenseId: expense.id,
+      voucherNo: expense.voucher_no,
+      actorId: context.userId,
+      action: "created",
+      metadata: {
+        amount: `${expense.currency} ${Number(expense.amount).toLocaleString()}`,
+        category: expense.category,
+        vendor: expense.vendor ?? null,
+        items: (items ?? []).length,
+        receipts: (attachments ?? []).length,
+      },
+    });
     try {
       const { notify } = await import("@/lib/notify.server");
       await notify({
@@ -1582,28 +1595,95 @@ export const createExpense = createServerFn({ method: "POST" })
     return expense;
   });
 
+const TRACKED_FIELDS: { key: string; label: string }[] = [
+  { key: "category", label: "Category" },
+  { key: "amount", label: "Amount" },
+  { key: "currency", label: "Currency" },
+  { key: "spent_on", label: "Date" },
+  { key: "vendor", label: "Vendor" },
+  { key: "department", label: "Department" },
+  { key: "payment_method", label: "Payment method" },
+  { key: "txn_id", label: "Transaction ID" },
+  { key: "requested_by", label: "Requested by" },
+  { key: "paid_by", label: "Paid by" },
+  { key: "linked_invoice_id", label: "Linked invoice" },
+  { key: "is_project_cost", label: "Counted as project cost" },
+  { key: "request_purpose", label: "Purpose of request" },
+  { key: "notes", label: "Notes" },
+];
+
+function asText(v: unknown): string | null {
+  if (v === null || v === undefined || v === "") return null;
+  if (typeof v === "boolean") return v ? "Yes" : "No";
+  return String(v);
+}
+
+function diffExpense(
+  before: Record<string, unknown>,
+  after: Record<string, unknown>,
+): ExpenseChange[] {
+  const out: ExpenseChange[] = [];
+  for (const f of TRACKED_FIELDS) {
+    const b = asText(before[f.key]);
+    const a = asText(after[f.key]);
+    if (b !== a) out.push({ field: f.label, before: b, after: a });
+  }
+  return out;
+}
+
 export const updateExpense = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => ExpenseIn.extend({ id: z.string().uuid() }).parse(d))
+  .inputValidator((d: unknown) =>
+    ExpenseIn.extend({
+      id: z.string().uuid(),
+      edit_reason: z.string().trim().min(5, "Please write why this expense is being edited").max(1000),
+    }).parse(d),
+  )
   .handler(async ({ data, context }) => {
     await ensureFinanceAdmin(context.supabase as never, context.userId);
-    const { id, items, attachments, ...patch } = data;
+    const { id, items, attachments, edit_reason, ...patch } = data;
     const { data: before } = await context.supabase
-      .from("expenses").select("linked_invoice_id").eq("id", id).maybeSingle();
+      .from("expenses").select("*").eq("id", id).maybeSingle();
+    const beforeRow = (before ?? {}) as Record<string, unknown>;
+    const beforeCounts = await Promise.all([
+      context.supabase.from("expense_items").select("id", { count: "exact", head: true }).eq("expense_id", id),
+      context.supabase.from("expense_attachments").select("id", { count: "exact", head: true }).eq("expense_id", id).eq("kind", "receipt"),
+    ]);
     const { data: row, error } = await context.supabase
       .from("expenses")
-      .update(patch as never)
+      .update({ ...patch, last_edit_reason: edit_reason } as never)
       .eq("id", id)
       .select("*")
       .single();
     if (error) throw new Error(error.message);
     const expense = row as unknown as ExpenseRow;
     await writeExpenseChildren(context.supabase, expense.id, context.userId, items, attachments);
-    const priorInvoice = (before as { linked_invoice_id: string | null } | null)?.linked_invoice_id ?? null;
+    const priorInvoice = (beforeRow.linked_invoice_id as string | null) ?? null;
     await syncInvoiceExpenseCosts(context.supabase, expense.linked_invoice_id);
     if (priorInvoice && priorInvoice !== expense.linked_invoice_id) {
       await syncInvoiceExpenseCosts(context.supabase, priorInvoice);
     }
+    const changes = diffExpense(beforeRow, expense as unknown as Record<string, unknown>);
+    const oldItems = beforeCounts[0]?.count ?? 0;
+    const oldReceipts = beforeCounts[1]?.count ?? 0;
+    if (items && items.length !== oldItems) {
+      changes.push({ field: "Line items", before: String(oldItems), after: String(items.length) });
+    }
+    if (attachments && attachments.filter((a) => (a.kind ?? "receipt") === "receipt").length !== oldReceipts) {
+      changes.push({
+        field: "Receipts",
+        before: String(oldReceipts),
+        after: String(attachments.filter((a) => (a.kind ?? "receipt") === "receipt").length),
+      });
+    }
+    await writeExpenseLog(context.supabase, {
+      expenseId: expense.id,
+      voucherNo: expense.voucher_no,
+      actorId: context.userId,
+      action: "updated",
+      reason: edit_reason,
+      changes,
+    });
     if (expense.linked_invoice_id) {
       await logInvoiceActivity(
         context.supabase,
@@ -1611,7 +1691,7 @@ export const updateExpense = createServerFn({ method: "POST" })
         context.userId,
         "note",
         `Expense updated — ${expense.category} ${fmtMoney(expense.amount, expense.currency)}`,
-        { event: "expense_updated", expense_id: expense.id, related_table: "expenses", related_id: expense.id },
+        { event: "expense_updated", expense_id: expense.id, related_table: "expenses", related_id: expense.id, body_detail: edit_reason },
       );
     }
     return expense;
@@ -1636,6 +1716,12 @@ export const setExpenseShare = createServerFn({ method: "POST" })
       .update({ share_enabled: data.enabled, share_token: token } as never)
       .eq("id", data.id);
     if (error) throw new Error(error.message);
+    await writeExpenseLog(context.supabase, {
+      expenseId: data.id,
+      voucherNo: current?.voucher_no ?? null,
+      actorId: context.userId,
+      action: data.enabled ? "share_enabled" : "share_disabled",
+    });
     return {
       enabled: data.enabled,
       token,
@@ -1659,30 +1745,68 @@ export const getExpenseAttachmentUrl = createServerFn({ method: "POST" })
     return { url: signed.signedUrl };
   });
 
+/**
+ * Soft delete — the expense moves to the Recycle Bin for 30 days instead of
+ * disappearing. A reason is mandatory and stored with the record.
+ */
 export const deleteExpense = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { id: string }) => z.object({ id: z.string().uuid() }).parse(d))
+  .inputValidator((d: { id: string; reason: string }) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        reason: z.string().trim().min(5, "Please write why this expense is being deleted").max(1000),
+      })
+      .parse(d),
+  )
   .handler(async ({ data, context }) => {
     await ensureFinanceAdmin(context.supabase as never, context.userId);
     const { data: existing } = await context.supabase
       .from("expenses")
-      .select("id, category, amount, currency, linked_invoice_id, vendor")
+      .select("id, voucher_no, category, amount, currency, linked_invoice_id, vendor")
       .eq("id", data.id)
+      .is("deleted_at", null)
       .maybeSingle();
-    const { error } = await context.supabase.from("expenses").delete().eq("id", data.id);
+    const expense = existing as {
+      id: string; voucher_no: string | null; category: string; amount: number;
+      currency: string; linked_invoice_id: string | null; vendor: string | null;
+    } | null;
+    if (!expense) throw new Error("Expense not found (already deleted?)");
+    const now = new Date();
+    const purge = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const { error } = await context.supabase
+      .from("expenses")
+      .update({
+        deleted_at: now.toISOString(),
+        deleted_by: context.userId,
+        delete_reason: data.reason,
+        purge_after: purge.toISOString(),
+      } as never)
+      .eq("id", data.id);
     if (error) throw new Error(error.message);
-    const expense = existing as { id: string; category: string; amount: number; currency: string; linked_invoice_id: string | null; vendor: string | null } | null;
-    if (expense?.linked_invoice_id) {
+    await syncInvoiceExpenseCosts(context.supabase, expense.linked_invoice_id);
+    await writeExpenseLog(context.supabase, {
+      expenseId: expense.id,
+      voucherNo: expense.voucher_no,
+      actorId: context.userId,
+      action: "deleted",
+      reason: data.reason,
+      metadata: {
+        amount: `${expense.currency} ${Number(expense.amount).toLocaleString()}`,
+        purge_after: purge.toISOString(),
+      },
+    });
+    if (expense.linked_invoice_id) {
       await logInvoiceActivity(
         context.supabase,
         expense.linked_invoice_id,
         context.userId,
         "note",
-        `Expense deleted — ${expense.category} ${fmtMoney(expense.amount, expense.currency)}`,
-        { event: "expense_deleted", expense_id: expense.id, category: expense.category, vendor: expense.vendor, related_table: "expenses", related_id: expense.id },
+        `Expense moved to Recycle Bin — ${expense.category} ${fmtMoney(expense.amount, expense.currency)}`,
+        { event: "expense_deleted", expense_id: expense.id, category: expense.category, vendor: expense.vendor, related_table: "expenses", related_id: expense.id, body_detail: data.reason },
       );
     }
-    return { ok: true as const };
+    return { ok: true as const, purge_after: purge.toISOString() };
   });
 
 // -------- Expense vouchers --------
@@ -1721,6 +1845,15 @@ export const setExpenseSignedVoucher = createServerFn({ method: "POST" })
       } as never)
       .eq("id", data.id);
     if (error) throw new Error(error.message);
+    const { data: vrow } = await context.supabase
+      .from("expenses").select("voucher_no").eq("id", data.id).maybeSingle();
+    await writeExpenseLog(context.supabase, {
+      expenseId: data.id,
+      voucherNo: (vrow as { voucher_no: string | null } | null)?.voucher_no ?? null,
+      actorId: context.userId,
+      action: data.path ? "sealed_uploaded" : "sealed_removed",
+      metadata: data.path ? { path: data.path } : {},
+    });
     return { ok: true as const };
   });
 
