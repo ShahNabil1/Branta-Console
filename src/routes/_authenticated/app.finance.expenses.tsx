@@ -110,6 +110,18 @@ function ExpensesPage() {
     keywords: [e.full_name, e.employee_code, e.job_role],
   }));
 
+  const invListFn = useServerFn(listInvoices);
+  const invoices = useQuery({
+    queryKey: ["finance-invoices-lite"], queryFn: () => invListFn(), staleTime: 60_000,
+    enabled: !!isAdmin.data?.isAdmin,
+  });
+  const invoiceItems: SearchableItem[] = (invoices.data ?? []).map((i) => ({
+    value: i.id,
+    label: `${i.slug ?? i.id.slice(0, 8)} — ${i.title}`,
+    hint: i.customer_name ?? undefined,
+    keywords: [i.slug, i.title, i.customer_name, i.customer_code],
+  }));
+
   const emptyForm = {
     category: "office" as ExpenseCategory,
     amount: "",
@@ -121,6 +133,9 @@ function ExpensesPage() {
     payment_method: "",
     department: "",
     requested_by: "",
+    paid_by: "",
+    linked_invoice_id: "",
+    is_project_cost: false,
     request_purpose: "",
   };
 
