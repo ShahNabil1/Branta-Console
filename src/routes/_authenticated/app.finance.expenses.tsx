@@ -403,27 +403,27 @@ function ExpensesPage() {
 
 
   return (
-    <div className="mx-auto max-w-7xl space-y-4 px-4 py-6 sm:px-6">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h1 className="text-[20px] font-semibold text-foreground">Expenses</h1>
-          <p className="text-[12.5px] text-muted-foreground">Track company outflow — reflected in the dashboard.</p>
+    <div className="mx-auto w-full min-w-0 max-w-7xl space-y-4 px-3 py-5 sm:px-6 sm:py-6 2xl:max-w-[1600px]">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 sm:flex sm:flex-wrap sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="truncate text-[18px] font-semibold text-foreground sm:text-[20px]">Expenses</h1>
+          <p className="text-[12px] text-muted-foreground sm:text-[12.5px]">Track company outflow — reflected in the dashboard.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           <ExportMenu filters={filters} kind="expense" />
           <Button onClick={startCreate} className="h-9 rounded-sm bg-primary hover:bg-brand-700">
-            <Plus className="mr-1.5 size-3.5" /> Add expense
+            <Plus className="mr-1.5 size-3.5" /> <span className="hidden sm:inline">Add expense</span><span className="sm:hidden">Add</span>
           </Button>
         </div>
       </div>
 
       <ReportFilterBar filters={filters} onChange={setFilters} kind="expense" />
 
-      <div className="hidden overflow-x-auto rounded-md border border-border bg-card lg:block">
-        <table className="w-full min-w-[1000px] text-[12.5px]">
+      <div className="hidden w-full max-w-full overflow-x-auto overscroll-x-contain rounded-md border border-border bg-card xl:block">
+        <table className="w-full min-w-[1240px] table-auto text-[12.5px]">
 
-          <thead className="border-b border-border bg-muted/30 text-left text-[10.5px] uppercase tracking-wider text-muted-foreground">
-            <tr>
+          <thead className="sticky top-0 z-10 border-b border-border bg-muted/60 text-left text-[10.5px] uppercase tracking-wider text-muted-foreground backdrop-blur">
+            <tr className="[&>th]:whitespace-nowrap">
               <th className="px-3 py-2">Date</th>
               <th className="px-3 py-2">Category</th>
               <th className="px-3 py-2">Department</th>
@@ -444,20 +444,30 @@ function ExpensesPage() {
                 {(q.data ?? []).length === 0 ? "No expenses yet." : "No expenses match the selected filters."}
               </td></tr>
             ) : visible.map((r) => (
-              <tr key={r.id} className="border-t border-border">
-                <td className="px-3 py-2 text-muted-foreground">{r.spent_on}</td>
+              <tr key={r.id} className="border-t border-border align-top [&>td]:whitespace-nowrap">
+                <td className="px-3 py-2 font-mono text-[11.5px] text-muted-foreground">{r.spent_on}</td>
                 <td className="px-3 py-2 capitalize">{r.category}</td>
-                <td className="px-3 py-2">{r.department ?? "—"}</td>
-                <td className="px-3 py-2">{r.requested_by_name ?? "—"}</td>
-                <td className="px-3 py-2">{r.vendor ?? "—"}</td>
                 <td className="px-3 py-2">
-                  <div className="leading-tight">
-                    <div>{r.payment_method ?? "—"}</div>
-                    {r.txn_id && <div className="font-mono text-[11px] text-muted-foreground">{r.txn_id}</div>}
+                  <span className="block max-w-[130px] truncate">{r.department ?? "—"}</span>
+                </td>
+                <td className="px-3 py-2">
+                  <span className="block max-w-[150px] truncate">{r.requested_by_name ?? "—"}</span>
+                </td>
+                <td className="px-3 py-2">
+                  <span className="block max-w-[160px] truncate" title={r.vendor ?? ""}>{r.vendor ?? "—"}</span>
+                </td>
+                <td className="px-3 py-2">
+                  <div className="max-w-[150px] leading-tight">
+                    <div className="truncate">{r.payment_method ?? "—"}</div>
+                    {r.txn_id && <div className="truncate font-mono text-[11px] text-muted-foreground">{r.txn_id}</div>}
                   </div>
                 </td>
                 <td className="px-3 py-2 text-right font-mono">{fmt(r.amount, r.currency)}</td>
-                <td className="px-3 py-2 text-muted-foreground truncate max-w-xs">{r.request_purpose || r.notes || ""}</td>
+                <td className="px-3 py-2 text-muted-foreground">
+                  <span className="block max-w-[220px] truncate" title={r.request_purpose || r.notes || ""}>
+                    {r.request_purpose || r.notes || "—"}
+                  </span>
+                </td>
                 <td className="px-3 py-2">
                   <div className="flex items-center gap-1">
                     <span className="font-mono text-[11.5px] text-muted-foreground">{r.voucher_no ?? "—"}</span>
@@ -567,7 +577,7 @@ function ExpensesPage() {
       </div>
 
       {/* Mobile / tablet cards */}
-      <div className="rounded-md border border-border bg-card lg:hidden">
+      <div className="w-full min-w-0 overflow-hidden rounded-md border border-border bg-card xl:hidden">
         {visible.length === 0 ? (
           <div className="px-3 py-10 text-center text-[12.5px] text-muted-foreground">
             {(q.data ?? []).length === 0 ? "No expenses yet." : "No expenses match the selected filters."}
