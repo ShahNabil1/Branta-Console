@@ -1313,6 +1313,85 @@ export const decideWithdrawal = createServerFn({ method: "POST" })
   });
 
 // ==================== Expenses ====================
+
+/**
+ * Keeps the invoice's project-cost total in sync with expenses that were
+ * tagged "count as project cost" for that invoice. A single auto-managed row
+ * mirrors the tagged expense total so stakeholder payouts scale off the net.
+ */
+const AUTO_COST_NAME = "Tagged expenses (auto)";
+
+async function syncInvoiceExpenseCosts(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  invoiceId: string | null | undefined,
+) {
+  if (!invoiceId) return;
+  const { data: tagged } = await supabase
+    .from("expenses")
+    .select("amount")
+    .eq("linked_invoice_id", invoiceId)
+    .eq("is_project_cost", true);
+  const sum = (tagged ?? []).reduce(
+    (a: number, r: { amount: number }) => a + Number(r.amount || 0),
+    0,
+  );
+  await supabase
+    .from("invoice_project_costs")
+    .delete()
+    .eq("invoice_id", invoiceId)
+    .eq("name", AUTO_COST_NAME);
+  if (sum > 0) {
+    await supabase.from("invoice_project_costs").insert({
+      invoice_id: invoiceId,
+      sequence: 900,
+      name: AUTO_COST_NAME,
+      amount: sum,
+      description: "Auto-synced from tagged expenses",
+    });
+  }
+  const { data: all } = await supabase
+    .from("invoice_project_costs")
+    .select("amount")
+    .eq("invoice_id", invoiceId);
+  const total = (all ?? []).reduce(
+    (a: number, r: { amount: number }) => a + Number(r.amount || 0),
+    0,
+  );
+  await supabase.from("invoices").update({ project_cost_total: total }).eq("id", invoiceId);
+  // Touch installments so the payout-sync trigger recomputes with the new net.
+  const { data: insts } = await supabase
+    .from("invoice_installments")
+    .select("id, amount")
+    .eq("invoice_id", invoiceId);
+  for (const i of (insts ?? []) as { id: string; amount: number }[]) {
+    await supabase.from("invoice_installments").update({ amount: i.amount }).eq("id", i.id);
+  }
+}
+
+export interface ExpenseItemRow {
+  id: string;
+  expense_id: string;
+  sequence: number;
+  name: string;
+  quantity: number;
+  unit: string | null;
+  unit_price: number;
+  amount: number;
+  note: string | null;
+}
+
+export interface ExpenseAttachmentRow {
+  id: string;
+  expense_id: string;
+  sequence: number;
+  path: string;
+  caption: string | null;
+  mime_type: string | null;
+  size_bytes: number | null;
+  kind: string;
+}
+
 export const listExpenses = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<ExpenseRow[]> => {
@@ -1339,8 +1418,40 @@ export const listExpenses = createServerFn({ method: "GET" })
         if (r.requested_by) r.requested_by_name = nm.get(r.requested_by) ?? null;
       });
     }
+    const ids = rows.map((r) => r.id);
+    if (ids.length) {
+      const [{ data: items }, { data: atts }] = await Promise.all([
+        context.supabase.from("expense_items").select("*").in("expense_id", ids).order("sequence"),
+        context.supabase.from("expense_attachments").select("*").in("expense_id", ids).order("sequence"),
+      ]);
+      const byId = new Map(rows.map((r) => [r.id, r]));
+      rows.forEach((r) => { r.items = []; r.attachments = []; });
+      ((items ?? []) as unknown as ExpenseItemRow[]).forEach((i) =>
+        byId.get(i.expense_id)?.items?.push(i),
+      );
+      ((atts ?? []) as unknown as ExpenseAttachmentRow[]).forEach((a) =>
+        byId.get(a.expense_id)?.attachments?.push(a),
+      );
+    }
     return rows;
   });
+
+const ExpenseItemIn = z.object({
+  name: z.string().min(1).max(200),
+  quantity: z.number().nonnegative().default(1),
+  unit: z.string().max(40).nullable().optional(),
+  unit_price: z.number().nonnegative().default(0),
+  amount: z.number().nonnegative().default(0),
+  note: z.string().max(500).nullable().optional(),
+});
+
+const ExpenseAttachmentIn = z.object({
+  path: z.string().min(1).max(600),
+  caption: z.string().max(300).nullable().optional(),
+  mime_type: z.string().max(120).nullable().optional(),
+  size_bytes: z.number().nonnegative().nullable().optional(),
+  kind: z.enum(["receipt", "signed"]).default("receipt"),
+});
 
 const ExpenseIn = z.object({
   category: z.enum(["salary", "tools", "ads", "office", "misc", "tax", "refund"]),
@@ -1352,25 +1463,83 @@ const ExpenseIn = z.object({
   receipt_url: z.string().max(600).nullable().optional(),
   notes: z.string().max(2000).nullable().optional(),
   linked_invoice_id: z.string().uuid().nullable().optional(),
+  is_project_cost: z.boolean().optional(),
   txn_id: z.string().max(120).nullable().optional(),
   payment_method: z.string().max(80).nullable().optional(),
   department: z.string().max(80).nullable().optional(),
   requested_by: z.string().uuid().nullable().optional(),
-  request_purpose: z.string().max(500).nullable().optional(),
+  request_purpose: z.string().max(2000).nullable().optional(),
+  items: z.array(ExpenseItemIn).max(50).optional(),
+  attachments: z.array(ExpenseAttachmentIn).max(20).optional(),
 });
 
+async function writeExpenseChildren(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  expenseId: string,
+  userId: string,
+  items: z.infer<typeof ExpenseItemIn>[] | undefined,
+  attachments: z.infer<typeof ExpenseAttachmentIn>[] | undefined,
+) {
+  if (items) {
+    await supabase.from("expense_items").delete().eq("expense_id", expenseId);
+    if (items.length) {
+      const { error } = await supabase.from("expense_items").insert(
+        items.map((i, idx) => ({
+          expense_id: expenseId,
+          sequence: idx + 1,
+          name: i.name,
+          quantity: i.quantity ?? 1,
+          unit: i.unit ?? null,
+          unit_price: i.unit_price ?? 0,
+          amount: i.amount ?? (i.quantity ?? 1) * (i.unit_price ?? 0),
+          note: i.note ?? null,
+        })),
+      );
+      if (error) throw new Error(error.message);
+    }
+  }
+  if (attachments) {
+    await supabase
+      .from("expense_attachments")
+      .delete()
+      .eq("expense_id", expenseId)
+      .eq("kind", "receipt");
+    const receipts = attachments.filter((a) => (a.kind ?? "receipt") === "receipt");
+    if (receipts.length) {
+      const { error } = await supabase.from("expense_attachments").insert(
+        receipts.map((a, idx) => ({
+          expense_id: expenseId,
+          sequence: idx + 1,
+          path: a.path,
+          caption: a.caption ?? null,
+          mime_type: a.mime_type ?? null,
+          size_bytes: a.size_bytes ?? null,
+          kind: "receipt",
+          created_by: userId,
+        })),
+      );
+      if (error) throw new Error(error.message);
+    }
+  }
+}
 
 export const createExpense = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => ExpenseIn.parse(d))
   .handler(async ({ data, context }) => {
     await ensureFinanceAdmin(context.supabase as never, context.userId);
+    const { items, attachments, ...base } = data;
     const { data: row, error } = await context.supabase
       .from("expenses")
-      .insert({ ...data, created_by: context.userId } as never)
+      .insert({ ...base, created_by: context.userId } as never)
       .select("*").single();
     if (error) throw new Error(error.message);
     const expense = row as unknown as ExpenseRow;
+    await writeExpenseChildren(context.supabase, expense.id, context.userId, items, attachments);
+    if (expense.is_project_cost) {
+      await syncInvoiceExpenseCosts(context.supabase, expense.linked_invoice_id);
+    }
     if (expense.linked_invoice_id) {
       await logInvoiceActivity(
         context.supabase,
@@ -1396,7 +1565,7 @@ export const createExpense = createServerFn({ method: "POST" })
     } catch (e) {
       console.error("[createExpense] notify failed:", e);
     }
-    return row as unknown as ExpenseRow;
+    return expense;
   });
 
 export const updateExpense = createServerFn({ method: "POST" })
@@ -1404,7 +1573,9 @@ export const updateExpense = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => ExpenseIn.extend({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     await ensureFinanceAdmin(context.supabase as never, context.userId);
-    const { id, ...patch } = data;
+    const { id, items, attachments, ...patch } = data;
+    const { data: before } = await context.supabase
+      .from("expenses").select("linked_invoice_id").eq("id", id).maybeSingle();
     const { data: row, error } = await context.supabase
       .from("expenses")
       .update(patch as never)
@@ -1413,6 +1584,12 @@ export const updateExpense = createServerFn({ method: "POST" })
       .single();
     if (error) throw new Error(error.message);
     const expense = row as unknown as ExpenseRow;
+    await writeExpenseChildren(context.supabase, expense.id, context.userId, items, attachments);
+    const priorInvoice = (before as { linked_invoice_id: string | null } | null)?.linked_invoice_id ?? null;
+    await syncInvoiceExpenseCosts(context.supabase, expense.linked_invoice_id);
+    if (priorInvoice && priorInvoice !== expense.linked_invoice_id) {
+      await syncInvoiceExpenseCosts(context.supabase, priorInvoice);
+    }
     if (expense.linked_invoice_id) {
       await logInvoiceActivity(
         context.supabase,
@@ -1424,6 +1601,48 @@ export const updateExpense = createServerFn({ method: "POST" })
       );
     }
     return expense;
+  });
+
+/** Turns the public share link for one expense on or off. */
+export const setExpenseShare = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string; enabled: boolean }) =>
+    z.object({ id: z.string().uuid(), enabled: z.boolean() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await ensureFinanceAdmin(context.supabase as never, context.userId);
+    const { data: row } = await context.supabase
+      .from("expenses").select("share_token, voucher_no").eq("id", data.id).maybeSingle();
+    const current = row as { share_token: string | null; voucher_no: string | null } | null;
+    const token =
+      current?.share_token ??
+      `${Math.random().toString(36).slice(2, 10)}${Math.random().toString(36).slice(2, 10)}`;
+    const { error } = await context.supabase
+      .from("expenses")
+      .update({ share_enabled: data.enabled, share_token: token } as never)
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return {
+      enabled: data.enabled,
+      token,
+      voucher_no: current?.voucher_no ?? null,
+    };
+  });
+
+/** Short-lived signed URL for one stored receipt/attachment. */
+export const getExpenseAttachmentUrl = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { path: string; download?: boolean }) =>
+    z.object({ path: z.string().min(1).max(600), download: z.boolean().optional() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await ensureFinanceAdmin(context.supabase as never, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: signed, error } = await supabaseAdmin.storage
+      .from("expense-receipts")
+      .createSignedUrl(data.path, 300, data.download ? { download: true } : undefined);
+    if (error || !signed) throw new Error(error?.message ?? "Could not sign URL");
+    return { url: signed.signedUrl };
   });
 
 export const deleteExpense = createServerFn({ method: "POST" })
