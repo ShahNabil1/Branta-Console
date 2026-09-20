@@ -73,6 +73,9 @@ async function uploadToBucket(file: File, prefix: string) {
 
 export const Route = createFileRoute("/_authenticated/app/finance/expenses")({
   head: () => ({ meta: [{ title: "Expenses · Finance · Branta" }] }),
+  validateSearch: (s: Record<string, unknown>) => ({
+    highlight: typeof s.highlight === "string" ? s.highlight : undefined,
+  }),
   component: ExpensesPage,
 });
 
@@ -92,6 +95,8 @@ function ExpensesPage() {
   const setSignedFn = useServerFn(setExpenseSignedVoucher);
   const shareFn = useServerFn(setExpenseShare);
   const confirm = useConfirm();
+  const { highlight } = Route.useSearch();
+  const [highlightId, setHighlightId] = useState<string | null>(null);
   const isAdmin = useQuery({ queryKey: ["is-finance-admin"], queryFn: () => check(), staleTime: 60_000 });
   const q = useQuery({
     queryKey: ["expenses"], queryFn: () => listFn(), staleTime: 15_000,
