@@ -1390,14 +1390,14 @@ function AvatarDialog({
   if (!url) return null;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md overflow-hidden p-0">
+      <DialogContent className="max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-md overflow-hidden p-0 sm:w-full">
         <DialogHeader className="border-b border-border px-4 py-2.5">
           <DialogTitle className="text-[13px] font-semibold">
             Avatar · {name}
           </DialogTitle>
         </DialogHeader>
         <div className="grid place-items-center bg-muted/40 p-4">
-          <img src={url} alt="" className="max-h-[70vh] w-auto rounded-sm object-contain" />
+          <img src={url} alt="" className="max-h-[65vh] max-w-full rounded-sm object-contain" />
         </div>
         <div className="flex items-center justify-end gap-2 border-t border-border p-3">
           <a
@@ -1501,14 +1501,15 @@ function Field({
       </div>
       <div className="mt-0.5 flex items-center gap-1.5">
         <span
+          title={empty ? undefined : value}
           className={cn(
-            "min-w-0 flex-1 truncate text-[13px]",
+            "min-w-0 flex-1 break-words text-[13px]",
             empty ? "italic text-muted-foreground/60" : "font-medium text-foreground",
           )}
         >
           {empty ? "—" : value}
         </span>
-        {copy && !empty && <CopyBtn value={value!} />}
+        {copy && value && <CopyBtn value={value} />}
       </div>
     </div>
   );
@@ -1522,7 +1523,7 @@ function DocLink({ label, url }: { label: string; url: string | null }) {
       target="_blank"
       rel="noreferrer noopener"
       download
-      className="inline-flex items-center gap-1.5 rounded-sm border border-border bg-card px-2.5 py-1.5 text-[12px] font-medium hover:bg-muted"
+      className="inline-flex min-w-0 items-center justify-center gap-1.5 rounded-sm border border-border bg-card px-2.5 py-2 text-[12px] font-semibold hover:bg-muted"
     >
       <Download className="size-3.5" strokeWidth={2} />
       {label}
@@ -1599,12 +1600,12 @@ function AssignLeadsPanel({
       ) : (
         <ul className="divide-y divide-border rounded-sm border border-border">
           {assigned.map((l) => (
-            <li key={l.id} className="flex items-center justify-between gap-3 px-3 py-2">
+            <li key={l.id} className="flex flex-col items-stretch gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
                 <Link
                   to="/app/leads/$slug"
                   params={{ slug: l.slug }}
-                  className="text-[13px] font-medium text-foreground hover:text-brand"
+                  className="block break-words text-[13px] font-semibold text-foreground hover:text-brand"
                 >
                   <span className="font-mono text-[11.5px] text-muted-foreground">{l.slug}</span>{" "}
                   {l.name}
@@ -1616,7 +1617,7 @@ function AssignLeadsPanel({
               <button
                 onClick={() => doUnassign(l.id)}
                 disabled={pending === l.id}
-                className="inline-flex h-7 items-center gap-1 rounded-sm border border-border bg-card px-2 text-[11.5px] hover:bg-muted disabled:opacity-60"
+                className="inline-flex h-8 w-full items-center justify-center gap-1 rounded-sm border border-border bg-card px-2 text-[11.5px] font-semibold hover:bg-muted disabled:opacity-60 sm:w-auto"
               >
                 {pending === l.id ? <Loader2 className="size-3 animate-spin" /> : <X className="size-3" />}
                 Unassign
@@ -1630,21 +1631,21 @@ function AssignLeadsPanel({
         <div className="mb-2 font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
           Assign more leads
         </div>
-        <div className="flex items-center gap-2">
-          <div className="flex h-9 flex-1 items-center gap-2 rounded-sm border border-border bg-card px-2.5">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-sm border border-border bg-card px-2.5 sm:h-9">
             <Search className="size-3.5 text-muted-foreground" />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && runSearch()}
               placeholder="Search by name, company or code…"
-              className="flex-1 bg-transparent text-[13px] outline-none"
+              className="min-w-0 flex-1 bg-transparent text-[13px] outline-none"
             />
           </div>
           <button
             onClick={runSearch}
             disabled={busy}
-            className="inline-flex h-9 items-center gap-1.5 rounded-sm border border-border bg-card px-3 text-[12.5px] font-medium hover:bg-muted disabled:opacity-60"
+            className="inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-sm border border-border bg-card px-3 text-[12.5px] font-semibold hover:bg-muted disabled:opacity-60 sm:h-9 sm:w-auto"
           >
             {busy ? <Loader2 className="size-3.5 animate-spin" /> : "Search"}
           </button>
@@ -1652,9 +1653,9 @@ function AssignLeadsPanel({
         {results.length > 0 && (
           <ul className="mt-2 max-h-56 divide-y divide-border overflow-y-auto rounded-sm border border-border">
             {results.map((r) => (
-              <li key={r.id} className="flex items-center justify-between gap-3 px-3 py-2">
+              <li key={r.id} className="flex flex-col items-stretch gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
-                  <div className="text-[13px] font-medium">
+                  <div className="break-words text-[13px] font-semibold">
                     <span className="font-mono text-[11.5px] text-muted-foreground">{r.slug}</span>{" "}
                     {r.name}
                   </div>
@@ -1665,7 +1666,7 @@ function AssignLeadsPanel({
                 <button
                   onClick={() => doAssign(r.id)}
                   disabled={pending === r.id || assignedIds.has(r.id)}
-                  className="inline-flex h-7 items-center gap-1 rounded-sm bg-brand px-2 text-[11.5px] font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
+                  className="inline-flex h-8 w-full items-center justify-center gap-1 rounded-sm bg-brand px-2 text-[11.5px] font-semibold text-primary-foreground hover:bg-brand-700 disabled:opacity-60 sm:w-auto"
                 >
                   {pending === r.id ? (
                     <Loader2 className="size-3 animate-spin" />
@@ -1788,7 +1789,7 @@ function PermissionsTab({ userId }: { userId: string }) {
   const perms = q.data;
 
   return (
-    <section className="rounded-sm border border-border bg-card p-4">
+    <section className="rounded-sm border border-border bg-card p-3 sm:p-4">
       <div className="mb-3 flex items-center gap-2">
         <ShieldCheck className="size-4 text-brand" strokeWidth={2} />
         <h2 className="text-[13px] font-semibold">Lead permissions</h2>
@@ -1799,7 +1800,7 @@ function PermissionsTab({ userId }: { userId: string }) {
         own.
       </p>
 
-      <ul className="divide-y divide-border rounded-sm border border-border">
+      <ul className="grid grid-cols-1 divide-y divide-border rounded-sm border border-border md:grid-cols-2 md:divide-y-0">
         {PERMISSION_ROWS.map((row) => {
           const dependsOnAccess =
             row.key === "customer_view_all" ||
@@ -1812,7 +1813,7 @@ function PermissionsTab({ userId }: { userId: string }) {
           return (
             <li
               key={row.key}
-              className={`flex items-start justify-between gap-4 px-3 py-3 ${
+              className={`flex items-start justify-between gap-4 border-border px-3 py-3 md:border-b md:odd:border-r ${
                 gatedOff ? "opacity-50" : ""
               }`}
             >
