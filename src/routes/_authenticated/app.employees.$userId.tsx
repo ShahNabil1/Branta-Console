@@ -851,14 +851,14 @@ function ProfileTab({ e }: { e: EmployeeDetail }) {
   const region =
     [p.upazila ?? p.city, p.district, p.division].filter(Boolean).join(" · ") || null;
   return (
-    <section className="rounded-sm border border-border bg-card p-5">
+    <section className="rounded-sm border border-border bg-card p-4 sm:p-5">
       <div className="mb-3 flex items-center gap-2">
         <UserCog className="size-4 text-brand" strokeWidth={2} />
         <h2 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
           Personal details
         </h2>
       </div>
-      <div className="grid grid-cols-1 gap-x-8 gap-y-3 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
         <Field label="Full name" value={p.full_name} copy />
         <Field label="Legal full name" value={p.legal_full_name} copy />
         <Field label="Work email" value={e.email} copy />
@@ -875,7 +875,7 @@ function ProfileTab({ e }: { e: EmployeeDetail }) {
       <div className="mt-5 mb-2 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
         Documents
       </div>
-      <div className="flex flex-wrap gap-2">
+      <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:flex sm:flex-wrap">
         <DocLink label="Avatar" url={p.avatar_url} />
         <DocLink label="NID document" url={p.nid_url} />
         <DocLink label="NID front" url={p.nid_front_url} />
@@ -943,7 +943,7 @@ function WalletTab({
   return (
     <div className="flex flex-col gap-4">
       {/* Balances */}
-      <section className="rounded-sm border border-border bg-card p-5">
+      <section className="rounded-sm border border-border bg-card p-4 sm:p-5">
         <div className="mb-3 flex items-center gap-2">
           <Wallet className="size-4 text-brand" strokeWidth={2} />
           <h3 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
@@ -973,7 +973,7 @@ function WalletTab({
       </section>
 
       {/* Payment methods */}
-      <section className="rounded-sm border border-border bg-card p-5">
+      <section className="rounded-sm border border-border bg-card p-4 sm:p-5">
         <div className="mb-3 flex items-center gap-2">
           <UserCog className="size-4 text-brand" strokeWidth={2} />
           <h3 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
@@ -994,7 +994,7 @@ function WalletTab({
       </section>
 
       {/* Payouts */}
-      <section className="rounded-sm border border-border bg-card p-5">
+      <section className="rounded-sm border border-border bg-card p-4 sm:p-5">
         <div className="mb-3 flex items-center gap-2">
           <h3 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Payment history ({payouts.length})
@@ -1003,8 +1003,31 @@ function WalletTab({
         {payouts.length === 0 ? (
           <p className="text-[12.5px] text-muted-foreground">No payouts yet.</p>
         ) : (
-          <div className="overflow-hidden rounded-sm border border-border">
-            <table className="w-full text-left text-[12.5px]">
+          <>
+          <div className="divide-y divide-border rounded-sm border border-border sm:hidden">
+            {payouts.map((r) => (
+              <div key={r.id} className="space-y-2 p-3">
+                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+                  <div className="min-w-0">
+                    <div className="font-mono text-[11px] font-semibold uppercase text-muted-foreground">Invoice</div>
+                    {r.invoice_slug ? (
+                      <Link to="/app/finance/invoices/$slug" params={{ slug: r.invoice_slug }} className="block truncate font-mono text-[13px] font-semibold text-brand hover:underline">
+                        {r.invoice_slug}
+                      </Link>
+                    ) : <span>—</span>}
+                  </div>
+                  <div className="shrink-0 text-right font-mono text-[14px] font-bold">{currencyFmt(Number(r.amount), r.currency)}</div>
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-2 text-[12px] text-muted-foreground">
+                  <span className="font-medium">{r.installment_label ?? "No installment label"}</span>
+                  <PayoutStatusBadge status={r.status} />
+                  <span className="w-full font-mono">{new Date(r.paid_at ?? r.requested_at ?? r.unlocked_at ?? r.created_at).toLocaleDateString()}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="hidden overflow-x-auto rounded-sm border border-border sm:block">
+            <table className="min-w-[620px] w-full text-left text-[12.5px]">
               <thead className="bg-muted text-[10.5px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                 <tr>
                   <th className="px-3 py-2">Invoice</th>
@@ -1045,11 +1068,12 @@ function WalletTab({
               </tbody>
             </table>
           </div>
+          </>
         )}
       </section>
 
       {/* Withdrawals */}
-      <section className="rounded-sm border border-border bg-card p-5">
+      <section className="rounded-sm border border-border bg-card p-4 sm:p-5">
         <div className="mb-3 flex items-center gap-2">
           <h3 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Withdrawal requests ({withdrawals.length})
@@ -1058,8 +1082,26 @@ function WalletTab({
         {withdrawals.length === 0 ? (
           <p className="text-[12.5px] text-muted-foreground">No withdrawal requests.</p>
         ) : (
-          <div className="overflow-hidden rounded-sm border border-border">
-            <table className="w-full text-left text-[12.5px]">
+          <>
+          <div className="divide-y divide-border rounded-sm border border-border sm:hidden">
+            {withdrawals.map((w) => (
+              <div key={w.id} className="space-y-2 p-3">
+                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+                  <div className="min-w-0 font-mono text-[11px] font-medium text-muted-foreground">{new Date(w.requested_at).toLocaleString()}</div>
+                  <div className="shrink-0 font-mono text-[14px] font-bold">{currencyFmt(Number(w.amount), w.currency)}</div>
+                </div>
+                <WithdrawStatusBadge status={w.status} />
+                <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-[12px]">
+                  <dt className="text-muted-foreground">Transfer ref</dt>
+                  <dd className="min-w-0 break-all font-mono font-semibold">{w.transfer_ref ? <span className="inline-flex items-center gap-1">{w.transfer_ref}<CopyBtn value={w.transfer_ref} small /></span> : "—"}</dd>
+                  <dt className="text-muted-foreground">Note</dt>
+                  <dd className="min-w-0 break-words font-medium">{w.admin_note ?? "—"}</dd>
+                </dl>
+              </div>
+            ))}
+          </div>
+          <div className="hidden overflow-x-auto rounded-sm border border-border sm:block">
+            <table className="min-w-[720px] w-full text-left text-[12.5px]">
               <thead className="bg-muted text-[10.5px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                 <tr>
                   <th className="px-3 py-2">Requested</th>
@@ -1099,6 +1141,7 @@ function WalletTab({
               </tbody>
             </table>
           </div>
+          </>
         )}
       </section>
     </div>
@@ -1277,7 +1320,7 @@ function SessionsSection({
   const active = rows.filter((r) => !r.revoked_at);
 
   return (
-    <section className="rounded-sm border border-border bg-card p-5">
+    <section className="rounded-sm border border-border bg-card p-4 sm:p-5">
       <div className="mb-3 flex items-center gap-2">
         <ShieldAlert className="size-4 text-brand" strokeWidth={2} />
         <h2 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
@@ -1296,9 +1339,9 @@ function SessionsSection({
             const label = `${s.browser ?? "Browser"} · ${s.device ?? "Device"}`;
             const geo = [s.city, s.region, s.country].filter(Boolean).join(", ");
             return (
-              <li key={s.id} className="flex items-center justify-between gap-3 px-3 py-2">
+              <li key={s.id} className="flex flex-col items-stretch gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
-                  <div className="text-[12.5px] font-medium">
+                  <div className="break-words text-[13px] font-semibold">
                     {label}
                     {s.revoked_at && (
                       <span className="ml-2 rounded-sm border border-border bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground">
@@ -1306,7 +1349,7 @@ function SessionsSection({
                       </span>
                     )}
                   </div>
-                  <div className="text-[11px] text-muted-foreground">
+                  <div className="mt-0.5 break-words text-[11.5px] font-medium text-muted-foreground">
                     {s.os ?? "—"} · {s.ip ?? "—"}
                     {geo && ` · ${geo}`} · last seen{" "}
                     {new Date(s.last_seen_at).toLocaleString()}
@@ -1316,7 +1359,7 @@ function SessionsSection({
                   <button
                     onClick={() => onRevoke(s.id, label)}
                     disabled={revoke.isPending}
-                    className="inline-flex h-7 items-center gap-1 rounded-sm border border-rose-300 bg-rose-50 px-2 text-[11.5px] font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-60"
+                    className="inline-flex h-8 w-full items-center justify-center gap-1 rounded-sm border border-rose-300 bg-rose-50 px-2 text-[11.5px] font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-60 sm:w-auto"
                   >
                     <LogOut className="size-3" />
                     Sign out
