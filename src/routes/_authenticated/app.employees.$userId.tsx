@@ -27,6 +27,7 @@ import {
   LogIn,
   LogOut,
   MailPlus,
+  MoreHorizontal,
   Search,
   ShieldAlert,
   ShieldCheck,
@@ -73,9 +74,25 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated/app/employees/$userId")({
-  head: () => ({ meta: [{ title: "Employee · Branta Tech" }] }),
+  head: () => ({
+    meta: [
+      { title: "Employee Profile · Branta Tech" },
+      { name: "description", content: "Review and manage an employee profile, access, wallet, sessions, and assigned leads." },
+      { property: "og:title", content: "Employee Profile · Branta Tech" },
+      { property: "og:description", content: "Review and manage an employee profile, access, wallet, sessions, and assigned leads." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: EmployeeDetailPage,
 });
 
@@ -391,26 +408,26 @@ function EmployeeDetailPage() {
   const initial = (p.full_name ?? e.brantaId).slice(0, 1).toUpperCase();
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 p-6">
+    <div className="mx-auto flex w-full max-w-screen-xl flex-col gap-4 p-3 sm:p-5 lg:p-6 2xl:max-w-screen-2xl">
       {/* Header */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 lg:flex lg:justify-between">
+        <div className="flex min-w-0 items-center gap-3">
           <button
             onClick={() => navigate({ to: "/app/employees" })}
             className="grid size-8 place-items-center rounded-sm border border-border bg-card text-muted-foreground hover:bg-muted"
           >
             <ArrowLeft className="size-4" />
           </button>
-          <div>
-            <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+          <div className="min-w-0">
+            <div className="truncate font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
               Employee · {p.employee_code ?? e.brantaId}
             </div>
-            <h1 className="mt-0.5 text-lg font-semibold tracking-tight">
+            <h1 className="mt-0.5 truncate text-lg font-bold tracking-tight sm:text-xl">
               {p.full_name ?? e.brantaId}
             </h1>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="hidden flex-wrap items-center gap-2 lg:flex">
           {onboardingPending && (
             <button
               onClick={onResendOnboarding}
@@ -502,11 +519,42 @@ function EmployeeDetailPage() {
             Delete
           </button>
         </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="icon" className="shrink-0 rounded-sm lg:hidden" aria-label="Employee actions">
+              <MoreHorizontal className="size-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-64">
+            {onboardingPending && (
+              <DropdownMenuItem onSelect={onResendOnboarding} disabled={resendOnboardingMut.isPending}>
+                <MailPlus /> Re-send onboarding
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem onSelect={onReset} disabled={resetMut.isPending}>
+              <KeyRound /> Reset password
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={onBan} disabled={banMut.isPending}>
+              {e.isBanned ? <Unlock /> : <Ban />} {e.isBanned ? "Unban account" : "Ban account"}
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={onTgUnsub} disabled={tgUnsub.isPending || !tgStatus.data?.linked}>
+              <TelegramIcon className="size-4" /> {tgStatus.data?.linked ? "Unsubscribe Telegram" : "Telegram not linked"}
+            </DropdownMenuItem>
+            {canSuperAdmin && (
+              <DropdownMenuItem onSelect={onImpersonate} disabled={impMut.isPending || e.isBanned}>
+                <LogIn /> Impersonate
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem onSelect={onDelete} disabled={delMut.isPending} className="text-destructive focus:text-destructive">
+              <Trash2 /> Delete employee
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Identity strip */}
-      <section className="rounded-sm border border-border bg-card p-5">
-        <div className="flex flex-wrap items-center gap-3">
+      <section className="rounded-sm border border-border bg-card p-4 sm:p-5">
+        <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3 sm:flex sm:flex-wrap">
           <button
             type="button"
             onClick={() => p.avatar_url && setAvatarOpen(true)}
@@ -528,7 +576,7 @@ function EmployeeDetailPage() {
             )}
           </button>
           <div className="min-w-0 flex-1">
-            <div className="font-mono text-[13px]">
+            <div className="truncate font-mono text-[13px] font-semibold">
               <span>{e.brantaId}</span>
               <span className="text-brand">@brantatech.com</span>
             </div>
@@ -538,11 +586,11 @@ function EmployeeDetailPage() {
             </div>
 
           </div>
-          <dl className="grid grid-cols-2 gap-x-6 gap-y-1 text-[12px]">
+          <dl className="col-span-2 grid w-full grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1 border-t border-border pt-3 text-[12px] sm:col-span-1 sm:ml-auto sm:w-auto sm:border-0 sm:pt-0">
             <dt className="text-muted-foreground">Created</dt>
-            <dd className="font-mono">{new Date(e.createdAt).toLocaleString()}</dd>
+            <dd className="min-w-0 break-words font-mono text-right">{new Date(e.createdAt).toLocaleString()}</dd>
             <dt className="text-muted-foreground">Last sign-in</dt>
-            <dd className="font-mono">
+            <dd className="min-w-0 break-words font-mono text-right">
               {e.lastSignInAt ? new Date(e.lastSignInAt).toLocaleString() : "Never"}
             </dd>
           </dl>
@@ -557,7 +605,7 @@ function EmployeeDetailPage() {
       />
 
       {/* Employee ID + Job Role */}
-      <section className="rounded-sm border border-border bg-card p-5">
+      <section className="rounded-sm border border-border bg-card p-4 sm:p-5">
         <div className="mb-3 flex items-center gap-2">
           <ShieldCheck className="size-4 text-brand" strokeWidth={2} />
           <h2 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
@@ -571,23 +619,23 @@ function EmployeeDetailPage() {
             </div>
             {p.employee_code ? (
               <>
-                <div className="mb-1 flex items-center gap-2">
-                  <div className="font-mono text-[18px] font-semibold tracking-[0.08em] text-foreground">
+                <div className="mb-1 flex min-w-0 items-center gap-2">
+                  <div className="min-w-0 break-all font-mono text-[18px] font-semibold tracking-[0.08em] text-foreground">
                     {p.employee_code}
                   </div>
                   <CopyBtn value={p.employee_code} />
                 </div>
-                <div className="overflow-hidden rounded-sm border border-border bg-white">
-                  <BarcodeSvg value={p.employee_code} height={70} className="mx-auto block" />
+                <div className="w-full overflow-hidden rounded-sm border border-border bg-white">
+                  <BarcodeSvg value={p.employee_code} height={70} className="mx-auto block h-auto max-w-full" />
                 </div>
                 <div className="mt-2">
                   <button
                     onClick={() =>
-                      downloadBarcodePng(p.employee_code!, `${p.employee_code}.png`).catch(
+                      p.employee_code && downloadBarcodePng(p.employee_code, `${p.employee_code}.png`).catch(
                         (err) => toast.error(err instanceof Error ? err.message : "Download failed"),
                       )
                     }
-                    className="inline-flex h-8 items-center gap-1.5 rounded-sm border border-border bg-card px-2.5 text-[12px] font-medium hover:bg-muted"
+                    className="inline-flex min-h-8 w-full items-center justify-center gap-1.5 rounded-sm border border-border bg-card px-2.5 py-1.5 text-[12px] font-semibold hover:bg-muted sm:w-auto"
                   >
                     <Download className="size-3.5" strokeWidth={2} />
                     Download barcode (PNG)
@@ -599,7 +647,7 @@ function EmployeeDetailPage() {
             )}
           </div>
           <div className="rounded-sm border border-border bg-card p-4">
-            <div className="mb-1 flex items-center justify-between">
+            <div className="mb-1 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
               <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
                 Job Role
               </div>
@@ -617,7 +665,7 @@ function EmployeeDetailPage() {
               className="h-9 rounded-sm"
             />
             {canSuperAdmin && (
-              <div className="mt-2 flex items-center gap-2">
+              <div className="mt-2 flex flex-wrap items-center gap-2">
                 <button
                   onClick={() => saveJobRole.mutate()}
                   disabled={!jobRoleDirty || saveJobRole.isPending}
@@ -646,8 +694,8 @@ function EmployeeDetailPage() {
       </section>
 
       {/* RBAC */}
-      <section className="rounded-sm border border-border bg-card p-5">
-        <div className="mb-3 flex items-center justify-between">
+      <section className="rounded-sm border border-border bg-card p-4 sm:p-5">
+        <div className="mb-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
           <div className="flex items-center gap-2">
             <ShieldCheck className="size-4 text-brand" strokeWidth={2} />
             <h2 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
@@ -673,7 +721,7 @@ function EmployeeDetailPage() {
             </div>
           )}
         </div>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
           {ROLE_OPTIONS.map((r) => {
             const active = roles.includes(r.value);
             const disabled = r.value === "super_admin" && !canSuperAdmin;
@@ -701,7 +749,7 @@ function EmployeeDetailPage() {
       </section>
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 border-b border-border">
+      <div className="flex items-center gap-1 overflow-x-auto border-b border-border whitespace-nowrap">
         <TabBtn active={tab === "profile"} onClick={() => setTab("profile")} icon={UserCog}>
           Profile
         </TabBtn>
@@ -737,7 +785,7 @@ function EmployeeDetailPage() {
       />
 
       {/* Assigned leads */}
-      <section className="rounded-sm border border-border bg-card p-5">
+      <section className="rounded-sm border border-border bg-card p-4 sm:p-5">
         <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <LinkIcon className="size-4 text-brand" strokeWidth={2} />
@@ -803,14 +851,14 @@ function ProfileTab({ e }: { e: EmployeeDetail }) {
   const region =
     [p.upazila ?? p.city, p.district, p.division].filter(Boolean).join(" · ") || null;
   return (
-    <section className="rounded-sm border border-border bg-card p-5">
+    <section className="rounded-sm border border-border bg-card p-4 sm:p-5">
       <div className="mb-3 flex items-center gap-2">
         <UserCog className="size-4 text-brand" strokeWidth={2} />
         <h2 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
           Personal details
         </h2>
       </div>
-      <div className="grid grid-cols-1 gap-x-8 gap-y-3 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
         <Field label="Full name" value={p.full_name} copy />
         <Field label="Legal full name" value={p.legal_full_name} copy />
         <Field label="Work email" value={e.email} copy />
@@ -827,7 +875,7 @@ function ProfileTab({ e }: { e: EmployeeDetail }) {
       <div className="mt-5 mb-2 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
         Documents
       </div>
-      <div className="flex flex-wrap gap-2">
+      <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:flex sm:flex-wrap">
         <DocLink label="Avatar" url={p.avatar_url} />
         <DocLink label="NID document" url={p.nid_url} />
         <DocLink label="NID front" url={p.nid_front_url} />
@@ -895,7 +943,7 @@ function WalletTab({
   return (
     <div className="flex flex-col gap-4">
       {/* Balances */}
-      <section className="rounded-sm border border-border bg-card p-5">
+      <section className="rounded-sm border border-border bg-card p-4 sm:p-5">
         <div className="mb-3 flex items-center gap-2">
           <Wallet className="size-4 text-brand" strokeWidth={2} />
           <h3 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
@@ -925,7 +973,7 @@ function WalletTab({
       </section>
 
       {/* Payment methods */}
-      <section className="rounded-sm border border-border bg-card p-5">
+      <section className="rounded-sm border border-border bg-card p-4 sm:p-5">
         <div className="mb-3 flex items-center gap-2">
           <UserCog className="size-4 text-brand" strokeWidth={2} />
           <h3 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
@@ -946,7 +994,7 @@ function WalletTab({
       </section>
 
       {/* Payouts */}
-      <section className="rounded-sm border border-border bg-card p-5">
+      <section className="rounded-sm border border-border bg-card p-4 sm:p-5">
         <div className="mb-3 flex items-center gap-2">
           <h3 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Payment history ({payouts.length})
@@ -955,8 +1003,31 @@ function WalletTab({
         {payouts.length === 0 ? (
           <p className="text-[12.5px] text-muted-foreground">No payouts yet.</p>
         ) : (
-          <div className="overflow-hidden rounded-sm border border-border">
-            <table className="w-full text-left text-[12.5px]">
+          <>
+          <div className="divide-y divide-border rounded-sm border border-border sm:hidden">
+            {payouts.map((r) => (
+              <div key={r.id} className="space-y-2 p-3">
+                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+                  <div className="min-w-0">
+                    <div className="font-mono text-[11px] font-semibold uppercase text-muted-foreground">Invoice</div>
+                    {r.invoice_slug ? (
+                      <Link to="/app/finance/invoices/$slug" params={{ slug: r.invoice_slug }} className="block truncate font-mono text-[13px] font-semibold text-brand hover:underline">
+                        {r.invoice_slug}
+                      </Link>
+                    ) : <span>—</span>}
+                  </div>
+                  <div className="shrink-0 text-right font-mono text-[14px] font-bold">{currencyFmt(Number(r.amount), r.currency)}</div>
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-2 text-[12px] text-muted-foreground">
+                  <span className="font-medium">{r.installment_label ?? "No installment label"}</span>
+                  <PayoutStatusBadge status={r.status} />
+                  <span className="w-full font-mono">{new Date(r.paid_at ?? r.requested_at ?? r.unlocked_at ?? r.created_at).toLocaleDateString()}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="hidden overflow-x-auto rounded-sm border border-border sm:block">
+            <table className="min-w-[620px] w-full text-left text-[12.5px]">
               <thead className="bg-muted text-[10.5px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                 <tr>
                   <th className="px-3 py-2">Invoice</th>
@@ -997,11 +1068,12 @@ function WalletTab({
               </tbody>
             </table>
           </div>
+          </>
         )}
       </section>
 
       {/* Withdrawals */}
-      <section className="rounded-sm border border-border bg-card p-5">
+      <section className="rounded-sm border border-border bg-card p-4 sm:p-5">
         <div className="mb-3 flex items-center gap-2">
           <h3 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Withdrawal requests ({withdrawals.length})
@@ -1010,8 +1082,26 @@ function WalletTab({
         {withdrawals.length === 0 ? (
           <p className="text-[12.5px] text-muted-foreground">No withdrawal requests.</p>
         ) : (
-          <div className="overflow-hidden rounded-sm border border-border">
-            <table className="w-full text-left text-[12.5px]">
+          <>
+          <div className="divide-y divide-border rounded-sm border border-border sm:hidden">
+            {withdrawals.map((w) => (
+              <div key={w.id} className="space-y-2 p-3">
+                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+                  <div className="min-w-0 font-mono text-[11px] font-medium text-muted-foreground">{new Date(w.requested_at).toLocaleString()}</div>
+                  <div className="shrink-0 font-mono text-[14px] font-bold">{currencyFmt(Number(w.amount), w.currency)}</div>
+                </div>
+                <WithdrawStatusBadge status={w.status} />
+                <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-[12px]">
+                  <dt className="text-muted-foreground">Transfer ref</dt>
+                  <dd className="min-w-0 break-all font-mono font-semibold">{w.transfer_ref ? <span className="inline-flex items-center gap-1">{w.transfer_ref}<CopyBtn value={w.transfer_ref} small /></span> : "—"}</dd>
+                  <dt className="text-muted-foreground">Note</dt>
+                  <dd className="min-w-0 break-words font-medium">{w.admin_note ?? "—"}</dd>
+                </dl>
+              </div>
+            ))}
+          </div>
+          <div className="hidden overflow-x-auto rounded-sm border border-border sm:block">
+            <table className="min-w-[720px] w-full text-left text-[12.5px]">
               <thead className="bg-muted text-[10.5px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                 <tr>
                   <th className="px-3 py-2">Requested</th>
@@ -1051,6 +1141,7 @@ function WalletTab({
               </tbody>
             </table>
           </div>
+          </>
         )}
       </section>
     </div>
@@ -1229,7 +1320,7 @@ function SessionsSection({
   const active = rows.filter((r) => !r.revoked_at);
 
   return (
-    <section className="rounded-sm border border-border bg-card p-5">
+    <section className="rounded-sm border border-border bg-card p-4 sm:p-5">
       <div className="mb-3 flex items-center gap-2">
         <ShieldAlert className="size-4 text-brand" strokeWidth={2} />
         <h2 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
@@ -1248,9 +1339,9 @@ function SessionsSection({
             const label = `${s.browser ?? "Browser"} · ${s.device ?? "Device"}`;
             const geo = [s.city, s.region, s.country].filter(Boolean).join(", ");
             return (
-              <li key={s.id} className="flex items-center justify-between gap-3 px-3 py-2">
+              <li key={s.id} className="flex flex-col items-stretch gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
-                  <div className="text-[12.5px] font-medium">
+                  <div className="break-words text-[13px] font-semibold">
                     {label}
                     {s.revoked_at && (
                       <span className="ml-2 rounded-sm border border-border bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground">
@@ -1258,7 +1349,7 @@ function SessionsSection({
                       </span>
                     )}
                   </div>
-                  <div className="text-[11px] text-muted-foreground">
+                  <div className="mt-0.5 break-words text-[11.5px] font-medium text-muted-foreground">
                     {s.os ?? "—"} · {s.ip ?? "—"}
                     {geo && ` · ${geo}`} · last seen{" "}
                     {new Date(s.last_seen_at).toLocaleString()}
@@ -1268,7 +1359,7 @@ function SessionsSection({
                   <button
                     onClick={() => onRevoke(s.id, label)}
                     disabled={revoke.isPending}
-                    className="inline-flex h-7 items-center gap-1 rounded-sm border border-rose-300 bg-rose-50 px-2 text-[11.5px] font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-60"
+                    className="inline-flex h-8 w-full items-center justify-center gap-1 rounded-sm border border-rose-300 bg-rose-50 px-2 text-[11.5px] font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-60 sm:w-auto"
                   >
                     <LogOut className="size-3" />
                     Sign out
@@ -1299,14 +1390,14 @@ function AvatarDialog({
   if (!url) return null;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md overflow-hidden p-0">
+      <DialogContent className="max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-md overflow-hidden p-0 sm:w-full">
         <DialogHeader className="border-b border-border px-4 py-2.5">
           <DialogTitle className="text-[13px] font-semibold">
             Avatar · {name}
           </DialogTitle>
         </DialogHeader>
         <div className="grid place-items-center bg-muted/40 p-4">
-          <img src={url} alt="" className="max-h-[70vh] w-auto rounded-sm object-contain" />
+          <img src={url} alt="" className="max-h-[65vh] max-w-full rounded-sm object-contain" />
         </div>
         <div className="flex items-center justify-end gap-2 border-t border-border p-3">
           <a
@@ -1410,14 +1501,15 @@ function Field({
       </div>
       <div className="mt-0.5 flex items-center gap-1.5">
         <span
+          title={empty ? undefined : value}
           className={cn(
-            "min-w-0 flex-1 truncate text-[13px]",
+            "min-w-0 flex-1 break-words text-[13px]",
             empty ? "italic text-muted-foreground/60" : "font-medium text-foreground",
           )}
         >
           {empty ? "—" : value}
         </span>
-        {copy && !empty && <CopyBtn value={value!} />}
+        {copy && value && <CopyBtn value={value} />}
       </div>
     </div>
   );
@@ -1431,7 +1523,7 @@ function DocLink({ label, url }: { label: string; url: string | null }) {
       target="_blank"
       rel="noreferrer noopener"
       download
-      className="inline-flex items-center gap-1.5 rounded-sm border border-border bg-card px-2.5 py-1.5 text-[12px] font-medium hover:bg-muted"
+      className="inline-flex min-w-0 items-center justify-center gap-1.5 rounded-sm border border-border bg-card px-2.5 py-2 text-[12px] font-semibold hover:bg-muted"
     >
       <Download className="size-3.5" strokeWidth={2} />
       {label}
@@ -1508,12 +1600,12 @@ function AssignLeadsPanel({
       ) : (
         <ul className="divide-y divide-border rounded-sm border border-border">
           {assigned.map((l) => (
-            <li key={l.id} className="flex items-center justify-between gap-3 px-3 py-2">
+            <li key={l.id} className="flex flex-col items-stretch gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
                 <Link
                   to="/app/leads/$slug"
                   params={{ slug: l.slug }}
-                  className="text-[13px] font-medium text-foreground hover:text-brand"
+                  className="block break-words text-[13px] font-semibold text-foreground hover:text-brand"
                 >
                   <span className="font-mono text-[11.5px] text-muted-foreground">{l.slug}</span>{" "}
                   {l.name}
@@ -1525,7 +1617,7 @@ function AssignLeadsPanel({
               <button
                 onClick={() => doUnassign(l.id)}
                 disabled={pending === l.id}
-                className="inline-flex h-7 items-center gap-1 rounded-sm border border-border bg-card px-2 text-[11.5px] hover:bg-muted disabled:opacity-60"
+                className="inline-flex h-8 w-full items-center justify-center gap-1 rounded-sm border border-border bg-card px-2 text-[11.5px] font-semibold hover:bg-muted disabled:opacity-60 sm:w-auto"
               >
                 {pending === l.id ? <Loader2 className="size-3 animate-spin" /> : <X className="size-3" />}
                 Unassign
@@ -1539,21 +1631,21 @@ function AssignLeadsPanel({
         <div className="mb-2 font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
           Assign more leads
         </div>
-        <div className="flex items-center gap-2">
-          <div className="flex h-9 flex-1 items-center gap-2 rounded-sm border border-border bg-card px-2.5">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-sm border border-border bg-card px-2.5 sm:h-9">
             <Search className="size-3.5 text-muted-foreground" />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && runSearch()}
               placeholder="Search by name, company or code…"
-              className="flex-1 bg-transparent text-[13px] outline-none"
+              className="min-w-0 flex-1 bg-transparent text-[13px] outline-none"
             />
           </div>
           <button
             onClick={runSearch}
             disabled={busy}
-            className="inline-flex h-9 items-center gap-1.5 rounded-sm border border-border bg-card px-3 text-[12.5px] font-medium hover:bg-muted disabled:opacity-60"
+            className="inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-sm border border-border bg-card px-3 text-[12.5px] font-semibold hover:bg-muted disabled:opacity-60 sm:h-9 sm:w-auto"
           >
             {busy ? <Loader2 className="size-3.5 animate-spin" /> : "Search"}
           </button>
@@ -1561,9 +1653,9 @@ function AssignLeadsPanel({
         {results.length > 0 && (
           <ul className="mt-2 max-h-56 divide-y divide-border overflow-y-auto rounded-sm border border-border">
             {results.map((r) => (
-              <li key={r.id} className="flex items-center justify-between gap-3 px-3 py-2">
+              <li key={r.id} className="flex flex-col items-stretch gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
-                  <div className="text-[13px] font-medium">
+                  <div className="break-words text-[13px] font-semibold">
                     <span className="font-mono text-[11.5px] text-muted-foreground">{r.slug}</span>{" "}
                     {r.name}
                   </div>
@@ -1574,7 +1666,7 @@ function AssignLeadsPanel({
                 <button
                   onClick={() => doAssign(r.id)}
                   disabled={pending === r.id || assignedIds.has(r.id)}
-                  className="inline-flex h-7 items-center gap-1 rounded-sm bg-brand px-2 text-[11.5px] font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
+                  className="inline-flex h-8 w-full items-center justify-center gap-1 rounded-sm bg-brand px-2 text-[11.5px] font-semibold text-primary-foreground hover:bg-brand-700 disabled:opacity-60 sm:w-auto"
                 >
                   {pending === r.id ? (
                     <Loader2 className="size-3 animate-spin" />
@@ -1697,7 +1789,7 @@ function PermissionsTab({ userId }: { userId: string }) {
   const perms = q.data;
 
   return (
-    <section className="rounded-sm border border-border bg-card p-4">
+    <section className="rounded-sm border border-border bg-card p-3 sm:p-4">
       <div className="mb-3 flex items-center gap-2">
         <ShieldCheck className="size-4 text-brand" strokeWidth={2} />
         <h2 className="text-[13px] font-semibold">Lead permissions</h2>
@@ -1708,7 +1800,7 @@ function PermissionsTab({ userId }: { userId: string }) {
         own.
       </p>
 
-      <ul className="divide-y divide-border rounded-sm border border-border">
+      <ul className="grid grid-cols-1 divide-y divide-border rounded-sm border border-border md:grid-cols-2 md:divide-y-0">
         {PERMISSION_ROWS.map((row) => {
           const dependsOnAccess =
             row.key === "customer_view_all" ||
@@ -1721,7 +1813,7 @@ function PermissionsTab({ userId }: { userId: string }) {
           return (
             <li
               key={row.key}
-              className={`flex items-start justify-between gap-4 px-3 py-3 ${
+              className={`flex items-start justify-between gap-4 border-border px-3 py-3 md:border-b md:odd:border-r ${
                 gatedOff ? "opacity-50" : ""
               }`}
             >

@@ -41,7 +41,16 @@ import { cn } from "@/lib/utils";
 import { RequireSuperAdmin } from "@/components/branta/require-super-admin";
 
 export const Route = createFileRoute("/_authenticated/app/employees/")({
-  head: () => ({ meta: [{ title: "Employees · Branta Tech" }] }),
+  head: () => ({
+    meta: [
+      { title: "Employee Directory · Branta Tech" },
+      { name: "description", content: "Manage Branta Tech employee accounts, roles, access, and onboarding." },
+      { property: "og:title", content: "Employee Directory · Branta Tech" },
+      { property: "og:description", content: "Manage Branta Tech employee accounts, roles, access, and onboarding." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: () => (
     <RequireSuperAdmin>
       <EmployeesPage />
@@ -245,28 +254,28 @@ function EmployeesPage() {
   const rows = employees.data ?? [];
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-6xl flex-col gap-4 p-6">
-      <header className="flex items-end justify-between gap-4">
-        <div>
+    <div className="mx-auto flex h-full w-full max-w-screen-2xl flex-col gap-4 p-3 sm:p-5 lg:p-6">
+      <header className="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+        <div className="min-w-0">
           <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
             Directory
           </div>
-          <h1 className="mt-1 text-xl font-semibold tracking-tight">Employees</h1>
-          <p className="mt-1 text-[13px] text-muted-foreground">
+          <h1 className="mt-1 text-xl font-bold tracking-tight sm:text-2xl">Employees</h1>
+          <p className="mt-1 max-w-2xl text-[13px] font-medium text-muted-foreground sm:text-sm">
             Provision Console access for Branta Tech staff. Accounts require @brantatech.com identities.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center">
           <button
             onClick={() => setWebhookOpen(true)}
-            className="inline-flex h-9 items-center gap-2 rounded-sm border border-border bg-card px-3 text-[12.5px] font-medium text-foreground transition-colors hover:bg-muted"
+            className="inline-flex h-10 min-w-0 items-center justify-center gap-2 rounded-sm border border-border bg-card px-3 text-[12.5px] font-semibold text-foreground transition-colors hover:bg-muted sm:h-9"
           >
             <Info className="size-3.5 text-muted-foreground" strokeWidth={2} />
             Webhook setup
           </button>
           <button
             onClick={() => setOpen(true)}
-            className="inline-flex h-9 items-center gap-2 rounded-sm bg-brand px-3 text-[13px] font-semibold text-white transition-colors hover:bg-brand-700"
+            className="inline-flex h-10 min-w-0 items-center justify-center gap-2 rounded-sm bg-brand px-3 text-[13px] font-semibold text-primary-foreground transition-colors hover:bg-brand-700 sm:h-9"
           >
             <Plus className="size-3.5" strokeWidth={2} />
             Create Employee
@@ -287,7 +296,7 @@ function EmployeesPage() {
             <p className="text-[12px]">Click "Create Employee" to add the first one.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 p-3 sm:grid-cols-2 sm:p-4 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
             {rows.map((row) => {
               const events = emailEvents.get(row.email) ?? [];
               const latest = events[0];
@@ -302,14 +311,14 @@ function EmployeesPage() {
                       params: { userId: row.userId },
                     })
                   }
-                  className="group flex flex-col gap-3 rounded-sm border border-border bg-card p-4 text-left transition-colors hover:border-brand/40 hover:bg-muted/40"
+                  className="group flex min-w-0 flex-col gap-3 rounded-sm border border-border bg-card p-4 text-left transition-colors hover:border-brand/40 hover:bg-muted/40"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <div className="truncate text-[13.5px] font-semibold text-foreground">
+                      <div className="truncate text-[15px] font-bold text-foreground">
                         {row.fullName ?? row.brantaId}
                       </div>
-                      <div className="mt-0.5 truncate font-mono text-[11.5px]">
+                      <div className="mt-0.5 truncate font-mono text-[12px] font-medium">
                         <span className="text-muted-foreground">{row.brantaId}</span>
                         <span className="text-brand">{DOMAIN}</span>
                       </div>
@@ -324,7 +333,7 @@ function EmployeesPage() {
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
                     {latest ? (
                       <span
                         className={cn(
@@ -347,14 +356,14 @@ function EmployeesPage() {
                     )}
                   </div>
 
-                  <div className="mt-auto flex items-center justify-between border-t border-border pt-2 text-[10.5px] text-muted-foreground">
+                  <div className="mt-auto grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border-t border-border pt-2 text-[11px] font-medium text-muted-foreground">
                     <span className="font-mono">
                       Last sign-in ·{" "}
                       {row.lastSignInAt
                         ? new Date(row.lastSignInAt).toLocaleDateString()
                         : "Never"}
                     </span>
-                    <span className="font-mono text-brand opacity-0 transition-opacity group-hover:opacity-100">
+                    <span className="shrink-0 font-mono font-semibold text-brand opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
                       Open →
                     </span>
                   </div>
@@ -508,15 +517,15 @@ function CreateEmployeeModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/40 p-0 sm:items-center sm:p-4"
       role="dialog"
       aria-modal="true"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-md overflow-hidden rounded-sm border border-border bg-card shadow-xl">
-        <div className="flex items-center justify-between border-b border-border px-5 py-3">
+      <div className="flex max-h-[calc(100dvh-0.5rem)] w-full max-w-md flex-col overflow-hidden rounded-t-md border border-border bg-card shadow-xl sm:max-h-[calc(100dvh-2rem)] sm:rounded-sm">
+        <div className="shrink-0 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-border px-4 py-3 sm:px-5">
           <div>
             <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
               New employee
@@ -532,7 +541,7 @@ function CreateEmployeeModal({
           </button>
         </div>
 
-        <form onSubmit={onSubmit} className="space-y-4 px-5 py-4" noValidate>
+        <form onSubmit={onSubmit} className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-5" noValidate>
           {/* Branta ID */}
           <div>
             <div className="mb-1.5 flex items-center justify-between gap-2">
@@ -552,7 +561,7 @@ function CreateEmployeeModal({
             </div>
             <div
               className={cn(
-                "flex h-9 w-full overflow-hidden rounded-sm border bg-card transition-colors",
+                "grid h-10 w-full grid-cols-[minmax(0,1fr)_auto] overflow-hidden rounded-sm border bg-card transition-colors sm:h-9",
                 localError ? "border-rose-500" : localHint ? "border-amber-400" : "border-border",
               )}
             >
@@ -593,13 +602,13 @@ function CreateEmployeeModal({
                 onBlur={(e) => validateLocal(e.target.value)}
                 aria-invalid={!!localError}
                 className={cn(
-                  "flex-1 bg-transparent px-3 font-mono text-[13px] outline-none transition-shadow focus:ring-1 focus:ring-inset",
+                  "min-w-0 bg-transparent px-3 font-mono text-[13px] outline-none transition-shadow focus:ring-1 focus:ring-inset",
                   localError ? "focus:ring-rose-500" : "focus:ring-brand",
                 )}
               />
               <div
                 aria-hidden="true"
-                className="grid select-none place-items-center border-l border-border bg-muted px-3 font-mono text-[13px] font-semibold text-brand"
+                className="grid max-w-[46vw] select-none place-items-center overflow-hidden border-l border-border bg-muted px-2 font-mono text-[12px] font-semibold text-brand sm:max-w-none sm:px-3 sm:text-[13px]"
               >
                 {DOMAIN}
               </div>
@@ -735,7 +744,7 @@ function CreateEmployeeModal({
           {/* Role */}
           <div>
             <label className="mb-1.5 block text-[12px] font-medium text-muted-foreground">Role</label>
-            <div className="grid grid-cols-2 gap-1.5">
+            <div className="grid grid-cols-1 gap-1.5 min-[420px]:grid-cols-2">
               {roleOptions.map((r) => {
                 const active = role === r.value;
                 return (
@@ -764,7 +773,7 @@ function CreateEmployeeModal({
             </div>
           )}
 
-          <div className="flex items-center justify-end gap-2 border-t border-border pt-3">
+          <div className="sticky bottom-0 -mx-4 flex items-center justify-end gap-2 border-t border-border bg-card px-4 pb-1 pt-3 sm:-mx-5 sm:px-5">
             <button
               type="button"
               onClick={onClose}
@@ -829,15 +838,15 @@ function WebhookSetupModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/40 p-0 sm:items-center sm:p-4"
       role="dialog"
       aria-modal="true"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-xl overflow-hidden rounded-sm border border-border bg-card shadow-xl">
-        <div className="flex items-center justify-between border-b border-border px-5 py-3">
+      <div className="flex max-h-[calc(100dvh-0.5rem)] w-full max-w-xl flex-col overflow-hidden rounded-t-md border border-border bg-card shadow-xl sm:max-h-[calc(100dvh-2rem)] sm:rounded-sm">
+        <div className="shrink-0 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-border px-4 py-3 sm:px-5">
           <div>
             <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
               Integration
@@ -853,7 +862,7 @@ function WebhookSetupModal({ onClose }: { onClose: () => void }) {
           </button>
         </div>
 
-        <div className="max-h-[70vh] space-y-4 overflow-y-auto px-5 py-4 text-[13px] leading-relaxed">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 text-[13px] leading-relaxed sm:px-5">
           <p className="text-muted-foreground">
             Brevo will POST transactional email events (delivered, opened,
             clicked, bounced, spam, blocked, invalid, deferred, unsubscribed)
@@ -887,8 +896,8 @@ function WebhookSetupModal({ onClose }: { onClose: () => void }) {
             <div className="mb-1.5 text-[12px] font-medium text-muted-foreground">
               Webhook URL
             </div>
-            <div className="flex overflow-hidden rounded-sm border border-border bg-muted/40">
-              <code className="flex-1 truncate px-3 py-2 font-mono text-[12px] text-foreground">
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] overflow-hidden rounded-sm border border-border bg-muted/40">
+              <code className="min-w-0 overflow-x-auto whitespace-nowrap px-3 py-2 font-mono text-[12px] text-foreground">
                 {fullUrl}
               </code>
               <button
@@ -954,7 +963,7 @@ function WebhookSetupModal({ onClose }: { onClose: () => void }) {
           </div>
         </div>
 
-        <div className="flex items-center justify-end border-t border-border px-5 py-3">
+        <div className="shrink-0 flex items-center justify-end border-t border-border px-4 py-3 sm:px-5">
           <button
             type="button"
             onClick={onClose}
