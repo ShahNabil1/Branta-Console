@@ -156,7 +156,7 @@ export function AppSidebar() {
           <img
             src={brandLogo.url}
             alt="Branta"
-            className={cn("h-6 w-auto shrink-0", collapsed && "h-7")}
+            className={cn("h-6 w-auto shrink-0", collapsed && "md:h-7")}
           />
         </Link>
         <button
@@ -174,11 +174,14 @@ export function AppSidebar() {
       <nav className="flex-1 overflow-y-auto p-2">
         {nav.map((group) => (
           <div key={group.label} className="mb-4">
-            {!collapsed && (
-              <div className="px-2 pb-1.5 pt-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                {group.label}
-              </div>
-            )}
+            <div
+              className={cn(
+                "px-2 pb-1.5 pt-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground",
+                collapsed && "md:hidden",
+              )}
+            >
+              {group.label}
+            </div>
             <div className="space-y-0.5">
               {group.items.map((item) => {
                 const active = pathname === item.to;
@@ -192,11 +195,11 @@ export function AppSidebar() {
                       active
                         ? "bg-brand-50 text-brand"
                         : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                      collapsed && "justify-center",
+                      collapsed && "md:justify-center",
                     )}
                   >
                     <Icon className="size-4 shrink-0" strokeWidth={1.75} />
-                    {!collapsed && <span className="truncate">{item.label}</span>}
+                    <span className={cn("truncate", collapsed && "md:hidden")}>{item.label}</span>
                   </Link>
                 );
               })}

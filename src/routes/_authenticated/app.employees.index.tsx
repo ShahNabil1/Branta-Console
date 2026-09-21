@@ -333,7 +333,7 @@ function EmployeesPage() {
                     </span>
                   </div>
 
-                  <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
                     {latest ? (
                       <span
                         className={cn(
