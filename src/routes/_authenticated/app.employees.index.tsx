@@ -254,7 +254,7 @@ function EmployeesPage() {
   const rows = employees.data ?? [];
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-screen-2xl flex-col gap-4 p-3 sm:p-5 lg:p-6">
+    <div className="mx-auto flex min-h-full w-full max-w-screen-2xl flex-col gap-4 p-3 sm:p-5 lg:p-6">
       <header className="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
         <div className="min-w-0">
           <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
@@ -283,7 +283,7 @@ function EmployeesPage() {
         </div>
       </header>
 
-      <div className="hairline flex-1 overflow-hidden rounded-sm border border-border bg-card">
+      <div className="hairline shrink-0 rounded-sm border border-border bg-card">
         {employees.isLoading ? (
           <div className="flex h-40 items-center justify-center text-muted-foreground">
             <Loader2 className="mr-2 size-4 animate-spin" />
