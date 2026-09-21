@@ -21,6 +21,8 @@ import {
   ArrowLeftRight,
   Palette,
   Bell,
+  Menu,
+  X,
   BadgeDollarSign, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import brandLogo from "@/assets/brand-logo.png.asset.json";
@@ -76,6 +78,7 @@ const COLLAPSE_KEY = "branta.sidebar.collapsed";
 
 export function AppSidebar() {
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   const permsFn = useServerFn(getMyPermissions);
@@ -88,6 +91,10 @@ export function AppSidebar() {
   useEffect(() => {
     setCollapsed(localStorage.getItem(COLLAPSE_KEY) === "1");
   }, []);
+
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
 
   const toggle = () => {
     const next = !collapsed;
@@ -118,10 +125,29 @@ export function AppSidebar() {
 
 
   return (
+    <>
+      <button
+        type="button"
+        onClick={() => setMobileOpen((open) => !open)}
+        className="fixed left-3 top-3 z-50 grid size-8 place-items-center rounded-sm border border-border bg-card text-foreground shadow-sm md:hidden"
+        aria-label={mobileOpen ? "Close navigation" : "Open navigation"}
+        aria-expanded={mobileOpen}
+      >
+        {mobileOpen ? <X className="size-4" /> : <Menu className="size-4" />}
+      </button>
+      {mobileOpen && (
+        <button
+          type="button"
+          aria-label="Close navigation"
+          onClick={() => setMobileOpen(false)}
+          className="fixed inset-0 z-30 bg-foreground/30 md:hidden"
+        />
+      )}
     <aside
       className={cn(
-        "hairline-r flex shrink-0 flex-col bg-card transition-[width] duration-150",
-        collapsed ? "w-14" : "w-60",
+        "hairline-r fixed inset-y-0 left-0 z-40 flex w-[min(19rem,86vw)] shrink-0 flex-col bg-card shadow-xl transition-transform duration-200 md:relative md:z-auto md:translate-x-0 md:shadow-none md:transition-[width] md:duration-150",
+        mobileOpen ? "translate-x-0" : "-translate-x-full",
+        collapsed ? "md:w-14" : "md:w-60",
       )}
     >
       {/* Logo + collapse */}
@@ -135,7 +161,7 @@ export function AppSidebar() {
         </Link>
         <button
           onClick={toggle}
-          className="grid size-6 shrink-0 place-items-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+          className="hidden size-6 shrink-0 place-items-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground md:grid"
           aria-label="Toggle sidebar"
         >
           <ChevronsLeft
@@ -180,5 +206,6 @@ export function AppSidebar() {
       </nav>
 
     </aside>
+    </>
   );
 }

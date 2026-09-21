@@ -1,6 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { ProfileMenu } from "@/components/branta/profile-menu";
 import { NotificationsBell } from "@/components/branta/notifications-bell";
+import { Search } from "lucide-react";
 
 const CRUMB_LABELS: Record<string, string> = {
   app: "Workspace",
@@ -32,18 +33,18 @@ export function TopBar() {
   }
 
   return (
-    <header className="hairline-b flex h-14 shrink-0 items-center justify-between bg-card px-6">
+    <header className="hairline-b grid h-14 shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 bg-card pl-14 pr-3 sm:gap-4 sm:px-5 md:px-6">
       {/* Breadcrumbs */}
-      <nav className="flex items-center gap-2 text-[13px]" aria-label="Breadcrumb">
+      <nav className="flex min-w-0 items-center gap-2 overflow-hidden text-[13px]" aria-label="Breadcrumb">
         {crumbs.length === 0 ? (
           <span className="font-medium text-foreground">Workspace</span>
         ) : (
           crumbs.map((c, i) => {
             const isLast = i === crumbs.length - 1;
             return (
-              <span key={i} className="flex items-center gap-2">
+              <span key={i} className={i < crumbs.length - 2 ? "hidden items-center gap-2 sm:flex" : "flex min-w-0 items-center gap-2"}>
                 {isLast ? (
-                  <span className="font-medium text-foreground">
+                  <span className="truncate font-semibold text-foreground">
                     {labelFor(c.seg)}
                   </span>
                 ) : (
@@ -64,7 +65,7 @@ export function TopBar() {
 
 
       {/* Cmd-K + notifications */}
-      <div className="flex items-center gap-3">
+       <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
         <button
           type="button"
           onClick={() => {
@@ -75,10 +76,12 @@ export function TopBar() {
             });
             window.dispatchEvent(evt);
           }}
-          className="hairline flex h-8 cursor-pointer items-center gap-3 rounded-full border border-border bg-muted px-3 text-[12px] text-muted-foreground transition-colors hover:border-brand/30 hover:text-foreground active:scale-[0.98]"
+          className="hairline grid size-8 cursor-pointer place-items-center rounded-sm border border-border bg-muted text-[12px] text-muted-foreground transition-colors hover:border-brand/30 hover:text-foreground active:scale-[0.98] sm:flex sm:w-auto sm:gap-3 sm:rounded-full sm:px-3"
+          aria-label="Search"
         >
-          <span>Search…</span>
-          <kbd className="rounded-sm border border-border bg-card px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+          <Search className="size-4 sm:hidden" />
+          <span className="hidden sm:inline">Search…</span>
+          <kbd className="hidden rounded-sm border border-border bg-card px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground sm:inline">
             ⌘K
           </kbd>
         </button>
