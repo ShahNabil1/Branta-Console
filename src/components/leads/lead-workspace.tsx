@@ -386,8 +386,14 @@ function TimelineItem({ a, mine }: { a: LeadActivityRow; mine: boolean }) {
   const tag = KIND_LABEL[a.kind];
   return (
     <div className={cn("flex animate-bubble-in items-end gap-2", mine && "flex-row-reverse")}>
-      <span className="grid size-7 shrink-0 place-items-center rounded-full bg-muted text-[10px] font-bold text-foreground">
-        {a.actor_name ? initialsOf(a.actor_name) : <UserRound className="size-3.5" />}
+      <span className="grid size-7 shrink-0 place-items-center overflow-hidden rounded-full bg-muted text-[10px] font-bold text-foreground ring-1 ring-border">
+        {a.actor_avatar_url ? (
+          <img src={a.actor_avatar_url} alt="" className="size-full object-cover" />
+        ) : a.actor_name ? (
+          initialsOf(a.actor_name)
+        ) : (
+          <UserRound className="size-3.5" />
+        )}
       </span>
       <div className={cn("max-w-[80%] sm:max-w-[70%]", mine && "text-right")}>
         <div className={cn("mb-0.5 text-[11.5px] text-muted-foreground", mine && "text-right")}>
