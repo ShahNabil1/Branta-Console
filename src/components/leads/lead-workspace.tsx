@@ -10,11 +10,11 @@ import {
   CalendarClock,
   Loader2,
   Mail,
-  MessageCircle,
   Phone,
   SendHorizontal,
   UserRound,
 } from "lucide-react";
+import { WhatsAppIcon } from "@/components/social/whatsapp-icon";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -144,9 +144,9 @@ export function LeadWorkspace({
           </div>
         </div>
         <div className="mt-3 grid grid-cols-3 gap-2">
-          <QuickAction href={lead.phone ? `tel:${lead.phone}` : undefined} icon={<Phone className="size-4" />} label="Call" />
-          <QuickAction href={wa ? waLink(wa) : undefined} icon={<MessageCircle className="size-4" />} label="WhatsApp" external />
-          <QuickAction href={lead.email ? `mailto:${lead.email}` : undefined} icon={<Mail className="size-4" />} label="Email" />
+          <QuickAction tone="call" href={lead.phone ? `tel:${lead.phone}` : undefined} icon={<Phone className="size-4" />} label="Call" />
+          <QuickAction tone="whatsapp" href={wa ? waLink(wa) : undefined} icon={<WhatsAppIcon className="size-5" />} label="WhatsApp" external />
+          <QuickAction tone="email" href={lead.email ? `mailto:${lead.email}` : undefined} icon={<Mail className="size-4" />} label="Email" />
         </div>
         <div className="mt-3 grid grid-cols-3 rounded-full bg-muted p-1" role="tablist">
           {(["timeline", "details", "more"] as const).map((t) => (
@@ -179,17 +179,47 @@ export function LeadWorkspace({
   );
 }
 
-function QuickAction({ href, icon, label, external }: { href?: string; icon: React.ReactNode; label: string; external?: boolean }) {
-  const cls = "flex h-11 items-center justify-center gap-2 rounded-md border border-border bg-card text-[13px] font-semibold transition-all active:scale-95";
+type Channel = "call" | "whatsapp" | "email";
+
+const CHANNEL_COLOR: Record<Channel, string> = {
+  call: "var(--color-channel-call)",
+  whatsapp: "var(--color-channel-whatsapp)",
+  email: "var(--color-channel-email)",
+};
+
+function QuickAction({
+  href,
+  icon,
+  label,
+  external,
+  tone,
+}: {
+  href?: string;
+  icon: React.ReactNode;
+  label: string;
+  external?: boolean;
+  tone: Channel;
+}) {
+  const cls = "flex h-11 items-center justify-center gap-2 rounded-md px-2 text-[13px] font-semibold transition-all active:scale-95";
+  const c = CHANNEL_COLOR[tone];
   if (!href)
     return (
-      <span className={cn(cls, "cursor-not-allowed text-muted-foreground/50")}>
+      <span className={cn(cls, "cursor-not-allowed border border-border bg-muted/50 text-muted-foreground/50")}>
         {icon}
         {label}
       </span>
     );
   return (
-    <a href={href} target={external ? "_blank" : undefined} rel={external ? "noreferrer" : undefined} className={cn(cls, "text-foreground hover:bg-muted")}>
+    <a
+      href={href}
+      target={external ? "_blank" : undefined}
+      rel={external ? "noreferrer" : undefined}
+      className={cn(cls, "text-channel-foreground hover:brightness-110")}
+      style={{
+        background: c,
+        boxShadow: `0 1px 3px color-mix(in oklab, ${c} 38%, transparent)`,
+      }}
+    >
       {icon}
       {label}
     </a>

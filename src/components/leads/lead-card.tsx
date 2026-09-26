@@ -1,4 +1,5 @@
-import { CalendarClock, MessageCircle, Phone } from "lucide-react";
+import { CalendarClock, Phone } from "lucide-react";
+import { WhatsAppIcon } from "@/components/social/whatsapp-icon";
 import { cn } from "@/lib/utils";
 import type { LeadRow } from "@/lib/leads.functions";
 import { followUpState, fmtFollowUp, initialsOf, priorityMeta, waLink } from "./lead-meta";
@@ -84,7 +85,11 @@ export function LeadCard({
             <a
               href={`tel:${phone}`}
               aria-label="Call"
-              className="grid size-10 place-items-center rounded-full border border-border bg-card text-foreground transition-all hover:bg-muted active:scale-90"
+              className="grid size-10 place-items-center rounded-full text-channel-foreground transition-all hover:brightness-110 active:scale-90"
+              style={{
+                background: "var(--color-channel-call)",
+                boxShadow: "0 1px 3px color-mix(in oklab, var(--color-channel-call) 38%, transparent)",
+              }}
             >
               <Phone className="size-4" />
             </a>
@@ -95,9 +100,13 @@ export function LeadCard({
               target="_blank"
               rel="noreferrer"
               aria-label="WhatsApp"
-              className="grid size-10 place-items-center rounded-full border border-border bg-card text-[var(--color-status-converted)] transition-all hover:bg-muted active:scale-90"
+              className="grid size-10 place-items-center rounded-full text-channel-foreground transition-all hover:brightness-110 active:scale-90"
+              style={{
+                background: "var(--color-channel-whatsapp)",
+                boxShadow: "0 1px 3px color-mix(in oklab, var(--color-channel-whatsapp) 38%, transparent)",
+              }}
             >
-              <MessageCircle className="size-4" />
+              <WhatsAppIcon className="size-5" />
             </a>
           )}
         </div>
