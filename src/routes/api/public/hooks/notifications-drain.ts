@@ -14,8 +14,33 @@ export const Route = createFileRoute("/api/public/hooks/notifications-drain")({
   },
 });
 
+// Queue Telegram reminders for lead follow-ups due in the next 10 minutes.
+// notify() dedupes per lead + follow-up timestamp, so repeated runs are safe.
+async function queueFollowUpReminders() {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { notify } = await import("@/lib/notify.server");
+  const now = Date.now();
+  const { data } = await supabaseAdmin
+    .from("leads")
+    .select("id, slug, name, owner_id, next_follow_up_at")
+    .not("owner_id", "is", null)
+    .gte("next_follow_up_at", new Date(now - 30 * 60_000).toISOString())
+    .lte("next_follow_up_at", new Date(now + 10 * 60_000).toISOString())
+    .limit(200);
+  for (const l of (data ?? []) as Array<{ id: string; slug: string | null; name: string; owner_id: string; next_follow_up_at: string }>) {
+    const time = new Date(l.next_follow_up_at).toLocaleTimeString("en-US", { timeZone: "Asia/Dhaka", hour: "numeric", minute: "2-digit" });
+    await notify({
+      event: "lead.follow_up_due",
+      recipients: [l.owner_id],
+      vars: { name: l.name, slug: l.slug ?? l.id.slice(0, 8), time },
+      dedupeKey: `lead:${l.id}:followup:${l.next_follow_up_at}`,
+    }).catch(() => {});
+  }
+}
+
 async function wrap(): Promise<Response> {
   try {
+    await queueFollowUpReminders().catch((e) => console.warn("[drain] follow-ups", e));
     const result = await drain();
     return new Response(JSON.stringify({ ok: true, ...result }), {
       headers: { "Content-Type": "application/json" },
