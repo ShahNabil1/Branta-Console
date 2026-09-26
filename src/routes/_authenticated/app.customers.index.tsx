@@ -28,6 +28,7 @@ import {
   type CustomerRow,
 } from "@/lib/customers.functions";
 import { getMyPermissions } from "@/lib/permissions.functions";
+import { getProjectCounts } from "@/lib/client-projects.functions";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { cn } from "@/lib/utils";
 
@@ -61,6 +62,8 @@ function relTime(iso: string) {
 function CustomersPage() {
   const qc = useQueryClient();
   const list = useServerFn(listCustomers);
+  const countsFn = useServerFn(getProjectCounts);
+  const { data: projCounts } = useQuery({ queryKey: ["client-project-counts"], queryFn: () => countsFn(), staleTime: 30_000 });
   const create = useServerFn(createCustomer);
   const remove = useServerFn(deleteCustomer);
   const confirm = useConfirm();
@@ -243,6 +246,12 @@ function CustomersPage() {
                     >
                       {r.customer_code}
                     </Link>
+                    {projCounts?.[r.id]?.total ? (
+                      <span className="ml-auto mr-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                        {projCounts[r.id].total} project{projCounts[r.id].total > 1 ? "s" : ""}
+                        {projCounts[r.id].active ? ` · ${projCounts[r.id].active} active` : ""}
+                      </span>
+                    ) : null}
                     <Button
                       variant="ghost"
                       size="icon"
