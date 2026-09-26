@@ -15,6 +15,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { WhatsAppIcon } from "@/components/social/whatsapp-icon";
+import { ConvertToClientButton } from "@/components/clients/convert-to-client-button";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -148,6 +149,7 @@ export function LeadWorkspace({
           <QuickAction tone="whatsapp" href={wa ? waLink(wa) : undefined} icon={<WhatsAppIcon className="size-5" />} label="WhatsApp" external />
           <QuickAction tone="email" href={lead.email ? `mailto:${lead.email}` : undefined} icon={<Mail className="size-4" />} label="Email" />
         </div>
+        <ConvertToClientButton leadId={lead.id} status={lead.status} />
         <div className="mt-3 grid grid-cols-3 rounded-full bg-muted p-1" role="tablist">
           {(["timeline", "details", "more"] as const).map((t) => (
             <button
