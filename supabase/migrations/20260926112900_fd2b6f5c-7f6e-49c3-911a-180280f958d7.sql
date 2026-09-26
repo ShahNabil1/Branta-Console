@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.stamp_lead_creator() FROM PUBLIC, anon, authenticated;
