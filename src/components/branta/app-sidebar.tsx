@@ -44,8 +44,8 @@ const NAV: NavGroup[] = [
   {
     label: "CRM",
     items: [
-      { label: "Leads", to: "/app/leads", icon: Users },
       { label: "Lead Dashboard", to: "/app/leads/dashboard", icon: BarChart3 },
+      { label: "Leads", to: "/app/leads", icon: Users },
       { label: "Customers", to: "/app/customers", icon: Building2 },
       { label: "Inbox", to: "/app/inbox", icon: Inbox },
     ],
