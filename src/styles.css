@@ -70,6 +70,7 @@
   --color-channel-call: #1f7ae0;
   --color-channel-whatsapp: #25d366;
   --color-channel-email: #ea4335;
+  --color-channel-foreground: #ffffff;
 
   /* Fonts */
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
