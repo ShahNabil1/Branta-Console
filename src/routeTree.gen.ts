@@ -48,6 +48,7 @@ import { Route as AuthenticatedAppProfilePersonalRouteImport } from './routes/_a
 import { Route as AuthenticatedAppProfileFinanceRouteImport } from './routes/_authenticated/app.profile.finance'
 import { Route as AuthenticatedAppProfileActivityRouteImport } from './routes/_authenticated/app.profile.activity'
 import { Route as AuthenticatedAppLeadsDraftsRouteImport } from './routes/_authenticated/app.leads.drafts'
+import { Route as AuthenticatedAppLeadsDashboardRouteImport } from './routes/_authenticated/app.leads.dashboard'
 import { Route as AuthenticatedAppLeadsSlugRouteImport } from './routes/_authenticated/app.leads.$slug'
 import { Route as AuthenticatedAppFinanceWithdrawalsRouteImport } from './routes/_authenticated/app.finance.withdrawals'
 import { Route as AuthenticatedAppFinanceWalletRouteImport } from './routes/_authenticated/app.finance.wallet'
@@ -283,6 +284,12 @@ const AuthenticatedAppLeadsDraftsRoute =
     path: '/drafts',
     getParentRoute: () => AuthenticatedAppLeadsRoute,
   } as any)
+const AuthenticatedAppLeadsDashboardRoute =
+  AuthenticatedAppLeadsDashboardRouteImport.update({
+    id: '/dashboard',
+    path: '/dashboard',
+    getParentRoute: () => AuthenticatedAppLeadsRoute,
+  } as any)
 const AuthenticatedAppLeadsSlugRoute =
   AuthenticatedAppLeadsSlugRouteImport.update({
     id: '/$slug',
@@ -398,6 +405,7 @@ export interface FileRoutesByFullPath {
   '/app/finance/wallet': typeof AuthenticatedAppFinanceWalletRoute
   '/app/finance/withdrawals': typeof AuthenticatedAppFinanceWithdrawalsRoute
   '/app/leads/$slug': typeof AuthenticatedAppLeadsSlugRoute
+  '/app/leads/dashboard': typeof AuthenticatedAppLeadsDashboardRoute
   '/app/leads/drafts': typeof AuthenticatedAppLeadsDraftsRoute
   '/app/profile/activity': typeof AuthenticatedAppProfileActivityRoute
   '/app/profile/finance': typeof AuthenticatedAppProfileFinanceRoute
@@ -447,6 +455,7 @@ export interface FileRoutesByTo {
   '/app/finance/wallet': typeof AuthenticatedAppFinanceWalletRoute
   '/app/finance/withdrawals': typeof AuthenticatedAppFinanceWithdrawalsRoute
   '/app/leads/$slug': typeof AuthenticatedAppLeadsSlugRoute
+  '/app/leads/dashboard': typeof AuthenticatedAppLeadsDashboardRoute
   '/app/leads/drafts': typeof AuthenticatedAppLeadsDraftsRoute
   '/app/profile/activity': typeof AuthenticatedAppProfileActivityRoute
   '/app/profile/finance': typeof AuthenticatedAppProfileFinanceRoute
@@ -503,6 +512,7 @@ export interface FileRoutesById {
   '/_authenticated/app/finance/wallet': typeof AuthenticatedAppFinanceWalletRoute
   '/_authenticated/app/finance/withdrawals': typeof AuthenticatedAppFinanceWithdrawalsRoute
   '/_authenticated/app/leads/$slug': typeof AuthenticatedAppLeadsSlugRoute
+  '/_authenticated/app/leads/dashboard': typeof AuthenticatedAppLeadsDashboardRoute
   '/_authenticated/app/leads/drafts': typeof AuthenticatedAppLeadsDraftsRoute
   '/_authenticated/app/profile/activity': typeof AuthenticatedAppProfileActivityRoute
   '/_authenticated/app/profile/finance': typeof AuthenticatedAppProfileFinanceRoute
@@ -559,6 +569,7 @@ export interface FileRouteTypes {
     | '/app/finance/wallet'
     | '/app/finance/withdrawals'
     | '/app/leads/$slug'
+    | '/app/leads/dashboard'
     | '/app/leads/drafts'
     | '/app/profile/activity'
     | '/app/profile/finance'
@@ -608,6 +619,7 @@ export interface FileRouteTypes {
     | '/app/finance/wallet'
     | '/app/finance/withdrawals'
     | '/app/leads/$slug'
+    | '/app/leads/dashboard'
     | '/app/leads/drafts'
     | '/app/profile/activity'
     | '/app/profile/finance'
@@ -663,6 +675,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/finance/wallet'
     | '/_authenticated/app/finance/withdrawals'
     | '/_authenticated/app/leads/$slug'
+    | '/_authenticated/app/leads/dashboard'
     | '/_authenticated/app/leads/drafts'
     | '/_authenticated/app/profile/activity'
     | '/_authenticated/app/profile/finance'
@@ -980,6 +993,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppLeadsDraftsRouteImport
       parentRoute: typeof AuthenticatedAppLeadsRoute
     }
+    '/_authenticated/app/leads/dashboard': {
+      id: '/_authenticated/app/leads/dashboard'
+      path: '/dashboard'
+      fullPath: '/app/leads/dashboard'
+      preLoaderRoute: typeof AuthenticatedAppLeadsDashboardRouteImport
+      parentRoute: typeof AuthenticatedAppLeadsRoute
+    }
     '/_authenticated/app/leads/$slug': {
       id: '/_authenticated/app/leads/$slug'
       path: '/$slug'
@@ -1142,12 +1162,14 @@ const AuthenticatedAppFinanceRouteWithChildren =
 
 interface AuthenticatedAppLeadsRouteChildren {
   AuthenticatedAppLeadsSlugRoute: typeof AuthenticatedAppLeadsSlugRoute
+  AuthenticatedAppLeadsDashboardRoute: typeof AuthenticatedAppLeadsDashboardRoute
   AuthenticatedAppLeadsDraftsRoute: typeof AuthenticatedAppLeadsDraftsRoute
   AuthenticatedAppLeadsIndexRoute: typeof AuthenticatedAppLeadsIndexRoute
 }
 
 const AuthenticatedAppLeadsRouteChildren: AuthenticatedAppLeadsRouteChildren = {
   AuthenticatedAppLeadsSlugRoute: AuthenticatedAppLeadsSlugRoute,
+  AuthenticatedAppLeadsDashboardRoute: AuthenticatedAppLeadsDashboardRoute,
   AuthenticatedAppLeadsDraftsRoute: AuthenticatedAppLeadsDraftsRoute,
   AuthenticatedAppLeadsIndexRoute: AuthenticatedAppLeadsIndexRoute,
 }
