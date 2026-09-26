@@ -96,6 +96,7 @@ export interface LeadActivityRow {
   meta: LeadActivityMeta;
   created_at: string;
   actor_name?: string | null;
+  actor_avatar_url?: string | null;
 }
 
 // Status is a free-form key validated against lead_status_options in the UI.
@@ -1086,15 +1087,18 @@ export const listLeadActivities = createServerFn({ method: "GET" })
     if (ids.length === 0) return activities;
     const { data: profs } = await context.supabase
       .from("profiles")
-      .select("user_id, full_name")
+      .select("user_id, full_name, avatar_url")
       .in("user_id", ids);
     const nameByUser = new Map<string, string | null>();
-    (profs ?? []).forEach((p: { user_id: string; full_name: string | null }) =>
-      nameByUser.set(p.user_id, p.full_name),
-    );
+    const avatarByUser = new Map<string, string | null>();
+    (profs ?? []).forEach((p: { user_id: string; full_name: string | null; avatar_url: string | null }) => {
+      nameByUser.set(p.user_id, p.full_name);
+      avatarByUser.set(p.user_id, p.avatar_url);
+    });
     return activities.map((a) => ({
       ...a,
       actor_name: a.actor_id ? nameByUser.get(a.actor_id) ?? null : null,
+      actor_avatar_url: a.actor_id ? avatarByUser.get(a.actor_id) ?? null : null,
     }));
   });
 
