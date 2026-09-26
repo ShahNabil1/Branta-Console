@@ -106,7 +106,7 @@ export function LeadCard({
                 boxShadow: "0 1px 3px color-mix(in oklab, var(--color-channel-whatsapp) 38%, transparent)",
               }}
             >
-              <WhatsAppIcon className="size-[18px]" />
+              <WhatsAppIcon className="size-5" />
             </a>
           )}
         </div>

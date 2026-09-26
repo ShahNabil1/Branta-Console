@@ -145,7 +145,7 @@ export function LeadWorkspace({
         </div>
         <div className="mt-3 grid grid-cols-3 gap-2">
           <QuickAction tone="call" href={lead.phone ? `tel:${lead.phone}` : undefined} icon={<Phone className="size-4" />} label="Call" />
-          <QuickAction tone="whatsapp" href={wa ? waLink(wa) : undefined} icon={<WhatsAppIcon className="size-[18px]" />} label="WhatsApp" external />
+          <QuickAction tone="whatsapp" href={wa ? waLink(wa) : undefined} icon={<WhatsAppIcon className="size-5" />} label="WhatsApp" external />
           <QuickAction tone="email" href={lead.email ? `mailto:${lead.email}` : undefined} icon={<Mail className="size-4" />} label="Email" />
         </div>
         <div className="mt-3 grid grid-cols-3 rounded-full bg-muted p-1" role="tablist">
