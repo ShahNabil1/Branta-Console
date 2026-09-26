@@ -211,3 +211,22 @@
   animation: shake 0.35s ease-in-out;
 }
 
+@keyframes sheet-up {
+  from { transform: translateY(100%); opacity: 0.6; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@utility animate-sheet-up {
+  animation: sheet-up 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes bubble-in {
+  from { transform: translateY(8px) scale(0.97); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+@utility animate-bubble-in {
+  animation: bubble-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@utility pb-safe {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+
+

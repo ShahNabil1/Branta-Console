@@ -13,6 +13,7 @@ import {
   DRAFT_LEAD_NAME,
 } from "@/lib/leads.functions";
 import { LeadDetail } from "@/components/leads/lead-detail";
+import { LeadWorkspace } from "@/components/leads/lead-workspace";
 
 const searchSchema = z.object({
   new: fallback(z.number().int(), 0).default(0),
@@ -123,13 +124,26 @@ function LeadDetailPage() {
       ? { ...leadQ.data, name: "" }
       : leadQ.data;
 
+  // Drafts keep the original autosave editor; finalized leads use the
+  // mobile-first workspace (Timeline · Details · More).
+  if (isNew || isDraftLead) {
+    return (
+      <LeadDetail
+        lead={effectiveLead}
+        users={usersQ.data ?? []}
+        initialEdit
+        onDeleted={() => navigate({ to: "/app/leads" })}
+      />
+    );
+  }
   return (
-    <LeadDetail
-      lead={effectiveLead}
-      users={usersQ.data ?? []}
-      initialEdit={isNew || isDraftLead}
-      onDeleted={() => navigate({ to: "/app/leads" })}
-    />
+    <div className="h-[calc(100dvh-3.5rem)]">
+      <LeadWorkspace
+        lead={leadQ.data}
+        users={usersQ.data ?? []}
+        onDeleted={() => navigate({ to: "/app/leads" })}
+      />
+    </div>
   );
 }
 
