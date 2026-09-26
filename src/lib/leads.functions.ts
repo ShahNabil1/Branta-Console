@@ -47,6 +47,15 @@ export interface LeadRow {
   sheet_sync_status?: "pending" | "syncing" | "synced" | "failed" | null;
   sheet_synced_at?: string | null;
   sheet_sync_error?: string | null;
+  contact_person?: string | null;
+  whatsapp?: string | null;
+  requirement?: string | null;
+  budget?: number | null;
+  timeline?: string | null;
+  priority?: "low" | "medium" | "high" | "urgent" | null;
+  next_follow_up_at?: string | null;
+  created_by_name?: string | null;
+  created_by_code?: string | null;
 }
 
 
@@ -115,7 +124,28 @@ const CreateInput = z.object({
   currency: z.enum(["BDT", "USD"]).optional(),
   next_action: z.string().trim().max(200).optional().nullable(),
   notes: z.string().trim().max(4000).optional().nullable(),
+  contact_person: z.string().trim().max(160).optional().nullable(),
+  whatsapp: z.string().trim().max(40).optional().nullable(),
+  requirement: z.string().trim().max(4000).optional().nullable(),
+  budget: z.number().nonnegative().optional().nullable(),
+  timeline: z.string().trim().max(160).optional().nullable(),
+  priority: z.enum(["low", "medium", "high", "urgent"]).optional(),
+  next_follow_up_at: z.string().datetime({ offset: true }).optional().nullable(),
 });
+
+function fmtBD(iso: string): string {
+  try {
+    return new Date(iso).toLocaleString("en-US", {
+      timeZone: "Asia/Dhaka",
+      day: "numeric",
+      month: "short",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  } catch {
+    return iso;
+  }
+}
 
 
 const UpdateInput = z.object({
@@ -580,6 +610,13 @@ export const createLead = createServerFn({ method: "POST" })
         currency: data.currency ?? "BDT",
         next_action: data.next_action ?? null,
         notes: data.notes ?? null,
+        contact_person: data.contact_person ?? null,
+        whatsapp: data.whatsapp ?? null,
+        requirement: data.requirement ?? null,
+        budget: data.budget ?? null,
+        timeline: data.timeline ?? null,
+        priority: data.priority ?? "medium",
+        next_follow_up_at: data.next_follow_up_at ?? null,
         created_by: context.userId,
         is_draft: false,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -591,12 +628,19 @@ export const createLead = createServerFn({ method: "POST" })
     if (email) {
       await upsertPrimaryContact(context.supabase, row.id, email, context.userId);
     }
-    await context.supabase.from("lead_activities").insert({
-      lead_id: row.id,
-      actor_id: context.userId,
-      kind: "created",
-      body: `Lead created`,
-    });
+    const createdActs: Array<Record<string, unknown>> = [
+      { lead_id: row.id, actor_id: context.userId, kind: "created", body: `Lead created` },
+    ];
+    if (data.next_follow_up_at) {
+      createdActs.push({
+        lead_id: row.id,
+        actor_id: context.userId,
+        kind: "follow_up",
+        body: `Follow-up set for ${fmtBD(data.next_follow_up_at)}`,
+        meta: { field: "next_follow_up_at", to: data.next_follow_up_at },
+      });
+    }
+    await context.supabase.from("lead_activities").insert(createdActs as never);
     try {
       const { autoSyncLead } = await import("@/lib/leads-sheets.server");
       await autoSyncLead(context.supabase, row.id);
@@ -865,6 +909,13 @@ export const updateLead = createServerFn({ method: "POST" })
       currency: "Currency",
       next_action: "Next action",
       notes: "Notes",
+      contact_person: "Contact person",
+      whatsapp: "WhatsApp",
+      requirement: "Requirement",
+      budget: "Budget",
+      timeline: "Timeline",
+      priority: "Priority",
+      next_follow_up_at: "Follow-up",
     };
     const fmt = (v: unknown): string => {
       if (v === null || v === undefined || v === "") return "—";
@@ -907,11 +958,17 @@ export const updateLead = createServerFn({ method: "POST" })
       activityRows.push({
         lead_id: data.id,
         actor_id: context.userId,
-        kind: "status_change",
+        kind: to === "converted" ? "converted" : to === "lost" ? "lost" : to === "proposal_sent" ? "proposal_sent" : "status_change",
         body: note ? `Status: ${from} → ${to} — ${note}` : `Status: ${from} → ${to}`,
         meta: { field: "status", from, to, note: note ?? null },
       });
     }
+
+    const SPECIAL_KIND: Record<string, string> = {
+      owner_id: "reassigned",
+      priority: "priority_change",
+      next_follow_up_at: "follow_up",
+    };
 
     for (const key of Object.keys(patch)) {
       if (key === "status") continue;
@@ -927,21 +984,31 @@ export const updateLead = createServerFn({ method: "POST" })
       }
       const b = before === "" ? null : before;
       const a = after === "" ? null : after;
-      if (JSON.stringify(b ?? null) === JSON.stringify(a ?? null)) continue;
+      if (key === "next_follow_up_at") {
+        const tb = b ? new Date(String(b)).getTime() : null;
+        const ta = a ? new Date(String(a)).getTime() : null;
+        if (tb === ta) continue;
+      } else if (JSON.stringify(b ?? null) === JSON.stringify(a ?? null)) continue;
       const hadB = b !== null && b !== undefined;
       const hasA = a !== null && a !== undefined;
       const body =
-        hadB && hasA
-          ? `${label} updated from ${fmt(b)} to ${fmt(a)}`
-          : !hadB && hasA
-            ? `${label} set to ${fmt(a)}`
-            : `${label} cleared (was ${fmt(b)})`;
+        key === "next_follow_up_at"
+          ? hasA
+            ? `Follow-up set for ${fmtBD(String(a))}`
+            : "Follow-up cleared"
+          : key === "owner_id" && hasA
+            ? `Lead reassigned${hadB ? ` from ${fmt(b)}` : ""} to ${fmt(a)}`
+            : hadB && hasA
+              ? `${label} updated from ${fmt(b)} to ${fmt(a)}`
+              : !hadB && hasA
+                ? `${label} set to ${fmt(a)}`
+                : `${label} cleared (was ${fmt(b)})`;
       activityRows.push({
         lead_id: data.id,
         actor_id: context.userId,
-        kind: "field_change",
+        kind: SPECIAL_KIND[key] ?? "field_change",
         body,
-        meta: { field: key, from: b ?? null, to: a ?? null },
+        meta: { field: key, from: (b ?? null) as never, to: (a ?? null) as never },
       });
     }
 
@@ -1038,7 +1105,17 @@ export const addLeadActivity = createServerFn({ method: "POST" })
       .object({
         leadId: z.string().uuid(),
         kind: z
-          .enum(["note", "call", "email", "meeting", "status_change"])
+          .enum([
+            "note",
+            "call",
+            "email",
+            "meeting",
+            "status_change",
+            "update",
+            "proposal_sent",
+            "portfolio_shared",
+            "client_replied",
+          ])
           .default("note"),
         body: z.string().trim().min(1).max(4000),
       })
