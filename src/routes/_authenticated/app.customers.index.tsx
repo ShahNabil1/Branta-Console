@@ -243,6 +243,12 @@ function CustomersPage() {
                     >
                       {r.customer_code}
                     </Link>
+                    {projCounts?.[r.id]?.total ? (
+                      <span className="ml-auto mr-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                        {projCounts[r.id].total} project{projCounts[r.id].total > 1 ? "s" : ""}
+                        {projCounts[r.id].active ? ` · ${projCounts[r.id].active} active` : ""}
+                      </span>
+                    ) : null}
                     <Button
                       variant="ghost"
                       size="icon"

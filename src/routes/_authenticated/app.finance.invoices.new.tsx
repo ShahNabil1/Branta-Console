@@ -10,6 +10,7 @@ import {
   type StakeholderRole,
 } from "@/lib/finance.functions";
 import { listCustomersForPicker } from "@/lib/customers.functions";
+import { listProjectsForPicker } from "@/lib/client-projects.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -38,6 +39,9 @@ function NewInvoicePage() {
   const emps = useQuery({ queryKey: ["finance-employees"], queryFn: () => listEmp(), staleTime: 30_000 });
 
   const [customerId, setCustomerId] = useState("");
+  const [projectId, setProjectId] = useState("");
+  const listProj = useServerFn(listProjectsForPicker);
+  const projQ = useQuery({ queryKey: ["client-projects-picker", customerId], queryFn: () => listProj({ data: { customerId } }), enabled: !!customerId });
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -86,6 +90,7 @@ function NewInvoicePage() {
     mutationFn: async () => {
       return await create({ data: {
         customer_id: customerId,
+        project_id: projectId || null,
         title: title.trim(),
         description: description.trim() || null,
         project_type: projectType,
@@ -167,7 +172,7 @@ function NewInvoicePage() {
               <SearchableSelect
                 items={customerItems}
                 value={customerId}
-                onChange={setCustomerId}
+                onChange={(v) => { setCustomerId(v); setProjectId(""); }}
                 placeholder="— Choose customer —"
                 emptyText="No customer matches. Try Quick add."
                 addLabel="Quick add customer"
@@ -175,6 +180,18 @@ function NewInvoicePage() {
               />
             </div>
           </div>
+          {customerId && (
+            <div className="md:col-span-2">
+              <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Project (optional)</Label>
+              <select value={projectId} onChange={(e) => setProjectId(e.target.value)}
+                className="mt-1 h-9 w-full rounded-sm border border-input bg-background px-2 text-[13px]">
+                <option value="">— No project —</option>
+                {(projQ.data ?? []).map((p) => (
+                  <option key={p.id} value={p.id}>{p.title}{p.service ? ` · ${p.service}` : ""}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <div className="md:col-span-2">
             <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Title *</Label>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} className="mt-1 h-9 rounded-sm" placeholder="e.g. Website redesign project" />

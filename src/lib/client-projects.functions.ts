@@ -180,3 +180,35 @@ export const updateClientProject = createServerFn({ method: "POST" })
     });
     return { ok: true };
   });
+
+/** Lightweight picker for invoice forms. */
+export const listProjectsForPicker = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { customerId: string }) => z.object({ customerId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: rows } = await (context.supabase as any)
+      .from("client_projects")
+      .select("id, title, service, status")
+      .eq("customer_id", data.customerId)
+      .is("archived_at", null)
+      .order("created_at", { ascending: false });
+    return (rows ?? []) as { id: string; title: string; service: string | null; status: string }[];
+  });
+
+/** Project counts per customer for the clients list. */
+export const getProjectCounts = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data: rows } = await (context.supabase as any)
+      .from("client_projects")
+      .select("customer_id, status")
+      .is("archived_at", null)
+      .limit(5000);
+    const out: Record<string, { total: number; active: number }> = {};
+    for (const r of (rows ?? []) as { customer_id: string; status: string }[]) {
+      const o = (out[r.customer_id] ??= { total: 0, active: 0 });
+      o.total++;
+      if (r.status === "active") o.active++;
+    }
+    return out;
+  });

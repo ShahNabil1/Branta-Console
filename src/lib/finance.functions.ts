@@ -236,6 +236,7 @@ const ProjectCostIn = z.object({
 });
 const CreateInvoiceIn = z.object({
   customer_id: z.string().uuid(),
+  project_id: z.string().uuid().nullable().optional(),
   title: z.string().trim().min(1).max(200),
   description: z.string().trim().max(4000).nullable().optional(),
   project_type: z.enum(["one_time", "monthly_retainer"]).default("one_time"),
@@ -449,6 +450,7 @@ export const createInvoice = createServerFn({ method: "POST" })
         project_cost_total: costTotal,
         notes: data.notes ?? null,
         internal_notes: data.internal_notes ?? null,
+        project_id: data.project_id ?? null,
         created_by: context.userId,
         status: "sent" as InvoiceStatus,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -603,6 +605,7 @@ export const updateInvoice = createServerFn({ method: "POST" })
         project_cost_total: costTotal,
         notes: data.notes ?? null,
         internal_notes: data.internal_notes ?? null,
+        ...(data.project_id !== undefined ? { project_id: data.project_id } : {}),
       } as never)
       .eq("id", data.id);
     if (invErr) throw new Error(invErr.message);
