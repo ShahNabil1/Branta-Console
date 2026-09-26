@@ -14,6 +14,116 @@ export type Database = {
   }
   public: {
     Tables: {
+      client_project_activity: {
+        Row: {
+          action: string
+          actor_id: string | null
+          body: string | null
+          changes: Json
+          created_at: string
+          customer_id: string
+          id: string
+          project_id: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          body?: string | null
+          changes?: Json
+          created_at?: string
+          customer_id: string
+          id?: string
+          project_id: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          body?: string | null
+          changes?: Json
+          created_at?: string
+          customer_id?: string
+          id?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_project_activity_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_project_activity_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "client_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_projects: {
+        Row: {
+          archived_at: string | null
+          assignee_id: string | null
+          budget: number | null
+          created_at: string
+          created_by: string | null
+          currency: string
+          customer_id: string
+          due_on: string | null
+          id: string
+          notes: string | null
+          service: string | null
+          starts_on: string | null
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          assignee_id?: string | null
+          budget?: number | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          customer_id: string
+          due_on?: string | null
+          id?: string
+          notes?: string | null
+          service?: string | null
+          starts_on?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          assignee_id?: string | null
+          budget?: number | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          customer_id?: string
+          due_on?: string | null
+          id?: string
+          notes?: string | null
+          service?: string | null
+          starts_on?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_projects_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_ledger: {
         Row: {
           amount: number
@@ -53,7 +163,9 @@ export type Database = {
       customers: {
         Row: {
           address: string | null
+          client_since: string
           company: string | null
+          contact_person: string | null
           converted_from_lead_id: string | null
           created_at: string
           created_by: string | null
@@ -69,10 +181,13 @@ export type Database = {
           service: string | null
           source: string | null
           updated_at: string
+          whatsapp: string | null
         }
         Insert: {
           address?: string | null
+          client_since?: string
           company?: string | null
+          contact_person?: string | null
           converted_from_lead_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -88,10 +203,13 @@ export type Database = {
           service?: string | null
           source?: string | null
           updated_at?: string
+          whatsapp?: string | null
         }
         Update: {
           address?: string | null
+          client_since?: string
           company?: string | null
+          contact_person?: string | null
           converted_from_lead_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -107,6 +225,7 @@ export type Database = {
           service?: string | null
           source?: string | null
           updated_at?: string
+          whatsapp?: string | null
         }
         Relationships: [
           {
@@ -1246,6 +1365,7 @@ export type Database = {
           notes: string | null
           paid_amount: number
           project_cost_total: number
+          project_id: string | null
           project_type: string
           slug: string | null
           starts_on: string | null
@@ -1270,6 +1390,7 @@ export type Database = {
           notes?: string | null
           paid_amount?: number
           project_cost_total?: number
+          project_id?: string | null
           project_type?: string
           slug?: string | null
           starts_on?: string | null
@@ -1294,6 +1415,7 @@ export type Database = {
           notes?: string | null
           paid_amount?: number
           project_cost_total?: number
+          project_id?: string | null
           project_type?: string
           slug?: string | null
           starts_on?: string | null
@@ -1310,6 +1432,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "client_projects"
             referencedColumns: ["id"]
           },
         ]
