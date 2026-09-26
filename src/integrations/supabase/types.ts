@@ -1859,10 +1859,14 @@ export type Database = {
           alt_email_label: string | null
           alt_phone: string | null
           alt_phone_label: string | null
+          budget: number | null
           company: string | null
+          contact_person: string | null
           contact_preference: string | null
           created_at: string
           created_by: string | null
+          created_by_code: string | null
+          created_by_name: string | null
           currency: string
           email_label: string | null
           id: string
@@ -1871,10 +1875,13 @@ export type Database = {
           lead_code: string
           name: string
           next_action: string | null
+          next_follow_up_at: string | null
           notes: string | null
           owner_id: string | null
           phone: string | null
           phone_label: string | null
+          priority: string
+          requirement: string | null
           role: string | null
           service: string | null
           service_other: string | null
@@ -1888,18 +1895,24 @@ export type Database = {
           source_other: string | null
           status: string
           synced_at: string | null
+          timeline: string | null
           updated_at: string
           value_usd: number | null
+          whatsapp: string | null
         }
         Insert: {
           alt_email?: string | null
           alt_email_label?: string | null
           alt_phone?: string | null
           alt_phone_label?: string | null
+          budget?: number | null
           company?: string | null
+          contact_person?: string | null
           contact_preference?: string | null
           created_at?: string
           created_by?: string | null
+          created_by_code?: string | null
+          created_by_name?: string | null
           currency?: string
           email_label?: string | null
           id?: string
@@ -1908,10 +1921,13 @@ export type Database = {
           lead_code?: string
           name: string
           next_action?: string | null
+          next_follow_up_at?: string | null
           notes?: string | null
           owner_id?: string | null
           phone?: string | null
           phone_label?: string | null
+          priority?: string
+          requirement?: string | null
           role?: string | null
           service?: string | null
           service_other?: string | null
@@ -1925,18 +1941,24 @@ export type Database = {
           source_other?: string | null
           status?: string
           synced_at?: string | null
+          timeline?: string | null
           updated_at?: string
           value_usd?: number | null
+          whatsapp?: string | null
         }
         Update: {
           alt_email?: string | null
           alt_email_label?: string | null
           alt_phone?: string | null
           alt_phone_label?: string | null
+          budget?: number | null
           company?: string | null
+          contact_person?: string | null
           contact_preference?: string | null
           created_at?: string
           created_by?: string | null
+          created_by_code?: string | null
+          created_by_name?: string | null
           currency?: string
           email_label?: string | null
           id?: string
@@ -1945,10 +1967,13 @@ export type Database = {
           lead_code?: string
           name?: string
           next_action?: string | null
+          next_follow_up_at?: string | null
           notes?: string | null
           owner_id?: string | null
           phone?: string | null
           phone_label?: string | null
+          priority?: string
+          requirement?: string | null
           role?: string | null
           service?: string | null
           service_other?: string | null
@@ -1962,8 +1987,10 @@ export type Database = {
           source_other?: string | null
           status?: string
           synced_at?: string | null
+          timeline?: string | null
           updated_at?: string
           value_usd?: number | null
+          whatsapp?: string | null
         }
         Relationships: []
       }
