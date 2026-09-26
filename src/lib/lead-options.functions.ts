@@ -80,14 +80,13 @@ export const STATUS_FALLBACK: LeadStatusOption[] = [
 ];
 
 export const SOURCE_FALLBACK: LeadSourceOption[] = [
-  { key: "facebook", label: "Facebook", sort_order: 10, requires_detail: false, is_active: true },
-  { key: "instagram", label: "Instagram", sort_order: 20, requires_detail: false, is_active: true },
-  { key: "linkedin", label: "LinkedIn", sort_order: 30, requires_detail: false, is_active: true },
-  { key: "tiktok", label: "TikTok", sort_order: 40, requires_detail: false, is_active: true },
+  { key: "facebook_group", label: "Facebook Group", sort_order: 10, requires_detail: false, is_active: true },
+  { key: "facebook_page", label: "Facebook Page", sort_order: 20, requires_detail: false, is_active: true },
+  { key: "facebook_inbox", label: "Facebook Inbox", sort_order: 30, requires_detail: false, is_active: true },
+  { key: "linkedin", label: "LinkedIn", sort_order: 40, requires_detail: false, is_active: true },
   { key: "whatsapp", label: "WhatsApp", sort_order: 50, requires_detail: false, is_active: true },
-  { key: "website", label: "Website", sort_order: 60, requires_detail: false, is_active: true },
-  { key: "referral", label: "Referral", sort_order: 70, requires_detail: false, is_active: true },
-  { key: "direct", label: "Direct", sort_order: 80, requires_detail: false, is_active: true },
+  { key: "referral", label: "Referral", sort_order: 60, requires_detail: false, is_active: true },
+  { key: "website", label: "Website", sort_order: 70, requires_detail: false, is_active: true },
   { key: "other", label: "Other", sort_order: 999, requires_detail: true, is_active: true },
 ];
 
