@@ -80,6 +80,9 @@ import {
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useConfirm } from "@/components/ui/confirm-dialog";
+import { LeadCard } from "@/components/leads/lead-card";
+import { LeadFormSheet } from "@/components/leads/lead-form-sheet";
+import { followUpState } from "@/components/leads/lead-meta";
 
 const PAGE_SIZE_OPTIONS = [50, 100, 150, 200] as const;
 const leadsSearchSchema = z.object({
@@ -186,7 +189,14 @@ function LeadsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | LeadStatusDB>("all");
   const [ownerFilter, setOwnerFilter] = useState<string>("all");
+  const [quick, setQuick] = useState<"all" | "mine" | "today" | "overdue">("all");
+  const [formOpen, setFormOpen] = useState(false);
+  const [myId, setMyId] = useState<string | null>(null);
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setMyId(data.user?.id ?? null));
+  }, []);
 
+  // Draft flow kept for the empty state / drafts page.
   const createDraftM = useMutation({
     mutationFn: () => createDraft(),
     onSuccess: (row) => {
@@ -200,7 +210,7 @@ function LeadsPage() {
     onError: (e: unknown) =>
       toast.error(e instanceof Error ? e.message : "Failed to create lead"),
   });
-  const onNewLead = () => createDraftM.mutate();
+  const onNewLead = () => setFormOpen(true);
 
   // ---- Super-admin bulk selection / actions --------------------------------
   const confirm = useConfirm();
@@ -252,27 +262,49 @@ function LeadsPage() {
 
 
 
+  const quickCounts = useMemo(() => {
+    const rows = leadsQuery.data ?? [];
+    let today = 0;
+    let overdue = 0;
+    rows.forEach((r) => {
+      const s = followUpState(r.next_follow_up_at);
+      if (s === "today") today++;
+      if (s === "overdue") overdue++;
+    });
+    return { today, overdue };
+  }, [leadsQuery.data]);
+
   const filtered = useMemo(() => {
     const rows = leadsQuery.data ?? [];
     const q = search.trim().toLowerCase();
-    return rows.filter((r) => {
+    const out = rows.filter((r) => {
       if (statusFilter !== "all" && r.status !== statusFilter) return false;
+      if (quick === "mine" && r.owner_id !== myId) return false;
+      if (quick === "today" && followUpState(r.next_follow_up_at) !== "today") return false;
+      if (quick === "overdue" && followUpState(r.next_follow_up_at) !== "overdue") return false;
       if (ownerFilter !== "all") {
         if (ownerFilter === "unassigned" && r.owner_id) return false;
         if (ownerFilter !== "unassigned" && r.owner_id !== ownerFilter)
           return false;
       }
       if (!q) return true;
-      const hay = [r.name, r.company, r.email, r.slug, r.lead_code, r.next_action]
+      const hay = [r.name, r.company, r.email, r.slug, r.lead_code, r.next_action, r.phone, r.contact_person]
         .filter(Boolean)
         .join(" ")
         .toLowerCase();
       return hay.includes(q);
     });
-  }, [leadsQuery.data, search, statusFilter, ownerFilter]);
+    if (quick === "today" || quick === "overdue") {
+      out.sort(
+        (a, b) =>
+          new Date(a.next_follow_up_at ?? 0).getTime() - new Date(b.next_follow_up_at ?? 0).getTime(),
+      );
+    }
+    return out;
+  }, [leadsQuery.data, search, statusFilter, ownerFilter, quick, myId]);
 
   const activeFilterCount =
-    (statusFilter !== "all" ? 1 : 0) + (ownerFilter !== "all" ? 1 : 0);
+    (statusFilter !== "all" ? 1 : 0) + (ownerFilter !== "all" ? 1 : 0) + (quick !== "all" ? 1 : 0);
 
   const rawSearch = Route.useSearch();
   const pageSize = PAGE_SIZE_OPTIONS.includes(
@@ -310,30 +342,28 @@ function LeadsPage() {
 
 
   return (
-    <div className="mx-auto flex h-full max-w-[1400px] flex-col gap-4 p-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-[20px] font-semibold tracking-tight text-foreground">
+    <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-3 p-3 pb-28 sm:gap-4 sm:p-5 md:h-full md:pb-6 lg:p-6">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3">
+        <div className="min-w-0">
+          <h1 className="text-[22px] font-bold tracking-tight text-foreground sm:text-[20px] sm:font-semibold">
             Leads
           </h1>
-          <p className="mt-0.5 text-[13px] text-muted-foreground">
+          <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
             {leadsQuery.data?.length ?? 0} total · {filtered.length} shown
-            {filtered.length > 0 && (
-              <>
-                {" "}
-                · showing {pageStart + 1}–
-                {Math.min(pageStart + pageSize, filtered.length)}
-              </>
-            )}
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {canManageLeads && <SheetSyncButton />}
+          {canManageLeads && (
+            <div className="hidden md:block">
+              <SheetSyncButton />
+            </div>
+          )}
           <Button
             variant="outline"
             size="sm"
-            className="h-9 rounded-sm border-border text-[12.5px]"
+            className="h-10 rounded-full border-border px-3 text-[12.5px] md:h-9 md:rounded-sm"
             disabled={leadsQuery.isFetching}
+            aria-label="Refresh"
             onClick={() => {
               leadsQuery.refetch();
               usersQuery.refetch();
@@ -341,18 +371,18 @@ function LeadsPage() {
             }}
           >
             {leadsQuery.isFetching ? (
-              <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+              <Loader2 className="size-3.5 animate-spin md:mr-1.5" />
             ) : (
-              <RefreshCw className="mr-1.5 size-3.5" />
+              <RefreshCw className="size-3.5 md:mr-1.5" />
             )}
-            Refresh
+            <span className="hidden md:inline">Refresh</span>
           </Button>
           {canManageLeads && (
             <Button
               asChild
               size="sm"
               variant="outline"
-              className="h-9 rounded-sm text-[12.5px]"
+              className="hidden h-9 rounded-sm text-[12.5px] md:inline-flex"
             >
               <Link to="/app/leads/drafts">
                 <FileText className="mr-1.5 size-3.5" />
@@ -363,72 +393,114 @@ function LeadsPage() {
           {canManageLeads && (
             <Button
               size="sm"
-              className="h-9 rounded-sm bg-primary text-[12.5px] text-primary-foreground hover:bg-brand-700"
-              disabled={createDraftM.isPending}
+              className="hidden h-9 rounded-sm bg-primary text-[12.5px] text-primary-foreground hover:bg-brand-700 md:inline-flex"
               onClick={onNewLead}
             >
-              {createDraftM.isPending ? (
-                <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-              ) : (
-                <Plus className="mr-1.5 size-3.5" />
-              )}
+              <Plus className="mr-1.5 size-3.5" />
               New lead
             </Button>
           )}
-
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 rounded-sm border border-border bg-card p-2">
-        <div className="relative flex-1 min-w-[220px]">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+      <div className="sticky top-0 z-10 -mx-3 grid gap-2 bg-background/95 px-3 py-2 backdrop-blur md:static md:mx-0 md:flex md:flex-wrap md:items-center md:rounded-sm md:border md:border-border md:bg-card md:p-2">
+        <div className="relative min-w-0 flex-1 md:min-w-[220px]">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search name, company, code, email…"
-            className="h-9 rounded-sm pl-8 text-[12.5px]"
+            placeholder="Search name, company, phone…"
+            className="h-11 rounded-full pl-9 text-[15px] md:h-9 md:rounded-sm md:pl-8 md:text-[12.5px]"
           />
         </div>
-        <Select
-          value={statusFilter}
-          onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}
-        >
-          <SelectTrigger className="h-9 w-[180px] rounded-sm text-[12.5px]">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All statuses</SelectItem>
-            {statusOptions.map((s) => (
-              <SelectItem key={s.key} value={s.key}>
-                {s.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {isSuperAdmin && (
-          <Select value={ownerFilter} onValueChange={setOwnerFilter}>
-            <SelectTrigger className="h-9 w-[200px] rounded-sm text-[12.5px]">
-              <SelectValue placeholder="Assigned to" />
+        {/* Quick views */}
+        <div className="-mx-3 flex gap-1.5 overflow-x-auto px-3 pb-0.5 [scrollbar-width:none] md:mx-0 md:px-0">
+          {(
+            [
+              { key: "all", label: "All" },
+              { key: "mine", label: "My leads" },
+              { key: "today", label: `Today · ${quickCounts.today}` },
+              { key: "overdue", label: `Overdue · ${quickCounts.overdue}` },
+            ] as const
+          ).map((q) => (
+            <button
+              key={q.key}
+              type="button"
+              onClick={() => setQuick(q.key)}
+              className={cn(
+                "h-9 shrink-0 whitespace-nowrap rounded-full border px-3.5 text-[13px] font-semibold transition-all active:scale-95 md:h-8 md:text-[12px]",
+                quick === q.key
+                  ? q.key === "overdue"
+                    ? "border-destructive bg-destructive text-primary-foreground"
+                    : "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-card text-foreground",
+              )}
+            >
+              {q.label}
+            </button>
+          ))}
+        </div>
+        {/* Status chips — mobile */}
+        <div className="-mx-3 flex gap-1.5 overflow-x-auto px-3 [scrollbar-width:none] md:hidden">
+          {[{ key: "all", label: "All statuses" }, ...statusOptions].map((s) => (
+            <button
+              key={s.key}
+              type="button"
+              onClick={() => setStatusFilter(s.key as typeof statusFilter)}
+              className={cn(
+                "h-8 shrink-0 whitespace-nowrap rounded-full px-3 text-[12.5px] font-medium transition-all active:scale-95",
+                statusFilter === s.key ? "bg-foreground text-background" : "bg-muted text-muted-foreground",
+              )}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+        <div className="hidden md:block">
+          <Select
+            value={statusFilter}
+            onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}
+          >
+            <SelectTrigger className="h-9 w-[180px] rounded-sm text-[12.5px]">
+              <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All owners</SelectItem>
-              <SelectItem value="unassigned">Unassigned</SelectItem>
-              {(usersQuery.data ?? []).map((u) => (
-                <SelectItem key={u.user_id} value={u.user_id}>
-                  {u.full_name || u.user_id.slice(0, 8)}
+              <SelectItem value="all">All statuses</SelectItem>
+              {statusOptions.map((s) => (
+                <SelectItem key={s.key} value={s.key}>
+                  {s.label}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
+        </div>
+        {isSuperAdmin && (
+          <div className="hidden md:block">
+            <Select value={ownerFilter} onValueChange={setOwnerFilter}>
+              <SelectTrigger className="h-9 w-[200px] rounded-sm text-[12.5px]">
+                <SelectValue placeholder="Assigned to" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All owners</SelectItem>
+                <SelectItem value="unassigned">Unassigned</SelectItem>
+                {(usersQuery.data ?? []).map((u) => (
+                  <SelectItem key={u.user_id} value={u.user_id}>
+                    {u.full_name || u.user_id.slice(0, 8)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         )}
         {activeFilterCount > 0 && (
           <Button
             variant="ghost"
             size="sm"
-            className="h-9 rounded-sm text-[12.5px] text-muted-foreground"
+            className="hidden h-9 rounded-sm text-[12.5px] text-muted-foreground md:inline-flex"
             onClick={() => {
               setStatusFilter("all");
               setOwnerFilter("all");
+              setQuick("all");
             }}
           >
             <Filter className="mr-1.5 size-3.5" />
@@ -436,6 +508,26 @@ function LeadsPage() {
           </Button>
         )}
       </div>
+
+      {canManageLeads && (
+        <button
+          type="button"
+          onClick={onNewLead}
+          aria-label="New lead"
+          className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] right-4 z-40 grid size-14 place-items-center rounded-full bg-primary text-primary-foreground shadow-[0_10px_30px_-8px_color-mix(in_oklab,var(--primary)_70%,transparent)] transition-transform animate-scale-in active:scale-90 md:hidden"
+        >
+          <Plus className="size-6" strokeWidth={2.5} />
+        </button>
+      )}
+
+      <LeadFormSheet
+        open={formOpen}
+        onClose={() => setFormOpen(false)}
+        onCreated={(row) => {
+          setFormOpen(false);
+          navigate({ to: "/app/leads/$slug", params: { slug: row.slug ?? row.lead_code } });
+        }}
+      />
 
       {isSuperAdmin && selected.size > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-sm border border-primary/40 bg-primary/5 px-3 py-2 text-[12.5px]">
@@ -493,7 +585,7 @@ function LeadsPage() {
         </div>
       )}
 
-      <div className="flex-1 overflow-hidden rounded-sm border border-border bg-card">
+      <div className="flex-1 md:overflow-hidden md:rounded-sm md:border md:border-border md:bg-card">
         {/* Header row — desktop only */}
         <div
           className={cn(
@@ -529,7 +621,7 @@ function LeadsPage() {
           <div className="hidden xl:block">Service</div>
           <div className="text-right">Last activity</div>
         </div>
-        <div className="max-h-[calc(100vh-260px)] overflow-y-auto">
+        <div className="md:max-h-[calc(100vh-260px)] md:overflow-y-auto">
           {leadsQuery.isLoading ? (
             <div className="grid place-items-center p-16 text-[12.5px] text-muted-foreground">
               <Loader2 className="mb-2 size-5 animate-spin" />
@@ -653,77 +745,15 @@ function LeadsPage() {
                   </button>
 
                   {/* Mobile card */}
-                  <button
-                    onClick={goToLead}
-                    style={{ ["--row-accent" as string]: accent }}
-                    className="group relative flex w-full flex-col gap-2 border-b border-border/60 px-3 py-3 text-left transition-colors hover:bg-muted/50 md:hidden"
-                  >
-                    <span
-                      className="absolute left-0 top-3 h-8 w-[3px] rounded-r-full"
-                      style={{ background: accent }}
+                  <div className="px-0 py-1.5 md:hidden">
+                    <LeadCard
+                      row={row}
+                      index={idx}
+                      statusLabel={statusLabel(row.status, statusOptions)}
+                      statusColor={accent}
+                      onOpen={goToLead}
                     />
-                    <div className="flex items-start justify-between gap-2 pl-2">
-                      <div className="flex min-w-0 flex-1 items-center gap-2">
-                        <span className="font-mono text-[11.5px] font-semibold text-primary">
-                          {row.slug ?? row.lead_code}
-                        </span>
-                        <SourceBadge source={row.sheet_source} />
-                        <SyncIndicator
-                          leadId={row.id}
-                          status={row.sheet_sync_status}
-                          syncedAt={row.sheet_synced_at}
-                          error={row.sheet_sync_error}
-                          canRetry={canManageLeads}
-                        />
-                      </div>
-                      <span
-                        className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-medium"
-                        style={{
-                          color: accent,
-                          borderColor: `color-mix(in oklab, ${accent} 45%, transparent)`,
-                          background: `color-mix(in oklab, ${accent} 12%, transparent)`,
-                        }}
-                      >
-                        <span className="size-1.5 rounded-full" style={{ background: accent }} />
-                        {statusLabel(row.status, statusOptions)}
-                      </span>
-                    </div>
-                    <div className="min-w-0 pl-2">
-                      <div className="truncate text-[13.5px] font-medium text-foreground">
-                        {row.name || "—"}
-                      </div>
-                      {row.email && (
-                        <div className="truncate text-[12px] text-muted-foreground">
-                          {row.email}
-                        </div>
-                      )}
-                      {row.company && (
-                        <div className="truncate text-[12px] text-muted-foreground">
-                          {row.company}
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex items-center justify-between gap-2 pl-2 text-[11.5px] text-muted-foreground">
-                      <div className="flex min-w-0 items-center gap-1.5">
-                        {row.owner_avatar_url ? (
-                          <img
-                            src={row.owner_avatar_url}
-                            alt={row.owner_name ?? "Assigned"}
-                            className="size-5 shrink-0 rounded-full object-cover ring-1 ring-border"
-                          />
-                        ) : (
-                          <span
-                            className="grid size-5 shrink-0 place-items-center rounded-full text-[9px] font-bold text-primary-foreground"
-                            style={{ background: `linear-gradient(135deg, ${accent}, color-mix(in oklab, ${accent} 55%, #000))` }}
-                          >
-                            {initialsOf(row.owner_name)}
-                          </span>
-                        )}
-                        <span className="truncate">{row.owner_name ?? "Unassigned"}</span>
-                      </div>
-                      <span className="shrink-0 font-mono">{relTime(row.last_activity_at)}</span>
-                    </div>
-                  </button>
+                  </div>
                 </div>
               );
             })
