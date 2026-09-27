@@ -195,7 +195,7 @@ function TaskFormSheet({ customerId, onClose }: { customerId: string; onClose: (
   );
 }
 
-function TaskDetailSheet({ task, users, onClose }: { task: ClientTask; users: AssignableUser[]; onClose: () => void }) {
+export function TaskDetailSheet({ task, users, onClose }: { task: ClientTask; users: AssignableUser[]; onClose: () => void }) {
   const qc = useQueryClient();
   const [tab, setTab] = useState<"tracking" | "updates" | "submissions" | "team" | "details">("tracking");
   const [assigning, setAssigning] = useState(false);
