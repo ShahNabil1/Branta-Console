@@ -8,6 +8,7 @@ import { getCustomerByCode } from "@/lib/customers.functions";
 import { getLeadBySlug, listAssignableUsers, logLeadView } from "@/lib/leads.functions";
 import { LeadDetail } from "@/components/leads/lead-detail";
 import { ClientProjects } from "@/components/clients/client-projects";
+import { ClientTasks } from "@/components/clients/client-tasks";
 import { WhatsAppIcon } from "@/components/social/whatsapp-icon";
 import { cn } from "@/lib/utils";
 
@@ -29,7 +30,7 @@ function CustomerDetailPage() {
   const listUsers = useServerFn(listAssignableUsers);
   const logView = useServerFn(logLeadView);
   const qc = useQueryClient();
-  const [tab, setTab] = useState<"projects" | "profile" | "activity" | "crm">("projects");
+  const [tab, setTab] = useState<"projects" | "tasks" | "profile" | "activity" | "crm">("projects");
 
   const customerQ = useQuery({
     queryKey: ["customers", "by-code", code],
@@ -161,14 +162,14 @@ function CustomerDetailPage() {
           <Chan href={wa ? `https://wa.me/${wa.replace(/\D/g, "")}` : undefined} color="var(--color-channel-whatsapp)" icon={<WhatsAppIcon className="size-5" />} label="WhatsApp" />
           <Chan href={c.email ? `mailto:${c.email}` : undefined} color="var(--color-channel-email)" icon={<Mail className="size-4" />} label="Email" />
         </div>
-        <div className="mt-3 grid grid-cols-4 rounded-full bg-muted p-1" role="tablist">
-          {(["projects", "profile", "activity", "crm"] as const).map((t) => (
+        <div className="mt-3 grid grid-cols-5 rounded-full bg-muted p-1" role="tablist">
+          {(["projects", "tasks", "profile", "activity", "crm"] as const).map((t) => (
             <button
               key={t}
               role="tab"
               aria-selected={tab === t}
               onClick={() => setTab(t)}
-              className={cn("h-9 rounded-full text-[13px] font-semibold capitalize transition-all", tab === t ? "bg-card text-foreground shadow-sm" : "text-muted-foreground")}
+              className={cn("h-9 rounded-full text-[12.5px] sm:text-[13px] font-semibold capitalize transition-all", tab === t ? "bg-card text-foreground shadow-sm" : "text-muted-foreground")}
             >
               {t === "crm" ? "More" : t}
             </button>
@@ -178,6 +179,7 @@ function CustomerDetailPage() {
 
       <div key={tab} className="flex-1 overflow-auto animate-fade-in">
         {tab === "projects" && <ClientProjects customerId={c.id} users={users} view="projects" />}
+        {tab === "tasks" && <ClientTasks customerId={c.id} users={users} />}
         {tab === "activity" && <ClientProjects customerId={c.id} users={users} view="activity" />}
         {tab === "profile" && (
           <dl className="mx-auto grid max-w-3xl gap-2 p-4 sm:grid-cols-2">

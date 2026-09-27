@@ -22,6 +22,9 @@ import {
   type KpiValue,
 } from "@/lib/analytics.functions";
 import { ScopeSelector, type ScopeState } from "@/components/branta/scope-selector";
+import { listMyTasks } from "@/lib/client-tasks.functions";
+import { listAssignableUsers } from "@/lib/leads.functions";
+import { MyTasksPanel } from "@/components/clients/client-tasks";
 import {
   ArrowUpRight,
   ArrowDownRight,
@@ -144,6 +147,8 @@ function OverviewPage() {
       {/* KPI grid */}
       <KpiGrid data={kpisQ.data} loading={kpisQ.isLoading} />
 
+      <MyTasksSection />
+
       {/* Row: inbox / meetings / follow-ups */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <InboxCard rows={inboxQ.data ?? []} loading={inboxQ.isLoading} />
@@ -161,6 +166,20 @@ function OverviewPage() {
 }
 
 // ---------- Widgets ----------
+
+function MyTasksSection() {
+  const listMine = useServerFn(listMyTasks);
+  const listUsers = useServerFn(listAssignableUsers);
+  const q = useQuery({ queryKey: ["my-tasks"], queryFn: () => listMine(), staleTime: 30_000 });
+  const usersQ = useQuery({ queryKey: ["leads", "assignable-users"], queryFn: () => listUsers(), staleTime: 60_000 });
+  if (!q.data?.length) return null;
+  return (
+    <section>
+      <div className="mb-2 text-[14px] font-bold text-foreground">My Tasks <span className="text-muted-foreground">({q.data.length})</span></div>
+      <MyTasksPanel tasks={q.data} users={usersQ.data ?? []} />
+    </section>
+  );
+}
 
 function KpiGrid({ data, loading }: { data: OverviewKpis | undefined; loading: boolean }) {
   const items: (KpiValue & { key: keyof OverviewKpis })[] = data
