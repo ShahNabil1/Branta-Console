@@ -62,57 +62,144 @@ export type Database = {
           },
         ]
       }
+      client_project_finance: {
+        Row: {
+          created_at: string
+          currency: string
+          id: string
+          paid_amount: number
+          payment_date: string | null
+          payment_status: string
+          project_id: string | null
+          project_value: number
+          task_id: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          currency?: string
+          id?: string
+          paid_amount?: number
+          payment_date?: string | null
+          payment_status?: string
+          project_id?: string | null
+          project_value?: number
+          task_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          id?: string
+          paid_amount?: number
+          payment_date?: string | null
+          payment_status?: string
+          project_id?: string | null
+          project_value?: number
+          task_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_project_finance_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "client_projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_project_finance_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: true
+            referencedRelation: "client_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_projects: {
         Row: {
           archived_at: string | null
           assignee_id: string | null
+          billing_day: number | null
           budget: number | null
+          client_manager_id: string | null
+          contract_end: string | null
+          contract_start: string | null
           created_at: string
           created_by: string | null
           currency: string
           customer_id: string
           due_on: string | null
           id: string
+          monthly_deliverables: string | null
+          monthly_fee: number | null
           notes: string | null
+          project_type: string
           service: string | null
+          services_included: string | null
+          start_time: string | null
           starts_on: string | null
           status: string
           title: string
           updated_at: string
+          work_value: number | null
         }
         Insert: {
           archived_at?: string | null
           assignee_id?: string | null
+          billing_day?: number | null
           budget?: number | null
+          client_manager_id?: string | null
+          contract_end?: string | null
+          contract_start?: string | null
           created_at?: string
           created_by?: string | null
           currency?: string
           customer_id: string
           due_on?: string | null
           id?: string
+          monthly_deliverables?: string | null
+          monthly_fee?: number | null
           notes?: string | null
+          project_type?: string
           service?: string | null
+          services_included?: string | null
+          start_time?: string | null
           starts_on?: string | null
           status?: string
           title: string
           updated_at?: string
+          work_value?: number | null
         }
         Update: {
           archived_at?: string | null
           assignee_id?: string | null
+          billing_day?: number | null
           budget?: number | null
+          client_manager_id?: string | null
+          contract_end?: string | null
+          contract_start?: string | null
           created_at?: string
           created_by?: string | null
           currency?: string
           customer_id?: string
           due_on?: string | null
           id?: string
+          monthly_deliverables?: string | null
+          monthly_fee?: number | null
           notes?: string | null
+          project_type?: string
           service?: string | null
+          services_included?: string | null
+          start_time?: string | null
           starts_on?: string | null
           status?: string
           title?: string
           updated_at?: string
+          work_value?: number | null
         }
         Relationships: [
           {
@@ -212,6 +299,100 @@ export type Database = {
           },
           {
             foreignKeyName: "client_task_events_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "client_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_task_submissions: {
+        Row: {
+          created_at: string
+          id: string
+          items_completed: number | null
+          links: Json
+          notes: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          submitted_by: string
+          task_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          items_completed?: number | null
+          links?: Json
+          notes?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          submitted_by: string
+          task_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          items_completed?: number | null
+          links?: Json
+          notes?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          submitted_by?: string
+          task_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_task_submissions_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "client_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_task_updates: {
+        Row: {
+          author_id: string
+          body: string
+          created_at: string
+          edited_at: string | null
+          id: string
+          is_manager: boolean
+          items_done: number | null
+          task_id: string
+        }
+        Insert: {
+          author_id: string
+          body: string
+          created_at?: string
+          edited_at?: string | null
+          id?: string
+          is_manager?: boolean
+          items_done?: number | null
+          task_id: string
+        }
+        Update: {
+          author_id?: string
+          body?: string
+          created_at?: string
+          edited_at?: string | null
+          id?: string
+          is_manager?: boolean
+          items_done?: number | null
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_task_updates_task_id_fkey"
             columns: ["task_id"]
             isOneToOne: false
             referencedRelation: "client_tasks"
