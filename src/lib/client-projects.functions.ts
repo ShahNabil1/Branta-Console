@@ -27,6 +27,17 @@ export interface ClientProject {
   assignee_name?: string | null;
   archived_at: string | null;
   created_at: string;
+  project_type: "one_time" | "monthly";
+  start_time: string | null;
+  work_value: number | null;
+  contract_start: string | null;
+  contract_end: string | null;
+  monthly_fee: number | null;
+  billing_day: number | null;
+  services_included: string | null;
+  monthly_deliverables: string | null;
+  client_manager_id: string | null;
+  client_manager_name?: string | null;
 }
 
 export interface ProjectActivity {
@@ -171,6 +182,7 @@ export const createClientProject = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => ProjectInput.extend({ customer_id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     const sb = context.supabase as any;
+    await stripMoneyIfNotFinance(sb, context.userId, data as Record<string, unknown>);
     const { data: row, error } = await sb.from("client_projects").insert({ ...data, created_by: context.userId }).select("id").single();
     if (error) throw new Error(error.message);
     await sb.from("client_project_activity").insert({
@@ -185,6 +197,7 @@ export const updateClientProject = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const sb = context.supabase as any;
     const { id, archive, ...patch } = data;
+    await stripMoneyIfNotFinance(sb, context.userId, patch as Record<string, unknown>);
     const { data: before, error: e0 } = await sb.from("client_projects").select("*").eq("id", id).single();
     if (e0) throw new Error(e0.message);
     const upd: Record<string, unknown> = { ...patch };
