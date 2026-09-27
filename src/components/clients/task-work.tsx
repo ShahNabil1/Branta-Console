@@ -142,7 +142,7 @@ const LINK_KINDS = [
 const SUB_STATUS: Record<WorkSubmission["status"], { label: string; cls: string }> = {
   submitted: { label: "Awaiting review", cls: "border-primary/40 bg-primary/10 text-primary" },
   approved: { label: "Approved", cls: "border-[var(--color-status-converted)]/40 text-[var(--color-status-converted)]" },
-  revision_requested: { label: "Revision requested", cls: "border-amber-500/40 text-amber-600" },
+  revision_requested: { label: "Revision requested", cls: "border-primary/40 text-primary" },
   rejected: { label: "Rejected", cls: "border-destructive/40 text-destructive" },
   completed: { label: "Completed", cls: "border-[var(--color-status-converted)]/40 bg-[var(--color-status-converted)]/10 text-[var(--color-status-converted)]" },
 };
