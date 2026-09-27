@@ -124,6 +124,179 @@ export type Database = {
           },
         ]
       }
+      client_task_assignees: {
+        Row: {
+          assigned_by: string | null
+          created_at: string
+          done_qty: number
+          id: string
+          quantity: number | null
+          responsibility: string | null
+          status: string
+          task_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assigned_by?: string | null
+          created_at?: string
+          done_qty?: number
+          id?: string
+          quantity?: number | null
+          responsibility?: string | null
+          status?: string
+          task_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assigned_by?: string | null
+          created_at?: string
+          done_qty?: number
+          id?: string
+          quantity?: number | null
+          responsibility?: string | null
+          status?: string
+          task_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_task_assignees_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "client_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_task_events: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          customer_id: string
+          id: string
+          meta: Json
+          note: string | null
+          status: string
+          task_id: string
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          customer_id: string
+          id?: string
+          meta?: Json
+          note?: string | null
+          status: string
+          task_id: string
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          customer_id?: string
+          id?: string
+          meta?: Json
+          note?: string | null
+          status?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_task_events_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_task_events_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "client_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_tasks: {
+        Row: {
+          archived_at: string | null
+          created_at: string
+          created_by: string | null
+          customer_id: string
+          due_on: string | null
+          id: string
+          instructions: string | null
+          output_unit: string | null
+          per_unit_output: number | null
+          priority: string
+          project_id: string | null
+          quantity: number | null
+          revision_round: number
+          status: string
+          title: string
+          total_output: number | null
+          unit: string | null
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_id: string
+          due_on?: string | null
+          id?: string
+          instructions?: string | null
+          output_unit?: string | null
+          per_unit_output?: number | null
+          priority?: string
+          project_id?: string | null
+          quantity?: number | null
+          revision_round?: number
+          status?: string
+          title: string
+          total_output?: number | null
+          unit?: string | null
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string
+          due_on?: string | null
+          id?: string
+          instructions?: string | null
+          output_unit?: string | null
+          per_unit_output?: number | null
+          priority?: string
+          project_id?: string | null
+          quantity?: number | null
+          revision_round?: number
+          status?: string
+          title?: string
+          total_output?: number | null
+          unit?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_tasks_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_tasks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "client_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_ledger: {
         Row: {
           amount: number
@@ -2880,6 +3053,10 @@ export type Database = {
         Args: { _schema: string; _table: string }
         Returns: undefined
       }
+      can_manage_task: {
+        Args: { _task_id: string; _user: string }
+        Returns: boolean
+      }
       generate_employee_code: { Args: never; Returns: string }
       has_permission: {
         Args: { _perm: string; _user_id: string }
@@ -2895,6 +3072,10 @@ export type Database = {
       is_finance_admin: { Args: { _user_id?: string }; Returns: boolean }
       is_lead_owner: { Args: { _lead_id: string }; Returns: boolean }
       is_super_admin: { Args: { _user_id?: string }; Returns: boolean }
+      is_task_assignee: {
+        Args: { _task_id: string; _user: string }
+        Returns: boolean
+      }
       purge_expired_expenses: { Args: never; Returns: number }
       validate_branta_email: { Args: { _email: string }; Returns: boolean }
     }
