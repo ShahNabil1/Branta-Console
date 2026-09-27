@@ -123,13 +123,23 @@ export const listClientProjects = createServerFn({ method: "GET" })
       sb.from("client_project_activity").select("*").eq("customer_id", data.customerId).order("created_at", { ascending: false }).limit(100),
     ]);
     if (error) throw new Error(error.message);
-    const map = await names(sb, [...(p ?? []).map((x: any) => x.assignee_id), ...(a ?? []).map((x: any) => x.actor_id)]);
+    const { data: fin } = await sb.rpc("is_finance_admin", { _user_id: context.userId });
+    const canSeeFinance = !!fin;
+    const map = await names(sb, [...(p ?? []).flatMap((x: any) => [x.assignee_id, x.client_manager_id]), ...(a ?? []).map((x: any) => x.actor_id)]);
     return {
-      projects: (p ?? []).map((x: any) => ({ ...x, assignee_name: x.assignee_id ? map.get(x.assignee_id) ?? null : null })),
+      canSeeFinance,
+      projects: (p ?? []).map((x: any) => ({
+        ...x,
+        // Money fields are only sent to management/accounts.
+        ...(canSeeFinance ? {} : { budget: null, work_value: null, monthly_fee: null }),
+        assignee_name: x.assignee_id ? map.get(x.assignee_id) ?? null : null,
+        client_manager_name: x.client_manager_id ? map.get(x.client_manager_id) ?? null : null,
+      })),
       activity: (a ?? []).map((x: any) => ({ ...x, actor_name: x.actor_id ? map.get(x.actor_id) ?? null : null })),
     };
   });
 
+const txt = (n: number) => z.string().trim().max(n).nullable().optional();
 const ProjectInput = z.object({
   title: z.string().trim().min(2).max(160),
   service: z.string().trim().max(120).nullable().optional(),
@@ -140,7 +150,21 @@ const ProjectInput = z.object({
   currency: z.enum(["BDT", "USD"]).default("BDT"),
   notes: z.string().trim().max(4000).nullable().optional(),
   assignee_id: z.string().uuid().nullable().optional(),
+  project_type: z.enum(["one_time", "monthly"]).optional(),
+  start_time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/).nullable().optional(),
+  work_value: z.number().nonnegative().nullable().optional(),
+  contract_start: z.string().nullable().optional(),
+  contract_end: z.string().nullable().optional(),
+  monthly_fee: z.number().nonnegative().nullable().optional(),
+  billing_day: z.number().int().min(1).max(31).nullable().optional(),
+  services_included: txt(2000),
+  monthly_deliverables: txt(2000),
+  client_manager_id: z.string().uuid().nullable().optional(),
 });
+async function stripMoneyIfNotFinance(sb: any, userId: string, d: Record<string, unknown>) {
+  const { data } = await sb.rpc("is_finance_admin", { _user_id: userId });
+  if (!data) { delete d.budget; delete d.work_value; delete d.monthly_fee; }
+}
 
 export const createClientProject = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
