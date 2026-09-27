@@ -189,8 +189,8 @@ export const createClientTask = createServerFn({ method: "POST" })
     const { data: row, error } = await sb.from("client_tasks").insert({ ...data, status: "created", created_by: context.userId }).select("id, customer_id").single();
     if (error) throw new Error(error.message);
     await logEvent(sb, row, context.userId, "created", null, { title: data.title });
-    await sb.from("client_project_activity").insert({
-      project_id: data.project_id ?? null, customer_id: data.customer_id, actor_id: context.userId, action: "task_created", body: `Task "${data.title}" created`, changes: {},
+    if (data.project_id) await sb.from("client_project_activity").insert({
+      project_id: data.project_id, customer_id: data.customer_id, actor_id: context.userId, action: "task_created", body: `Task "${data.title}" created`, changes: {},
     }).then(() => {}, () => {});
     return { id: row.id as string };
   });
@@ -291,7 +291,7 @@ export const addTaskStatus = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const sb = context.supabase as any;
-    const { data: task, error: e0 } = await sb.from("client_tasks").select("id, customer_id, title, status, revision_round").eq("id", data.taskId).single();
+    const { data: task, error: e0 } = await sb.from("client_tasks").select("id, customer_id, project_id, title, status, revision_round").eq("id", data.taskId).single();
     if (e0) throw new Error(e0.message);
     if (data.status === task.status) throw new Error("Task is already at this status");
     const round = data.status === "revision_requested" ? task.revision_round + 1 : task.revision_round;
@@ -300,8 +300,8 @@ export const addTaskStatus = createServerFn({ method: "POST" })
     const meta: Record<string, unknown> = { from: task.status };
     if (data.status.startsWith("revision")) meta.round = round;
     await logEvent(sb, task, context.userId, data.status, data.note ?? null, meta);
-    await sb.from("client_project_activity").insert({
-      project_id: null, customer_id: task.customer_id, actor_id: context.userId, action: "task_status",
+    if (task.project_id) await sb.from("client_project_activity").insert({
+      project_id: task.project_id, customer_id: task.customer_id, actor_id: context.userId, action: "task_status",
       body: `Task "${task.title}" → ${stepLabel(data.status)}${data.note ? ` — ${data.note}` : ""}`, changes: {},
     }).then(() => {}, () => {});
     const { data: as } = await sb.from("client_task_assignees").select("user_id").eq("task_id", task.id);
