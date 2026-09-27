@@ -127,7 +127,7 @@ async function names(sb: any, ids: (string | null)[]) {
 export const listClientProjects = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { customerId: string }) => z.object({ customerId: z.string().uuid() }).parse(d))
-  .handler(async ({ data, context }): Promise<{ projects: ClientProject[]; activity: ProjectActivity[] }> => {
+  .handler(async ({ data, context }): Promise<{ projects: ClientProject[]; activity: ProjectActivity[]; canSeeFinance: boolean }> => {
     const sb = context.supabase as any;
     const [{ data: p, error }, { data: a }] = await Promise.all([
       sb.from("client_projects").select("*").eq("customer_id", data.customerId).is("archived_at", null).order("created_at", { ascending: false }),
