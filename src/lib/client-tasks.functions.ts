@@ -42,7 +42,7 @@ export interface TaskEvent {
   note: string | null;
   actor_name: string | null;
   actor_avatar_url: string | null;
-  meta: Record<string, unknown>;
+  meta: { round?: number; from?: string };
   created_at: string;
 }
 export interface ClientTask {
@@ -161,7 +161,7 @@ export const getTaskEvents = createServerFn({ method: "GET" })
     const { data: ev } = await sb.from("client_task_events").select("*").eq("task_id", data.taskId).order("created_at", { ascending: true });
     const pm = await profileMap(sb, (ev ?? []).map((e: any) => e.actor_id));
     return (ev ?? []).map((e: any) => ({
-      id: e.id, status: e.status, note: e.note, meta: e.meta ?? {}, created_at: e.created_at,
+      id: e.id, status: e.status, note: e.note, meta: { round: e.meta?.round ?? undefined, from: e.meta?.from ?? undefined }, created_at: e.created_at,
       actor_name: e.actor_id ? pm.get(e.actor_id)?.name ?? null : null,
       actor_avatar_url: e.actor_id ? pm.get(e.actor_id)?.avatar ?? null : null,
     }));
