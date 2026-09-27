@@ -81,8 +81,8 @@ export async function assertCallerPermission(
 /** Called by any signed-in user to learn their own effective toggles. */
 export const getMyPermissions = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<UserPermissions & { isSuperAdmin: boolean; isAdmin: boolean; isFinance: boolean }> => {
-    const [suRes, adRes, finRes] = await Promise.all([
+  .handler(async ({ context }): Promise<UserPermissions & { isSuperAdmin: boolean; isAdmin: boolean; isManager: boolean; isFinance: boolean }> => {
+    const [suRes, adRes, managerRes, finRes] = await Promise.all([
       context.supabase.rpc("has_role", {
         _user_id: context.userId,
         _role: "super_admin",
@@ -93,11 +93,16 @@ export const getMyPermissions = createServerFn({ method: "GET" })
       }),
       context.supabase.rpc("has_role", {
         _user_id: context.userId,
+        _role: "manager",
+      }),
+      context.supabase.rpc("has_role", {
+        _user_id: context.userId,
         _role: "finance",
       }),
     ]);
     const isSuperAdmin = !!suRes.data;
     const isAdmin = isSuperAdmin || !!adRes.data;
+    const isManager = !!managerRes.data;
     const isFinance = isSuperAdmin || isAdmin || !!finRes.data;
     // NOTE: toggles apply on top of role. Even super_admins respect their
     // per-user overrides so a super_admin with lead_delete=false cannot
@@ -114,8 +119,9 @@ export const getMyPermissions = createServerFn({ method: "GET" })
       ...(data ?? {}),
       isSuperAdmin,
       isAdmin,
+      isManager,
       isFinance,
-    } as UserPermissions & { isSuperAdmin: boolean; isAdmin: boolean; isFinance: boolean };
+    } as UserPermissions & { isSuperAdmin: boolean; isAdmin: boolean; isManager: boolean; isFinance: boolean };
   });
 
 export const getUserPermissions = createServerFn({ method: "GET" })

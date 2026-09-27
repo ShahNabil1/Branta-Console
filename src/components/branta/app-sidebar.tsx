@@ -21,6 +21,7 @@ import {
   ArrowLeftRight,
   Palette,
   Bell,
+  RadioTower,
   Menu,
   X,
   BadgeDollarSign, TrendingUp } from "lucide-react";
@@ -38,6 +39,7 @@ const NAV: NavGroup[] = [
     label: "Workspace",
     items: [
       { label: "Overview", to: "/app", icon: LayoutDashboard },
+      { label: "Today's Operations", to: "/app/operations", icon: RadioTower },
       { label: "Analytics", to: "/app/analytics", icon: BarChart3 },
     ],
   },
@@ -107,6 +109,7 @@ export function AppSidebar() {
     const perms = permsQ.data;
     if (!perms) return NAV;
     const isAdmin = perms.isAdmin ?? perms.isSuperAdmin;
+    const isManagement = Boolean(isAdmin || perms.isManager);
     const isSuperAdmin = perms.isSuperAdmin ?? false;
     const isFinance = perms.isFinance ?? isAdmin;
     return NAV.map((g) => {
@@ -116,6 +119,7 @@ export function AppSidebar() {
         ...g,
         items: g.items.filter((it) => {
           if (it.to === "/app/customers" && !perms.customer_access) return false;
+          if (it.to === "/app/operations" && !isManagement) return false;
           if (it.to === "/app/notifications" && !isSuperAdmin) return false;
           return true;
         }),
