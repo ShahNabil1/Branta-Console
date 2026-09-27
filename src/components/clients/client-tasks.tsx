@@ -24,6 +24,7 @@ import { listProjectsForPicker } from "@/lib/client-projects.functions";
 import type { AssignableUser } from "@/lib/leads.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { FinancePanel, SubmissionsPanel, WorkUpdatesFeed } from "./task-work";
 
 const input = "h-11 w-full rounded-md border border-border bg-background px-3 text-[14px] focus:border-primary focus:outline-none";
 const fmtTs = (d: string) =>
@@ -196,7 +197,7 @@ function TaskFormSheet({ customerId, onClose }: { customerId: string; onClose: (
 
 function TaskDetailSheet({ task, users, onClose }: { task: ClientTask; users: AssignableUser[]; onClose: () => void }) {
   const qc = useQueryClient();
-  const [tab, setTab] = useState<"tracking" | "team" | "details">("tracking");
+  const [tab, setTab] = useState<"tracking" | "updates" | "submissions" | "team" | "details">("tracking");
   const [assigning, setAssigning] = useState(false);
   const [updating, setUpdating] = useState(false);
   const archive = useServerFn(updateClientTask);
@@ -213,6 +214,9 @@ function TaskDetailSheet({ task, users, onClose }: { task: ClientTask; users: As
   const { data: auth } = useQuery({ queryKey: ["auth-user"], queryFn: async () => (await supabase.auth.getUser()).data.user?.id ?? null, staleTime: 300_000 });
   const isAssignee = task.assignees.some((a) => a.user_id === auth);
   const canUpdate = task.can_manage || isAssignee;
+  const TABS = [
+    ["tracking", "Tracking"], ["updates", "Updates"], ["submissions", "Submit"], ["team", `Team (${task.assignees.length})`], ["details", "Details"],
+  ] as const;
 
   return (
     <Sheet title={task.title} onClose={onClose} footer={canUpdate && tab === "tracking" ? (
@@ -220,18 +224,20 @@ function TaskDetailSheet({ task, users, onClose }: { task: ClientTask; users: As
     ) : tab === "team" && task.can_manage ? (
       <button onClick={() => setAssigning(true)} className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-md bg-primary text-[14px] font-semibold text-primary-foreground"><Users className="size-4" /> Assign team</button>
     ) : undefined}>
-      <div className="sticky top-0 z-10 bg-card px-4 pt-3">
+      <div className="sticky top-0 z-10 bg-card px-4 pt-3 pb-1">
         <div className="text-[12.5px] text-muted-foreground">{task.customer_name}{task.project_title ? ` · ${task.project_title}` : ""}</div>
-        <div className="mt-2 grid grid-cols-3 rounded-full bg-muted p-1" role="tablist">
-          {(["tracking", "team", "details"] as const).map((t) => (
-            <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={cn("h-9 rounded-full text-[13px] font-semibold capitalize transition-all", tab === t ? "bg-card text-foreground shadow-sm" : "text-muted-foreground")}>
-              {t === "team" ? `Team (${task.assignees.length})` : t}
+        <div className="mt-2 flex gap-1 overflow-x-auto rounded-full bg-muted p-1 [scrollbar-width:none]" role="tablist">
+          {TABS.map(([t, label]) => (
+            <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={cn("h-9 shrink-0 flex-1 whitespace-nowrap rounded-full px-3 text-[13px] font-semibold transition-all", tab === t ? "bg-card text-foreground shadow-sm" : "text-muted-foreground")}>
+              {label}
             </button>
           ))}
         </div>
       </div>
       <div key={tab} className="animate-fade-in p-4">
         {tab === "tracking" && <TrackingTimeline task={task} />}
+        {tab === "updates" && <WorkUpdatesFeed taskId={task.id} me={auth ?? null} canPost={canUpdate} onChanged={refresh} />}
+        {tab === "submissions" && <SubmissionsPanel taskId={task.id} canSubmit={canUpdate} canReview={task.can_manage} onChanged={refresh} />}
         {tab === "team" && <TeamList task={task} me={auth ?? null} onChanged={refresh} />}
         {tab === "details" && (
           <div className="grid gap-2">
@@ -252,6 +258,7 @@ function TaskDetailSheet({ task, users, onClose }: { task: ClientTask; users: As
               <div className="text-[12.5px] font-semibold text-muted-foreground">Instructions</div>
               <p className="mt-1 whitespace-pre-wrap text-[14.5px] font-medium text-foreground">{task.instructions || "—"}</p>
             </div>
+            <div className="mt-2"><FinancePanel taskId={task.id} /></div>
             {task.can_manage && (
               <button onClick={() => confirm(`Archive "${task.title}"? History is kept.`) && arch.mutate()} className="mt-2 inline-flex h-10 items-center justify-center gap-2 rounded-md border border-border text-[13px] font-semibold text-muted-foreground hover:bg-muted">
                 <Archive className="size-4" /> Archive task
