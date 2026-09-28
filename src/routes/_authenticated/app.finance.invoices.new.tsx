@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
+import { QtyPriceFields } from "@/components/finance/qty-price-fields";
 import { toast } from "sonner";
 import {
   createInvoice,
@@ -48,6 +49,8 @@ function NewInvoicePage() {
   const [projectType, setProjectType] = useState<"one_time" | "monthly_retainer">("one_time");
   const [currency, setCurrency] = useState<Currency>("BDT");
   const [total, setTotal] = useState<string>("0");
+  const [qty, setQty] = useState<string>("1");
+  const [unitPrice, setUnitPrice] = useState<string>("0");
   const [startsOn, setStartsOn] = useState("");
   const [endsOn, setEndsOn] = useState("");
   const [notes, setNotes] = useState("");
@@ -98,6 +101,8 @@ function NewInvoicePage() {
         ends_on: endsOn || null,
         currency,
         total_amount: totalNum,
+        quantity: Number(qty) || 1,
+        unit_price: Number(unitPrice) || 0,
         notes: notes.trim() || null,
         installments: installments.map((i) => ({ label: i.label.trim(), amount: Number(i.amount), due_date: i.due_date })),
         stakeholders: stakeholders.map((s) => ({ user_id: s.user_id, role: s.role, percent: Number(s.percent) })),
@@ -212,10 +217,8 @@ function NewInvoicePage() {
               <option value="USD">USD ($)</option>
             </select>
           </div>
-          <div>
-            <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Total amount *</Label>
-            <Input type="number" value={total} onChange={(e) => setTotal(e.target.value)} className="mt-1 h-9 rounded-sm font-mono" />
-          </div>
+          <QtyPriceFields qty={qty} unitPrice={unitPrice} currency={currency}
+            setQty={setQty} setUnitPrice={setUnitPrice} onTotal={setTotal} />
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <div>
               <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Starts</Label>
