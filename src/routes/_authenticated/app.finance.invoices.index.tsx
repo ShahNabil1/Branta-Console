@@ -89,7 +89,7 @@ function InvoicesPage() {
                 "rounded-[3px] px-2 py-1 text-[11px] font-medium capitalize",
                 statusFilter === s ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground",
               )}>
-              {s.replace("_", " ")}
+              {invoiceStatusLabel(s)}
             </button>
           ))}
         </div>
