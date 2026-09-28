@@ -8,4 +8,4 @@
 - [x] Add management-only Today’s Operations dashboard for daily client, task, assignee, progress, review, revision, and completion tracking
 
 ## Connectors (new workspace)
-- [ ] Re-link Brevo, Gmail, Google Calendar, Google Docs, Google Sheets, Resend, Telegram
+- [x] Re-link Brevo, Gmail, Google Calendar, Google Docs, Google Sheets, Resend, Telegram
