@@ -90,7 +90,10 @@ export const getTodayOperations = createServerFn({ method: "GET" })
     const assignments = assignmentsRes.data ?? [];
     const events = (eventsRes.data ?? []).filter((row: any) => row.created_at <= day.end);
     const updates = updatesRes.data ?? [];
-    const submissions = (submissionsRes.data ?? []).filter((row: any) => row.created_at <= day.end || row.updated_at <= day.end);
+    const submissions = (submissionsRes.data ?? []).filter((row: any) =>
+      (row.created_at >= day.start && row.created_at <= day.end)
+      || (row.updated_at >= day.start && row.updated_at <= day.end),
+    );
     const todayTaskIds = new Set<string>();
     for (const task of tasks) {
       if ((task.created_at >= day.start && task.created_at <= day.end) || (task.due_on === day.key && task.status !== "completed")) todayTaskIds.add(task.id);
@@ -151,7 +154,7 @@ export const getTodayOperations = createServerFn({ method: "GET" })
         latest_activity_label: activity.label,
         completed_today: taskUpdates.reduce((sum: number, row: any) => sum + Number(row.items_done ?? 0), 0),
       };
-    }).sort((a, b) => b.latest_activity_at.localeCompare(a.latest_activity_at));
+    }).sort((a: OperationsTask, b: OperationsTask) => b.latest_activity_at.localeCompare(a.latest_activity_at));
 
     const completedIds = new Set(events.filter((row: any) => row.status === "completed").map((row: any) => row.task_id));
     const assignedIds = new Set(assignments.filter((row: any) => row.created_at >= day.start).map((row: any) => row.task_id));
