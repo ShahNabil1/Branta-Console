@@ -9,6 +9,7 @@ import { RecordCard } from "@/components/finance/responsive-record-list";
 import { Plus, Search, FileText, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { invoiceStatusLabel } from "@/components/finance/qty-price-fields";
 
 export const Route = createFileRoute("/_authenticated/app/finance/invoices/")({
   head: () => ({ meta: [{ title: "Invoices · Finance · Branta" }] }),

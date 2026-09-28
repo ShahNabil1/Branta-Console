@@ -36,6 +36,7 @@ import { useConfirm } from "@/components/ui/confirm-dialog";
 import { SearchableSelect, type SearchableItem } from "@/components/finance/searchable-select";
 import { Loader2, ArrowLeft, Trash2, CheckCircle2, RotateCcw, Send, Download, Printer, Mail, Clock, CheckCheck, MailOpen, AlertCircle, Pencil, Activity, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { QtyPriceFields, invoiceStatusLabel } from "@/components/finance/qty-price-fields";
 
 export const Route = createFileRoute("/_authenticated/app/finance/invoices/$slug")({
   head: ({ params }) => ({
@@ -62,6 +63,8 @@ type EditInstallment = { label: string; amount: number; due_date: string };
 type EditStakeholder = { user_id: string; role: StakeholderRole; percent: number };
 type UpdateInvoicePayload = {
   id: string;
+  quantity?: number;
+  unit_price?: number;
   customer_id: string;
   title: string;
   description: string | null;
@@ -291,7 +294,7 @@ function InvoiceDetail() {
           <StatBox label="Total" value={fmt(invoice.total_amount, invoice.currency)} />
           <StatBox label="Paid" value={fmt(invoice.paid_amount, invoice.currency)} tone="good" />
           <StatBox label="Outstanding" value={fmt(outstanding, invoice.currency)} tone={outstanding > 0 ? "warn" : "neutral"} />
-          <StatBox label="Status" value={invoice.status.replace("_"," ")} tone={invoice.status === "paid" ? "good" : "neutral"} />
+          <StatBox label="Status" value={invoiceStatusLabel(invoice.status)} tone={invoice.status === "paid" ? "good" : "neutral"} />
         </div>
       </div>
 
@@ -641,6 +644,15 @@ function EditInvoiceDialog({
   const [projectType, setProjectType] = useState<"one_time" | "monthly_retainer">(invoice.project_type);
   const [currency, setCurrency] = useState<Currency>(invoice.currency);
   const [total, setTotal] = useState(String(invoice.total_amount));
+  const [qty, setQty] = useState("1");
+  const [unitPrice, setUnitPrice] = useState(String(invoice.total_amount));
+  useEffect(() => {
+    void supabase.from("invoice_line_items").select("quantity, unit_price").eq("invoice_id", invoice.id)
+      .order("sequence").limit(1).then(({ data }) => {
+        const r = data?.[0] as { quantity: number; unit_price: number } | undefined;
+        if (r) { setQty(String(Number(r.quantity))); setUnitPrice(String(Number(r.unit_price))); }
+      });
+  }, [invoice.id]);
   const [startsOn, setStartsOn] = useState(invoice.starts_on ?? "");
   const [endsOn, setEndsOn] = useState(invoice.ends_on ?? "");
   const [notes, setNotes] = useState(invoice.notes ?? "");
@@ -697,6 +709,8 @@ function EditInvoiceDialog({
                 ends_on: endsOn || null,
                 currency,
                 total_amount: totalNum,
+                quantity: Number(qty) || 1,
+                unit_price: Number(unitPrice) || 0,
                 notes: notes.trim() || null,
                 internal_notes: internalNotes.trim() || null,
                 installments: editInstallments.map((i) => ({ label: i.label.trim(), amount: Number(i.amount), due_date: i.due_date })),
@@ -737,10 +751,8 @@ function EditInvoiceDialog({
                 <option value="USD">USD ($)</option>
               </select>
             </div>
-            <div>
-              <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Total amount *</Label>
-              <Input type="number" value={total} onChange={(e) => setTotal(e.target.value)} className="mt-1 h-9 rounded-sm font-mono" />
-            </div>
+            <QtyPriceFields qty={qty} unitPrice={unitPrice} currency={currency}
+              setQty={setQty} setUnitPrice={setUnitPrice} onTotal={setTotal} />
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <div><Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Starts</Label><Input type="date" value={startsOn} onChange={(e) => setStartsOn(e.target.value)} className="mt-1 h-9 rounded-sm" /></div>
               <div><Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Ends</Label><Input type="date" value={endsOn} onChange={(e) => setEndsOn(e.target.value)} className="mt-1 h-9 rounded-sm" /></div>
