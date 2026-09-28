@@ -6,3 +6,6 @@
 - [x] Lead dashboard menu position swap (Lead Dashboard above Leads)
 - [x] Real WhatsApp logo + brand-coloured Call / WhatsApp / Email actions on lead cards and lead workspace header
 - [x] Add management-only Today’s Operations dashboard for daily client, task, assignee, progress, review, revision, and completion tracking
+
+## Connectors (new workspace)
+- [ ] Re-link Brevo, Gmail, Google Calendar, Google Docs, Google Sheets, Resend, Telegram
