@@ -82,7 +82,7 @@ function InvoicesPage() {
             className="h-8 w-full rounded-sm pl-7 text-[12.5px] sm:w-72" />
         </div>
         <div className="-mx-1 inline-flex max-w-full items-center overflow-x-auto rounded-sm border border-border bg-card p-0.5">
-          {(["all","draft","sent","partially_paid","paid","overdue","void"] as const).map((s) => (
+          {(["all","sent","partially_paid","paid"] as const).map((s) => (
             <button key={s} onClick={() => setStatusFilter(s)}
               className={cn(
                 "rounded-[3px] px-2 py-1 text-[11px] font-medium capitalize",
@@ -130,7 +130,7 @@ function InvoicesPage() {
                 <td className="px-3 py-2 text-right font-mono">{fmt(r.paid_amount, r.currency)}</td>
                 <td className="px-3 py-2">
                   <span className={cn("inline-flex rounded-sm border px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-wider", STATUS_STYLES[r.status])}>
-                    {r.status.replace("_"," ")}
+                    {invoiceStatusLabel(r.status)}
                   </span>
                 </td>
                 <td className="px-3 py-2 text-muted-foreground">{new Date(r.created_at).toLocaleDateString()}</td>
@@ -157,7 +157,7 @@ function InvoicesPage() {
             amount={fmt(r.total_amount, r.currency)}
             badge={
               <span className={cn("inline-flex rounded-sm border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider", STATUS_STYLES[r.status])}>
-                {r.status.replace("_"," ")}
+                {invoiceStatusLabel(r.status)}
               </span>
             }
             fields={[

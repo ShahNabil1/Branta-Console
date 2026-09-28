@@ -244,6 +244,8 @@ const CreateInvoiceIn = z.object({
   ends_on: z.string().nullable().optional(),
   currency: z.enum(["BDT", "USD"]).default("BDT"),
   total_amount: z.number().nonnegative(),
+  quantity: z.number().positive().optional(),
+  unit_price: z.number().nonnegative().optional(),
   notes: z.string().trim().max(4000).nullable().optional(),
   internal_notes: z.string().trim().max(4000).nullable().optional(),
   installments: z.array(InstallmentIn).min(1).max(24),
@@ -253,6 +255,16 @@ const CreateInvoiceIn = z.object({
 const UpdateInvoiceIn = CreateInvoiceIn.extend({
   id: z.string().uuid(),
 });
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function saveInvoiceQtyLine(sb: any, invoiceId: string, d: { title: string; quantity?: number; unit_price?: number }) {
+  if (d.quantity == null || d.unit_price == null) return;
+  await sb.from("invoice_line_items").delete().eq("invoice_id", invoiceId);
+  const { error } = await sb.from("invoice_line_items").insert({
+    invoice_id: invoiceId, sequence: 1, description: d.title, quantity: d.quantity, unit_price: d.unit_price,
+  });
+  if (error) throw new Error(error.message);
+}
 
 function sumCosts(costs: Array<{ amount: number }> | undefined): number {
   return Number(((costs ?? []).reduce((a, c) => a + Number(c.amount || 0), 0)).toFixed(2));
@@ -460,6 +472,7 @@ export const createInvoice = createServerFn({ method: "POST" })
     if (invErr || !inv) throw new Error(invErr?.message ?? "Failed to create invoice");
     const invoiceId = (inv as { id: string; slug: string }).id;
     const slug = (inv as { id: string; slug: string }).slug;
+    await saveInvoiceQtyLine(context.supabase, invoiceId, data);
 
     if ((data.project_costs ?? []).length) {
       const { error: cErr } = await context.supabase.from("invoice_project_costs").insert(
@@ -609,6 +622,7 @@ export const updateInvoice = createServerFn({ method: "POST" })
       } as never)
       .eq("id", data.id);
     if (invErr) throw new Error(invErr.message);
+    await saveInvoiceQtyLine(context.supabase, data.id, data);
 
     await context.supabase.from("invoice_payouts").delete().eq("invoice_id", data.id);
     await context.supabase.from("invoice_installments").delete().eq("invoice_id", data.id);

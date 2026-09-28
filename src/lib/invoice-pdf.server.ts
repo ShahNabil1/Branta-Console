@@ -407,7 +407,7 @@ export async function renderInvoicePdf(
     ["Issue Date", fmtDate(inv.created_at)],
     ["Due Date", fmtDate(inv.due_date ?? data.installments[0]?.due_date ?? inv.ends_on)],
     ["Project Type", inv.project_type === "monthly_retainer" ? "Monthly Retainer" : "One-time Project"],
-    ["Payment Status", inv.status.replace(/_/g, " ").toUpperCase()],
+    ["Payment Status", ({ sent: "WAITING FOR PAYMENT", overdue: "WAITING FOR PAYMENT", partially_paid: "PARTIALLY PAID", paid: "PAID", draft: "DRAFT", void: "VOID" } as Record<string, string>)[inv.status] ?? inv.status.replace(/_/g, " ").toUpperCase()],
   ];
 
   const rowsCount = Math.max(leftLines.length, rightLines.length);
