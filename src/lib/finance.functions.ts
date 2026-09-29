@@ -403,6 +403,7 @@ export const listInvoices = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("invoices")
       .select("*")
+      .is("archived_at" as never, null)
       .order("created_at", { ascending: false })
       .limit(500);
     if (error) throw dbError(error);
@@ -723,18 +724,6 @@ export const deleteInvoice = createServerFn({ method: "POST" })
   .inputValidator((d: { id: string }) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     await ensureFinanceAdmin(context.supabase as never, context.userId);
-    // Fund Ledger history is append-only: an invoice whose payments were split into funds cannot be deleted.
-    const { data: allocs } = await (context.supabase as never as { from: (t: string) => { select: (c: string) => { eq: (k: string, v: string) => { limit: (n: number) => Promise<{ data: unknown[] | null }> } } } })
-      .from("installment_allocations").select("id").eq("invoice_id", data.id).limit(1);
-    if ((allocs ?? []).length)
-      throw new Error("এই ইনভয়েসের টাকা ইতিমধ্যে ফান্ডে ভাগ হয়েছে, তাই ডিলিট করা যাবে না। ফান্ডের হিসাবের ইতিহাস মুছে ফেলা যায় না — টাকা ফেরত নিতে Installment Revert বা Finance Allocation-এ Reverse ব্যবহার করুন।");
-    // Snapshot invoice details BEFORE deletion so we can log a meaningful
-    // "cancelled" event on the underlying lead.
-    const { data: inv } = await context.supabase
-      .from("invoices")
-      .select("id, slug, title, currency, total_amount, paid_amount, status")
-      .eq("id", data.id)
-      .maybeSingle();
     if (inv) {
       const r = inv as { slug: string; title: string; currency: string; total_amount: number; paid_amount: number; status: string };
       await logInvoiceActivity(
@@ -746,9 +735,10 @@ export const deleteInvoice = createServerFn({ method: "POST" })
         { event: "invoice_cancelled", prior_status: r.status, total: r.total_amount, paid: r.paid_amount },
       );
     }
-    const { error } = await context.supabase.from("invoices").delete().eq("id", data.id);
+    const { data: result, error } = await (context.supabase as never as { rpc: (f: string, a: object) => Promise<{ data: string | null; error: { message: string; code?: string } | null }> })
+      .rpc("archive_invoice", { _invoice_id: data.id, _reason: "Removed from invoice page" });
     if (error) throw dbError(error);
-    return { ok: true as const };
+    return { ok: true as const, result: (result ?? "archived") as "deleted" | "archived" };
   });
 
 export const markInstallmentPaid = createServerFn({ method: "POST" })
@@ -904,8 +894,8 @@ export const markInstallmentPaid = createServerFn({ method: "POST" })
 
 export const revertInstallment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { installment_id: string }) =>
-    z.object({ installment_id: z.string().uuid() }).parse(d),
+  .inputValidator((d: { installment_id: string; reason?: string }) =>
+    z.object({ installment_id: z.string().uuid(), reason: z.string().trim().max(500).optional() }).parse(d),
   )
   .handler(async ({ data, context }) => {
     await ensureFinanceAdmin(context.supabase as never, context.userId);
@@ -927,10 +917,9 @@ export const revertInstallment = createServerFn({ method: "POST" })
       priorInv = (pi as unknown) as PriorInvShort;
     }
 
-    const { error } = await context.supabase
-      .from("invoice_installments")
-      .update({ status: "pending", paid_at: null, paid_amount: null } as never)
-      .eq("id", data.installment_id);
+    // Atomic: reverses the Fund Ledger allocation (if any) and resets the installment.
+    const { error } = await (context.supabase as never as { rpc: (f: string, a: object) => Promise<{ error: { message: string; code?: string } | null }> })
+      .rpc("revert_installment_payment", { _installment_id: data.installment_id, _reason: data.reason && data.reason.length >= 5 ? data.reason : "Payment reverted from invoice page" });
     if (error) throw dbError(error);
 
     if (inst && priorInv) {

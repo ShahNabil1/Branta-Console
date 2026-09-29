@@ -199,8 +199,8 @@ function InvoiceDetail() {
     });
     if (!ok) return;
     try {
-      await del({ data: { id: q.data.invoice.id } });
-      toast.success("Invoice deleted");
+      const res = await del({ data: { id: q.data.invoice.id } });
+      toast.success(res.result === "archived" ? "Invoice archived — its history is kept" : "Invoice deleted");
       navigate({ to: "/app/finance/invoices" });
     } catch (e) { toast.error((e as Error).message); }
   };
@@ -338,9 +338,13 @@ function InvoiceDetail() {
                   <td className="px-3 py-2 text-right">
                     {i.status === "paid" ? (
                       <Button variant="ghost" size="sm" onClick={async () => {
-                        await revert({ data: { installment_id: i.id } });
-                        toast.success("Reverted");
-                        void q.refetch();
+                        const reason = window.prompt("Why revert this payment? (min 5 characters). Its fund split will also be reversed.");
+                        if (!reason || reason.trim().length < 5) return;
+                        try {
+                          await revert({ data: { installment_id: i.id, reason: reason.trim() } });
+                          toast.success("Payment reverted and fund split reversed");
+                          void q.refetch();
+                        } catch (e) { toast.error((e as Error).message); }
                       }} className="h-7 rounded-sm text-[11px] text-muted-foreground">
                         <RotateCcw className="mr-1 size-3" /> Revert
                       </Button>

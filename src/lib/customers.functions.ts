@@ -265,7 +265,9 @@ export const deleteCustomer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { id: string }) => z.object({ id: z.string().uuid() }).parse(data))
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase.from("customers").delete().eq("id", data.id);
+    // Archive only — projects, tasks and invoices keep their history.
+    const { error } = await (context.supabase as never as { rpc: (f: string, a: object) => Promise<{ error: { message: string; code?: string } | null }> })
+      .rpc("archive_customer", { _customer_id: data.id, _reason: "Removed from customers page" });
     if (error) throw dbError(error);
     return { ok: true as const };
   });
