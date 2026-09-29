@@ -1,6 +1,7 @@
 // Profile page server functions: read + update the current user's profile.
 // KYC is powered by Didit.me. See src/lib/didit.functions.ts for session
 // creation and src/routes/api/public/didit.webhook.ts for webhook ingest.
+import { dbError } from "@/lib/db-errors";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -185,7 +186,7 @@ export const updateMyProfile = createServerFn({ method: "POST" })
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .update(payload as any)
       .eq("user_id", context.userId);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return { ok: true as const };
   });
 
@@ -210,7 +211,7 @@ export const markKycSubmitted = createServerFn({ method: "POST" })
       } as any)
       .eq("user_id", context.userId)
       .in("kyc_status", ["not_verified", "rejected", "under_review"]);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return { ok: true as const };
   });
 

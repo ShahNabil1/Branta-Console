@@ -1,6 +1,7 @@
 // Server functions for the Employees admin page.
 // All create/list operations require an authenticated caller AND an
 // admin/super_admin role check via the has_role RPC.
+import { dbError } from "@/lib/db-errors";
 import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeader } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -56,14 +57,14 @@ export const listEmployees = createServerFn({ method: "GET" })
       page: 1,
       perPage: 200,
     });
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
 
     const users = data.users ?? [];
     const ids = users.map((u) => u.id);
 
     const [roles, profiles] = await Promise.all([
       supabaseAdmin.from("user_roles").select("user_id, role").in("user_id", ids),
-      supabaseAdmin.from("profiles").select("user_id, full_name").in("user_id", ids),
+      supabaseAdmin.from("profiles").select("user_id, full_name, deactivated_at").in("user_id", ids),
     ]);
 
     const roleByUser = new Map<string, string>();
@@ -77,12 +78,14 @@ export const listEmployees = createServerFn({ method: "GET" })
     });
 
     const nameByUser = new Map<string, string | null>();
-    (profiles.data ?? []).forEach((p) =>
-      nameByUser.set(p.user_id, p.full_name ?? null),
-    );
+    const inactive = new Set<string>();
+    (profiles.data ?? []).forEach((p) => {
+      nameByUser.set(p.user_id, p.full_name ?? null);
+      if ((p as { deactivated_at?: string | null }).deactivated_at) inactive.add(p.user_id);
+    });
 
     return users
-      .filter((u) => (u.email ?? "").toLowerCase().endsWith(DOMAIN))
+      .filter((u) => (u.email ?? "").toLowerCase().endsWith(DOMAIN) && !inactive.has(u.id))
       .map((u) => {
         const email = (u.email ?? "").toLowerCase();
         return {
@@ -212,8 +215,15 @@ export const deleteEmployee = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
     );
-    const { error } = await supabaseAdmin.auth.admin.deleteUser(data.userId);
-    if (error) throw new Error(error.message);
+    // Deactivate instead of deleting: finance, payout, task and audit history keep pointing at this person.
+    const { error } = await (context.supabase as never as { rpc: (f: string, a: object) => Promise<{ error: { message: string; code?: string } | null }> })
+      .rpc("deactivate_employee", { _user_id: data.userId, _reason: "Removed from employee directory" });
+    if (error) throw dbError(error);
+    // Block sign-in and end sessions (best effort — history is already preserved).
+    try {
+      await supabaseAdmin.auth.admin.updateUserById(data.userId, { ban_duration: "876000h" });
+      await supabaseAdmin.auth.admin.signOut(data.userId);
+    } catch { /* service key missing or auth call failed; roles are already removed */ }
     return { ok: true as const };
   });
 

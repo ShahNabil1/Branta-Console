@@ -1,6 +1,7 @@
 // Per-user permission toggles that let super admins fine-tune what any
 // employee can do with leads. Super admins always have every permission
 // implicitly (has_permission short-circuits on is_super_admin).
+import { dbError } from "@/lib/db-errors";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
@@ -42,7 +43,7 @@ async function assertSuperAdmin(supabase: any, userId: string) {
     _user_id: userId,
     _role: "super_admin",
   });
-  if (error) throw new Error(error.message);
+  if (error) throw dbError(error);
   if (!data) throw new Error("Forbidden: super_admin required");
 }
 
@@ -178,7 +179,7 @@ export const setUserPermission = createServerFn({ method: "POST" })
       .eq("user_id", data.userId);
 
 
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     try {
       const { notify } = await import("@/lib/notify.server");
       await notify({
@@ -213,7 +214,7 @@ export const bulkAssignLeads = createServerFn({ method: "POST" })
       .from("leads")
       .update({ owner_id: data.ownerId })
       .in("id", data.leadIds);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return { ok: true as const, count: data.leadIds.length };
   });
 
@@ -230,7 +231,7 @@ export const bulkDeleteLeads = createServerFn({ method: "POST" })
       .from("leads")
       .delete()
       .in("id", data.leadIds);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return { ok: true as const, count: data.leadIds.length };
   });
 

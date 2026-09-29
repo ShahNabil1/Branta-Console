@@ -2,6 +2,7 @@
 // Every meaningful action on an expense (create, edit, delete, restore, view,
 // download, print, receipt access, sealed copy, share link) is written to
 // public.expense_activity_logs so Finance has an A-to-Z history per voucher.
+import { dbError } from "@/lib/db-errors";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
@@ -96,7 +97,7 @@ async function ensureFinance(
   userId: string,
 ) {
   const { data, error } = await supabase.rpc("is_finance_admin", { _user_id: userId });
-  if (error) throw new Error(error.message);
+  if (error) throw dbError(error);
   if (!data) throw new Error("Forbidden — finance role required");
 }
 
@@ -129,7 +130,7 @@ export const listExpenseLogs = createServerFn({ method: "GET" })
       .eq("expense_id", data.expenseId)
       .order("created_at", { ascending: false })
       .limit(500);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return attachActorNames(context.supabase, (rows ?? []) as unknown as ExpenseLogRow[]);
   });
 
@@ -213,7 +214,7 @@ export const listDeletedExpenses = createServerFn({ method: "GET" })
       .not("deleted_at", "is", null)
       .order("deleted_at", { ascending: false })
       .limit(500);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     const rows = (data ?? []) as unknown as DeletedExpenseRow[];
     const ids = Array.from(new Set(rows.map((r) => r.deleted_by).filter(Boolean))) as string[];
     if (ids.length) {
@@ -251,7 +252,7 @@ export const restoreExpense = createServerFn({ method: "POST" })
       .eq("id", data.id)
       .select("id, voucher_no, linked_invoice_id, is_project_cost")
       .single();
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     const exp = row as unknown as {
       id: string;
       voucher_no: string | null;

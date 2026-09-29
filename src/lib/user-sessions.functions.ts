@@ -1,5 +1,6 @@
 // Session tracking — records real device / browser / OS / IP / geo on every
 // login and lets a user revoke any active session (including their own).
+import { dbError } from "@/lib/db-errors";
 import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeader } from "@tanstack/react-start/server";
 import { z } from "zod";
@@ -104,7 +105,7 @@ export const registerSession = createServerFn({ method: "POST" })
         },
         { onConflict: "user_id,session_key" },
       );
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
 
     if (isNewDevice) {
       try {
@@ -192,7 +193,7 @@ export const listMySessions = createServerFn({ method: "GET" })
       .eq("user_id", context.userId)
       .is("revoked_at", null)
       .order("last_seen_at", { ascending: false });
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return {
       sessions: (rows ?? []).map((r) => ({
         ...r,
@@ -214,7 +215,7 @@ export const revokeSession = createServerFn({ method: "POST" })
       .update({ revoked_at: new Date().toISOString() } as any)
       .eq("user_id", context.userId)
       .eq("id", data.session_id);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return { ok: true as const };
   });
 
@@ -234,6 +235,6 @@ export const revokeAllOtherSessions = createServerFn({ method: "POST" })
       .eq("user_id", context.userId)
       .neq("session_key", data.session_key)
       .is("revoked_at", null);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return { ok: true as const };
   });

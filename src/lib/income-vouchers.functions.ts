@@ -1,6 +1,7 @@
 // Income (money receipt) vouchers: create a numbered, printable receipt for a
 // received payment, upload the signed & sealed copy back, and alert the
 // Accounts manager / finance team on Telegram.
+import { dbError } from "@/lib/db-errors";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
@@ -31,7 +32,7 @@ async function ensureFinance(
   userId: string,
 ) {
   const { data, error } = await supabase.rpc("is_finance_admin", { _user_id: userId });
-  if (error) throw new Error(error.message);
+  if (error) throw dbError(error);
   if (!data) throw new Error("Forbidden — finance access required");
 }
 
@@ -61,7 +62,7 @@ export const listIncomeVouchers = createServerFn({ method: "GET" })
       .select("*")
       .order("created_at", { ascending: false })
       .limit(2000);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return (data ?? []) as unknown as IncomeVoucherRow[];
   });
 
@@ -100,7 +101,7 @@ export const createIncomeVoucher = createServerFn({ method: "POST" })
       } as never)
       .select("*")
       .single();
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     const row = created as unknown as IncomeVoucherRow;
 
     try {
@@ -161,7 +162,7 @@ export const setIncomeVoucherSigned = createServerFn({ method: "POST" })
         signed_voucher_by: data.path ? context.userId : null,
       } as never)
       .eq("id", data.id);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
 
     if (data.path) {
       try {
@@ -219,6 +220,6 @@ export const getIncomeVoucherFileUrl = createServerFn({ method: "GET" })
         300,
         data.download ? { download: `Receipt-${v.voucher_no ?? "income"}-signed.${ext}` } : undefined,
       );
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return { url: signed.signedUrl, path: v.signed_voucher_url };
   });

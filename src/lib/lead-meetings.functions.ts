@@ -1,4 +1,5 @@
 // Google Calendar meeting scheduler for leads.
+import { dbError } from "@/lib/db-errors";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
@@ -141,7 +142,7 @@ export const scheduleLeadMeeting = createServerFn({ method: "POST" })
       } as never)
       .select("*")
       .single();
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
 
     await context.supabase
       .from("leads")
@@ -273,7 +274,7 @@ export const rescheduleLeadMeeting = createServerFn({ method: "POST" })
       .eq("id", data.id)
       .select("*")
       .single();
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
 
     await context.supabase.from("lead_activities").insert({
       lead_id: mtg.lead_id,
@@ -366,7 +367,7 @@ export const syncMeetingRsvp = createServerFn({ method: "POST" })
         .select("id, google_event_id, attendee_responses, status")
         .eq("lead_id", data.leadId)
         .neq("status", "cancelled");
-      if (error) throw new Error(error.message);
+      if (error) throw dbError(error);
       const targets = (rows ?? []).filter(
         (r): r is typeof r & { google_event_id: string } =>
           !!r.google_event_id,
@@ -421,7 +422,7 @@ export const listLeadMeetings = createServerFn({ method: "GET" })
       .eq("lead_id", data.leadId)
       .order("starts_at", { ascending: false })
       .limit(100);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     const list = (rows ?? []) as unknown as LeadMeetingRow[];
 
     const creatorIds = Array.from(

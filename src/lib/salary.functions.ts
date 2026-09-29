@@ -1,6 +1,7 @@
 // Salary management server functions.
 // Issuing a slip records a company expense (category = salary) AND credits
 // the employee wallet with a manual payout, so both sides stay in sync.
+import { dbError } from "@/lib/db-errors";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
@@ -71,7 +72,7 @@ async function ensureFinanceAdmin(
   userId: string,
 ) {
   const { data, error } = await supabase.rpc("is_finance_admin", { _user_id: userId });
-  if (error) throw new Error(error.message);
+  if (error) throw dbError(error);
   if (!data) throw new Error("Forbidden — finance role required");
 }
 
@@ -89,7 +90,7 @@ export const listSalarySlips = createServerFn({ method: "GET" })
       .order("period_month", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(500);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     const rows = (data ?? []) as unknown as SalarySlipRow[];
     const ids = [...new Set(rows.map((r) => r.user_id))];
     if (!ids.length) return rows;
@@ -130,7 +131,7 @@ export const listMySalarySlips = createServerFn({ method: "GET" })
       .eq("user_id", context.userId)
       .order("period_month", { ascending: false })
       .limit(60);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return ((data ?? []) as unknown as SalarySlipRow[]).map((r) => ({
       ...r,
       components: Array.isArray(r.components) ? r.components : [],
@@ -370,7 +371,7 @@ export const voidSalarySlip = createServerFn({ method: "POST" })
           .filter(Boolean).join("\n") || null,
       } as never)
       .eq("id", slip.id);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
 
     return { ok: true as const, mode };
   });
@@ -403,7 +404,7 @@ export const listSalaryEmployees = createServerFn({ method: "GET" })
       .from("profiles")
       .select("user_id, full_name, employee_code, job_role")
       .order("full_name");
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return (data ?? []) as Array<{
       user_id: string;
       full_name: string | null;
@@ -422,7 +423,7 @@ export const listSalaryInvoiceOptions = createServerFn({ method: "GET" })
       .select("id, slug, title, currency, total_amount, customer_id")
       .order("created_at", { ascending: false })
       .limit(300);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     const rows = (data ?? []) as Array<{
       id: string; slug: string | null; title: string; currency: string;
       total_amount: number; customer_id: string;
@@ -460,7 +461,7 @@ export const setSalarySignedSlip = createServerFn({ method: "POST" })
         signed_slip_by: data.path ? context.userId : null,
       } as never)
       .eq("id", data.id);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
 
     if (data.path) {
       try {
@@ -532,7 +533,7 @@ export const getSalarySealedFileUrl = createServerFn({ method: "GET" })
         300,
         data.download ? { download: `Salary-${slip.slip_no ?? "slip"}-signed.${ext}` } : undefined,
       );
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return { url: signed.signedUrl, path: slip.signed_slip_url };
   });
 
@@ -583,7 +584,7 @@ async function collectSalaryRows(
   if (f.userId) q = q.eq("user_id", f.userId);
   if (f.status !== "all") q = q.eq("status", f.status);
   const { data, error } = await q;
-  if (error) throw new Error(error.message);
+  if (error) throw dbError(error);
   const slips = (data ?? []) as unknown as SalarySlipRow[];
 
   const ids = [...new Set(slips.map((s) => s.user_id))];

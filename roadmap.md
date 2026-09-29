@@ -19,3 +19,4 @@
 - [x] Reconnect integrations in new workspace: Brevo, Gmail, Google Calendar, Google Docs, Google Sheets, Resend, Telegram (+ re-register Telegram webhook)
 - [x] Fund Ledger base fix: allocation UI, correction report, employee payout pool
 - [x] Invoice form: cost types (fixed/%), live 9-fund preview, planned Employee Fund Distribution linked to Employee Payments
+- [x] CRUD safety: code generators fixed, archive/deactivate/revert RPCs, friendly DB errors

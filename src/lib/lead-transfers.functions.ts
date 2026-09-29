@@ -1,6 +1,7 @@
 // Lead transfer requests: an assigned employee (without lead_assign) asks a
 // super admin to reassign a lead to another teammate. Super admins approve
 // or reject in bulk from the Transfers page.
+import { dbError } from "@/lib/db-errors";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
@@ -32,7 +33,7 @@ async function assertSuperAdmin(supabase: any, userId: string) {
     _user_id: userId,
     _role: "super_admin",
   });
-  if (error) throw new Error(error.message);
+  if (error) throw dbError(error);
   if (!data) throw new Error("Forbidden: super_admin required");
 }
 
@@ -135,7 +136,7 @@ export const requestLeadTransfer = createServerFn({ method: "POST" })
       })
       .select("id")
       .single();
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
 
     // Best-effort activity log on the lead.
     const [toProfile, fromName] = await Promise.all([
@@ -196,7 +197,7 @@ export const listMyTransferRequests = createServerFn({ method: "GET" })
       .eq("requester_id", context.userId)
       .order("created_at", { ascending: false })
       .limit(50);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return hydrate(context.supabase, data ?? []);
   });
 
@@ -210,7 +211,7 @@ export const listMyIncomingTransfers = createServerFn({ method: "GET" })
       .eq("status", "approved")
       .order("created_at", { ascending: false })
       .limit(50);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return hydrate(context.supabase, data ?? []);
   });
 
@@ -232,7 +233,7 @@ export const listAllTransferRequests = createServerFn({ method: "GET" })
       .limit(300);
     if (data.status !== "all") q = q.eq("status", data.status);
     const { data: rows, error } = await q;
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return hydrate(context.supabase, rows ?? []);
   });
 

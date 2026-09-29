@@ -1,4 +1,5 @@
 // Work updates feed, work submissions + review, and protected project/task finance.
+import { dbError } from "@/lib/db-errors";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
@@ -57,7 +58,7 @@ export const listWorkUpdates = createServerFn({ method: "GET" })
   .handler(async ({ data, context }): Promise<WorkUpdate[]> => {
     const sb = context.supabase as any;
     const { data: rows, error } = await sb.from("client_task_updates").select("*").eq("task_id", data.taskId).order("created_at");
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     const pm = await profileMap(sb, (rows ?? []).map((r: any) => r.author_id));
     return (rows ?? []).map((r: any) => ({
       id: r.id, author_id: r.author_id, body: r.body, items_done: r.items_done != null ? Number(r.items_done) : null,
@@ -78,7 +79,7 @@ export const postWorkUpdate = createServerFn({ method: "POST" })
     const { error } = await sb.from("client_task_updates").insert({
       task_id: data.taskId, author_id: context.userId, body: data.body, items_done: data.items_done ?? null, is_manager: mgr,
     });
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     // Keep the member's own progress in sync when they report completed items.
     if (data.items_done != null) {
       const { data: a } = await sb.from("client_task_assignees").select("id, done_qty, status").eq("task_id", data.taskId).eq("user_id", context.userId).maybeSingle();
@@ -104,7 +105,7 @@ export const editWorkUpdate = createServerFn({ method: "POST" })
     const sb = context.supabase as any;
     const { data: row, error } = await sb.from("client_task_updates").update({ body: data.body, edited_at: new Date().toISOString() })
       .eq("id", data.id).eq("author_id", context.userId).select("id").maybeSingle();
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     if (!row) throw new Error("Updates can only be edited within 10 minutes");
     return { ok: true };
   });
@@ -118,7 +119,7 @@ export const listSubmissions = createServerFn({ method: "GET" })
   .handler(async ({ data, context }): Promise<WorkSubmission[]> => {
     const sb = context.supabase as any;
     const { data: rows, error } = await sb.from("client_task_submissions").select("*").eq("task_id", data.taskId).order("created_at");
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     const pm = await profileMap(sb, (rows ?? []).flatMap((r: any) => [r.submitted_by, r.reviewed_by]));
     return (rows ?? []).map((r: any, i: number) => ({
       id: r.id, no: i + 1, submitted_by: r.submitted_by, links: r.links ?? [], notes: r.notes,
@@ -142,7 +143,7 @@ export const submitWork = createServerFn({ method: "POST" })
       task_id: data.taskId, submitted_by: context.userId, links: data.links, notes: data.notes ?? null,
       items_completed: data.items_completed ?? null, status: "submitted",
     });
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     const { data: t } = await sb.from("client_tasks").select("id, status, title, customer_id, created_by").eq("id", data.taskId).single();
     const pm = await profileMap(sb, [context.userId]);
     const who = pm.get(context.userId)?.name || "Member";
@@ -179,7 +180,7 @@ export const reviewSubmission = createServerFn({ method: "POST" })
     const { error } = await sb.from("client_task_submissions").update({
       status: data.action, review_note: data.note ?? null, reviewed_by: context.userId, reviewed_at: new Date().toISOString(),
     }).eq("id", s.id);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     const { data: t } = await sb.from("client_tasks").select("id, status, revision_round, title").eq("id", s.task_id).single();
     const step = REVIEW_TO_STEP[data.action];
     const label = REVIEW_LABEL[data.action];
@@ -235,7 +236,7 @@ export const saveFinance = createServerFn({ method: "POST" })
       payment_status: data.payment_status, payment_date: data.payment_date ?? null, currency: data.currency.toUpperCase(), updated_by: context.userId,
     };
     const { error } = await sb.from("client_project_finance").upsert(row, { onConflict: data.projectId ? "project_id" : "task_id" });
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return { ok: true };
   });
 

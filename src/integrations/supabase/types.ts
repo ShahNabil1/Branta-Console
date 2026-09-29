@@ -517,6 +517,9 @@ export type Database = {
       customers: {
         Row: {
           address: string | null
+          archive_reason: string | null
+          archived_at: string | null
+          archived_by: string | null
           client_since: string
           company: string | null
           contact_person: string | null
@@ -539,6 +542,9 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           client_since?: string
           company?: string | null
           contact_person?: string | null
@@ -561,6 +567,9 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           client_since?: string
           company?: string | null
           contact_person?: string | null
@@ -2697,6 +2706,9 @@ export type Database = {
       }
       invoices: {
         Row: {
+          archive_reason: string | null
+          archived_at: string | null
+          archived_by: string | null
           created_at: string
           created_by: string | null
           currency: string
@@ -2723,6 +2735,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           created_at?: string
           created_by?: string | null
           currency?: string
@@ -2749,6 +2764,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           created_at?: string
           created_by?: string | null
           currency?: string
@@ -3758,6 +3776,9 @@ export type Database = {
           country: string | null
           created_at: string
           cv_url: string | null
+          deactivated_at: string | null
+          deactivated_by: string | null
+          deactivation_reason: string | null
           didit_session_id: string | null
           district: string | null
           division: string | null
@@ -3808,6 +3829,9 @@ export type Database = {
           country?: string | null
           created_at?: string
           cv_url?: string | null
+          deactivated_at?: string | null
+          deactivated_by?: string | null
+          deactivation_reason?: string | null
           didit_session_id?: string | null
           district?: string | null
           division?: string | null
@@ -3858,6 +3882,9 @@ export type Database = {
           country?: string | null
           created_at?: string
           cv_url?: string | null
+          deactivated_at?: string | null
+          deactivated_by?: string | null
+          deactivation_reason?: string | null
           didit_session_id?: string | null
           district?: string | null
           division?: string | null
@@ -4367,6 +4394,14 @@ export type Database = {
         Args: { _schema: string; _table: string }
         Returns: undefined
       }
+      archive_customer: {
+        Args: { _customer_id: string; _reason: string }
+        Returns: string
+      }
+      archive_invoice: {
+        Args: { _invoice_id: string; _reason: string }
+        Returns: string
+      }
       assign_allocation_employee_payouts: {
         Args: {
           _allocation_id: string
@@ -4380,6 +4415,7 @@ export type Database = {
         Args: { _task_id: string; _user: string }
         Returns: boolean
       }
+      code_pad: { Args: { _n: number; _w: number }; Returns: string }
       correct_allocation_base: {
         Args: { _allocation_id: string; _reason: string }
         Returns: string
@@ -4394,6 +4430,10 @@ export type Database = {
           _items: Json
         }
         Returns: string
+      }
+      deactivate_employee: {
+        Args: { _reason: string; _user_id: string }
+        Returns: undefined
       }
       employee_payment_set_status: {
         Args: {
@@ -4500,6 +4540,10 @@ export type Database = {
       }
       reverse_installment_allocation: {
         Args: { _allocation_id: string; _reason: string }
+        Returns: undefined
+      }
+      revert_installment_payment: {
+        Args: { _installment_id: string; _reason: string }
         Returns: undefined
       }
       validate_branta_email: { Args: { _email: string }; Returns: boolean }

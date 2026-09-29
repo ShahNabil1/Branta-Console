@@ -4,6 +4,7 @@
 //
 // Uses @simplewebauthn/server. Challenges are one-time and stored in
 // `passkey_challenges` with a 5-minute TTL.
+import { dbError } from "@/lib/db-errors";
 import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeader } from "@tanstack/react-start/server";
 import { z } from "zod";
@@ -51,7 +52,7 @@ export const listMyPasskeys = createServerFn({ method: "GET" })
       )
       .eq("user_id", context.userId)
       .order("created_at", { ascending: false });
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return { passkeys: (data ?? []) as PasskeyRow[], max: MAX_PASSKEYS };
   });
 
@@ -75,7 +76,7 @@ export const deleteMyPasskey = createServerFn({ method: "POST" })
       .delete()
       .eq("user_id", context.userId)
       .eq("id", data.id);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     try {
       const { notify } = await import("@/lib/notify.server");
       await notify({

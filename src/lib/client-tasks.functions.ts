@@ -1,4 +1,5 @@
 // Client Tasks / Work Orders + team assignment + parcel-style tracking.
+import { dbError } from "@/lib/db-errors";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
@@ -138,7 +139,7 @@ export const listClientTasks = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const sb = context.supabase as any;
     const { data: rows, error } = await sb.from("client_tasks").select("*").eq("customer_id", data.customerId).is("archived_at", null).order("created_at", { ascending: false });
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return hydrate(sb, context.userId, rows ?? []);
   });
 
@@ -187,7 +188,7 @@ export const createClientTask = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const sb = context.supabase as any;
     const { data: row, error } = await sb.from("client_tasks").insert({ ...data, status: "created", created_by: context.userId }).select("id, customer_id").single();
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     await logEvent(sb, row, context.userId, "created", null, { title: data.title });
     if (data.project_id) await sb.from("client_project_activity").insert({
       project_id: data.project_id, customer_id: data.customer_id, actor_id: context.userId, action: "task_created", body: `Task "${data.title}" created`, changes: {},
@@ -204,7 +205,7 @@ export const updateClientTask = createServerFn({ method: "POST" })
     const upd: Record<string, unknown> = { ...patch };
     if (archive) upd.archived_at = new Date().toISOString();
     const { data: row, error } = await sb.from("client_tasks").update(upd).eq("id", id).select("id, customer_id").single();
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return { ok: true, customer_id: row.customer_id as string };
   });
 
@@ -231,14 +232,14 @@ export const setTaskAssignees = createServerFn({ method: "POST" })
     const removed = [...before].filter((u) => !after.has(u as string));
     if (removed.length) {
       const { error } = await sb.from("client_task_assignees").delete().eq("task_id", data.taskId).in("user_id", removed);
-      if (error) throw new Error(error.message);
+      if (error) throw dbError(error);
     }
     if (data.assignees.length) {
       const { error } = await sb.from("client_task_assignees").upsert(
         data.assignees.map((a) => ({ task_id: data.taskId, user_id: a.user_id, responsibility: a.responsibility ?? null, quantity: a.quantity ?? null, status: a.status ?? "not_started", assigned_by: context.userId })),
         { onConflict: "task_id,user_id" },
       );
-      if (error) throw new Error(error.message);
+      if (error) throw dbError(error);
     }
     const added = data.assignees.filter((a) => !before.has(a.user_id));
     const pm = await profileMap(sb, [...added.map((a) => a.user_id), ...(removed as string[])]);
@@ -272,7 +273,7 @@ export const updateMyAssignment = createServerFn({ method: "POST" })
     const sb = context.supabase as any;
     const { id, ...patch } = data;
     const { data: row, error } = await sb.from("client_task_assignees").update(patch).eq("id", id).select("task_id, user_id").single();
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     const { data: task } = await sb.from("client_tasks").select("id, customer_id").eq("id", row.task_id).single();
     const pm = await profileMap(sb, [row.user_id]);
     const bits = [patch.status ? ASSIGNEE_STATUSES.find((s) => s.key === patch.status)?.label : null, patch.done_qty != null ? `${patch.done_qty} done` : null].filter(Boolean);
@@ -296,7 +297,7 @@ export const addTaskStatus = createServerFn({ method: "POST" })
     if (data.status === task.status) throw new Error("Task is already at this status");
     const round = data.status === "revision_requested" ? task.revision_round + 1 : task.revision_round;
     const { error } = await sb.from("client_tasks").update({ status: data.status, revision_round: round }).eq("id", task.id);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     const meta: Record<string, unknown> = { from: task.status };
     if (data.status.startsWith("revision")) meta.round = round;
     await logEvent(sb, task, context.userId, data.status, data.note ?? null, meta);

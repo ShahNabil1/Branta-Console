@@ -1,5 +1,6 @@
 // Finance module server functions — invoices, installments, stakeholders,
 // payouts, wallet, withdrawals, expenses, reporting.
+import { dbError } from "@/lib/db-errors";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
@@ -279,7 +280,7 @@ async function saveInvoiceQtyLine(sb: any, invoiceId: string, d: { title: string
   const { error } = await sb.from("invoice_line_items").insert({
     invoice_id: invoiceId, sequence: 1, description: d.title, quantity: d.quantity, unit_price: d.unit_price,
   });
-  if (error) throw new Error(error.message);
+  if (error) throw dbError(error);
 }
 
 /** Saves the planned Employee Fund split; blocks totals above the expected Employee Fund share. */
@@ -302,7 +303,7 @@ async function saveEmployeePlan(
     invoice_id: invoiceId, employee_id: r.employee_id, mode: r.mode, value: r.value, planned_amount: r.amount,
     task_id: r.task_id ?? null, note: r.note ?? null, sequence: i + 1, created_by: userId,
   })));
-  if (error) throw new Error(error.message);
+  if (error) throw dbError(error);
 }
 
 function sumCosts(costs: Array<{ amount: number }> | undefined): number {
@@ -313,7 +314,7 @@ async function ensureFinanceAdmin(supabase: {
   rpc: (name: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
 }, userId: string) {
   const { data, error } = await supabase.rpc("is_finance_admin", { _user_id: userId });
-  if (error) throw new Error(error.message);
+  if (error) throw dbError(error);
   if (!data) throw new Error("Forbidden — finance role required");
 }
 
@@ -402,9 +403,10 @@ export const listInvoices = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("invoices")
       .select("*")
+      .is("archived_at" as never, null)
       .order("created_at", { ascending: false })
       .limit(500);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     const rows = (data ?? []) as unknown as InvoiceRow[];
     const custIds = Array.from(new Set(rows.map((r) => r.customer_id)));
     if (custIds.length) {
@@ -433,7 +435,7 @@ export const getInvoiceBySlug = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const { data: inv, error } = await context.supabase
       .from("invoices").select("*").eq("slug", data.slug).maybeSingle();
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     if (!inv) throw new Error("Invoice not found");
     const invoice = inv as unknown as InvoiceRow;
 
@@ -523,7 +525,7 @@ export const createInvoice = createServerFn({ method: "POST" })
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         })) as any,
       );
-      if (cErr) throw new Error(cErr.message);
+      if (cErr) throw dbError(cErr);
     }
 
     // Fund Ledger invoice: no stakeholder rows are created.
@@ -539,7 +541,7 @@ export const createInvoice = createServerFn({ method: "POST" })
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       })) as any,
     );
-    if (iErr) throw new Error(iErr.message);
+    if (iErr) throw dbError(iErr);
 
     // Activity log on the invoice and the customer's underlying lead.
     const { data: custRow } = await context.supabase
@@ -653,7 +655,7 @@ export const updateInvoice = createServerFn({ method: "POST" })
         ...(data.project_id !== undefined ? { project_id: data.project_id } : {}),
       } as never)
       .eq("id", data.id);
-    if (invErr) throw new Error(invErr.message);
+    if (invErr) throw dbError(invErr);
     await saveInvoiceQtyLine(context.supabase, data.id, data);
 
     await context.supabase.from("invoice_payouts").delete().eq("invoice_id", data.id);
@@ -667,7 +669,7 @@ export const updateInvoice = createServerFn({ method: "POST" })
           cost_type: c.cost_type ?? "other", amount_mode: c.amount_mode ?? "fixed", value: c.value ?? c.amount, note: c.note ?? null,
         })) as never,
       );
-      if (cErr) throw new Error(cErr.message);
+      if (cErr) throw dbError(cErr);
     }
 
     if (fundLedger && data.employee_plans) await saveEmployeePlan(context.supabase, data.id, data.total_amount - costTotal, data.employee_plans, context.userId);
@@ -675,12 +677,12 @@ export const updateInvoice = createServerFn({ method: "POST" })
       const { error: sErr } = await context.supabase.from("invoice_stakeholders").insert(
         data.stakeholders.map((s) => ({ invoice_id: data.id, user_id: s.user_id, role: s.role, percent: s.percent, note: s.note ?? null })) as never,
       );
-      if (sErr) throw new Error(sErr.message);
+      if (sErr) throw dbError(sErr);
     }
     const { error: iErr } = await context.supabase.from("invoice_installments").insert(
       data.installments.map((i, idx) => ({ invoice_id: data.id, sequence: idx + 1, label: i.label, amount: i.amount, due_date: i.due_date })) as never,
     );
-    if (iErr) throw new Error(iErr.message);
+    if (iErr) throw dbError(iErr);
     await logInvoicePayoutLocks(context.supabase, data.id, context.userId, "payout_relocked_after_edit");
 
     const prior = before as { slug: string; title: string; currency: string; total_amount: number };
@@ -705,7 +707,7 @@ export const listInvoiceActivityLogs = createServerFn({ method: "GET" })
       .eq("invoice_slug", data.slug)
       .order("created_at", { ascending: false })
       .limit(300);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     const logs = (rows ?? []) as unknown as InvoiceActivityLogRow[];
     const uids = Array.from(new Set(logs.map((l) => l.actor_id).filter(Boolean) as string[]));
     if (uids.length) {
@@ -722,13 +724,6 @@ export const deleteInvoice = createServerFn({ method: "POST" })
   .inputValidator((d: { id: string }) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     await ensureFinanceAdmin(context.supabase as never, context.userId);
-    // Fund Ledger history is append-only: an invoice whose payments were split into funds cannot be deleted.
-    const { data: allocs } = await (context.supabase as never as { from: (t: string) => { select: (c: string) => { eq: (k: string, v: string) => { limit: (n: number) => Promise<{ data: unknown[] | null }> } } } })
-      .from("installment_allocations").select("id").eq("invoice_id", data.id).limit(1);
-    if ((allocs ?? []).length)
-      throw new Error("এই ইনভয়েসের টাকা ইতিমধ্যে ফান্ডে ভাগ হয়েছে, তাই ডিলিট করা যাবে না। ফান্ডের হিসাবের ইতিহাস মুছে ফেলা যায় না — টাকা ফেরত নিতে Installment Revert বা Finance Allocation-এ Reverse ব্যবহার করুন।");
-    // Snapshot invoice details BEFORE deletion so we can log a meaningful
-    // "cancelled" event on the underlying lead.
     const { data: inv } = await context.supabase
       .from("invoices")
       .select("id, slug, title, currency, total_amount, paid_amount, status")
@@ -745,9 +740,10 @@ export const deleteInvoice = createServerFn({ method: "POST" })
         { event: "invoice_cancelled", prior_status: r.status, total: r.total_amount, paid: r.paid_amount },
       );
     }
-    const { error } = await context.supabase.from("invoices").delete().eq("id", data.id);
-    if (error) throw new Error(error.message);
-    return { ok: true as const };
+    const { data: result, error } = await (context.supabase as never as { rpc: (f: string, a: object) => Promise<{ data: string | null; error: { message: string; code?: string } | null }> })
+      .rpc("archive_invoice", { _invoice_id: data.id, _reason: "Removed from invoice page" });
+    if (error) throw dbError(error);
+    return { ok: true as const, result: (result ?? "archived") as "deleted" | "archived" };
   });
 
 export const markInstallmentPaid = createServerFn({ method: "POST" })
@@ -797,7 +793,7 @@ export const markInstallmentPaid = createServerFn({ method: "POST" })
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any)
       .eq("id", data.installment_id);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
 
     // Log payment received + any resulting invoice status change (partially_paid → paid).
     if (inst && priorInv) {
@@ -903,8 +899,8 @@ export const markInstallmentPaid = createServerFn({ method: "POST" })
 
 export const revertInstallment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { installment_id: string }) =>
-    z.object({ installment_id: z.string().uuid() }).parse(d),
+  .inputValidator((d: { installment_id: string; reason?: string }) =>
+    z.object({ installment_id: z.string().uuid(), reason: z.string().trim().max(500).optional() }).parse(d),
   )
   .handler(async ({ data, context }) => {
     await ensureFinanceAdmin(context.supabase as never, context.userId);
@@ -926,11 +922,10 @@ export const revertInstallment = createServerFn({ method: "POST" })
       priorInv = (pi as unknown) as PriorInvShort;
     }
 
-    const { error } = await context.supabase
-      .from("invoice_installments")
-      .update({ status: "pending", paid_at: null, paid_amount: null } as never)
-      .eq("id", data.installment_id);
-    if (error) throw new Error(error.message);
+    // Atomic: reverses the Fund Ledger allocation (if any) and resets the installment.
+    const { error } = await (context.supabase as never as { rpc: (f: string, a: object) => Promise<{ error: { message: string; code?: string } | null }> })
+      .rpc("revert_installment_payment", { _installment_id: data.installment_id, _reason: data.reason && data.reason.length >= 5 ? data.reason : "Payment reverted from invoice page" });
+    if (error) throw dbError(error);
 
     if (inst && priorInv) {
       const amt = inst.paid_amount ?? inst.amount;
@@ -971,7 +966,7 @@ export const getMyWallet = createServerFn({ method: "GET" })
       .from("v_wallet_balances")
       .select("*")
       .eq("user_id", context.userId);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return (data ?? []) as unknown as WalletBalance[];
   });
 
@@ -985,7 +980,7 @@ export const listMyPayouts = createServerFn({ method: "GET" })
       .neq("role", "company")
       .order("created_at", { ascending: false })
       .limit(500);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     const rows = (data ?? []) as unknown as PayoutRow[];
     const invIds = Array.from(
       new Set(rows.map((r) => r.invoice_id).filter((x): x is string => !!x)),
@@ -1107,7 +1102,7 @@ export const requestWithdrawal = createServerFn({ method: "POST" })
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any)
       .select("*").single();
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     const row = wr as unknown as WithdrawalRow;
 
     // Reserve payouts immediately (FIFO) so the employee cannot double-spend
@@ -1193,7 +1188,7 @@ export const cancelMyWithdrawal = createServerFn({ method: "POST" })
         admin_note: "Cancelled by employee",
       } as never)
       .eq("id", row.id);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     for (const invoiceId of invoiceIds) {
       await logInvoiceActivity(
         context.supabase,
@@ -1216,7 +1211,7 @@ export const listMyWithdrawals = createServerFn({ method: "GET" })
       .eq("user_id", context.userId)
       .order("requested_at", { ascending: false })
       .limit(200);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return (data ?? []) as unknown as WithdrawalRow[];
   });
 
@@ -1229,7 +1224,7 @@ export const listWithdrawals = createServerFn({ method: "GET" })
       .select("*")
       .order("requested_at", { ascending: false })
       .limit(500);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     const rows = (data ?? []) as unknown as WithdrawalRow[];
     const uids = Array.from(new Set(rows.map((r) => r.user_id)));
     if (uids.length) {
@@ -1340,7 +1335,7 @@ export const decideWithdrawal = createServerFn({ method: "POST" })
       .from("withdrawal_requests")
       .update(update as never)
       .eq("id", data.id);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
 
     const invoiceIds = Array.from(new Set(((linkedPayouts ?? []) as Array<{ invoice_id: string | null }>).map((p) => p.invoice_id).filter((x): x is string => !!x)));
     for (const invoiceId of invoiceIds) {
@@ -1473,7 +1468,7 @@ export const listExpenses = createServerFn({ method: "GET" })
       .is("deleted_at", null)
       .order("spent_on", { ascending: false })
       .limit(1000);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     const rows = (data ?? []) as unknown as ExpenseRow[];
     const uids = Array.from(new Set(
       rows.flatMap((r) => [r.paid_by, r.requested_by]).filter(Boolean) as string[],
@@ -1571,7 +1566,7 @@ async function writeExpenseChildren(
           note: i.note ?? null,
         })),
       );
-      if (error) throw new Error(error.message);
+      if (error) throw dbError(error);
     }
   }
   if (attachments) {
@@ -1594,7 +1589,7 @@ async function writeExpenseChildren(
           created_by: userId,
         })),
       );
-      if (error) throw new Error(error.message);
+      if (error) throw dbError(error);
     }
   }
 }
@@ -1628,7 +1623,7 @@ export const createExpense = createServerFn({ method: "POST" })
     });
     if (rpcError) throw new Error(rpcError.message);
     const { data: row, error } = await context.supabase.from("expenses").select("*").eq("id", newId as string).single();
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     const expense = row as unknown as ExpenseRow;
     if (expense.is_project_cost) {
       await syncInvoiceExpenseCosts(context.supabase, expense.linked_invoice_id);
@@ -1735,7 +1730,7 @@ export const updateExpense = createServerFn({ method: "POST" })
       .eq("id", id)
       .select("*")
       .single();
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     const expense = row as unknown as ExpenseRow;
     await writeExpenseChildren(context.supabase, expense.id, context.userId, items, attachments);
     const priorInvoice = (beforeRow.linked_invoice_id as string | null) ?? null;
@@ -1795,7 +1790,7 @@ export const setExpenseShare = createServerFn({ method: "POST" })
       .from("expenses")
       .update({ share_enabled: data.enabled, share_token: token } as never)
       .eq("id", data.id);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     await writeExpenseLog(context.supabase, {
       expenseId: data.id,
       voucherNo: current?.voucher_no ?? null,
@@ -1863,7 +1858,7 @@ export const deleteExpense = createServerFn({ method: "POST" })
         purge_after: purge.toISOString(),
       } as never)
       .eq("id", data.id);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     await syncInvoiceExpenseCosts(context.supabase, expense.linked_invoice_id);
     await writeExpenseLog(context.supabase, {
       expenseId: expense.id,
@@ -1924,7 +1919,7 @@ export const setExpenseSignedVoucher = createServerFn({ method: "POST" })
         signed_voucher_by: data.path ? context.userId : null,
       } as never)
       .eq("id", data.id);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     const { data: vrow } = await context.supabase
       .from("expenses").select("voucher_no").eq("id", data.id).maybeSingle();
     await writeExpenseLog(context.supabase, {
@@ -2030,7 +2025,7 @@ export const listEmployeesForFinance = createServerFn({ method: "GET" })
       .from("profiles")
       .select("user_id, full_name, employee_code, job_role")
       .order("full_name");
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     const rows = (data ?? []) as {
       user_id: string;
       full_name: string | null;
@@ -2055,7 +2050,7 @@ export const isFinanceAdminCheck = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase.rpc("is_finance_admin", {
       _user_id: context.userId,
     });
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return { isAdmin: Boolean(data) };
   });
 
@@ -2170,7 +2165,7 @@ export const listCompanyWalletInvoices = createServerFn({ method: "GET" })
       .not("status", "eq", "void")
       .order("created_at", { ascending: false })
       .limit(500);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     const rows = (invs ?? []) as { id: string; slug: string; customer_id: string; currency: Currency; total_amount: number; paid_amount: number; status: InvoiceStatus }[];
     const custIds = Array.from(new Set(rows.map((r) => r.customer_id)));
     const { data: custs } = custIds.length
@@ -2202,7 +2197,7 @@ export const listCompanyLedger = createServerFn({ method: "GET" })
     await ensureFinanceAdmin(context.supabase as never, context.userId);
     const { data, error } = await context.supabase
       .from("company_ledger").select("*").order("occurred_on", { ascending: false }).limit(500);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     const rows = (data ?? []) as unknown as CompanyLedgerRow[];
     const uids = Array.from(new Set(rows.map((r) => r.created_by).filter(Boolean) as string[]));
     if (uids.length) {
@@ -2234,7 +2229,7 @@ export const addCompanyLedgerEntry = createServerFn({ method: "POST" })
         created_by: context.userId,
       } as never)
       .select("*").single();
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return row as unknown as CompanyLedgerRow;
   });
 
@@ -2244,7 +2239,7 @@ export const deleteCompanyLedgerEntry = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await ensureFinanceAdmin(context.supabase as never, context.userId);
     const { error } = await context.supabase.from("company_ledger").delete().eq("id", data.id);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return { ok: true as const };
   });
 
@@ -2278,7 +2273,7 @@ export const listManualEmployeePayouts = createServerFn({ method: "GET" })
       .eq("source", "manual")
       .order("created_at", { ascending: false })
       .limit(500);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     const rows = (data ?? []) as unknown as ManualPayoutRow[];
     const uids = Array.from(new Set(rows.map((r) => r.user_id)));
     if (uids.length) {
@@ -2329,7 +2324,7 @@ export const addManualEmployeePayout = createServerFn({ method: "POST" })
         unlocked_at: nowIso,
       } as never)
       .select("*").single();
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     const created = row as unknown as ManualPayoutRow;
     try {
       const { notify } = await import("@/lib/notify.server");
@@ -2375,7 +2370,7 @@ export const revokeManualEmployeePayout = createServerFn({ method: "POST" })
         .from("invoice_payouts")
         .update({ status: "cancelled" } as never)
         .eq("id", row.id);
-      if (error) throw new Error(error.message);
+      if (error) throw dbError(error);
       return { ok: true as const, mode: "cancelled" as const };
     }
 
@@ -2405,7 +2400,7 @@ export const revokeManualEmployeePayout = createServerFn({ method: "POST" })
             || `Revoked from payout ${row.id.slice(0, 8)}${row.notes ? ` · ${row.notes}` : ""}`,
           unlocked_at: new Date().toISOString(),
         } as never);
-      if (error) throw new Error(error.message);
+      if (error) throw dbError(error);
       try {
         const { notify } = await import("@/lib/notify.server");
         await notify({

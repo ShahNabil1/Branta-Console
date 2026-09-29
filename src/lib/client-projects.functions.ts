@@ -1,4 +1,5 @@
 // Clients: explicit Lead → Client conversion + One Client → Many Projects.
+import { dbError } from "@/lib/db-errors";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
@@ -133,7 +134,7 @@ export const listClientProjects = createServerFn({ method: "GET" })
       sb.from("client_projects").select("*").eq("customer_id", data.customerId).is("archived_at", null).order("created_at", { ascending: false }),
       sb.from("client_project_activity").select("*").eq("customer_id", data.customerId).order("created_at", { ascending: false }).limit(100),
     ]);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     const { data: fin } = await sb.rpc("is_finance_admin", { _user_id: context.userId });
     const canSeeFinance = !!fin;
     const map = await names(sb, [...(p ?? []).flatMap((x: any) => [x.assignee_id, x.client_manager_id]), ...(a ?? []).map((x: any) => x.actor_id)]);
@@ -184,7 +185,7 @@ export const createClientProject = createServerFn({ method: "POST" })
     const sb = context.supabase as any;
     await stripMoneyIfNotFinance(sb, context.userId, data as Record<string, unknown>);
     const { data: row, error } = await sb.from("client_projects").insert({ ...data, created_by: context.userId }).select("id").single();
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     await sb.from("client_project_activity").insert({
       project_id: row.id, customer_id: data.customer_id, actor_id: context.userId, action: "created", body: `Project "${data.title}" created`,
     });
@@ -203,7 +204,7 @@ export const updateClientProject = createServerFn({ method: "POST" })
     const upd: Record<string, unknown> = { ...patch };
     if (archive) upd.archived_at = new Date().toISOString();
     const { error } = await sb.from("client_projects").update(upd).eq("id", id);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     const changes: Record<string, { from: unknown; to: unknown }> = {};
     for (const [k, v] of Object.entries(patch)) if ((before as any)[k] !== v && !((before as any)[k] == null && v == null)) changes[k] = { from: (before as any)[k], to: v };
     const label = PROJECT_STATUSES.find((s) => s.key === patch.status)?.label;

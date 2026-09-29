@@ -1,3 +1,4 @@
+import { dbError } from "@/lib/db-errors";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -10,7 +11,7 @@ async function fin(ctx: { supabase: any; userId: string }) {
 }
 const uuid = z.string().uuid();
 const money = z.number().positive();
-function rpcErr(error: any) { if (error) throw new Error(error.message); }
+function rpcErr(error: any) { if (error) throw dbError(error); }
 
 export type FundOption = { id: string; code: string; name: string; available: number; ledger_balance: number };
 
@@ -147,7 +148,7 @@ export const createEmployeePayment = createServerFn({ method: "POST" })
     if (error) {
       if (String(error.message).includes("efp_one_payout")) throw new Error("This invoice payout is already linked to another employee fund payment");
       if (String(error.message).includes("efp_one_slip")) throw new Error("This salary slip is already linked to another employee fund payment");
-      throw new Error(error.message);
+      throw dbError(error);
     }
     await sb.from("fund_audit_logs").insert({ user_id: context.userId, action: "employee_payment_create", record_type: "employee_fund_payment", record_id: row.id, next: data });
     return { id: row.id as string };
@@ -180,7 +181,7 @@ export const updateEmployeePayment = createServerFn({ method: "POST" })
     const { id, reason, ...patch } = data;
     const next = { ...patch, project_id: patch.project_id ?? null, task_id: patch.task_id ?? null };
     const { error } = await sb.from("employee_fund_payments").update(next).eq("id", id).eq("status", before.status);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     const prev: Record<string, unknown> = {}; const changed: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(next)) if ((before as any)[k] !== v && !(k === "amount" && Number(before.amount) === Number(v))) { prev[k] = (before as any)[k]; changed[k] = v; }
     await sb.from("fund_audit_logs").insert({ user_id: context.userId, action: before.status === "approved" ? "employee_payment_approved_edit" : "employee_payment_draft_edit", record_type: "employee_fund_payment", record_id: id, previous: prev, next: changed, reason: reason ?? null });
