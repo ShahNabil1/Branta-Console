@@ -372,6 +372,7 @@ function InvoiceDetail() {
               <div key={c.id} className="flex items-start justify-between gap-3">
                 <span className="min-w-0">
                   <span className="truncate">{c.name}</span>
+                  <span className="block text-[11px] text-muted-foreground">{costTypeLabel(c.cost_type)}{c.amount_mode === "percent" ? ` · ${Number(c.value)}%` : ""}{c.note ? ` · ${c.note}` : ""}</span>
                   {c.description && <span className="block text-[11px] text-muted-foreground">{c.description}</span>}
                 </span>
                 <span className="font-mono text-muted-foreground">− {Number(c.amount).toFixed(2)}</span>
