@@ -425,7 +425,7 @@ function ExpensesPage() {
       try {
         attachments = await Promise.all(
           receipts.map(async (r) => ({
-            path: r.path ?? (await uploadToBucket(r.file as File, "")),
+            path: r.path ?? (await uploadToBucket(r.file as File, "exp/")),
             caption: r.caption.trim() || null,
             mime_type: r.file?.type || null,
             size_bytes: r.file?.size ?? null,

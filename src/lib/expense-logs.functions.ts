@@ -197,6 +197,14 @@ export const listDeletedExpenses = createServerFn({ method: "GET" })
     } catch (e) {
       console.error("[listDeletedExpenses] purge failed:", e);
     }
+    // Orphan receipt sweep: new expense-form uploads under exp/ older than 24h and linked to no expense.
+    try {
+      const { data: orphans } = await (context.supabase as any).rpc("orphan_expense_receipts", { _older_hours: 24 });
+      const names = ((orphans ?? []) as unknown[]).map((o) => (typeof o === "string" ? o : Object.values(o as object)[0])) as string[];
+      if (names.length) await context.supabase.storage.from("expense-receipts").remove(names);
+    } catch (e) {
+      console.error("[listDeletedExpenses] orphan sweep failed:", e);
+    }
     const { data, error } = await context.supabase
       .from("expenses")
       .select(
