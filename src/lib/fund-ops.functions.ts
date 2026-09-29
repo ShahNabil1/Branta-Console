@@ -96,7 +96,7 @@ export const getEmployeePaymentContext = createServerFn({ method: "GET" })
       sb.from("employee_fund_payments").select("*").order("created_at", { ascending: false }).limit(500),
       sb.from("profiles").select("user_id,full_name,employee_code").order("full_name"),
       sb.from("client_projects").select("id,title").order("created_at", { ascending: false }).limit(500),
-      sb.from("invoices").select("id,slug,title").order("created_at", { ascending: false }).limit(500),
+      sb.from("invoices").select("id,slug,title").is("archived_at", null).order("created_at", { ascending: false }).limit(500),
       sb.from("client_tasks").select("id,title,project_id").not("project_id", "is", null).is("archived_at", null).order("created_at", { ascending: false }).limit(1000),
     ]);
     return { payments: pays.data ?? [], employees: emps.data ?? [], projects: projects.data ?? [], invoices: invoices.data ?? [], tasks: tasks.data ?? [] };

@@ -26,7 +26,7 @@ export const getFundDashboard = createServerFn({ method: "GET" })
       sb.from("fund_allocation_versions").select("id,name,effective_from").order("effective_from", { ascending: false }).order("created_at", { ascending: false }).limit(1).maybeSingle(),
       sb.from("installment_allocations").select("received_amount,deduction_total,distributable_amount").eq("status", "active"),
       sb.from("installment_allocation_failures").select("installment_id,error,attempts,last_attempt_at"),
-      sb.from("invoices").select("total_amount,paid_amount,status").neq("status", "void"),
+      sb.from("invoices").select("total_amount,paid_amount,status").neq("status", "void").is("archived_at", null),
     ]);
     let pct: Record<string, number> = {};
     if (ver.data) {

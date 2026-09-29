@@ -195,19 +195,15 @@ function InvoiceDetail() {
     let blockers: Record<string, number> = {};
     try { blockers = await getBlockers({ data: { id: q.data.invoice.id } }); } catch (e) { toast.error((e as Error).message); return; }
     const list = Object.entries(blockers).map(([k, v]) => `${v} ${k}`).join(", ");
-    if (blockers["Active fund allocations"]) {
-      toast.error(`Unable to remove this invoice because money is still split into the funds (${list}). Revert its paid installments first.`);
-      return;
-    }
     const clean = !list;
     const ok = await confirm({
-      title: clean ? "Delete invoice" : "Archive invoice",
+      title: "Delete invoice",
       description: clean
         ? `Invoice ${q.data.invoice.slug} has no financial history, so it will be permanently deleted.`
-        : `Cannot permanently delete this invoice — related records: ${list}. It will be archived instead: hidden from the list, all history kept.`,
+        : `Invoice ${q.data.invoice.slug} will be removed everywhere: its fund split is reversed, unpaid employee payments and payouts are cancelled, and it disappears from lists, reports and fund balances. Already paid payments stay as history. Linked: ${list}.`,
       tone: "danger",
       requireTypedText: q.data.invoice.slug,
-      confirmLabel: clean ? "Delete permanently" : "Archive invoice",
+      confirmLabel: "Delete invoice",
     });
     if (!ok) return;
     try {
