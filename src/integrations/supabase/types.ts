@@ -4210,6 +4210,10 @@ export type Database = {
         Args: { _task_id: string; _user: string }
         Returns: boolean
       }
+      orphan_expense_receipts: {
+        Args: { _older_hours?: number }
+        Returns: string[]
+      }
       owner_withdraw: {
         Args: {
           _amount: number
