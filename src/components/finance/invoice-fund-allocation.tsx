@@ -126,19 +126,20 @@ function EmployeePayouts({ allocationId, invoiceId }: { allocationId: string; in
   if (!open) return <Button size="sm" variant="outline" className="h-7" onClick={() => setOpen(true)}>Employee payouts from Employee Fund</Button>;
   const d = q.data;
   const pool = d?.pool ?? 0;
-  // Planned split → % of this installment's actual Employee Fund share (never pays against unpaid value).
+  // Planned split → % of the invoice's expected Employee Fund, applied to this installment's actual share.
+  const expected = Number((planQ.data as { expectedPool?: number } | undefined)?.expectedPool ?? 0);
   const applyPlan = () => {
-    const planTotalPool = plan.reduce((x, p) => x + p.planned_amount, 0);
-    if (!planTotalPool) return;
-    const { data: _ } = { data: null };
-    void _;
+    if (!expected || !plan.length) return;
     setMode("percent");
-    setLines(plan.map((p) => ({ employee_id: p.employee_id, value: String(Math.round((p.planned_amount / planTotalPool) * 10000) / 100 * (planTotalPool / Math.max(planTotalPool, 1)) ) })));
+    setLines(plan.map((p) => ({ employee_id: p.employee_id, value: String(Math.round((p.planned_amount / expected) * 10000) / 100) })));
   };
   const req = lines.reduce((s, l) => s + (mode === "fixed" ? Number(l.value) || 0 : pool * (Number(l.value) || 0) / 100), 0);
   return (
     <div className="space-y-2 rounded-sm border border-border p-2.5">
-      <div className="font-semibold">Employee payout allocation</div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="font-semibold">Employee payout allocation</span>
+        {plan.length > 0 && <Button size="sm" variant="outline" className="h-7" onClick={applyPlan}>Use invoice plan</Button>}
+      </div>
       {d && (
         <div className="space-y-1">
           <Row k="Employee Fund allocated" v={bdt(d.pool)} />

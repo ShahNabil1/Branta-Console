@@ -98,7 +98,7 @@ export const getInvoiceAllocations = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const sb = context.supabase as any;
     const { data: allowed } = await sb.rpc("is_finance_admin", { _user_id: context.userId });
-    if (!allowed) return { allowed: false as const, rows: [] };
+    if (!allowed) return { allowed: false as const, expectedPool: 0, rows: [] };
     const [{ data: insts }, { data: allocs }, { data: fails }] = await Promise.all([
       sb.from("invoice_installments").select("id,label,sequence,status,paid_amount,amount,paid_at").eq("invoice_id", data.invoiceId).order("sequence"),
       sb.from("installment_allocations").select("id,installment_id,status,received_amount,deduction_total,distributable_amount,created_at,reversal_reason,fund_allocation_versions(name),installment_allocation_items(fund_name,percent,amount),installment_allocation_deductions(name,amount_type,value,amount)").eq("invoice_id", data.invoiceId).order("created_at"),
@@ -193,7 +193,7 @@ export const getAllocationBaseReport = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const sb = context.supabase as any;
     const { data: allowed } = await sb.rpc("is_finance_admin", { _user_id: context.userId });
-    if (!allowed) return { allowed: false as const, rows: [] };
+    if (!allowed) return { allowed: false as const, expectedPool: 0, rows: [] };
     const { data: allocs } = await sb.from("installment_allocations")
       .select("id,installment_id,received_amount,deduction_total,distributable_amount,status,source,invoices(slug,title,total_amount,project_cost_total),invoice_installments(label,sequence),installment_allocation_deductions(amount_type,amount)")
       .eq("status", "active").limit(5000);
@@ -289,7 +289,13 @@ export const getInvoiceEmployeePlan = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const sb = context.supabase as any;
     const { data: allowed } = await sb.rpc("is_finance_admin", { _user_id: context.userId });
-    if (!allowed) return { allowed: false as const, rows: [] };
-    const { data: rows } = await sb.from("invoice_employee_plans").select("*").eq("invoice_id", data.invoiceId).order("sequence");
-    return { allowed: true as const, rows: ((rows ?? []) as any[]).map((r) => ({ ...r, value: Number(r.value), planned_amount: Number(r.planned_amount) })) };
+    if (!allowed) return { allowed: false as const, expectedPool: 0, rows: [] };
+    const [{ data: rows }, { data: inv }, { data: ver }] = await Promise.all([
+      sb.from("invoice_employee_plans").select("*").eq("invoice_id", data.invoiceId).order("sequence"),
+      sb.from("invoices").select("total_amount,project_cost_total").eq("id", data.invoiceId).maybeSingle(),
+      sb.from("fund_allocation_versions").select("fund_allocation_version_items(percent,finance_funds(code))").order("effective_from", { ascending: false }).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    ]);
+    const empPct = Number(((ver?.fund_allocation_version_items ?? []) as any[]).find((i) => i.finance_funds?.code === "employee")?.percent ?? 0);
+    const expectedPool = Math.round(Math.max(Number(inv?.total_amount ?? 0) - Number(inv?.project_cost_total ?? 0), 0) * empPct) / 100;
+    return { allowed: true as const, expectedPool, rows: ((rows ?? []) as any[]).map((r) => ({ ...r, value: Number(r.value), planned_amount: Number(r.planned_amount) })) };
   });
