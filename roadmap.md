@@ -15,3 +15,6 @@
 - [x] Phase 2: spending (expense fund, transfers, loans, employee payments, owner withdrawal)
 - [x] Phase 3: fund detail, profitability, analytics, reconciliation (read-only; awaiting review before Phase 4)
 - [x] Phase 4: historical allocation + one-way Finance Sheets (user must connect a spreadsheet and run first sync)
+
+- [ ] Reconnect integrations in new workspace: Brevo, Gmail, Google Calendar, Google Docs, Google Sheets, Resend, Telegram (+ re-register Telegram webhook)
+- [ ] Fund Ledger base fix: allocation UI, correction report, employee payout pool
