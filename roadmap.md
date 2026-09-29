@@ -20,3 +20,4 @@
 - [x] Fund Ledger base fix: allocation UI, correction report, employee payout pool
 - [x] Invoice form: cost types (fixed/%), live 9-fund preview, planned Employee Fund Distribution linked to Employee Payments
 - [x] CRUD safety: code generators fixed, archive/deactivate/revert RPCs, friendly DB errors
+- [x] Reorganize Finance sidebar into collapsible route groups with active-page expansion

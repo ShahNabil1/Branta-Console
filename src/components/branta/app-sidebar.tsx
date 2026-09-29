@@ -19,19 +19,27 @@ import {
   Receipt,
   PiggyBank,
   ArrowLeftRight,
-  Palette,
   Bell,
   RadioTower,
   Menu,
   X,
-  BadgeDollarSign, TrendingUp } from "lucide-react";
+  BadgeDollarSign,
+  TrendingUp,
+  ChevronRight,
+  Landmark,
+  FileStack,
+  HandCoins,
+  Plug,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import brandLogo from "@/assets/brand-logo.png.asset.json";
 import type { LucideIcon } from "lucide-react";
 import { getMyPermissions } from "@/lib/permissions.functions";
+import { Button } from "@/components/ui/button";
 
 type NavItem = { label: string; to: string; icon: LucideIcon };
 type NavGroup = { label: string; items: NavItem[] };
+type FinanceNavGroup = NavGroup & { icon: LucideIcon };
 
 
 const NAV: NavGroup[] = [
@@ -54,27 +62,7 @@ const NAV: NavGroup[] = [
   },
   {
     label: "Finance",
-    items: [
-      { label: "Dashboard", to: "/app/finance", icon: PiggyBank },
-      { label: "Fund Ledger", to: "/app/finance/funds", icon: Shield },
-      { label: "Employee Payments", to: "/app/finance/employee-payments", icon: BadgeDollarSign },
-      { label: "Fund Transfers", to: "/app/finance/fund-transfers", icon: ArrowLeftRight },
-      { label: "Fund Loans", to: "/app/finance/fund-loans", icon: Banknote },
-      { label: "Fund Settings", to: "/app/finance/fund-settings", icon: Settings },
-      { label: "Project Profitability", to: "/app/finance/profitability", icon: TrendingUp },
-      { label: "Fund Analytics", to: "/app/finance/fund-analytics", icon: PiggyBank },
-      { label: "Reconciliation", to: "/app/finance/reconciliation", icon: Shield },
-      { label: "Historical Allocation", to: "/app/finance/historical-allocation", icon: FileText },
-      { label: "Finance Sheets", to: "/app/finance/sheets", icon: FileText },
-      { label: "Income", to: "/app/finance/income", icon: TrendingUp },
-      { label: "Invoices", to: "/app/finance/invoices", icon: FileText },
-      { label: "Wallet", to: "/app/finance/wallet", icon: Wallet },
-      { label: "Withdrawals", to: "/app/finance/withdrawals", icon: Banknote },
-      { label: "Expenses", to: "/app/finance/expenses", icon: Receipt },
-      { label: "Salary", to: "/app/finance/salary", icon: BadgeDollarSign },
-      { label: "Salary Report", to: "/app/finance/salary-report", icon: BadgeDollarSign },
-      { label: "Templates", to: "/app/finance/templates", icon: Palette },
-    ],
+    items: [],
   },
   {
     label: "Admin",
@@ -87,11 +75,65 @@ const NAV: NavGroup[] = [
   },
 ];
 
+const FINANCE_NAV: FinanceNavGroup[] = [
+  {
+    label: "Overview",
+    icon: LayoutDashboard,
+    items: [
+      { label: "Dashboard", to: "/app/finance", icon: LayoutDashboard },
+      { label: "Fund Analytics", to: "/app/finance/fund-analytics", icon: BarChart3 },
+      { label: "Project Profitability", to: "/app/finance/profitability", icon: TrendingUp },
+      { label: "Reconciliation", to: "/app/finance/reconciliation", icon: Shield },
+    ],
+  },
+  {
+    label: "Funds",
+    icon: Landmark,
+    items: [
+      { label: "Fund Ledger", to: "/app/finance/funds", icon: PiggyBank },
+      { label: "Fund Transfers", to: "/app/finance/fund-transfers", icon: ArrowLeftRight },
+      { label: "Fund Loans", to: "/app/finance/fund-loans", icon: Banknote },
+      { label: "Fund Settings", to: "/app/finance/fund-settings", icon: Settings },
+    ],
+  },
+  {
+    label: "Billing",
+    icon: FileStack,
+    items: [
+      { label: "Invoices", to: "/app/finance/invoices", icon: FileText },
+      { label: "Income", to: "/app/finance/income", icon: TrendingUp },
+      { label: "Historical Allocation", to: "/app/finance/historical-allocation", icon: FileText },
+    ],
+  },
+  {
+    label: "Team Payments",
+    icon: HandCoins,
+    items: [
+      { label: "Employee Payments", to: "/app/finance/employee-payments", icon: BadgeDollarSign },
+      { label: "Salary", to: "/app/finance/salary", icon: BadgeDollarSign },
+      { label: "Salary Report", to: "/app/finance/salary-report", icon: FileText },
+      { label: "Wallet", to: "/app/finance/wallet", icon: Wallet },
+      { label: "Withdrawals", to: "/app/finance/withdrawals", icon: Banknote },
+    ],
+  },
+  {
+    label: "Expenses",
+    icon: Receipt,
+    items: [{ label: "Expenses", to: "/app/finance/expenses", icon: Receipt }],
+  },
+  {
+    label: "Integrations",
+    icon: Plug,
+    items: [{ label: "Finance Sheets", to: "/app/finance/sheets", icon: FileText }],
+  },
+];
+
 const COLLAPSE_KEY = "branta.sidebar.collapsed";
 
 export function AppSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [openFinanceGroups, setOpenFinanceGroups] = useState<string[]>([]);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   const permsFn = useServerFn(getMyPermissions);
@@ -109,6 +151,21 @@ export function AppSidebar() {
     setMobileOpen(false);
   }, [pathname]);
 
+  const isRouteActive = (to: string) =>
+    pathname === to || (to !== "/app/finance" && pathname.startsWith(`${to}/`));
+
+  const activeFinanceGroup = FINANCE_NAV.find((group) =>
+    group.items.some((item) => isRouteActive(item.to)),
+  )?.label;
+
+  useEffect(() => {
+    if (!activeFinanceGroup) return;
+    setOpenFinanceGroups((current) => {
+      if (current.includes(activeFinanceGroup)) return current;
+      return [...current.slice(-1), activeFinanceGroup];
+    });
+  }, [activeFinanceGroup]);
+
   const toggle = () => {
     const next = !collapsed;
     setCollapsed(next);
@@ -124,7 +181,7 @@ export function AppSidebar() {
     const isFinance = perms.isFinance ?? isAdmin;
     return NAV.map((g) => {
       if (g.label === "Admin" && !isAdmin) return { ...g, items: [] };
-      if (g.label === "Finance" && !isFinance) return { ...g, items: [] };
+      if (g.label === "Finance") return isFinance ? g : { ...g, items: [] };
       return {
         ...g,
         items: g.items.filter((it) => {
@@ -134,8 +191,19 @@ export function AppSidebar() {
           return true;
         }),
       };
-    }).filter((g) => g.items.length > 0);
+    }).filter((g) => g.label === "Finance" ? isFinance : g.items.length > 0);
   }, [permsQ.data]);
+
+  const toggleFinanceGroup = (label: string) => {
+    if (collapsed) {
+      setCollapsed(false);
+      localStorage.setItem(COLLAPSE_KEY, "0");
+    }
+    setOpenFinanceGroups((current) => {
+      if (current.includes(label)) return current.filter((item) => item !== label);
+      return [...current.slice(-1), label];
+    });
+  };
 
 
 
@@ -197,9 +265,75 @@ export function AppSidebar() {
             >
               {group.label}
             </div>
-            <div className="space-y-0.5">
+            {group.label === "Finance" ? (
+              <div className="space-y-0.5">
+                {FINANCE_NAV.map((financeGroup) => {
+                  const open = openFinanceGroups.includes(financeGroup.label);
+                  const containsActive = financeGroup.items.some((item) => isRouteActive(item.to));
+                  const GroupIcon = financeGroup.icon;
+                  return (
+                    <div key={financeGroup.label}>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => toggleFinanceGroup(financeGroup.label)}
+                        aria-expanded={open}
+                        title={collapsed ? financeGroup.label : undefined}
+                        className={cn(
+                          "h-8 w-full justify-start gap-2 rounded-sm px-2 text-[13px] font-medium text-muted-foreground shadow-none hover:bg-muted hover:text-foreground",
+                          containsActive && "text-foreground",
+                          collapsed && "md:justify-center",
+                        )}
+                      >
+                        <GroupIcon className="size-4 shrink-0" strokeWidth={1.75} />
+                        <span className={cn("min-w-0 flex-1 truncate text-left", collapsed && "md:hidden")}>
+                          {financeGroup.label}
+                        </span>
+                        <ChevronRight
+                          className={cn(
+                            "size-3.5 shrink-0 transition-transform duration-150",
+                            open && "rotate-90",
+                            collapsed && "md:hidden",
+                          )}
+                        />
+                      </Button>
+                      <div
+                        className={cn(
+                          "grid transition-[grid-template-rows] duration-150",
+                          open && !collapsed ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+                        )}
+                      >
+                        <div className="overflow-hidden">
+                          <div className="ml-3 space-y-0.5 border-l border-border py-0.5 pl-2">
+                            {financeGroup.items.map((item) => {
+                              const active = isRouteActive(item.to);
+                              const Icon = item.icon;
+                              return (
+                                <Link
+                                  key={item.to}
+                                  to={item.to}
+                                  className={cn(
+                                    "flex min-h-8 items-center gap-2 rounded-sm px-2 py-1.5 text-[12.5px] font-medium transition-colors active:scale-[0.98]",
+                                    active
+                                      ? "bg-brand-50 text-brand"
+                                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                                  )}
+                                >
+                                  <Icon className="size-3.5 shrink-0" strokeWidth={1.75} />
+                                  <span className="truncate">{item.label}</span>
+                                </Link>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : <div className="space-y-0.5">
               {group.items.map((item) => {
-                const active = pathname === item.to;
+                const active = isRouteActive(item.to);
                 const Icon = item.icon;
                 return (
                   <Link
@@ -218,7 +352,7 @@ export function AppSidebar() {
                   </Link>
                 );
               })}
-            </div>
+            </div>}
           </div>
         ))}
       </nav>
