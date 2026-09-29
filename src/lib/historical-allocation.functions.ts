@@ -55,7 +55,7 @@ export async function classifyInstallments(sb: any) {
       label: s.label || `Installment ${s.sequence}`, reference: s.payment_ref,
       client: inv.customers?.company || inv.customers?.name || null, customer_id: inv.customer_id,
       project: inv.client_projects?.title ?? null, project_id: inv.project_id,
-      status, eligibility, warnings, reason: failMap.get(s.id) ?? (reversed.length && !active ? `Reversed: previous allocation reversed` : status === "Legacy / Not Allocated" ? "Paid before Fund Ledger / never allocated" : null),
+      status, eligibility, warnings, reason: (failMap.get(s.id) as string | undefined) ?? (reversed.length && !active ? `Reversed: previous allocation reversed` : status === "Legacy / Not Allocated" ? "Paid before Fund Ledger / never allocated" : null),
       active_allocation_id: active?.id ?? null, active_source: active?.source ?? null,
       historical_amount: active?.source === "historical" ? n(active.received_amount) : 0,
     };
