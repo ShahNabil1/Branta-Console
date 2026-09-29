@@ -1677,7 +1677,8 @@ export const updateExpense = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await ensureFinanceAdmin(context.supabase as never, context.userId);
-    const { id, items, attachments, edit_reason, ...patch } = data;
+    const { id, items, attachments, edit_reason, paying_fund_id: _pf, fund_exception_reason: _fr, ...patch } = data;
+    void _pf; void _fr;
     const { data: before } = await context.supabase
       .from("expenses").select("*").eq("id", id).maybeSingle();
     const beforeRow = (before ?? {}) as Record<string, unknown>;
