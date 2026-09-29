@@ -58,7 +58,9 @@ const ROLE_COLORS: Record<string, string> = {
   company: "bg-amber-50 text-amber-700 border-amber-200",
 };
 
-import { ProjectCostEditor, sumProjectCosts, type ProjectCost } from "@/components/finance/project-cost-editor";
+import { ProjectCostEditor, sumProjectCosts, toEditorCost, toCostPayload, costTypeLabel, type ProjectCost } from "@/components/finance/project-cost-editor";
+import { EmployeeFundPlanner, planAmount, toPlanPayload, EXCEEDS_MSG, type EmployeePlan } from "@/components/finance/employee-fund-planner";
+import { getInvoiceEmployeePlan } from "@/lib/fund-ledger.functions";
 
 type EditInstallment = { label: string; amount: number; due_date: string };
 type EditStakeholder = { user_id: string; role: StakeholderRole; percent: number };
@@ -634,7 +636,7 @@ function EditInvoiceDialog({
   invoice: InvoiceRow;
   installments: InstallmentRow[];
   stakeholders: StakeholderRow[];
-  projectCosts: Array<{ name: string; amount: number; description: string | null }>;
+  projectCosts: Array<{ name: string; amount: number; description: string | null; cost_type?: string | null; amount_mode?: string | null; value?: number | null; note?: string | null }>;
   customers: Array<{ id: string; customer_code: string; name: string; company: string | null; email: string | null; phone: string | null }>;
   employees: Array<{ user_id: string; full_name: string | null; employee_code: string | null; job_role: string | null; email?: string | null }>;
   saving: boolean;
@@ -668,8 +670,15 @@ function EditInvoiceDialog({
   );
 
   const [editCosts, setEditCosts] = useState<ProjectCost[]>(
-    projectCosts.map((c) => ({ name: c.name, amount: Number(c.amount), description: c.description ?? "" })),
+    projectCosts.map((c) => toEditorCost(c)),
   );
+  const fetchPlan = useServerFn(getInvoiceEmployeePlan);
+  const planQ = useQuery({ queryKey: ["invoice-employee-plan", invoice.id], queryFn: () => fetchPlan({ data: { invoiceId: invoice.id } }) });
+  const [plans, setPlans] = useState<EmployeePlan[] | null>(null);
+  const [empPool, setEmpPool] = useState(0);
+  useEffect(() => {
+    if (plans === null && planQ.data) setPlans((planQ.data.rows as Array<{ employee_id: string; mode: string; value: number; task_id: string | null; note: string | null }>).map((r) => ({ employee_id: r.employee_id, mode: r.mode === "fixed" ? "fixed" : "percent", value: r.value, task_id: r.task_id ?? "", note: r.note ?? "" })));
+  }, [planQ.data, plans]);
 
   const customerItems: SearchableItem[] = customers.map((c) => ({
     value: c.id,
@@ -694,7 +703,9 @@ function EditInvoiceDialog({
     Math.abs(instSum - totalNum) < 0.01 && (fundLedger || Math.abs(pctSum - 100) < 0.01) &&
     editInstallments.every((i) => i.label.trim() && i.due_date && Number(i.amount) > 0) &&
     (fundLedger || editStakeholders.every((s) => s.user_id && Number(s.percent) > 0)) &&
-    editCosts.every((c) => c.name.trim()) && costSum <= totalNum + 0.01;
+    editCosts.every((c) => c.name.trim()) && costSum <= totalNum + 0.01 &&
+    (plans ?? []).reduce((a, p) => a + planAmount(p, empPool), 0) <= empPool + 0.005;
+  const planOver = (plans ?? []).reduce((a, p) => a + planAmount(p, empPool), 0) > empPool + 0.005;
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-background/80 p-2 sm:p-4">
@@ -720,9 +731,8 @@ function EditInvoiceDialog({
                 internal_notes: internalNotes.trim() || null,
                 installments: editInstallments.map((i) => ({ label: i.label.trim(), amount: Number(i.amount), due_date: i.due_date })),
                 stakeholders: editStakeholders.map((s) => ({ user_id: s.user_id, role: s.role, percent: Number(s.percent) })),
-                project_costs: editCosts
-                  .filter((c) => c.name.trim() || Number(c.amount) > 0)
-                  .map((c) => ({ name: c.name.trim(), amount: Number(c.amount) || 0, description: c.description.trim() || null })),
+                project_costs: toCostPayload(editCosts),
+                ...(fundLedger && plans ? { employee_plans: toPlanPayload(plans) } : {}),
               })}
               disabled={!canSave || saving}
               className="h-8 rounded-sm bg-primary text-[12px] text-primary-foreground hover:bg-brand-700"
@@ -784,6 +794,13 @@ function EditInvoiceDialog({
           <section className="rounded-sm border border-border p-3">
             <ProjectCostEditor costs={editCosts} onChange={setEditCosts} total={totalNum} currency={currency} compact />
           </section>
+
+          {fundLedger && plans && (
+            <section className="rounded-sm border border-border p-3">
+              <EmployeeFundPlanner net={Math.max(totalNum - costSum, 0)} currency={currency} projectId={(invoice as { project_id?: string | null }).project_id ?? null} plans={plans} onChange={setPlans} onPoolChange={(p) => p !== empPool && setEmpPool(p)} />
+              {planOver && <span className="sr-only">{EXCEEDS_MSG}</span>}
+            </section>
+          )}
 
           <section className={cn("rounded-sm border border-border p-3", fundLedger && "hidden")}>
             <div className="mb-2 flex items-center justify-between"><h4 className="text-[13px] font-semibold">Stakeholders</h4><span className={cn("font-mono text-[11px]", Math.abs(pctSum - 100) < 0.01 ? "text-emerald-600" : "text-rose-600")}>{pctSum.toFixed(2)}%</span></div>
