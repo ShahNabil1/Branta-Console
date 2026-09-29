@@ -2244,6 +2244,59 @@ export type Database = {
         }
         Relationships: []
       }
+      invoice_employee_plans: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          employee_id: string
+          id: string
+          invoice_id: string
+          mode: string
+          note: string | null
+          planned_amount: number
+          sequence: number
+          task_id: string | null
+          updated_at: string
+          value: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          employee_id: string
+          id?: string
+          invoice_id: string
+          mode?: string
+          note?: string | null
+          planned_amount?: number
+          sequence?: number
+          task_id?: string | null
+          updated_at?: string
+          value?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          employee_id?: string
+          id?: string
+          invoice_id?: string
+          mode?: string
+          note?: string | null
+          planned_amount?: number
+          sequence?: number
+          task_id?: string | null
+          updated_at?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_employee_plans_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_installments: {
         Row: {
           amount: number
@@ -2513,33 +2566,45 @@ export type Database = {
       invoice_project_costs: {
         Row: {
           amount: number
+          amount_mode: string
+          cost_type: string
           created_at: string
           description: string | null
           id: string
           invoice_id: string
           name: string
+          note: string | null
           sequence: number
           updated_at: string
+          value: number | null
         }
         Insert: {
           amount?: number
+          amount_mode?: string
+          cost_type?: string
           created_at?: string
           description?: string | null
           id?: string
           invoice_id: string
           name: string
+          note?: string | null
           sequence?: number
           updated_at?: string
+          value?: number | null
         }
         Update: {
           amount?: number
+          amount_mode?: string
+          cost_type?: string
           created_at?: string
           description?: string | null
           id?: string
           invoice_id?: string
           name?: string
+          note?: string | null
           sequence?: number
           updated_at?: string
+          value?: number | null
         }
         Relationships: [
           {

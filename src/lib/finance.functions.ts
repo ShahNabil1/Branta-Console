@@ -72,6 +72,10 @@ export interface ProjectCostRow {
   name: string;
   amount: number;
   description: string | null;
+  cost_type?: string | null;
+  amount_mode?: string | null;
+  value?: number | null;
+  note?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -233,6 +237,17 @@ const ProjectCostIn = z.object({
   name: z.string().trim().min(1).max(80),
   amount: z.number().nonnegative(),
   description: z.string().trim().max(500).nullable().optional(),
+  cost_type: z.string().trim().max(40).optional().default("other"),
+  amount_mode: z.enum(["fixed", "percent"]).optional().default("fixed"),
+  value: z.number().nonnegative().nullable().optional(),
+  note: z.string().trim().max(500).nullable().optional(),
+});
+const EmployeePlanIn = z.object({
+  employee_id: z.string().uuid(),
+  mode: z.enum(["fixed", "percent"]),
+  value: z.number().positive(),
+  task_id: z.string().uuid().nullable().optional(),
+  note: z.string().trim().max(300).nullable().optional(),
 });
 const CreateInvoiceIn = z.object({
   customer_id: z.string().uuid(),
@@ -251,6 +266,7 @@ const CreateInvoiceIn = z.object({
   installments: z.array(InstallmentIn).min(1).max(24),
   stakeholders: z.array(StakeholderIn).max(20).default([]),
   project_costs: z.array(ProjectCostIn).max(30).optional().default([]),
+  employee_plans: z.array(EmployeePlanIn).max(50).optional(),
 });
 const UpdateInvoiceIn = CreateInvoiceIn.extend({
   id: z.string().uuid(),
@@ -263,6 +279,29 @@ async function saveInvoiceQtyLine(sb: any, invoiceId: string, d: { title: string
   const { error } = await sb.from("invoice_line_items").insert({
     invoice_id: invoiceId, sequence: 1, description: d.title, quantity: d.quantity, unit_price: d.unit_price,
   });
+  if (error) throw new Error(error.message);
+}
+
+/** Saves the planned Employee Fund split; blocks totals above the expected Employee Fund share. */
+async function saveEmployeePlan(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  sb: any, invoiceId: string, net: number, rows: z.infer<typeof EmployeePlanIn>[], userId: string,
+) {
+  const { data: ver } = await sb.from("fund_allocation_versions")
+    .select("fund_allocation_version_items(percent,finance_funds(code))")
+    .order("effective_from", { ascending: false }).order("created_at", { ascending: false }).limit(1).maybeSingle();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const empPct = Number(((ver?.fund_allocation_version_items ?? []) as any[]).find((i) => i.finance_funds?.code === "employee")?.percent ?? 0);
+  const pool = Math.round(Math.max(net, 0) * empPct) / 100;
+  const planned = rows.map((r) => ({ ...r, amount: Math.round((r.mode === "percent" ? pool * r.value / 100 : r.value) * 100) / 100 }));
+  const total = planned.reduce((a, r) => a + r.amount, 0);
+  if (total > pool + 0.01) throw new Error("Employee allocation exceeds available Employee Fund amount.");
+  await sb.from("invoice_employee_plans").delete().eq("invoice_id", invoiceId);
+  if (!planned.length) return;
+  const { error } = await sb.from("invoice_employee_plans").insert(planned.map((r, i) => ({
+    invoice_id: invoiceId, employee_id: r.employee_id, mode: r.mode, value: r.value, planned_amount: r.amount,
+    task_id: r.task_id ?? null, note: r.note ?? null, sequence: i + 1, created_by: userId,
+  })));
   if (error) throw new Error(error.message);
 }
 
@@ -480,6 +519,7 @@ export const createInvoice = createServerFn({ method: "POST" })
           name: c.name,
           amount: c.amount,
           description: c.description ?? null,
+          cost_type: c.cost_type ?? "other", amount_mode: c.amount_mode ?? "fixed", value: c.value ?? c.amount, note: c.note ?? null,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         })) as any,
       );
@@ -487,6 +527,7 @@ export const createInvoice = createServerFn({ method: "POST" })
     }
 
     // Fund Ledger invoice: no stakeholder rows are created.
+    if (data.employee_plans) await saveEmployeePlan(context.supabase, invoiceId, data.total_amount - costTotal, data.employee_plans, context.userId);
 
     const { error: iErr } = await context.supabase.from("invoice_installments").insert(
       data.installments.map((i, idx) => ({
@@ -623,11 +664,13 @@ export const updateInvoice = createServerFn({ method: "POST" })
       const { error: cErr } = await context.supabase.from("invoice_project_costs").insert(
         (data.project_costs ?? []).map((c, idx) => ({
           invoice_id: data.id, sequence: idx + 1, name: c.name, amount: c.amount, description: c.description ?? null,
+          cost_type: c.cost_type ?? "other", amount_mode: c.amount_mode ?? "fixed", value: c.value ?? c.amount, note: c.note ?? null,
         })) as never,
       );
       if (cErr) throw new Error(cErr.message);
     }
 
+    if (fundLedger && data.employee_plans) await saveEmployeePlan(context.supabase, data.id, data.total_amount - costTotal, data.employee_plans, context.userId);
     if (!fundLedger) {
       const { error: sErr } = await context.supabase.from("invoice_stakeholders").insert(
         data.stakeholders.map((s) => ({ invoice_id: data.id, user_id: s.user_id, role: s.role, percent: s.percent, note: s.note ?? null })) as never,

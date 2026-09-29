@@ -98,7 +98,7 @@ export const getInvoiceAllocations = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const sb = context.supabase as any;
     const { data: allowed } = await sb.rpc("is_finance_admin", { _user_id: context.userId });
-    if (!allowed) return { allowed: false as const, rows: [] };
+    if (!allowed) return { allowed: false as const, expectedPool: 0, rows: [] };
     const [{ data: insts }, { data: allocs }, { data: fails }] = await Promise.all([
       sb.from("invoice_installments").select("id,label,sequence,status,paid_amount,amount,paid_at").eq("invoice_id", data.invoiceId).order("sequence"),
       sb.from("installment_allocations").select("id,installment_id,status,received_amount,deduction_total,distributable_amount,created_at,reversal_reason,fund_allocation_versions(name),installment_allocation_items(fund_name,percent,amount),installment_allocation_deductions(name,amount_type,value,amount)").eq("invoice_id", data.invoiceId).order("created_at"),
@@ -193,7 +193,7 @@ export const getAllocationBaseReport = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const sb = context.supabase as any;
     const { data: allowed } = await sb.rpc("is_finance_admin", { _user_id: context.userId });
-    if (!allowed) return { allowed: false as const, rows: [] };
+    if (!allowed) return { allowed: false as const, expectedPool: 0, rows: [] };
     const { data: allocs } = await sb.from("installment_allocations")
       .select("id,installment_id,received_amount,deduction_total,distributable_amount,status,source,invoices(slug,title,total_amount,project_cost_total),invoice_installments(label,sequence),installment_allocation_deductions(amount_type,amount)")
       .eq("status", "active").limit(5000);
@@ -257,4 +257,45 @@ export const assignAllocationEmployeePayouts = createServerFn({ method: "POST" }
     const { error } = await (context.supabase as any).rpc("assign_allocation_employee_payouts", { _allocation_id: data.allocationId, _mode: data.mode, _rows: data.rows, _note: data.note ?? null });
     if (error) throw new Error(error.message);
     return { ok: true };
+  });
+
+/** Live Fund Ledger preview context for the invoice form: active version split, team members, project tasks. */
+export const getInvoiceFundPreviewContext = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ projectId: z.string().uuid().nullable().optional() }).parse(d ?? {}))
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase as any;
+    const { data: allowed } = await sb.rpc("is_finance_admin", { _user_id: context.userId });
+    if (!allowed) return { allowed: false as const, funds: [], employees: [], tasks: [] };
+    const [{ data: ver }, { data: emps }, tasksRes] = await Promise.all([
+      sb.from("fund_allocation_versions").select("id,name,fund_allocation_version_items(percent,finance_funds(code,name,display_order))").order("effective_from", { ascending: false }).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+      sb.from("profiles").select("id,full_name,email").order("full_name").limit(1000),
+      data.projectId ? sb.from("client_tasks").select("id,title").eq("project_id", data.projectId).is("archived_at", null).order("created_at") : Promise.resolve({ data: [] }),
+    ]);
+    const funds = ((ver?.fund_allocation_version_items ?? []) as any[])
+      .map((i) => ({ code: i.finance_funds?.code as string, name: i.finance_funds?.name as string, order: Number(i.finance_funds?.display_order ?? 0), percent: Number(i.percent) }))
+      .sort((a, b) => a.order - b.order);
+    return {
+      allowed: true as const, versionName: (ver?.name ?? null) as string | null, funds,
+      employees: ((emps ?? []) as any[]).map((e) => ({ id: e.id as string, name: (e.full_name || e.email) as string })),
+      tasks: ((tasksRes.data ?? []) as any[]).map((t) => ({ id: t.id as string, title: t.title as string })),
+    };
+  });
+
+/** Planned Employee Fund distribution saved on the invoice (Finance only). */
+export const getInvoiceEmployeePlan = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ invoiceId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase as any;
+    const { data: allowed } = await sb.rpc("is_finance_admin", { _user_id: context.userId });
+    if (!allowed) return { allowed: false as const, expectedPool: 0, rows: [] };
+    const [{ data: rows }, { data: inv }, { data: ver }] = await Promise.all([
+      sb.from("invoice_employee_plans").select("*").eq("invoice_id", data.invoiceId).order("sequence"),
+      sb.from("invoices").select("total_amount,project_cost_total").eq("id", data.invoiceId).maybeSingle(),
+      sb.from("fund_allocation_versions").select("fund_allocation_version_items(percent,finance_funds(code))").order("effective_from", { ascending: false }).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    ]);
+    const empPct = Number(((ver?.fund_allocation_version_items ?? []) as any[]).find((i) => i.finance_funds?.code === "employee")?.percent ?? 0);
+    const expectedPool = Math.round(Math.max(Number(inv?.total_amount ?? 0) - Number(inv?.project_cost_total ?? 0), 0) * empPct) / 100;
+    return { allowed: true as const, expectedPool, rows: ((rows ?? []) as any[]).map((r) => ({ ...r, value: Number(r.value), planned_amount: Number(r.planned_amount) })) };
   });

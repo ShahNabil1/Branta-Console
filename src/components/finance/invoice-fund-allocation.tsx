@@ -4,7 +4,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   getInvoiceAllocations, retryAllocation, reverseAllocation, getAllocationBaseReport, correctAllocationBase,
-  getAllocationEmployeePool, assignAllocationEmployeePayouts,
+  getAllocationEmployeePool, assignAllocationEmployeePayouts, getInvoiceEmployeePlan,
 } from "@/lib/fund-ledger.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -94,7 +94,7 @@ export function InvoiceFundAllocation({ invoiceId }: { invoiceId: string }) {
                   </div>
                 </div>
               )}
-              {a && !bad && <EmployeePayouts allocationId={a.id} />}
+              {a && !bad && <EmployeePayouts allocationId={a.id} invoiceId={invoiceId} />}
               {r.history.length > 0 && (
                 <div className="text-[11.5px] text-muted-foreground">
                   {r.history.map((h: any) => <div key={h.id}>Reversed allocation {bdt(h.distributable_amount)} — {h.reversal_reason}</div>)}
@@ -108,8 +108,11 @@ export function InvoiceFundAllocation({ invoiceId }: { invoiceId: string }) {
   );
 }
 
-function EmployeePayouts({ allocationId }: { allocationId: string }) {
+function EmployeePayouts({ allocationId, invoiceId }: { allocationId: string; invoiceId: string }) {
   const get = useServerFn(getAllocationEmployeePool);
+  const getPlan = useServerFn(getInvoiceEmployeePlan);
+  const planQ = useQuery({ queryKey: ["invoice-employee-plan", invoiceId], queryFn: () => getPlan({ data: { invoiceId } }) });
+  const plan = (planQ.data?.rows ?? []) as Array<{ employee_id: string; planned_amount: number }>;
   const assign = useServerFn(assignAllocationEmployeePayouts);
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"fixed" | "percent">("fixed");
@@ -123,10 +126,20 @@ function EmployeePayouts({ allocationId }: { allocationId: string }) {
   if (!open) return <Button size="sm" variant="outline" className="h-7" onClick={() => setOpen(true)}>Employee payouts from Employee Fund</Button>;
   const d = q.data;
   const pool = d?.pool ?? 0;
+  // Planned split → % of the invoice's expected Employee Fund, applied to this installment's actual share.
+  const expected = Number((planQ.data as { expectedPool?: number } | undefined)?.expectedPool ?? 0);
+  const applyPlan = () => {
+    if (!expected || !plan.length) return;
+    setMode("percent");
+    setLines(plan.map((p) => ({ employee_id: p.employee_id, value: String(Math.round((p.planned_amount / expected) * 10000) / 100) })));
+  };
   const req = lines.reduce((s, l) => s + (mode === "fixed" ? Number(l.value) || 0 : pool * (Number(l.value) || 0) / 100), 0);
   return (
     <div className="space-y-2 rounded-sm border border-border p-2.5">
-      <div className="font-semibold">Employee payout allocation</div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="font-semibold">Employee payout allocation</span>
+        {plan.length > 0 && <Button size="sm" variant="outline" className="h-7" onClick={applyPlan}>Use invoice plan</Button>}
+      </div>
       {d && (
         <div className="space-y-1">
           <Row k="Employee Fund allocated" v={bdt(d.pool)} />
