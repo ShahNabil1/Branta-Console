@@ -337,3 +337,42 @@ export const listAllocationMismatches = createServerFn({ method: "GET" })
         };
       });
   });
+
+/** Per-employee planned vs earned (paid installments) vs pending, with wallet status. Finance only. */
+export const getInvoiceEmployeeEarnings = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ invoiceId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase as any;
+    const { data: allowed } = await sb.rpc("is_finance_admin", { _user_id: context.userId });
+    if (!allowed) return { allowed: false as const, rows: [] };
+    const [{ data: plans }, { data: pays }] = await Promise.all([
+      sb.from("invoice_employee_plans").select("id,employee_id,planned_amount").eq("invoice_id", data.invoiceId).order("sequence"),
+      sb.from("employee_fund_payments").select("id,employee_id,amount,status,plan_id,invoice_payout_id").eq("invoice_id", data.invoiceId).neq("status", "cancelled"),
+    ]);
+    const empIds = Array.from(new Set([...(plans ?? []), ...(pays ?? [])].map((r: any) => r.employee_id)));
+    const payoutIds = (pays ?? []).map((p: any) => p.invoice_payout_id).filter(Boolean);
+    const [{ data: profs }, { data: pos }] = await Promise.all([
+      empIds.length ? sb.from("profiles").select("id,full_name,email,avatar_url,employee_code").in("id", empIds) : Promise.resolve({ data: [] }),
+      payoutIds.length ? sb.from("invoice_payouts").select("id,status").in("id", payoutIds) : Promise.resolve({ data: [] }),
+    ]);
+    const pm = new Map((profs ?? []).map((p: any) => [p.id, p]));
+    const posm = new Map((pos ?? []).map((p: any) => [p.id, p.status]));
+    const rows = empIds.map((id) => {
+      const planned = (plans ?? []).filter((p: any) => p.employee_id === id).reduce((a: number, p: any) => a + Number(p.planned_amount), 0);
+      const mine = (pays ?? []).filter((p: any) => p.employee_id === id);
+      const earned = mine.reduce((a: number, p: any) => a + Number(p.amount), 0);
+      const inWallet = mine.filter((p: any) => p.status === "paid").reduce((a: number, p: any) => a + Number(p.amount), 0);
+      const statuses = mine.map((p: any) => (p.status === "paid" ? `wallet:${posm.get(p.invoice_payout_id) ?? "available"}` : p.status));
+      const walletStatus = !mine.length ? "Waiting for client payment"
+        : statuses.every((s: string) => s.startsWith("wallet:")) ? (statuses.some((s: string) => s === "wallet:paid") ? "Withdrawn" : statuses.some((s: string) => s === "wallet:requested") ? "Requested" : "Available")
+        : statuses.some((s: string) => s.startsWith("wallet:")) ? "Partly in wallet" : statuses.includes("committed") || statuses.includes("approved") ? "Committed (not yet available)" : "Draft (not in wallet)";
+      const p: any = pm.get(id);
+      return {
+        employeeId: id, name: (p?.full_name || p?.email || "—") as string, avatar: (p?.avatar_url ?? null) as string | null, code: (p?.employee_code ?? null) as string | null,
+        planned: Math.round(planned * 100) / 100, earned: Math.round(earned * 100) / 100, inWallet: Math.round(inWallet * 100) / 100,
+        pending: Math.max(Math.round((planned - earned) * 100) / 100, 0), walletStatus,
+      };
+    });
+    return { allowed: true as const, rows };
+  });
