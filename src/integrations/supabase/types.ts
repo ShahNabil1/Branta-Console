@@ -1204,6 +1204,7 @@ export type Database = {
           notes: string | null
           project_id: string | null
           reference: string | null
+          reversal_of: string | null
           salary_slip_id: string | null
           transaction_type: string
           transfer_id: string | null
@@ -1227,6 +1228,7 @@ export type Database = {
           notes?: string | null
           project_id?: string | null
           reference?: string | null
+          reversal_of?: string | null
           salary_slip_id?: string | null
           transaction_type: string
           transfer_id?: string | null
@@ -1250,6 +1252,7 @@ export type Database = {
           notes?: string | null
           project_id?: string | null
           reference?: string | null
+          reversal_of?: string | null
           salary_slip_id?: string | null
           transaction_type?: string
           transfer_id?: string | null
@@ -1275,6 +1278,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "fund_balances"
             referencedColumns: ["fund_id"]
+          },
+          {
+            foreignKeyName: "fund_ledger_reversal_of_fkey"
+            columns: ["reversal_of"]
+            isOneToOne: false
+            referencedRelation: "fund_ledger"
+            referencedColumns: ["id"]
           },
         ]
       }
