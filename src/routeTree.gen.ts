@@ -58,6 +58,8 @@ import { Route as AuthenticatedAppFinanceSalaryReportRouteImport } from './route
 import { Route as AuthenticatedAppFinanceSalaryRouteImport } from './routes/_authenticated/app.finance.salary'
 import { Route as AuthenticatedAppFinanceRecycleBinRouteImport } from './routes/_authenticated/app.finance.recycle-bin'
 import { Route as AuthenticatedAppFinanceIncomeRouteImport } from './routes/_authenticated/app.finance.income'
+import { Route as AuthenticatedAppFinanceFundsRouteImport } from './routes/_authenticated/app.finance.funds'
+import { Route as AuthenticatedAppFinanceFundSettingsRouteImport } from './routes/_authenticated/app.finance.fund-settings'
 import { Route as AuthenticatedAppFinanceExpensesRouteImport } from './routes/_authenticated/app.finance.expenses'
 import { Route as AuthenticatedAppEmployeesUserIdRouteImport } from './routes/_authenticated/app.employees.$userId'
 import { Route as AuthenticatedAppCustomersCodeRouteImport } from './routes/_authenticated/app.customers.$code'
@@ -345,6 +347,18 @@ const AuthenticatedAppFinanceIncomeRoute =
     path: '/income',
     getParentRoute: () => AuthenticatedAppFinanceRoute,
   } as any)
+const AuthenticatedAppFinanceFundsRoute =
+  AuthenticatedAppFinanceFundsRouteImport.update({
+    id: '/funds',
+    path: '/funds',
+    getParentRoute: () => AuthenticatedAppFinanceRoute,
+  } as any)
+const AuthenticatedAppFinanceFundSettingsRoute =
+  AuthenticatedAppFinanceFundSettingsRouteImport.update({
+    id: '/fund-settings',
+    path: '/fund-settings',
+    getParentRoute: () => AuthenticatedAppFinanceRoute,
+  } as any)
 const AuthenticatedAppFinanceExpensesRoute =
   AuthenticatedAppFinanceExpensesRouteImport.update({
     id: '/expenses',
@@ -405,6 +419,8 @@ export interface FileRoutesByFullPath {
   '/app/customers/$code': typeof AuthenticatedAppCustomersCodeRoute
   '/app/employees/$userId': typeof AuthenticatedAppEmployeesUserIdRoute
   '/app/finance/expenses': typeof AuthenticatedAppFinanceExpensesRoute
+  '/app/finance/fund-settings': typeof AuthenticatedAppFinanceFundSettingsRoute
+  '/app/finance/funds': typeof AuthenticatedAppFinanceFundsRoute
   '/app/finance/income': typeof AuthenticatedAppFinanceIncomeRoute
   '/app/finance/recycle-bin': typeof AuthenticatedAppFinanceRecycleBinRoute
   '/app/finance/salary': typeof AuthenticatedAppFinanceSalaryRoute
@@ -456,6 +472,8 @@ export interface FileRoutesByTo {
   '/app/customers/$code': typeof AuthenticatedAppCustomersCodeRoute
   '/app/employees/$userId': typeof AuthenticatedAppEmployeesUserIdRoute
   '/app/finance/expenses': typeof AuthenticatedAppFinanceExpensesRoute
+  '/app/finance/fund-settings': typeof AuthenticatedAppFinanceFundSettingsRoute
+  '/app/finance/funds': typeof AuthenticatedAppFinanceFundsRoute
   '/app/finance/income': typeof AuthenticatedAppFinanceIncomeRoute
   '/app/finance/recycle-bin': typeof AuthenticatedAppFinanceRecycleBinRoute
   '/app/finance/salary': typeof AuthenticatedAppFinanceSalaryRoute
@@ -514,6 +532,8 @@ export interface FileRoutesById {
   '/_authenticated/app/customers/$code': typeof AuthenticatedAppCustomersCodeRoute
   '/_authenticated/app/employees/$userId': typeof AuthenticatedAppEmployeesUserIdRoute
   '/_authenticated/app/finance/expenses': typeof AuthenticatedAppFinanceExpensesRoute
+  '/_authenticated/app/finance/fund-settings': typeof AuthenticatedAppFinanceFundSettingsRoute
+  '/_authenticated/app/finance/funds': typeof AuthenticatedAppFinanceFundsRoute
   '/_authenticated/app/finance/income': typeof AuthenticatedAppFinanceIncomeRoute
   '/_authenticated/app/finance/recycle-bin': typeof AuthenticatedAppFinanceRecycleBinRoute
   '/_authenticated/app/finance/salary': typeof AuthenticatedAppFinanceSalaryRoute
@@ -572,6 +592,8 @@ export interface FileRouteTypes {
     | '/app/customers/$code'
     | '/app/employees/$userId'
     | '/app/finance/expenses'
+    | '/app/finance/fund-settings'
+    | '/app/finance/funds'
     | '/app/finance/income'
     | '/app/finance/recycle-bin'
     | '/app/finance/salary'
@@ -623,6 +645,8 @@ export interface FileRouteTypes {
     | '/app/customers/$code'
     | '/app/employees/$userId'
     | '/app/finance/expenses'
+    | '/app/finance/fund-settings'
+    | '/app/finance/funds'
     | '/app/finance/income'
     | '/app/finance/recycle-bin'
     | '/app/finance/salary'
@@ -680,6 +704,8 @@ export interface FileRouteTypes {
     | '/_authenticated/app/customers/$code'
     | '/_authenticated/app/employees/$userId'
     | '/_authenticated/app/finance/expenses'
+    | '/_authenticated/app/finance/fund-settings'
+    | '/_authenticated/app/finance/funds'
     | '/_authenticated/app/finance/income'
     | '/_authenticated/app/finance/recycle-bin'
     | '/_authenticated/app/finance/salary'
@@ -1076,6 +1102,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppFinanceIncomeRouteImport
       parentRoute: typeof AuthenticatedAppFinanceRoute
     }
+    '/_authenticated/app/finance/funds': {
+      id: '/_authenticated/app/finance/funds'
+      path: '/funds'
+      fullPath: '/app/finance/funds'
+      preLoaderRoute: typeof AuthenticatedAppFinanceFundsRouteImport
+      parentRoute: typeof AuthenticatedAppFinanceRoute
+    }
+    '/_authenticated/app/finance/fund-settings': {
+      id: '/_authenticated/app/finance/fund-settings'
+      path: '/fund-settings'
+      fullPath: '/app/finance/fund-settings'
+      preLoaderRoute: typeof AuthenticatedAppFinanceFundSettingsRouteImport
+      parentRoute: typeof AuthenticatedAppFinanceRoute
+    }
     '/_authenticated/app/finance/expenses': {
       id: '/_authenticated/app/finance/expenses'
       path: '/expenses'
@@ -1139,6 +1179,8 @@ const AuthenticatedAppCustomersRouteWithChildren =
 
 interface AuthenticatedAppFinanceRouteChildren {
   AuthenticatedAppFinanceExpensesRoute: typeof AuthenticatedAppFinanceExpensesRoute
+  AuthenticatedAppFinanceFundSettingsRoute: typeof AuthenticatedAppFinanceFundSettingsRoute
+  AuthenticatedAppFinanceFundsRoute: typeof AuthenticatedAppFinanceFundsRoute
   AuthenticatedAppFinanceIncomeRoute: typeof AuthenticatedAppFinanceIncomeRoute
   AuthenticatedAppFinanceRecycleBinRoute: typeof AuthenticatedAppFinanceRecycleBinRoute
   AuthenticatedAppFinanceSalaryRoute: typeof AuthenticatedAppFinanceSalaryRoute
@@ -1155,6 +1197,9 @@ interface AuthenticatedAppFinanceRouteChildren {
 const AuthenticatedAppFinanceRouteChildren: AuthenticatedAppFinanceRouteChildren =
   {
     AuthenticatedAppFinanceExpensesRoute: AuthenticatedAppFinanceExpensesRoute,
+    AuthenticatedAppFinanceFundSettingsRoute:
+      AuthenticatedAppFinanceFundSettingsRoute,
+    AuthenticatedAppFinanceFundsRoute: AuthenticatedAppFinanceFundsRoute,
     AuthenticatedAppFinanceIncomeRoute: AuthenticatedAppFinanceIncomeRoute,
     AuthenticatedAppFinanceRecycleBinRoute:
       AuthenticatedAppFinanceRecycleBinRoute,

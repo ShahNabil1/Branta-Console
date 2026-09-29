@@ -794,6 +794,7 @@ export type Database = {
           deleted_at: string | null
           deleted_by: string | null
           department: string | null
+          fund_id: string | null
           id: string
           is_project_cost: boolean
           last_edit_reason: string | null
@@ -826,6 +827,7 @@ export type Database = {
           deleted_at?: string | null
           deleted_by?: string | null
           department?: string | null
+          fund_id?: string | null
           id?: string
           is_project_cost?: boolean
           last_edit_reason?: string | null
@@ -858,6 +860,7 @@ export type Database = {
           deleted_at?: string | null
           deleted_by?: string | null
           department?: string | null
+          fund_id?: string | null
           id?: string
           is_project_cost?: boolean
           last_edit_reason?: string | null
@@ -882,11 +885,294 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "expenses_fund_id_fkey"
+            columns: ["fund_id"]
+            isOneToOne: false
+            referencedRelation: "finance_funds"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expenses_fund_id_fkey"
+            columns: ["fund_id"]
+            isOneToOne: false
+            referencedRelation: "fund_balances"
+            referencedColumns: ["fund_id"]
+          },
+          {
             foreignKeyName: "expenses_linked_invoice_id_fkey"
             columns: ["linked_invoice_id"]
             isOneToOne: false
             referencedRelation: "invoices"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      finance_funds: {
+        Row: {
+          code: string
+          created_at: string
+          description: string | null
+          display_order: number
+          id: string
+          is_active: boolean
+          kind: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          kind?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          kind?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      fund_allocation_version_items: {
+        Row: {
+          fund_id: string
+          id: string
+          percent: number
+          version_id: string
+        }
+        Insert: {
+          fund_id: string
+          id?: string
+          percent: number
+          version_id: string
+        }
+        Update: {
+          fund_id?: string
+          id?: string
+          percent?: number
+          version_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fund_allocation_version_items_fund_id_fkey"
+            columns: ["fund_id"]
+            isOneToOne: false
+            referencedRelation: "finance_funds"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fund_allocation_version_items_fund_id_fkey"
+            columns: ["fund_id"]
+            isOneToOne: false
+            referencedRelation: "fund_balances"
+            referencedColumns: ["fund_id"]
+          },
+          {
+            foreignKeyName: "fund_allocation_version_items_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "fund_allocation_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fund_allocation_versions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          effective_from: string
+          id: string
+          name: string
+          notes: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          effective_from: string
+          id?: string
+          name: string
+          notes?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          effective_from?: string
+          id?: string
+          name?: string
+          notes?: string | null
+        }
+        Relationships: []
+      }
+      fund_audit_logs: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          next: Json | null
+          previous: Json | null
+          reason: string | null
+          record_id: string | null
+          record_type: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: string
+          next?: Json | null
+          previous?: Json | null
+          reason?: string | null
+          record_id?: string | null
+          record_type?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          next?: Json | null
+          previous?: Json | null
+          reason?: string | null
+          record_id?: string | null
+          record_type?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      fund_deduction_rules: {
+        Row: {
+          amount_type: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+          value: number
+        }
+        Insert: {
+          amount_type: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+          value: number
+        }
+        Update: {
+          amount_type?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+          value?: number
+        }
+        Relationships: []
+      }
+      fund_ledger: {
+        Row: {
+          allocation_id: string | null
+          amount: number
+          created_at: string
+          created_by: string | null
+          customer_id: string | null
+          description: string | null
+          direction: string
+          employee_id: string | null
+          expense_id: string | null
+          fund_id: string
+          id: string
+          installment_id: string | null
+          invoice_id: string | null
+          invoice_payout_id: string | null
+          loan_id: string | null
+          notes: string | null
+          project_id: string | null
+          reference: string | null
+          salary_slip_id: string | null
+          transaction_type: string
+          transfer_id: string | null
+        }
+        Insert: {
+          allocation_id?: string | null
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          description?: string | null
+          direction: string
+          employee_id?: string | null
+          expense_id?: string | null
+          fund_id: string
+          id?: string
+          installment_id?: string | null
+          invoice_id?: string | null
+          invoice_payout_id?: string | null
+          loan_id?: string | null
+          notes?: string | null
+          project_id?: string | null
+          reference?: string | null
+          salary_slip_id?: string | null
+          transaction_type: string
+          transfer_id?: string | null
+        }
+        Update: {
+          allocation_id?: string | null
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          description?: string | null
+          direction?: string
+          employee_id?: string | null
+          expense_id?: string | null
+          fund_id?: string
+          id?: string
+          installment_id?: string | null
+          invoice_id?: string | null
+          invoice_payout_id?: string | null
+          loan_id?: string | null
+          notes?: string | null
+          project_id?: string | null
+          reference?: string | null
+          salary_slip_id?: string | null
+          transaction_type?: string
+          transfer_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fund_ledger_allocation_id_fkey"
+            columns: ["allocation_id"]
+            isOneToOne: false
+            referencedRelation: "installment_allocations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fund_ledger_fund_id_fkey"
+            columns: ["fund_id"]
+            isOneToOne: false
+            referencedRelation: "finance_funds"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fund_ledger_fund_id_fkey"
+            columns: ["fund_id"]
+            isOneToOne: false
+            referencedRelation: "fund_balances"
+            referencedColumns: ["fund_id"]
           },
         ]
       }
@@ -1075,6 +1361,248 @@ export type Database = {
             columns: ["invoice_id"]
             isOneToOne: false
             referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      installment_allocation_deductions: {
+        Row: {
+          allocation_id: string
+          amount: number
+          amount_type: string
+          id: string
+          name: string
+          value: number
+        }
+        Insert: {
+          allocation_id: string
+          amount: number
+          amount_type: string
+          id?: string
+          name: string
+          value: number
+        }
+        Update: {
+          allocation_id?: string
+          amount?: number
+          amount_type?: string
+          id?: string
+          name?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "installment_allocation_deductions_allocation_id_fkey"
+            columns: ["allocation_id"]
+            isOneToOne: false
+            referencedRelation: "installment_allocations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      installment_allocation_failures: {
+        Row: {
+          attempts: number
+          error: string | null
+          installment_id: string
+          last_attempt_at: string
+        }
+        Insert: {
+          attempts?: number
+          error?: string | null
+          installment_id: string
+          last_attempt_at?: string
+        }
+        Update: {
+          attempts?: number
+          error?: string | null
+          installment_id?: string
+          last_attempt_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "installment_allocation_failures_installment_id_fkey"
+            columns: ["installment_id"]
+            isOneToOne: true
+            referencedRelation: "invoice_installments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      installment_allocation_items: {
+        Row: {
+          allocation_id: string
+          amount: number
+          fund_id: string
+          fund_name: string
+          id: string
+          percent: number
+        }
+        Insert: {
+          allocation_id: string
+          amount: number
+          fund_id: string
+          fund_name: string
+          id?: string
+          percent: number
+        }
+        Update: {
+          allocation_id?: string
+          amount?: number
+          fund_id?: string
+          fund_name?: string
+          id?: string
+          percent?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "installment_allocation_items_allocation_id_fkey"
+            columns: ["allocation_id"]
+            isOneToOne: false
+            referencedRelation: "installment_allocations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "installment_allocation_items_fund_id_fkey"
+            columns: ["fund_id"]
+            isOneToOne: false
+            referencedRelation: "finance_funds"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "installment_allocation_items_fund_id_fkey"
+            columns: ["fund_id"]
+            isOneToOne: false
+            referencedRelation: "fund_balances"
+            referencedColumns: ["fund_id"]
+          },
+        ]
+      }
+      installment_allocations: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          customer_id: string | null
+          deduction_total: number
+          distributable_amount: number
+          error: string | null
+          id: string
+          installment_id: string
+          invoice_id: string
+          project_id: string | null
+          received_amount: number
+          replaces_allocation_id: string | null
+          reversal_reason: string | null
+          reversed_at: string | null
+          reversed_by: string | null
+          source: string
+          status: string
+          version_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          deduction_total?: number
+          distributable_amount: number
+          error?: string | null
+          id?: string
+          installment_id: string
+          invoice_id: string
+          project_id?: string | null
+          received_amount: number
+          replaces_allocation_id?: string | null
+          reversal_reason?: string | null
+          reversed_at?: string | null
+          reversed_by?: string | null
+          source?: string
+          status?: string
+          version_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          deduction_total?: number
+          distributable_amount?: number
+          error?: string | null
+          id?: string
+          installment_id?: string
+          invoice_id?: string
+          project_id?: string | null
+          received_amount?: number
+          replaces_allocation_id?: string | null
+          reversal_reason?: string | null
+          reversed_at?: string | null
+          reversed_by?: string | null
+          source?: string
+          status?: string
+          version_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "installment_allocations_installment_id_fkey"
+            columns: ["installment_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_installments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "installment_allocations_replaces_allocation_id_fkey"
+            columns: ["replaces_allocation_id"]
+            isOneToOne: false
+            referencedRelation: "installment_allocations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "installment_allocations_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "fund_allocation_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      installment_deductions: {
+        Row: {
+          amount_type: string
+          created_at: string
+          created_by: string | null
+          deduction_type: string
+          description: string | null
+          id: string
+          installment_id: string
+          notes: string | null
+          value: number
+        }
+        Insert: {
+          amount_type: string
+          created_at?: string
+          created_by?: string | null
+          deduction_type?: string
+          description?: string | null
+          id?: string
+          installment_id: string
+          notes?: string | null
+          value: number
+        }
+        Update: {
+          amount_type?: string
+          created_at?: string
+          created_by?: string | null
+          deduction_type?: string
+          description?: string | null
+          id?: string
+          installment_id?: string
+          notes?: string | null
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "installment_deductions_installment_id_fkey"
+            columns: ["installment_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_installments"
             referencedColumns: ["id"]
           },
         ]
@@ -3217,6 +3745,22 @@ export type Database = {
       }
     }
     Views: {
+      fund_balances: {
+        Row: {
+          allocation_total: number | null
+          code: string | null
+          display_order: number | null
+          fund_id: string | null
+          is_active: boolean | null
+          kind: string | null
+          ledger_balance: number | null
+          name: string | null
+          spent_total: number | null
+          total_credits: number | null
+          total_debits: number | null
+        }
+        Relationships: []
+      }
       v_wallet_balances: {
         Row: {
           available: number | null
@@ -3230,6 +3774,10 @@ export type Database = {
       }
     }
     Functions: {
+      allocate_installment: {
+        Args: { _actor?: string; _installment_id: string; _source?: string }
+        Returns: string
+      }
       apply_super_admin_bypass: {
         Args: { _schema: string; _table: string }
         Returns: undefined
@@ -3258,6 +3806,14 @@ export type Database = {
         Returns: boolean
       }
       purge_expired_expenses: { Args: never; Returns: number }
+      retry_installment_allocation: {
+        Args: { _installment_id: string }
+        Returns: string
+      }
+      reverse_installment_allocation: {
+        Args: { _allocation_id: string; _reason: string }
+        Returns: undefined
+      }
       validate_branta_email: { Args: { _email: string }; Returns: boolean }
     }
     Enums: {
