@@ -687,11 +687,13 @@ function EditInvoiceDialog({
   const instSum = editInstallments.reduce((a, i) => a + Number(i.amount || 0), 0);
   const pctSum = editStakeholders.reduce((a, s) => a + Number(s.percent || 0), 0);
   const costSum = sumProjectCosts(editCosts);
+  // Fund Ledger invoices have no stakeholder split (employees are paid from the Employee Fund).
+  const fundLedger = stakeholders.length === 0;
   const canSave =
     !!customerId && !!title.trim() && totalNum > 0 &&
-    Math.abs(instSum - totalNum) < 0.01 && Math.abs(pctSum - 100) < 0.01 &&
+    Math.abs(instSum - totalNum) < 0.01 && (fundLedger || Math.abs(pctSum - 100) < 0.01) &&
     editInstallments.every((i) => i.label.trim() && i.due_date && Number(i.amount) > 0) &&
-    editStakeholders.every((s) => s.user_id && Number(s.percent) > 0) &&
+    (fundLedger || editStakeholders.every((s) => s.user_id && Number(s.percent) > 0)) &&
     editCosts.every((c) => c.name.trim()) && costSum <= totalNum + 0.01;
 
   return (
@@ -783,7 +785,7 @@ function EditInvoiceDialog({
             <ProjectCostEditor costs={editCosts} onChange={setEditCosts} total={totalNum} currency={currency} compact />
           </section>
 
-          <section className="rounded-sm border border-border p-3">
+          <section className={cn("rounded-sm border border-border p-3", fundLedger && "hidden")}>
             <div className="mb-2 flex items-center justify-between"><h4 className="text-[13px] font-semibold">Stakeholders</h4><span className={cn("font-mono text-[11px]", Math.abs(pctSum - 100) < 0.01 ? "text-emerald-600" : "text-rose-600")}>{pctSum.toFixed(2)}%</span></div>
             <div className="space-y-2">
               {editStakeholders.map((s, idx) => (
