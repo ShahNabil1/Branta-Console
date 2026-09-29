@@ -94,7 +94,7 @@ export const getEmployeePaymentContext = createServerFn({ method: "GET" })
     const [pays, emps, projects, invoices] = await Promise.all([
       sb.from("employee_fund_payments").select("*").order("created_at", { ascending: false }).limit(500),
       sb.from("profiles").select("user_id,full_name,employee_code").order("full_name"),
-      sb.from("client_projects").select("id,name").order("created_at", { ascending: false }).limit(500),
+      sb.from("client_projects").select("id,title").order("created_at", { ascending: false }).limit(500),
       sb.from("invoices").select("id,slug,title").order("created_at", { ascending: false }).limit(500),
     ]);
     return { payments: pays.data ?? [], employees: emps.data ?? [], projects: projects.data ?? [], invoices: invoices.data ?? [] };
