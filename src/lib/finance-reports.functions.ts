@@ -2,6 +2,7 @@
 // summary aggregation and PDF / XLSX / CSV export.
 // Every entry point re-checks the finance role, so exports can never leak data
 // a user is not allowed to read.
+import { dbError } from "@/lib/db-errors";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
@@ -51,7 +52,7 @@ type Sb = any;
 
 async function ensureFinance(supabase: Sb, userId: string) {
   const { data, error } = await supabase.rpc("is_finance_admin", { _user_id: userId });
-  if (error) throw new Error(error.message);
+  if (error) throw dbError(error);
   if (!data) throw new Error("Forbidden — finance access required");
 }
 
@@ -90,7 +91,7 @@ async function fetchAllRows<T>(make: (from: number, to: number) => PromiseLike<{
   const out: T[] = [];
   for (let offset = 0; offset < 100_000; offset += CHUNK) {
     const { data, error } = await make(offset, offset + CHUNK - 1);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     const batch = data ?? [];
     out.push(...batch);
     if (batch.length < CHUNK) break;

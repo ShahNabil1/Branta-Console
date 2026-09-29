@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Phase 4 — one-way Finance reporting to Google Sheets (Console → Sheets only).
 // Completely separate from the Leads Sheets sync. Never writes anything back into finance tables.
+import { dbError } from "@/lib/db-errors";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -27,7 +28,7 @@ async function fetchAll(make: (a: number, b: number) => any, cap = 100000) {
   const out: any[] = [];
   for (let i = 0; i < cap; i += 1000) {
     const { data, error } = await make(i, i + 999);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     out.push(...(data ?? []));
     if (!data || data.length < 1000) break;
   }
@@ -204,7 +205,7 @@ export const saveFinanceSheetSettings = createServerFn({ method: "POST" })
     try { title = (await gw<any>(id, "GET", undefined, { fields: "properties.title" })).properties?.title ?? "Spreadsheet"; }
     catch (e) { throw new Error(`Could not open that spreadsheet with the connected Google account: ${(e as Error).message}`); }
     const { error } = await sb.from("finance_sheet_settings").upsert({ id: 1, spreadsheet_id: id, spreadsheet_name: title, updated_by: context.userId });
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return { id, title };
   });
 

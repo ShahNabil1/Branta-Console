@@ -1,6 +1,7 @@
 // Server functions for the Employees admin page.
 // All create/list operations require an authenticated caller AND an
 // admin/super_admin role check via the has_role RPC.
+import { dbError } from "@/lib/db-errors";
 import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeader } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -56,7 +57,7 @@ export const listEmployees = createServerFn({ method: "GET" })
       page: 1,
       perPage: 200,
     });
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
 
     const users = data.users ?? [];
     const ids = users.map((u) => u.id);
@@ -213,7 +214,7 @@ export const deleteEmployee = createServerFn({ method: "POST" })
       "@/integrations/supabase/client.server"
     );
     const { error } = await supabaseAdmin.auth.admin.deleteUser(data.userId);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return { ok: true as const };
   });
 

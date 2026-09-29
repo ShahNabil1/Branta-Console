@@ -3,6 +3,7 @@
 //
 // All operations require admin. Impersonation and super_admin role writes
 // are restricted to super_admin.
+import { dbError } from "@/lib/db-errors";
 import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeader } from "@tanstack/react-start/server";
 import { z } from "zod";
@@ -215,7 +216,7 @@ export const setEmployeeJobRole = createServerFn({ method: "POST" })
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .update({ job_role: value } as any)
       .eq("user_id", data.userId);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return { ok: true as const, jobRole: value };
   });
 
@@ -298,7 +299,7 @@ export const setEmployeeBan = createServerFn({ method: "POST" })
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ban_duration: (data.ban ? "876000h" : "none") as any,
     });
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return { ok: true as const, banned: data.ban };
   });
 
@@ -577,7 +578,7 @@ export const listAssignedLeads = createServerFn({ method: "GET" })
       .eq("owner_id", data.userId)
       .order("last_activity_at", { ascending: false })
       .limit(500);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return (rows ?? []) as AssignedLead[];
   });
 
@@ -603,7 +604,7 @@ export const searchLeadsForAssignment = createServerFn({ method: "GET" })
       );
     }
     const { data: rows, error } = await q;
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return (rows ?? []) as AssignedLead[];
   });
 
@@ -627,7 +628,7 @@ export const assignLeadOwner = createServerFn({ method: "POST" })
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .update({ owner_id: data.ownerId } as any)
       .eq("id", data.leadId);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return { ok: true as const };
   });
 
@@ -776,7 +777,7 @@ export const listEmployeeSessions = createServerFn({ method: "GET" })
       .eq("user_id", data.userId)
       .order("last_seen_at", { ascending: false })
       .limit(50);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return (rows ?? []) as EmployeeSessionRow[];
   });
 
@@ -804,7 +805,7 @@ export const revokeEmployeeSession = createServerFn({ method: "POST" })
       .update({ revoked_at: new Date().toISOString() } as any)
       .eq("user_id", data.userId)
       .eq("id", data.sessionId);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     if (data.userId !== context.userId) {
       try {
         const { notify } = await import("@/lib/notify.server");

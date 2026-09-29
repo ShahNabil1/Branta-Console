@@ -1,3 +1,4 @@
+import { dbError } from "@/lib/db-errors";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -78,7 +79,7 @@ export const retryAllocation = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertFinance(context);
     const { error } = await (context.supabase as any).rpc("retry_installment_allocation", { _installment_id: data.installmentId });
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return { ok: true };
   });
 
@@ -88,7 +89,7 @@ export const reverseAllocation = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertFinance(context);
     const { error } = await (context.supabase as any).rpc("reverse_installment_allocation", { _allocation_id: data.allocationId, _reason: data.reason });
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return { ok: true };
   });
 
@@ -145,7 +146,7 @@ export const saveFund = createServerFn({ method: "POST" })
     const q = id ? sb.from("finance_funds").update({ name: rest.name, description: rest.description, is_active: rest.is_active, display_order: rest.display_order }).eq("id", id)
       : sb.from("finance_funds").insert({ ...rest, code: rest.code ?? rest.name.toLowerCase().replace(/[^a-z0-9]+/g, "_").slice(0, 30) });
     const { error } = await q;
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     await sb.from("fund_audit_logs").insert({ user_id: context.userId, action: id ? "fund_update" : "fund_create", record_type: "finance_fund", record_id: id ?? null, next: rest });
     return { ok: true };
   });
@@ -163,7 +164,7 @@ export const saveAllocationVersion = createServerFn({ method: "POST" })
     if (total !== 100) throw new Error(`Total must be exactly 100% (current ${total}%)`);
     const sb = context.supabase as any;
     const { data: v, error } = await sb.from("fund_allocation_versions").insert({ name: data.name, effective_from: data.effective_from, notes: data.reason, created_by: context.userId }).select("id").single();
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     const { error: e2 } = await sb.from("fund_allocation_version_items").insert(data.items.map((i) => ({ ...i, version_id: v.id })));
     if (e2) throw new Error(e2.message);
     await sb.from("fund_audit_logs").insert({ user_id: context.userId, action: "allocation_version_create", record_type: "fund_allocation_version", record_id: v.id, next: data, reason: data.reason });
@@ -181,7 +182,7 @@ export const saveDeductionRule = createServerFn({ method: "POST" })
     const sb = context.supabase as any;
     const { id, ...rest } = data;
     const { error } = id ? await sb.from("fund_deduction_rules").update(rest).eq("id", id) : await sb.from("fund_deduction_rules").insert({ ...rest, created_by: context.userId });
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return { ok: true };
   });
 
@@ -220,7 +221,7 @@ export const correctAllocationBase = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertFinance(context);
     const { data: id, error } = await (context.supabase as any).rpc("correct_allocation_base", { _allocation_id: data.allocationId, _reason: data.reason });
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return { ok: true, allocationId: id as string };
   });
 
@@ -255,7 +256,7 @@ export const assignAllocationEmployeePayouts = createServerFn({ method: "POST" }
   .handler(async ({ data, context }) => {
     await assertFinance(context);
     const { error } = await (context.supabase as any).rpc("assign_allocation_employee_payouts", { _allocation_id: data.allocationId, _mode: data.mode, _rows: data.rows, _note: data.note ?? null });
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return { ok: true };
   });
 

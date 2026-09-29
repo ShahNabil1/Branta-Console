@@ -1,6 +1,7 @@
 // Server functions for the Leads module.
 // Reads are open to any authenticated Branta employee (RLS-enforced).
 // Mutations respect the leads RLS policies (owner or admin/super_admin).
+import { dbError } from "@/lib/db-errors";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
@@ -531,7 +532,7 @@ export const listLeads = createServerFn({ method: "GET" })
       .eq("is_draft", false)
       .order("last_activity_at", { ascending: false })
       .limit(500);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     const rows = ((data ?? []) as unknown as LeadRow[]).map((r) => ({ ...r, email: null }));
     const withEmails = await attachPrimaryEmails(context.supabase, rows);
     return attachOwnerNames(context.supabase, withEmails);
@@ -548,7 +549,7 @@ export const getLead = createServerFn({ method: "GET" })
       .select("*")
       .eq("id", data.id)
       .maybeSingle();
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     if (!row) return null;
     const base = { ...(row as unknown as LeadRow), email: null };
     const [withEmail] = await attachPrimaryEmails(context.supabase, [base]);
@@ -567,7 +568,7 @@ export const getLeadBySlug = createServerFn({ method: "GET" })
       .select("*")
       .ilike("slug", data.slug)
       .maybeSingle();
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     if (!row) return null;
     const base = { ...(row as unknown as LeadRow), email: null };
     const [withEmail] = await attachPrimaryEmails(context.supabase, [base]);
@@ -625,7 +626,7 @@ export const createLead = createServerFn({ method: "POST" })
 
       .select("*")
       .single();
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     if (email) {
       await upsertPrimaryContact(context.supabase, row.id, email, context.userId);
     }
@@ -694,7 +695,7 @@ export const createDraftLead = createServerFn({ method: "POST" })
       } as any)
       .select("*")
       .single();
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     await context.supabase.from("lead_activities").insert({
       lead_id: row.id,
       actor_id: context.userId,
@@ -743,7 +744,7 @@ export const finalizeLead = createServerFn({ method: "POST" })
       .eq("id", data.id)
       .select("*")
       .single();
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
 
     await context.supabase.from("lead_activities").insert({
       lead_id: data.id,
@@ -804,7 +805,7 @@ export const listDraftLeads = createServerFn({ method: "GET" })
     }
 
     const { data: rows, error } = await q;
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     const base = ((rows ?? []) as unknown as LeadRow[]).map((r) => ({ ...r, email: null }));
     const withEmails = await attachPrimaryEmails(context.supabase, base);
     return attachOwnerNames(context.supabase, withEmails);
@@ -872,7 +873,7 @@ export const updateLead = createServerFn({ method: "POST" })
         .eq("id", data.id)
         .select("*")
         .single();
-      if (error) throw new Error(error.message);
+      if (error) throw dbError(error);
       row = updated;
     } else {
       const { data: current, error } = await context.supabase
@@ -880,7 +881,7 @@ export const updateLead = createServerFn({ method: "POST" })
         .select("*")
         .eq("id", data.id)
         .single();
-      if (error) throw new Error(error.message);
+      if (error) throw dbError(error);
       row = current;
     }
 
@@ -1062,7 +1063,7 @@ export const deleteLead = createServerFn({ method: "POST" })
     const { assertCallerPermission } = await import("@/lib/permissions.functions");
     await assertCallerPermission(context.supabase, context.userId, "lead_delete", "Delete leads");
     const { error } = await context.supabase.from("leads").delete().eq("id", data.id);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return { ok: true };
   });
 
@@ -1079,7 +1080,7 @@ export const listLeadActivities = createServerFn({ method: "GET" })
       .eq("lead_id", data.leadId)
       .order("created_at", { ascending: false })
       .limit(200);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     const activities = (rows ?? []) as LeadActivityRow[];
     const ids = Array.from(
       new Set(activities.map((a) => a.actor_id).filter(Boolean) as string[]),
@@ -1136,7 +1137,7 @@ export const addLeadActivity = createServerFn({ method: "POST" })
       })
       .select("*")
       .single();
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return row as LeadActivityRow;
   });
 
@@ -1185,7 +1186,7 @@ export const listAssignableUsers = createServerFn({ method: "GET" })
       .select("user_id, full_name, personal_gmail" as any)
       .order("full_name", { ascending: true })
       .limit(500);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return (data ?? []) as unknown as AssignableUser[];
   });
 
@@ -1203,7 +1204,7 @@ export const listLeadContacts = createServerFn({ method: "GET" })
       .eq("lead_id", data.leadId)
       .order("is_primary", { ascending: false })
       .order("created_at", { ascending: true });
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return (rows ?? []) as LeadContactRow[];
   });
 
@@ -1287,7 +1288,7 @@ export const addLeadContact = createServerFn({ method: "POST" })
       .insert(insertRow as any)
       .select("*")
       .single();
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     const label = data.name || data.email || data.phone || "contact";
     await context.supabase.from("lead_activities").insert({
       lead_id: data.leadId,
@@ -1368,7 +1369,7 @@ export const updateLeadContact = createServerFn({ method: "POST" })
       .eq("id", data.id)
       .select("*")
       .single();
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
 
     // Field-level diff → activity log entries on the underlying lead.
     if (beforeRow) {
@@ -1422,7 +1423,7 @@ export const setPrimaryLeadContact = createServerFn({ method: "POST" })
       .from("lead_contacts")
       .update({ is_primary: true })
       .eq("id", data.id);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     const label = (c.name as string | null) || (c.email as string | null) || (c.phone as string | null) || "contact";
     await context.supabase.from("lead_activities").insert({
       lead_id: c.lead_id,
@@ -1450,7 +1451,7 @@ export const deleteLeadContact = createServerFn({ method: "POST" })
       .from("lead_contacts")
       .delete()
       .eq("id", data.id);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     if (before) {
       const label = (before.name as string | null) || (before.email as string | null) || (before.phone as string | null) || "contact";
       await context.supabase.from("lead_activities").insert({

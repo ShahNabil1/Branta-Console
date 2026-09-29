@@ -1,5 +1,6 @@
 // Server functions for dynamic Leads dropdowns (status + source).
 // Any signed-in employee can read. Super admin panel will manage rows later.
+import { dbError } from "@/lib/db-errors";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
@@ -35,7 +36,7 @@ export const listLeadStatusOptions = createServerFn({ method: "GET" })
       .select("key,label,sort_order,color_var,is_active")
       .eq("is_active", true)
       .order("sort_order", { ascending: true });
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return (data ?? []) as LeadStatusOption[];
   });
 
@@ -47,7 +48,7 @@ export const listLeadSourceOptions = createServerFn({ method: "GET" })
       .select("key,label,sort_order,requires_detail,is_active")
       .eq("is_active", true)
       .order("sort_order", { ascending: true });
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return (data ?? []) as LeadSourceOption[];
   });
 
@@ -60,7 +61,7 @@ export const listLeadServiceOptions = createServerFn({ method: "GET" })
       .select("key,label,sort_order,requires_detail,is_active")
       .eq("is_active", true)
       .order("sort_order", { ascending: true });
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return (data ?? []) as unknown as LeadServiceOption[];
   });
 

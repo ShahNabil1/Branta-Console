@@ -1,4 +1,5 @@
 // Lead Dashboard summary — counts respect RLS (each user sees what they can access).
+import { dbError } from "@/lib/db-errors";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -48,7 +49,7 @@ export const getLeadDashboard = createServerFn({ method: "GET" })
     if (data.service) q = q.eq("service", data.service);
     if (data.priority) q = q.eq("priority", data.priority);
     const { data: rows, error } = await q;
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     const list = rows ?? [];
 
     // End of today in Dhaka

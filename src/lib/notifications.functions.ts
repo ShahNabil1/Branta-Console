@@ -1,3 +1,4 @@
+import { dbError } from "@/lib/db-errors";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -81,7 +82,7 @@ export const updateMyNotificationPreferences = createServerFn({
         { user_id: context.userId, ...data, updated_at: new Date().toISOString() },
         { onConflict: "user_id" },
       );
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return { ok: true as const };
   });
 
@@ -147,7 +148,7 @@ export const updateNotificationRule = createServerFn({ method: "POST" })
         updated_at: new Date().toISOString(),
       } as never)
       .eq("event_key", event_key);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return { ok: true as const };
   });
 

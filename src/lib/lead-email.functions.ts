@@ -1,5 +1,6 @@
 // Lead email compose — Resend-only, branded, multi-recipient with variable substitution.
 
+import { dbError } from "@/lib/db-errors";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
@@ -427,7 +428,7 @@ export const listLeadEmails = createServerFn({ method: "GET" })
       .eq("lead_id", data.leadId)
       .order("created_at", { ascending: false })
       .limit(200);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     const raw = (rows ?? []) as LeadEmailRow[];
     const ids = Array.from(
       new Set(raw.map((r) => r.sent_by).filter(Boolean)),
@@ -568,7 +569,7 @@ export const listFailedEmails = createServerFn({ method: "GET" })
       .eq("status", "failed")
       .order("sent_at", { ascending: false, nullsFirst: false })
       .limit(200);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     const raw = (rows ?? []) as unknown as (LeadEmailRow & {
       leads: { name: string | null; slug: string | null; lead_code: string | null } | null;
     })[];
@@ -622,7 +623,7 @@ export const retryFailedEmail = createServerFn({ method: "POST" })
       .update(patch)
       .eq("id", data.id)
       .eq("status", "failed");
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return { ok: true };
   });
 
@@ -639,7 +640,7 @@ export const retryAllFailed = createServerFn({ method: "POST" })
       .eq("status", "failed");
     if (data.leadId) q = q.eq("lead_id", data.leadId);
     const { data: rows, error } = await q.select("id");
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return { retried: (rows ?? []).length };
   });
 

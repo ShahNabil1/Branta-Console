@@ -11,6 +11,7 @@
 //    (across leads + lead_contacts) are skipped and returned as
 //    `skippedDuplicates` with the matching lead slug for user review.
 //    The dashboard then offers an Overwrite step to import them anyway.
+import { dbError } from "@/lib/db-errors";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
@@ -593,7 +594,7 @@ export const pushLeadsToSheet = createServerFn({ method: "POST" })
         )
         .order("slug", { ascending: true })
         .limit(5000);
-      if (error) throw new Error(error.message);
+      if (error) throw dbError(error);
       const leadRows = (leads ?? []) as Array<
         Record<string, unknown> & { id: string; slug: string }
       >;

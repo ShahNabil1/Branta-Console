@@ -1,4 +1,5 @@
 // Customers module — manual create + auto-populated from Converted leads.
+import { dbError } from "@/lib/db-errors";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
@@ -74,7 +75,7 @@ export const listCustomers = createServerFn({ method: "GET" })
       q = q.or(`owner_id.eq.${context.userId},created_by.eq.${context.userId}`);
     }
     const { data, error } = await q;
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     const rows = (data ?? []) as unknown as CustomerRow[];
 
     // Enrich: owner (converter), creator, lead slug for converted rows.
@@ -135,7 +136,7 @@ export const listCustomersForPicker = createServerFn({ method: "GET" })
       .select("id, customer_code, name, company, email, phone, currency")
       .order("created_at", { ascending: false })
       .limit(1000);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return (data ?? []) as unknown as CustomerPickerItem[];
   });
 
@@ -169,7 +170,7 @@ export const createCustomer = createServerFn({ method: "POST" })
 
       .select("id")
       .single();
-    if (leadErr || !leadRow) throw new Error(leadErr?.message ?? "Failed to create lead");
+    if (leadErr || !leadRow) throw (leadErr ? dbError(leadErr) : new Error("Failed to create lead"));
     const leadId = (leadRow as { id: string }).id;
 
     if (email || data.phone) {
@@ -188,7 +189,7 @@ export const createCustomer = createServerFn({ method: "POST" })
       .from("leads")
       .update({ status: "converted" })
       .eq("id", leadId);
-    if (updErr) throw new Error(updErr.message);
+    if (updErr) throw dbError(updErr);
 
     // Trigger inserted the customer; fetch and return it.
     const { data: cust, error: custErr } = await context.supabase
@@ -196,7 +197,7 @@ export const createCustomer = createServerFn({ method: "POST" })
       .select("*")
       .eq("converted_from_lead_id", leadId)
       .maybeSingle();
-    if (custErr) throw new Error(custErr.message);
+    if (custErr) throw dbError(custErr);
     if (!cust) throw new Error("Customer row was not created");
 
     // Activity log — include the customer code so the Activity Logs feed can
@@ -241,7 +242,7 @@ export const getCustomerByCode = createServerFn({ method: "GET" })
         .select("*")
         .eq("customer_code", data.code)
         .maybeSingle();
-      if (error) throw new Error(error.message);
+      if (error) throw dbError(error);
       if (!cust) throw new Error("Customer not found");
       const customer = cust as unknown as CustomerRow;
 
@@ -265,6 +266,6 @@ export const deleteCustomer = createServerFn({ method: "POST" })
   .inputValidator((data: { id: string }) => z.object({ id: z.string().uuid() }).parse(data))
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase.from("customers").delete().eq("id", data.id);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return { ok: true as const };
   });

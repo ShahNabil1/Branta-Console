@@ -3,6 +3,7 @@
 // requests another user's scope, we still call Supabase as the caller —
 // admin RLS policies allow the read. The client never dictates identity;
 // we validate the target userId against the caller's role.
+import { dbError } from "@/lib/db-errors";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -138,7 +139,7 @@ async function resolveScopeUser(supabase: any, callerId: string, requested?: str
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function countRows(q: any): Promise<number> {
   const { count, error } = await q;
-  if (error) throw new Error(error.message);
+  if (error) throw dbError(error);
   return count ?? 0;
 }
 
@@ -158,7 +159,7 @@ export const listScopeUsers = createServerFn({ method: "GET" })
       .select("user_id, full_name, employee_code")
       .order("full_name", { ascending: true })
       .limit(500);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return (data ?? []) as ScopeUser[];
   });
 
@@ -325,7 +326,7 @@ export const getOverviewInbox = createServerFn({ method: "POST" })
       .eq("is_unread", true)
       .order("received_at", { ascending: false })
       .limit(8);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return ((rows ?? []) as unknown as {
       gmail_message_id: string;
       from_email: string;
@@ -358,7 +359,7 @@ export const getTodaysMeetings = createServerFn({ method: "POST" })
       .gte("starts_at", start.toISOString())
       .lt("starts_at", end.toISOString())
       .order("starts_at", { ascending: true });
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return ((rows ?? []) as unknown as Array<{
       id: string; title: string; starts_at: string; ends_at: string;
       meeting_link: string | null; leads: { slug: string } | null;
@@ -381,7 +382,7 @@ export const getFollowUps = createServerFn({ method: "POST" })
       .not("status", "in", "(converted,lost)")
       .order("last_activity_at", { ascending: true })
       .limit(10);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     const fiveDaysAgo = Date.now() - 5 * 24 * 3600_000;
     return ((rows ?? []) as OverviewFollowUp[]).map((r) => ({
       ...r,
@@ -494,7 +495,7 @@ export const getActivityHeatmap = createServerFn({ method: "POST" })
       .gte("created_at", from.toISOString())
       .lt("created_at", to.toISOString())
       .limit(20000);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     const grid = new Map<string, number>();
     for (const r of (rows ?? []) as { created_at: string }[]) {
       const d = new Date(r.created_at);
@@ -527,7 +528,7 @@ export const getLeadVelocity = createServerFn({ method: "POST" })
       .gte("created_at", from.toISOString())
       .lt("created_at", to.toISOString())
       .limit(10000);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     const map = new Map<string, VelocityPoint>();
     const bump = (d: string, key: "created" | "converted") => {
       const cur = map.get(d) ?? { day: d, created: 0, converted: 0 };
@@ -564,7 +565,7 @@ export const getLeadSourceMix = createServerFn({ method: "POST" })
       .gte("created_at", from.toISOString())
       .lt("created_at", to.toISOString())
       .limit(10000);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     const m = new Map<string, SourceSlice>();
     for (const r of (rows ?? []) as { source: string | null; status: string }[]) {
       const k = r.source || "unknown";

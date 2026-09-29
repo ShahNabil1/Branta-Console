@@ -1,4 +1,5 @@
 // Google Docs generation for leads (proposal / contract / NDA).
+import { dbError } from "@/lib/db-errors";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
@@ -185,7 +186,7 @@ export const generateLeadDoc = createServerFn({ method: "POST" })
       })
       .select("*")
       .single();
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
 
     await context.supabase.from("lead_activities").insert({
       lead_id: data.leadId,
@@ -209,7 +210,7 @@ export const listLeadDocs = createServerFn({ method: "GET" })
       .eq("lead_id", data.leadId)
       .order("created_at", { ascending: false })
       .limit(100);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return (rows ?? []) as LeadDocumentRow[];
   });
 
@@ -223,6 +224,6 @@ export const deleteLeadDoc = createServerFn({ method: "POST" })
       .from("lead_documents")
       .delete()
       .eq("id", data.id);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return { ok: true };
   });

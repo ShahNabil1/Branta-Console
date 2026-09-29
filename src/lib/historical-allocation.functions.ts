@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Phase 4 — Historical / legacy allocation. Nothing is allocated automatically:
 // every allocation is an explicit Finance/Admin action through the historical_allocate RPC.
+import { dbError } from "@/lib/db-errors";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -16,7 +17,7 @@ async function fetchAll(make: (from: number, to: number) => any, cap = 50000) {
   const out: any[] = [];
   for (let i = 0; i < cap; i += 1000) {
     const { data, error } = await make(i, i + 999);
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     out.push(...(data ?? []));
     if (!data || data.length < 1000) break;
   }
@@ -198,7 +199,7 @@ export const reverseHistorical = createServerFn({ method: "POST" })
     const { data: a } = await sb.from("installment_allocations").select("id,installment_id,source,distributable_amount").eq("id", data.allocationId).maybeSingle();
     if (!a) throw new Error("Allocation not found");
     const { error } = await sb.rpc("reverse_installment_allocation", { _allocation_id: data.allocationId, _reason: data.reason });
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     await sb.from("fund_audit_logs").insert({ user_id: context.userId, action: "historical_allocation_reversed", record_type: "installment_allocation", record_id: a.id, reason: data.reason, previous: { installment_id: a.installment_id, source: a.source, distributable: n(a.distributable_amount) } });
     return { ok: true };
   });

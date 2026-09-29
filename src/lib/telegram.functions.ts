@@ -1,3 +1,4 @@
+import { dbError } from "@/lib/db-errors";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
@@ -50,7 +51,7 @@ export const startTelegramLink = createServerFn({ method: "POST" })
     const { error } = await supabaseAdmin
       .from("telegram_link_requests")
       .insert({ token, user_id: context.userId, expires_at: expiresAt });
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
 
     return {
       deepLink: `https://t.me/${TELEGRAM_BOT_USERNAME}?start=${token}`,

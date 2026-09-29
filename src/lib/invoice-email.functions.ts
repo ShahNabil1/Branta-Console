@@ -1,4 +1,5 @@
 // Invoice email delivery — Resend-only, branded, attaches signed PDF.
+import { dbError } from "@/lib/db-errors";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
@@ -445,7 +446,7 @@ export const updateInvoicePdfSettings = createServerFn({ method: "POST" })
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .update({ ...(data as any), updated_by: context.userId })
       .eq("id", "default");
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return { ok: true as const };
   });
 
@@ -458,7 +459,7 @@ export const updateInvoiceEmailSettings = createServerFn({ method: "POST" })
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .update({ ...(data as any), updated_by: context.userId })
       .eq("id", "default");
-    if (error) throw new Error(error.message);
+    if (error) throw dbError(error);
     return { ok: true as const };
   });
 
