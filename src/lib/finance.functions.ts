@@ -1485,6 +1485,8 @@ const ExpenseAttachmentIn = z.object({
 });
 
 const ExpenseIn = z.object({
+  paying_fund_id: z.string().uuid().nullable().optional(),
+  fund_exception_reason: z.string().nullable().optional(),
   category: z.enum(["salary", "tools", "ads", "office", "misc", "tax", "refund"]),
   amount: z.number().nonnegative(),
   currency: z.enum(["BDT", "USD"]).default("BDT"),
@@ -1560,13 +1562,30 @@ export const createExpense = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => ExpenseIn.parse(d))
   .handler(async ({ data, context }) => {
     await ensureFinanceAdmin(context.supabase as never, context.userId);
-    const { items, attachments, ...base } = data;
+    const { items, attachments, paying_fund_id, fund_exception_reason, ...base } = data;
+    if (paying_fund_id) {
+      // Pre-check so an underfunded expense is never created (Fund Ledger rule).
+      const { data: fb } = await (context.supabase as any).from("fund_balances").select("code,ledger_balance,committed").eq("fund_id", paying_fund_id).maybeSingle();
+      if (!fb) throw new Error("Paying fund not found");
+      if (base.currency !== "BDT") throw new Error("Fund-backed expenses must be in BDT");
+      if (fb.code === "profit" && (fund_exception_reason ?? "").trim().length < 5) throw new Error("PROFIT_FUND_PROTECTED: exceptional reason required");
+      const av = Number(fb.ledger_balance) - Number(fb.committed);
+      if (base.amount > av) throw new Error(`INSUFFICIENT_FUND: required ${base.amount}, available ${av}, shortfall ${base.amount - av}`);
+    }
     const { data: row, error } = await context.supabase
       .from("expenses")
       .insert({ ...base, created_by: context.userId } as never)
       .select("*").single();
     if (error) throw new Error(error.message);
     const expense = row as unknown as ExpenseRow;
+    if (paying_fund_id) {
+      const { error: fe } = await (context.supabase as any).rpc("expense_fund_debit", { _expense: expense.id, _fund: paying_fund_id, _exceptional_reason: fund_exception_reason ?? null });
+      if (fe) {
+        // roll back the just-created expense so expense + fund debit stay atomic
+        await context.supabase.from("expenses").delete().eq("id", expense.id);
+        throw new Error(fe.message);
+      }
+    }
     await writeExpenseChildren(context.supabase, expense.id, context.userId, items, attachments);
     if (expense.is_project_cost) {
       await syncInvoiceExpenseCosts(context.supabase, expense.linked_invoice_id);
