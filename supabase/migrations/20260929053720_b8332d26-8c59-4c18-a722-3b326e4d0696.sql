@@ -1,0 +1,1 @@
+revoke execute on function public.fund_committed(uuid), public.fund_available(uuid) from authenticated;
