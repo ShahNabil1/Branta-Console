@@ -12,3 +12,4 @@
 - Today’s Operations aggregates existing task records in a management-gated server function without finance fields — why: one secure daily view must not duplicate workflow state.
 - Fund balances are derived only from append-only fund_ledger; allocation snapshots per installment with one active row (partial unique) — why: history must never change.
 - New expenses are created only via the create_expense_atomic RPC (expense + items + receipt rows + fund debit in one transaction, idempotency_key per form submit) — why: a failed child write must never leave the Fund Ledger wrong or double-charged.
+- Phase 3 Fund reports live only in src/lib/fund-reports.functions.ts and are read-only (finance-gated); running balances come from the fund_ledger_running view ordered by created_at,id — why: reports must never alter or re-derive accounting differently from fund_balances.
