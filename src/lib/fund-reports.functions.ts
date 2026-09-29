@@ -387,7 +387,7 @@ export const getFundAnalytics = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const sb = await finance(context);
     const f = startIso(data.from), t = endIso(data.to);
-    let lq = sb.from("fund_ledger").select("fund_id,amount,direction,transaction_type,expense_id,created_at").order("created_at").order("id");
+    let lq = sb.from("fund_ledger").select("fund_id,amount,direction,transaction_type,expense_id,loan_id,created_at").order("created_at").order("id");
     if (t) lq = lq.lte("created_at", t);
     let iq = sb.from("invoice_installments").select("amount,paid_amount,status,paid_at,invoices!inner(currency,status)").eq("status", "paid").neq("invoices.status", "void");
     if (f) iq = iq.gte("paid_at", f); if (t) iq = iq.lte("paid_at", t);

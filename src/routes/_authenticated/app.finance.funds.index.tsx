@@ -7,7 +7,7 @@ import { getFundDashboard, retryAllocation } from "@/lib/fund-ledger.functions";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/_authenticated/app/finance/funds")({
+export const Route = createFileRoute("/_authenticated/app/finance/funds/")({
   head: () => ({
     meta: [
       { title: "Fund Ledger · Branta Finance" },
