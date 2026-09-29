@@ -78,12 +78,14 @@ export const listEmployees = createServerFn({ method: "GET" })
     });
 
     const nameByUser = new Map<string, string | null>();
-    (profiles.data ?? []).forEach((p) =>
-      nameByUser.set(p.user_id, p.full_name ?? null),
-    );
+    const inactive = new Set<string>();
+    (profiles.data ?? []).forEach((p) => {
+      nameByUser.set(p.user_id, p.full_name ?? null);
+      if ((p as { deactivated_at?: string | null }).deactivated_at) inactive.add(p.user_id);
+    });
 
     return users
-      .filter((u) => (u.email ?? "").toLowerCase().endsWith(DOMAIN))
+      .filter((u) => (u.email ?? "").toLowerCase().endsWith(DOMAIN) && !inactive.has(u.id))
       .map((u) => {
         const email = (u.email ?? "").toLowerCase();
         return {
