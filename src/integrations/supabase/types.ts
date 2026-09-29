@@ -1289,6 +1289,13 @@ export type Database = {
             referencedRelation: "fund_ledger"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fund_ledger_reversal_of_fkey"
+            columns: ["reversal_of"]
+            isOneToOne: false
+            referencedRelation: "fund_ledger_running"
+            referencedColumns: ["id"]
+          },
         ]
       }
       fund_loan_repayments: {
@@ -4106,6 +4113,72 @@ export type Database = {
           total_debits: number | null
         }
         Relationships: []
+      }
+      fund_ledger_running: {
+        Row: {
+          allocation_id: string | null
+          amount: number | null
+          created_at: string | null
+          created_by: string | null
+          credit: number | null
+          customer_id: string | null
+          debit: number | null
+          description: string | null
+          direction: string | null
+          employee_id: string | null
+          expense_id: string | null
+          fund_id: string | null
+          id: string | null
+          installment_id: string | null
+          invoice_id: string | null
+          invoice_payout_id: string | null
+          loan_id: string | null
+          notes: string | null
+          project_id: string | null
+          reference: string | null
+          reversal_of: string | null
+          running_balance: number | null
+          salary_slip_id: string | null
+          transaction_type: string | null
+          transfer_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fund_ledger_allocation_id_fkey"
+            columns: ["allocation_id"]
+            isOneToOne: false
+            referencedRelation: "installment_allocations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fund_ledger_fund_id_fkey"
+            columns: ["fund_id"]
+            isOneToOne: false
+            referencedRelation: "finance_funds"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fund_ledger_fund_id_fkey"
+            columns: ["fund_id"]
+            isOneToOne: false
+            referencedRelation: "fund_balances"
+            referencedColumns: ["fund_id"]
+          },
+          {
+            foreignKeyName: "fund_ledger_reversal_of_fkey"
+            columns: ["reversal_of"]
+            isOneToOne: false
+            referencedRelation: "fund_ledger"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fund_ledger_reversal_of_fkey"
+            columns: ["reversal_of"]
+            isOneToOne: false
+            referencedRelation: "fund_ledger_running"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       v_wallet_balances: {
         Row: {

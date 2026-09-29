@@ -7,7 +7,7 @@ import { getFundDashboard, retryAllocation } from "@/lib/fund-ledger.functions";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/_authenticated/app/finance/funds")({
+export const Route = createFileRoute("/_authenticated/app/finance/funds/")({
   head: () => ({
     meta: [
       { title: "Fund Ledger · Branta Finance" },
@@ -98,7 +98,7 @@ function FundLedgerPage() {
           {d.funds.map((f) => (
             <div key={f.fund_id} className={cn("rounded-md border border-border bg-card p-4", !f.is_active && "opacity-60")}>
               <div className="flex items-center justify-between">
-                <div className="text-[14px] font-bold">{f.name}</div>
+                <Link to="/app/finance/funds/$code" params={{ code: f.code }} className="text-[14px] font-bold hover:text-primary hover:underline">{f.name}</Link>
                 <span className="rounded-sm bg-muted px-1.5 py-0.5 font-mono text-[11px]">{f.percent}%</span>
               </div>
               <div className="mt-2 font-mono text-[20px] font-bold">{bdt(f.ledger_balance)}</div>

@@ -57,18 +57,22 @@ import { Route as AuthenticatedAppFinanceTemplatesRouteImport } from './routes/_
 import { Route as AuthenticatedAppFinanceSalaryReportRouteImport } from './routes/_authenticated/app.finance.salary-report'
 import { Route as AuthenticatedAppFinanceSalaryRouteImport } from './routes/_authenticated/app.finance.salary'
 import { Route as AuthenticatedAppFinanceRecycleBinRouteImport } from './routes/_authenticated/app.finance.recycle-bin'
+import { Route as AuthenticatedAppFinanceReconciliationRouteImport } from './routes/_authenticated/app.finance.reconciliation'
+import { Route as AuthenticatedAppFinanceProfitabilityRouteImport } from './routes/_authenticated/app.finance.profitability'
 import { Route as AuthenticatedAppFinanceIncomeRouteImport } from './routes/_authenticated/app.finance.income'
-import { Route as AuthenticatedAppFinanceFundsRouteImport } from './routes/_authenticated/app.finance.funds'
 import { Route as AuthenticatedAppFinanceFundTransfersRouteImport } from './routes/_authenticated/app.finance.fund-transfers'
 import { Route as AuthenticatedAppFinanceFundSettingsRouteImport } from './routes/_authenticated/app.finance.fund-settings'
 import { Route as AuthenticatedAppFinanceFundLoansRouteImport } from './routes/_authenticated/app.finance.fund-loans'
+import { Route as AuthenticatedAppFinanceFundAnalyticsRouteImport } from './routes/_authenticated/app.finance.fund-analytics'
 import { Route as AuthenticatedAppFinanceExpensesRouteImport } from './routes/_authenticated/app.finance.expenses'
 import { Route as AuthenticatedAppFinanceEmployeePaymentsRouteImport } from './routes/_authenticated/app.finance.employee-payments'
 import { Route as AuthenticatedAppEmployeesUserIdRouteImport } from './routes/_authenticated/app.employees.$userId'
 import { Route as AuthenticatedAppCustomersCodeRouteImport } from './routes/_authenticated/app.customers.$code'
 import { Route as AuthenticatedAppFinanceInvoicesIndexRouteImport } from './routes/_authenticated/app.finance.invoices.index'
+import { Route as AuthenticatedAppFinanceFundsIndexRouteImport } from './routes/_authenticated/app.finance.funds.index'
 import { Route as AuthenticatedAppFinanceInvoicesNewRouteImport } from './routes/_authenticated/app.finance.invoices.new'
 import { Route as AuthenticatedAppFinanceInvoicesSlugRouteImport } from './routes/_authenticated/app.finance.invoices.$slug'
+import { Route as AuthenticatedAppFinanceFundsCodeRouteImport } from './routes/_authenticated/app.finance.funds.$code'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -344,16 +348,22 @@ const AuthenticatedAppFinanceRecycleBinRoute =
     path: '/recycle-bin',
     getParentRoute: () => AuthenticatedAppFinanceRoute,
   } as any)
+const AuthenticatedAppFinanceReconciliationRoute =
+  AuthenticatedAppFinanceReconciliationRouteImport.update({
+    id: '/reconciliation',
+    path: '/reconciliation',
+    getParentRoute: () => AuthenticatedAppFinanceRoute,
+  } as any)
+const AuthenticatedAppFinanceProfitabilityRoute =
+  AuthenticatedAppFinanceProfitabilityRouteImport.update({
+    id: '/profitability',
+    path: '/profitability',
+    getParentRoute: () => AuthenticatedAppFinanceRoute,
+  } as any)
 const AuthenticatedAppFinanceIncomeRoute =
   AuthenticatedAppFinanceIncomeRouteImport.update({
     id: '/income',
     path: '/income',
-    getParentRoute: () => AuthenticatedAppFinanceRoute,
-  } as any)
-const AuthenticatedAppFinanceFundsRoute =
-  AuthenticatedAppFinanceFundsRouteImport.update({
-    id: '/funds',
-    path: '/funds',
     getParentRoute: () => AuthenticatedAppFinanceRoute,
   } as any)
 const AuthenticatedAppFinanceFundTransfersRoute =
@@ -372,6 +382,12 @@ const AuthenticatedAppFinanceFundLoansRoute =
   AuthenticatedAppFinanceFundLoansRouteImport.update({
     id: '/fund-loans',
     path: '/fund-loans',
+    getParentRoute: () => AuthenticatedAppFinanceRoute,
+  } as any)
+const AuthenticatedAppFinanceFundAnalyticsRoute =
+  AuthenticatedAppFinanceFundAnalyticsRouteImport.update({
+    id: '/fund-analytics',
+    path: '/fund-analytics',
     getParentRoute: () => AuthenticatedAppFinanceRoute,
   } as any)
 const AuthenticatedAppFinanceExpensesRoute =
@@ -404,6 +420,12 @@ const AuthenticatedAppFinanceInvoicesIndexRoute =
     path: '/invoices/',
     getParentRoute: () => AuthenticatedAppFinanceRoute,
   } as any)
+const AuthenticatedAppFinanceFundsIndexRoute =
+  AuthenticatedAppFinanceFundsIndexRouteImport.update({
+    id: '/funds/',
+    path: '/funds/',
+    getParentRoute: () => AuthenticatedAppFinanceRoute,
+  } as any)
 const AuthenticatedAppFinanceInvoicesNewRoute =
   AuthenticatedAppFinanceInvoicesNewRouteImport.update({
     id: '/invoices/new',
@@ -414,6 +436,12 @@ const AuthenticatedAppFinanceInvoicesSlugRoute =
   AuthenticatedAppFinanceInvoicesSlugRouteImport.update({
     id: '/invoices/$slug',
     path: '/invoices/$slug',
+    getParentRoute: () => AuthenticatedAppFinanceRoute,
+  } as any)
+const AuthenticatedAppFinanceFundsCodeRoute =
+  AuthenticatedAppFinanceFundsCodeRouteImport.update({
+    id: '/funds/$code',
+    path: '/funds/$code',
     getParentRoute: () => AuthenticatedAppFinanceRoute,
   } as any)
 
@@ -441,11 +469,13 @@ export interface FileRoutesByFullPath {
   '/app/employees/$userId': typeof AuthenticatedAppEmployeesUserIdRoute
   '/app/finance/employee-payments': typeof AuthenticatedAppFinanceEmployeePaymentsRoute
   '/app/finance/expenses': typeof AuthenticatedAppFinanceExpensesRoute
+  '/app/finance/fund-analytics': typeof AuthenticatedAppFinanceFundAnalyticsRoute
   '/app/finance/fund-loans': typeof AuthenticatedAppFinanceFundLoansRoute
   '/app/finance/fund-settings': typeof AuthenticatedAppFinanceFundSettingsRoute
   '/app/finance/fund-transfers': typeof AuthenticatedAppFinanceFundTransfersRoute
-  '/app/finance/funds': typeof AuthenticatedAppFinanceFundsRoute
   '/app/finance/income': typeof AuthenticatedAppFinanceIncomeRoute
+  '/app/finance/profitability': typeof AuthenticatedAppFinanceProfitabilityRoute
+  '/app/finance/reconciliation': typeof AuthenticatedAppFinanceReconciliationRoute
   '/app/finance/recycle-bin': typeof AuthenticatedAppFinanceRecycleBinRoute
   '/app/finance/salary': typeof AuthenticatedAppFinanceSalaryRoute
   '/app/finance/salary-report': typeof AuthenticatedAppFinanceSalaryReportRoute
@@ -474,8 +504,10 @@ export interface FileRoutesByFullPath {
   '/app/finance/': typeof AuthenticatedAppFinanceIndexRoute
   '/app/leads/': typeof AuthenticatedAppLeadsIndexRoute
   '/app/profile/': typeof AuthenticatedAppProfileIndexRoute
+  '/app/finance/funds/$code': typeof AuthenticatedAppFinanceFundsCodeRoute
   '/app/finance/invoices/$slug': typeof AuthenticatedAppFinanceInvoicesSlugRoute
   '/app/finance/invoices/new': typeof AuthenticatedAppFinanceInvoicesNewRoute
+  '/app/finance/funds/': typeof AuthenticatedAppFinanceFundsIndexRoute
   '/app/finance/invoices/': typeof AuthenticatedAppFinanceInvoicesIndexRoute
 }
 export interface FileRoutesByTo {
@@ -497,11 +529,13 @@ export interface FileRoutesByTo {
   '/app/employees/$userId': typeof AuthenticatedAppEmployeesUserIdRoute
   '/app/finance/employee-payments': typeof AuthenticatedAppFinanceEmployeePaymentsRoute
   '/app/finance/expenses': typeof AuthenticatedAppFinanceExpensesRoute
+  '/app/finance/fund-analytics': typeof AuthenticatedAppFinanceFundAnalyticsRoute
   '/app/finance/fund-loans': typeof AuthenticatedAppFinanceFundLoansRoute
   '/app/finance/fund-settings': typeof AuthenticatedAppFinanceFundSettingsRoute
   '/app/finance/fund-transfers': typeof AuthenticatedAppFinanceFundTransfersRoute
-  '/app/finance/funds': typeof AuthenticatedAppFinanceFundsRoute
   '/app/finance/income': typeof AuthenticatedAppFinanceIncomeRoute
+  '/app/finance/profitability': typeof AuthenticatedAppFinanceProfitabilityRoute
+  '/app/finance/reconciliation': typeof AuthenticatedAppFinanceReconciliationRoute
   '/app/finance/recycle-bin': typeof AuthenticatedAppFinanceRecycleBinRoute
   '/app/finance/salary': typeof AuthenticatedAppFinanceSalaryRoute
   '/app/finance/salary-report': typeof AuthenticatedAppFinanceSalaryReportRoute
@@ -530,8 +564,10 @@ export interface FileRoutesByTo {
   '/app/finance': typeof AuthenticatedAppFinanceIndexRoute
   '/app/leads': typeof AuthenticatedAppLeadsIndexRoute
   '/app/profile': typeof AuthenticatedAppProfileIndexRoute
+  '/app/finance/funds/$code': typeof AuthenticatedAppFinanceFundsCodeRoute
   '/app/finance/invoices/$slug': typeof AuthenticatedAppFinanceInvoicesSlugRoute
   '/app/finance/invoices/new': typeof AuthenticatedAppFinanceInvoicesNewRoute
+  '/app/finance/funds': typeof AuthenticatedAppFinanceFundsIndexRoute
   '/app/finance/invoices': typeof AuthenticatedAppFinanceInvoicesIndexRoute
 }
 export interface FileRoutesById {
@@ -560,11 +596,13 @@ export interface FileRoutesById {
   '/_authenticated/app/employees/$userId': typeof AuthenticatedAppEmployeesUserIdRoute
   '/_authenticated/app/finance/employee-payments': typeof AuthenticatedAppFinanceEmployeePaymentsRoute
   '/_authenticated/app/finance/expenses': typeof AuthenticatedAppFinanceExpensesRoute
+  '/_authenticated/app/finance/fund-analytics': typeof AuthenticatedAppFinanceFundAnalyticsRoute
   '/_authenticated/app/finance/fund-loans': typeof AuthenticatedAppFinanceFundLoansRoute
   '/_authenticated/app/finance/fund-settings': typeof AuthenticatedAppFinanceFundSettingsRoute
   '/_authenticated/app/finance/fund-transfers': typeof AuthenticatedAppFinanceFundTransfersRoute
-  '/_authenticated/app/finance/funds': typeof AuthenticatedAppFinanceFundsRoute
   '/_authenticated/app/finance/income': typeof AuthenticatedAppFinanceIncomeRoute
+  '/_authenticated/app/finance/profitability': typeof AuthenticatedAppFinanceProfitabilityRoute
+  '/_authenticated/app/finance/reconciliation': typeof AuthenticatedAppFinanceReconciliationRoute
   '/_authenticated/app/finance/recycle-bin': typeof AuthenticatedAppFinanceRecycleBinRoute
   '/_authenticated/app/finance/salary': typeof AuthenticatedAppFinanceSalaryRoute
   '/_authenticated/app/finance/salary-report': typeof AuthenticatedAppFinanceSalaryReportRoute
@@ -593,8 +631,10 @@ export interface FileRoutesById {
   '/_authenticated/app/finance/': typeof AuthenticatedAppFinanceIndexRoute
   '/_authenticated/app/leads/': typeof AuthenticatedAppLeadsIndexRoute
   '/_authenticated/app/profile/': typeof AuthenticatedAppProfileIndexRoute
+  '/_authenticated/app/finance/funds/$code': typeof AuthenticatedAppFinanceFundsCodeRoute
   '/_authenticated/app/finance/invoices/$slug': typeof AuthenticatedAppFinanceInvoicesSlugRoute
   '/_authenticated/app/finance/invoices/new': typeof AuthenticatedAppFinanceInvoicesNewRoute
+  '/_authenticated/app/finance/funds/': typeof AuthenticatedAppFinanceFundsIndexRoute
   '/_authenticated/app/finance/invoices/': typeof AuthenticatedAppFinanceInvoicesIndexRoute
 }
 export interface FileRouteTypes {
@@ -623,11 +663,13 @@ export interface FileRouteTypes {
     | '/app/employees/$userId'
     | '/app/finance/employee-payments'
     | '/app/finance/expenses'
+    | '/app/finance/fund-analytics'
     | '/app/finance/fund-loans'
     | '/app/finance/fund-settings'
     | '/app/finance/fund-transfers'
-    | '/app/finance/funds'
     | '/app/finance/income'
+    | '/app/finance/profitability'
+    | '/app/finance/reconciliation'
     | '/app/finance/recycle-bin'
     | '/app/finance/salary'
     | '/app/finance/salary-report'
@@ -656,8 +698,10 @@ export interface FileRouteTypes {
     | '/app/finance/'
     | '/app/leads/'
     | '/app/profile/'
+    | '/app/finance/funds/$code'
     | '/app/finance/invoices/$slug'
     | '/app/finance/invoices/new'
+    | '/app/finance/funds/'
     | '/app/finance/invoices/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -679,11 +723,13 @@ export interface FileRouteTypes {
     | '/app/employees/$userId'
     | '/app/finance/employee-payments'
     | '/app/finance/expenses'
+    | '/app/finance/fund-analytics'
     | '/app/finance/fund-loans'
     | '/app/finance/fund-settings'
     | '/app/finance/fund-transfers'
-    | '/app/finance/funds'
     | '/app/finance/income'
+    | '/app/finance/profitability'
+    | '/app/finance/reconciliation'
     | '/app/finance/recycle-bin'
     | '/app/finance/salary'
     | '/app/finance/salary-report'
@@ -712,8 +758,10 @@ export interface FileRouteTypes {
     | '/app/finance'
     | '/app/leads'
     | '/app/profile'
+    | '/app/finance/funds/$code'
     | '/app/finance/invoices/$slug'
     | '/app/finance/invoices/new'
+    | '/app/finance/funds'
     | '/app/finance/invoices'
   id:
     | '__root__'
@@ -741,11 +789,13 @@ export interface FileRouteTypes {
     | '/_authenticated/app/employees/$userId'
     | '/_authenticated/app/finance/employee-payments'
     | '/_authenticated/app/finance/expenses'
+    | '/_authenticated/app/finance/fund-analytics'
     | '/_authenticated/app/finance/fund-loans'
     | '/_authenticated/app/finance/fund-settings'
     | '/_authenticated/app/finance/fund-transfers'
-    | '/_authenticated/app/finance/funds'
     | '/_authenticated/app/finance/income'
+    | '/_authenticated/app/finance/profitability'
+    | '/_authenticated/app/finance/reconciliation'
     | '/_authenticated/app/finance/recycle-bin'
     | '/_authenticated/app/finance/salary'
     | '/_authenticated/app/finance/salary-report'
@@ -774,8 +824,10 @@ export interface FileRouteTypes {
     | '/_authenticated/app/finance/'
     | '/_authenticated/app/leads/'
     | '/_authenticated/app/profile/'
+    | '/_authenticated/app/finance/funds/$code'
     | '/_authenticated/app/finance/invoices/$slug'
     | '/_authenticated/app/finance/invoices/new'
+    | '/_authenticated/app/finance/funds/'
     | '/_authenticated/app/finance/invoices/'
   fileRoutesById: FileRoutesById
 }
@@ -1134,18 +1186,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppFinanceRecycleBinRouteImport
       parentRoute: typeof AuthenticatedAppFinanceRoute
     }
+    '/_authenticated/app/finance/reconciliation': {
+      id: '/_authenticated/app/finance/reconciliation'
+      path: '/reconciliation'
+      fullPath: '/app/finance/reconciliation'
+      preLoaderRoute: typeof AuthenticatedAppFinanceReconciliationRouteImport
+      parentRoute: typeof AuthenticatedAppFinanceRoute
+    }
+    '/_authenticated/app/finance/profitability': {
+      id: '/_authenticated/app/finance/profitability'
+      path: '/profitability'
+      fullPath: '/app/finance/profitability'
+      preLoaderRoute: typeof AuthenticatedAppFinanceProfitabilityRouteImport
+      parentRoute: typeof AuthenticatedAppFinanceRoute
+    }
     '/_authenticated/app/finance/income': {
       id: '/_authenticated/app/finance/income'
       path: '/income'
       fullPath: '/app/finance/income'
       preLoaderRoute: typeof AuthenticatedAppFinanceIncomeRouteImport
-      parentRoute: typeof AuthenticatedAppFinanceRoute
-    }
-    '/_authenticated/app/finance/funds': {
-      id: '/_authenticated/app/finance/funds'
-      path: '/funds'
-      fullPath: '/app/finance/funds'
-      preLoaderRoute: typeof AuthenticatedAppFinanceFundsRouteImport
       parentRoute: typeof AuthenticatedAppFinanceRoute
     }
     '/_authenticated/app/finance/fund-transfers': {
@@ -1167,6 +1226,13 @@ declare module '@tanstack/react-router' {
       path: '/fund-loans'
       fullPath: '/app/finance/fund-loans'
       preLoaderRoute: typeof AuthenticatedAppFinanceFundLoansRouteImport
+      parentRoute: typeof AuthenticatedAppFinanceRoute
+    }
+    '/_authenticated/app/finance/fund-analytics': {
+      id: '/_authenticated/app/finance/fund-analytics'
+      path: '/fund-analytics'
+      fullPath: '/app/finance/fund-analytics'
+      preLoaderRoute: typeof AuthenticatedAppFinanceFundAnalyticsRouteImport
       parentRoute: typeof AuthenticatedAppFinanceRoute
     }
     '/_authenticated/app/finance/expenses': {
@@ -1204,6 +1270,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppFinanceInvoicesIndexRouteImport
       parentRoute: typeof AuthenticatedAppFinanceRoute
     }
+    '/_authenticated/app/finance/funds/': {
+      id: '/_authenticated/app/finance/funds/'
+      path: '/funds'
+      fullPath: '/app/finance/funds/'
+      preLoaderRoute: typeof AuthenticatedAppFinanceFundsIndexRouteImport
+      parentRoute: typeof AuthenticatedAppFinanceRoute
+    }
     '/_authenticated/app/finance/invoices/new': {
       id: '/_authenticated/app/finance/invoices/new'
       path: '/invoices/new'
@@ -1216,6 +1289,13 @@ declare module '@tanstack/react-router' {
       path: '/invoices/$slug'
       fullPath: '/app/finance/invoices/$slug'
       preLoaderRoute: typeof AuthenticatedAppFinanceInvoicesSlugRouteImport
+      parentRoute: typeof AuthenticatedAppFinanceRoute
+    }
+    '/_authenticated/app/finance/funds/$code': {
+      id: '/_authenticated/app/finance/funds/$code'
+      path: '/funds/$code'
+      fullPath: '/app/finance/funds/$code'
+      preLoaderRoute: typeof AuthenticatedAppFinanceFundsCodeRouteImport
       parentRoute: typeof AuthenticatedAppFinanceRoute
     }
   }
@@ -1240,11 +1320,13 @@ const AuthenticatedAppCustomersRouteWithChildren =
 interface AuthenticatedAppFinanceRouteChildren {
   AuthenticatedAppFinanceEmployeePaymentsRoute: typeof AuthenticatedAppFinanceEmployeePaymentsRoute
   AuthenticatedAppFinanceExpensesRoute: typeof AuthenticatedAppFinanceExpensesRoute
+  AuthenticatedAppFinanceFundAnalyticsRoute: typeof AuthenticatedAppFinanceFundAnalyticsRoute
   AuthenticatedAppFinanceFundLoansRoute: typeof AuthenticatedAppFinanceFundLoansRoute
   AuthenticatedAppFinanceFundSettingsRoute: typeof AuthenticatedAppFinanceFundSettingsRoute
   AuthenticatedAppFinanceFundTransfersRoute: typeof AuthenticatedAppFinanceFundTransfersRoute
-  AuthenticatedAppFinanceFundsRoute: typeof AuthenticatedAppFinanceFundsRoute
   AuthenticatedAppFinanceIncomeRoute: typeof AuthenticatedAppFinanceIncomeRoute
+  AuthenticatedAppFinanceProfitabilityRoute: typeof AuthenticatedAppFinanceProfitabilityRoute
+  AuthenticatedAppFinanceReconciliationRoute: typeof AuthenticatedAppFinanceReconciliationRoute
   AuthenticatedAppFinanceRecycleBinRoute: typeof AuthenticatedAppFinanceRecycleBinRoute
   AuthenticatedAppFinanceSalaryRoute: typeof AuthenticatedAppFinanceSalaryRoute
   AuthenticatedAppFinanceSalaryReportRoute: typeof AuthenticatedAppFinanceSalaryReportRoute
@@ -1252,8 +1334,10 @@ interface AuthenticatedAppFinanceRouteChildren {
   AuthenticatedAppFinanceWalletRoute: typeof AuthenticatedAppFinanceWalletRoute
   AuthenticatedAppFinanceWithdrawalsRoute: typeof AuthenticatedAppFinanceWithdrawalsRoute
   AuthenticatedAppFinanceIndexRoute: typeof AuthenticatedAppFinanceIndexRoute
+  AuthenticatedAppFinanceFundsCodeRoute: typeof AuthenticatedAppFinanceFundsCodeRoute
   AuthenticatedAppFinanceInvoicesSlugRoute: typeof AuthenticatedAppFinanceInvoicesSlugRoute
   AuthenticatedAppFinanceInvoicesNewRoute: typeof AuthenticatedAppFinanceInvoicesNewRoute
+  AuthenticatedAppFinanceFundsIndexRoute: typeof AuthenticatedAppFinanceFundsIndexRoute
   AuthenticatedAppFinanceInvoicesIndexRoute: typeof AuthenticatedAppFinanceInvoicesIndexRoute
 }
 
@@ -1262,14 +1346,19 @@ const AuthenticatedAppFinanceRouteChildren: AuthenticatedAppFinanceRouteChildren
     AuthenticatedAppFinanceEmployeePaymentsRoute:
       AuthenticatedAppFinanceEmployeePaymentsRoute,
     AuthenticatedAppFinanceExpensesRoute: AuthenticatedAppFinanceExpensesRoute,
+    AuthenticatedAppFinanceFundAnalyticsRoute:
+      AuthenticatedAppFinanceFundAnalyticsRoute,
     AuthenticatedAppFinanceFundLoansRoute:
       AuthenticatedAppFinanceFundLoansRoute,
     AuthenticatedAppFinanceFundSettingsRoute:
       AuthenticatedAppFinanceFundSettingsRoute,
     AuthenticatedAppFinanceFundTransfersRoute:
       AuthenticatedAppFinanceFundTransfersRoute,
-    AuthenticatedAppFinanceFundsRoute: AuthenticatedAppFinanceFundsRoute,
     AuthenticatedAppFinanceIncomeRoute: AuthenticatedAppFinanceIncomeRoute,
+    AuthenticatedAppFinanceProfitabilityRoute:
+      AuthenticatedAppFinanceProfitabilityRoute,
+    AuthenticatedAppFinanceReconciliationRoute:
+      AuthenticatedAppFinanceReconciliationRoute,
     AuthenticatedAppFinanceRecycleBinRoute:
       AuthenticatedAppFinanceRecycleBinRoute,
     AuthenticatedAppFinanceSalaryRoute: AuthenticatedAppFinanceSalaryRoute,
@@ -1281,10 +1370,14 @@ const AuthenticatedAppFinanceRouteChildren: AuthenticatedAppFinanceRouteChildren
     AuthenticatedAppFinanceWithdrawalsRoute:
       AuthenticatedAppFinanceWithdrawalsRoute,
     AuthenticatedAppFinanceIndexRoute: AuthenticatedAppFinanceIndexRoute,
+    AuthenticatedAppFinanceFundsCodeRoute:
+      AuthenticatedAppFinanceFundsCodeRoute,
     AuthenticatedAppFinanceInvoicesSlugRoute:
       AuthenticatedAppFinanceInvoicesSlugRoute,
     AuthenticatedAppFinanceInvoicesNewRoute:
       AuthenticatedAppFinanceInvoicesNewRoute,
+    AuthenticatedAppFinanceFundsIndexRoute:
+      AuthenticatedAppFinanceFundsIndexRoute,
     AuthenticatedAppFinanceInvoicesIndexRoute:
       AuthenticatedAppFinanceInvoicesIndexRoute,
   }
