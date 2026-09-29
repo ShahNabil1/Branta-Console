@@ -353,7 +353,7 @@ export const getInvoiceEmployeeEarnings = createServerFn({ method: "GET" })
     const empIds = Array.from(new Set([...(plans ?? []), ...(pays ?? [])].map((r: any) => r.employee_id)));
     const payoutIds = (pays ?? []).map((p: any) => p.invoice_payout_id).filter(Boolean);
     const [{ data: profs }, { data: pos }] = await Promise.all([
-      empIds.length ? sb.from("profiles").select("id,full_name,email,avatar_url,employee_code").in("id", empIds) : Promise.resolve({ data: [] }),
+      empIds.length ? sb.from("profiles").select("id,full_name,legal_full_name,avatar_url,employee_code").in("id", empIds) : Promise.resolve({ data: [] }),
       payoutIds.length ? sb.from("invoice_payouts").select("id,status").in("id", payoutIds) : Promise.resolve({ data: [] }),
     ]);
     const pm = new Map((profs ?? []).map((p: any) => [p.id, p]));
