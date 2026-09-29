@@ -258,3 +258,38 @@ export const assignAllocationEmployeePayouts = createServerFn({ method: "POST" }
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+/** Live Fund Ledger preview context for the invoice form: active version split, team members, project tasks. */
+export const getInvoiceFundPreviewContext = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ projectId: z.string().uuid().nullable().optional() }).parse(d ?? {}))
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase as any;
+    const { data: allowed } = await sb.rpc("is_finance_admin", { _user_id: context.userId });
+    if (!allowed) return { allowed: false as const, funds: [], employees: [], tasks: [] };
+    const [{ data: ver }, { data: emps }, tasksRes] = await Promise.all([
+      sb.from("fund_allocation_versions").select("id,name,fund_allocation_version_items(percent,finance_funds(code,name,display_order))").order("effective_from", { ascending: false }).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+      sb.from("profiles").select("id,full_name,email").order("full_name").limit(1000),
+      data.projectId ? sb.from("client_tasks").select("id,title").eq("project_id", data.projectId).is("archived_at", null).order("created_at") : Promise.resolve({ data: [] }),
+    ]);
+    const funds = ((ver?.fund_allocation_version_items ?? []) as any[])
+      .map((i) => ({ code: i.finance_funds?.code as string, name: i.finance_funds?.name as string, order: Number(i.finance_funds?.display_order ?? 0), percent: Number(i.percent) }))
+      .sort((a, b) => a.order - b.order);
+    return {
+      allowed: true as const, versionName: (ver?.name ?? null) as string | null, funds,
+      employees: ((emps ?? []) as any[]).map((e) => ({ id: e.id as string, name: (e.full_name || e.email) as string })),
+      tasks: ((tasksRes.data ?? []) as any[]).map((t) => ({ id: t.id as string, title: t.title as string })),
+    };
+  });
+
+/** Planned Employee Fund distribution saved on the invoice (Finance only). */
+export const getInvoiceEmployeePlan = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ invoiceId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase as any;
+    const { data: allowed } = await sb.rpc("is_finance_admin", { _user_id: context.userId });
+    if (!allowed) return { allowed: false as const, rows: [] };
+    const { data: rows } = await sb.from("invoice_employee_plans").select("*").eq("invoice_id", data.invoiceId).order("sequence");
+    return { allowed: true as const, rows: ((rows ?? []) as any[]).map((r) => ({ ...r, value: Number(r.value), planned_amount: Number(r.planned_amount) })) };
+  });
