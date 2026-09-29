@@ -235,7 +235,7 @@ export const getAllocationEmployeePool = createServerFn({ method: "GET" })
     const [{ data: items }, { data: pays }, { data: emps }] = await Promise.all([
       sb.from("installment_allocation_items").select("amount,finance_funds!inner(code)").eq("allocation_id", data.allocationId).eq("finance_funds.code", "employee"),
       sb.from("employee_fund_payments").select("id,employee_id,amount,status,description").eq("allocation_id", data.allocationId).neq("status", "cancelled"),
-      sb.from("profiles").select("id,full_name,email").order("full_name").limit(1000),
+      sb.from("profiles").select("id,full_name,email").is("deactivated_at", null).order("full_name").limit(1000),
     ]);
     const pool = (items ?? []).reduce((a: number, x: any) => a + Number(x.amount), 0);
     const assigned = (pays ?? []).reduce((a: number, x: any) => a + Number(x.amount), 0);
@@ -270,7 +270,7 @@ export const getInvoiceFundPreviewContext = createServerFn({ method: "GET" })
     if (!allowed) return { allowed: false as const, funds: [], employees: [], tasks: [] };
     const [{ data: ver }, { data: emps }, tasksRes] = await Promise.all([
       sb.from("fund_allocation_versions").select("id,name,fund_allocation_version_items(percent,finance_funds(code,name,display_order))").order("effective_from", { ascending: false }).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-      sb.from("profiles").select("id,full_name,email").order("full_name").limit(1000),
+      sb.from("profiles").select("id,full_name,email").is("deactivated_at", null).order("full_name").limit(1000),
       data.projectId ? sb.from("client_tasks").select("id,title").eq("project_id", data.projectId).is("archived_at", null).order("created_at") : Promise.resolve({ data: [] }),
     ]);
     const funds = ((ver?.fund_allocation_version_items ?? []) as any[])
@@ -299,4 +299,34 @@ export const getInvoiceEmployeePlan = createServerFn({ method: "GET" })
     const empPct = Number(((ver?.fund_allocation_version_items ?? []) as any[]).find((i) => i.finance_funds?.code === "employee")?.percent ?? 0);
     const expectedPool = Math.round(Math.max(Number(inv?.total_amount ?? 0) - Number(inv?.project_cost_total ?? 0), 0) * empPct) / 100;
     return { allowed: true as const, expectedPool, rows: ((rows ?? []) as any[]).map((r) => ({ ...r, value: Number(r.value), planned_amount: Number(r.planned_amount) })) };
+  });
+
+/** Active fund allocations whose installment is no longer Paid — Finance must review and reverse. */
+export const listAllocationMismatches = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertFinance(context);
+    const sb = context.supabase as any;
+    const { data: allocs, error } = await sb.from("installment_allocations")
+      .select("id, status, received_amount, distributable_amount, installment_id, invoice_id, created_at")
+      .eq("status", "active").limit(1000);
+    if (error) throw dbError(error);
+    const rows = (allocs ?? []) as { id: string; status: string; received_amount: number; distributable_amount: number; installment_id: string; invoice_id: string; created_at: string }[];
+    if (!rows.length) return [];
+    const [{ data: insts }, { data: invs }] = await Promise.all([
+      sb.from("invoice_installments").select("id, sequence, label, status, amount").in("id", rows.map((r) => r.installment_id)),
+      sb.from("invoices").select("id, slug, title").in("id", Array.from(new Set(rows.map((r) => r.invoice_id)))),
+    ]);
+    const im = new Map((insts ?? []).map((i: any) => [i.id, i]));
+    const vm = new Map((invs ?? []).map((i: any) => [i.id, i]));
+    return rows
+      .filter((r) => (im.get(r.installment_id) as any)?.status !== "paid")
+      .map((r) => {
+        const i = im.get(r.installment_id) as any; const v = vm.get(r.invoice_id) as any;
+        return {
+          allocationId: r.id, invoiceSlug: v?.slug ?? "—", invoiceTitle: v?.title ?? "",
+          installment: i?.label || `Installment ${i?.sequence ?? "?"}`, installmentStatus: i?.status ?? "missing",
+          allocationStatus: r.status, amount: Number(r.received_amount), fundImpact: Number(r.distributable_amount),
+        };
+      });
   });

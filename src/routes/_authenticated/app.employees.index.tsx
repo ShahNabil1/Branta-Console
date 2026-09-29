@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -211,7 +212,12 @@ function EmployeesPage() {
 
   const del = useMutation({
     mutationFn: (userId: string) => deleteFn({ data: { userId } }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["employees.list"] }),
+    onSuccess: (res) => {
+      if (res.result === "deleted") toast.success("Employee permanently deleted (no business history)");
+      else toast.success(`This employee has business history and cannot be permanently deleted, so they were deactivated (${Object.entries(res.blockers ?? {}).map(([k, v]) => `${v} ${k}`).join(", ")}).`);
+      void qc.invalidateQueries({ queryKey: ["employees.list"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
 
   const [open, setOpen] = useState(false);

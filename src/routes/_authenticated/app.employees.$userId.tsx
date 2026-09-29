@@ -219,8 +219,9 @@ function EmployeeDetailPage() {
 
   const delMut = useMutation({
     mutationFn: () => deleteFn({ data: { userId } }),
-    onSuccess: () => {
-      toast.success("Employee removed");
+    onSuccess: (res) => {
+      if (res.result === "deleted") toast.success("Employee permanently deleted (no business history)");
+      else toast.success(`Employee deactivated — sign-in blocked, history kept (${Object.entries(res.blockers ?? {}).map(([k, v]) => `${v} ${k}`).join(", ") || "no records"}).`);
       navigate({ to: "/app/employees" });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),

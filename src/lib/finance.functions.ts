@@ -634,8 +634,39 @@ export const updateInvoice = createServerFn({ method: "POST" })
       context.supabase.from("invoice_payouts").select("id").eq("invoice_id", data.id).in("status", ["requested", "paid"]).limit(1),
     ]);
     if (!before) throw new Error("Invoice not found");
-    if ((paidInst ?? []).length || (activeWithdrawals ?? []).length) {
-      throw new Error("This invoice already has paid installments or withdrawal-linked payouts. Revert those before editing financial structure.");
+    if ((activeWithdrawals ?? []).length) {
+      throw new Error("This invoice has payouts that were already requested or paid, so its money structure can't be edited.");
+    }
+    if (!fundLedger && (paidInst ?? []).length) {
+      throw new Error("This invoice already has paid installments. Revert those before editing its money structure.");
+    }
+    // Fund Ledger invoices: installments are edited in place; paid/allocated ones are locked.
+    type ExInst = { id: string; sequence: number; label: string; amount: number; due_date: string; status: string };
+    let existing: ExInst[] = [];
+    const lockedIds = new Set<string>();
+    if (fundLedger) {
+      const [{ data: ex }, { data: al }] = await Promise.all([
+        context.supabase.from("invoice_installments").select("id, sequence, label, amount, due_date, status").eq("invoice_id", data.id).order("sequence"),
+        context.supabase.from("installment_allocations" as never).select("installment_id, status").eq("invoice_id", data.id),
+      ]);
+      existing = (ex ?? []) as unknown as ExInst[];
+      const allocs = (al ?? []) as unknown as { installment_id: string; status: string }[];
+      allocs.forEach((a) => lockedIds.add(a.installment_id));
+      existing.forEach((e) => { if (e.status === "paid") lockedIds.add(e.id); });
+      if (allocs.some((a) => a.status === "active")) {
+        const prevTotal = Number((before as { total_amount: number }).total_amount);
+        const { data: prevCost } = await context.supabase.from("invoices").select("project_cost_total").eq("id", data.id).maybeSingle();
+        if (Math.abs(prevTotal - data.total_amount) > 0.01 || Math.abs(Number((prevCost as { project_cost_total?: number } | null)?.project_cost_total ?? 0) - costTotal) > 0.01)
+          throw new Error("Money is already split into the funds for this invoice, so the total and project cost are locked. Revert the paid installments first.");
+      }
+      data.installments.forEach((inp, k) => {
+        const e = existing[k];
+        if (e && lockedIds.has(e.id) && Math.abs(Number(e.amount) - inp.amount) > 0.01)
+          throw new Error(`Installment #${k + 1} is paid or has a fund split, so its amount is locked.`);
+      });
+      existing.slice(data.installments.length).forEach((e) => {
+        if (lockedIds.has(e.id)) throw new Error(`Installment #${e.sequence} has payment or fund history and can't be removed.`);
+      });
     }
 
     const { error: invErr } = await context.supabase
@@ -658,9 +689,12 @@ export const updateInvoice = createServerFn({ method: "POST" })
     if (invErr) throw dbError(invErr);
     await saveInvoiceQtyLine(context.supabase, data.id, data);
 
-    await context.supabase.from("invoice_payouts").delete().eq("invoice_id", data.id);
-    await context.supabase.from("invoice_installments").delete().eq("invoice_id", data.id);
-    await context.supabase.from("invoice_stakeholders").delete().eq("invoice_id", data.id);
+    if (!fundLedger) {
+      await context.supabase.from("invoice_payouts").delete().eq("invoice_id", data.id);
+      const { error: dErr } = await context.supabase.from("invoice_installments").delete().eq("invoice_id", data.id);
+      if (dErr) throw dbError(dErr);
+      await context.supabase.from("invoice_stakeholders").delete().eq("invoice_id", data.id);
+    }
     await context.supabase.from("invoice_project_costs").delete().eq("invoice_id", data.id);
     if ((data.project_costs ?? []).length) {
       const { error: cErr } = await context.supabase.from("invoice_project_costs").insert(
@@ -679,10 +713,30 @@ export const updateInvoice = createServerFn({ method: "POST" })
       );
       if (sErr) throw dbError(sErr);
     }
-    const { error: iErr } = await context.supabase.from("invoice_installments").insert(
-      data.installments.map((i, idx) => ({ invoice_id: data.id, sequence: idx + 1, label: i.label, amount: i.amount, due_date: i.due_date })) as never,
-    );
-    if (iErr) throw dbError(iErr);
+    if (!fundLedger) {
+      const { error: iErr } = await context.supabase.from("invoice_installments").insert(
+        data.installments.map((i, idx) => ({ invoice_id: data.id, sequence: idx + 1, label: i.label, amount: i.amount, due_date: i.due_date })) as never,
+      );
+      if (iErr) throw dbError(iErr);
+    } else {
+      for (const e of existing.slice(data.installments.length)) {
+        const { error: rErr } = await context.supabase.from("invoice_installments").delete().eq("id", e.id);
+        if (rErr) throw dbError(rErr);
+      }
+      for (let k = 0; k < data.installments.length; k++) {
+        const inp = data.installments[k]!;
+        const e = existing[k];
+        if (e) {
+          const patch = lockedIds.has(e.id) ? { label: inp.label, due_date: inp.due_date } : { label: inp.label, amount: inp.amount, due_date: inp.due_date };
+          const { error: uErr } = await context.supabase.from("invoice_installments").update(patch as never).eq("id", e.id);
+          if (uErr) throw dbError(uErr);
+        } else {
+          const maxSeq = existing.reduce((m, x) => Math.max(m, x.sequence), 0);
+          const { error: nErr } = await context.supabase.from("invoice_installments").insert({ invoice_id: data.id, sequence: maxSeq + (k - existing.length) + 1, label: inp.label, amount: inp.amount, due_date: inp.due_date } as never);
+          if (nErr) throw dbError(nErr);
+        }
+      }
+    }
     await logInvoicePayoutLocks(context.supabase, data.id, context.userId, "payout_relocked_after_edit");
 
     const prior = before as { slug: string; title: string; currency: string; total_amount: number };
@@ -2024,6 +2078,7 @@ export const listEmployeesForFinance = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("profiles")
       .select("user_id, full_name, employee_code, job_role")
+      .is("deactivated_at" as never, null)
       .order("full_name");
     if (error) throw dbError(error);
     const rows = (data ?? []) as {
@@ -2420,4 +2475,14 @@ export const revokeManualEmployeePayout = createServerFn({ method: "POST" })
     }
 
     throw new Error("This payout can no longer be revoked");
+  });
+
+export const getInvoiceDeleteBlockers = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string }) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: blk, error } = await (context.supabase as never as { rpc: (f: string, a: object) => Promise<{ data: unknown; error: { message: string; code?: string } | null }> })
+      .rpc("invoice_delete_blockers", { _invoice_id: data.id });
+    if (error) throw dbError(error);
+    return (blk ?? {}) as Record<string, number>;
   });

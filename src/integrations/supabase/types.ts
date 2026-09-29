@@ -4435,6 +4435,7 @@ export type Database = {
         Args: { _reason: string; _user_id: string }
         Returns: undefined
       }
+      employee_delete_blockers: { Args: { _user_id: string }; Returns: Json }
       employee_payment_set_status: {
         Args: {
           _id: string
@@ -4509,6 +4510,7 @@ export type Database = {
         }
         Returns: number
       }
+      invoice_delete_blockers: { Args: { _invoice_id: string }; Returns: Json }
       is_finance_admin: { Args: { _user_id?: string }; Returns: boolean }
       is_lead_owner: { Args: { _lead_id: string }; Returns: boolean }
       is_super_admin: { Args: { _user_id?: string }; Returns: boolean }
@@ -4534,6 +4536,7 @@ export type Database = {
         Returns: string
       }
       purge_expired_expenses: { Args: never; Returns: number }
+      reactivate_employee: { Args: { _user_id: string }; Returns: undefined }
       retry_installment_allocation: {
         Args: { _installment_id: string }
         Returns: string

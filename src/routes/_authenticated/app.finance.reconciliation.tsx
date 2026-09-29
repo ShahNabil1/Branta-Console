@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, CheckCircle2, Loader2, RotateCw } from "lucide-react";
 import { getReconciliation } from "@/lib/fund-reports.functions";
+import { AllocationMismatchPanel } from "@/components/finance/allocation-mismatch-panel";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { bdt, DataTable, ExportButtons, fmtDate, fmtDay, Section, type Col } from "@/components/finance/fund-report-kit";
@@ -54,6 +55,7 @@ function ReconPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-4 px-4 py-6 sm:px-6">
+      <AllocationMismatchPanel />
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
           <h1 className="text-[20px] font-bold">Reconciliation</h1>
