@@ -39,6 +39,7 @@ import { Loader2, ArrowLeft, Trash2, CheckCircle2, RotateCcw, Send, Download, Pr
 import { cn } from "@/lib/utils";
 import { QtyPriceFields, invoiceStatusLabel } from "@/components/finance/qty-price-fields";
 import { InvoiceFundAllocation } from "@/components/finance/invoice-fund-allocation";
+import { InvoiceEmployeeEarnings } from "@/components/finance/invoice-employee-earnings";
 
 export const Route = createFileRoute("/_authenticated/app/finance/invoices/$slug")({
   head: ({ params }) => ({
@@ -310,6 +311,7 @@ function InvoiceDetail() {
       </div>
 
       <InvoiceFundAllocation invoiceId={q.data.invoice.id} />
+      <InvoiceEmployeeEarnings invoiceId={q.data.invoice.id} currency={q.data.invoice.currency} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="rounded-md border border-border bg-card lg:col-span-2">

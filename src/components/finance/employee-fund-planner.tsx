@@ -74,6 +74,24 @@ export function EmployeeFundPlanner({
                 {d.tasks.map((t) => <option key={t.id} value={t.id}>{t.title}</option>)}
               </select>
               <Input value={p.note} placeholder="Note (optional)" onChange={(e) => set(i, { note: e.target.value })} className="col-span-12 h-8 rounded-sm text-[12px] sm:col-span-8" />
+              {(() => {
+                const e = d.employees.find((x) => x.id === p.employee_id);
+                if (!e) return null;
+                const task = d.tasks.find((t) => t.id === p.task_id);
+                return (
+                  <div className="col-span-12 flex flex-wrap items-center gap-3 rounded-sm bg-muted/40 px-2 py-1.5 text-[11.5px]">
+                    {e.avatar ? <img src={e.avatar} alt="" className="size-8 rounded-full object-cover" /> : <div className="grid size-8 place-items-center rounded-full bg-muted font-semibold">{e.name.slice(0, 1)}</div>}
+                    <div className="min-w-0">
+                      <div className="font-medium">{e.name} {e.code && <span className="font-mono text-muted-foreground">· {e.code}</span>}</div>
+                      <div className="text-muted-foreground">{e.role || "No designation"}{task ? ` · Task: ${task.title}` : ""}</div>
+                    </div>
+                    <div className="ml-auto flex gap-4 font-mono">
+                      <span><span className="font-sans text-muted-foreground">Wallet </span>BDT {e.walletAvailable.toFixed(2)}</span>
+                      <span className="font-semibold"><span className="font-sans font-normal text-muted-foreground">Project earning </span>{currency} {planAmount(p, pool).toFixed(2)}</span>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           ))}
           <Button type="button" variant="outline" size="sm" className="h-7 rounded-sm text-[11.5px]" onClick={() => onChange([...plans, { employee_id: "", mode: "percent", value: 0, task_id: "", note: "" }])}>
