@@ -898,6 +898,7 @@ export type Database = {
           department: string | null
           fund_id: string | null
           id: string
+          idempotency_key: string | null
           is_project_cost: boolean
           last_edit_reason: string | null
           linked_invoice_id: string | null
@@ -931,6 +932,7 @@ export type Database = {
           department?: string | null
           fund_id?: string | null
           id?: string
+          idempotency_key?: string | null
           is_project_cost?: boolean
           last_edit_reason?: string | null
           linked_invoice_id?: string | null
@@ -964,6 +966,7 @@ export type Database = {
           department?: string | null
           fund_id?: string | null
           id?: string
+          idempotency_key?: string | null
           is_project_cost?: boolean
           last_edit_reason?: string | null
           linked_invoice_id?: string | null
@@ -4132,6 +4135,17 @@ export type Database = {
       can_manage_task: {
         Args: { _task_id: string; _user: string }
         Returns: boolean
+      }
+      create_expense_atomic: {
+        Args: {
+          _attachments: Json
+          _exceptional_reason: string
+          _expense: Json
+          _fund: string
+          _idem: string
+          _items: Json
+        }
+        Returns: string
       }
       employee_payment_set_status: {
         Args: {
