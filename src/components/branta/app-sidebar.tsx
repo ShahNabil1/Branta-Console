@@ -64,6 +64,8 @@ const NAV: NavGroup[] = [
       { label: "Project Profitability", to: "/app/finance/profitability", icon: TrendingUp },
       { label: "Fund Analytics", to: "/app/finance/fund-analytics", icon: PiggyBank },
       { label: "Reconciliation", to: "/app/finance/reconciliation", icon: Shield },
+      { label: "Historical Allocation", to: "/app/finance/historical-allocation", icon: FileText },
+      { label: "Finance Sheets", to: "/app/finance/sheets", icon: FileText },
       { label: "Income", to: "/app/finance/income", icon: TrendingUp },
       { label: "Invoices", to: "/app/finance/invoices", icon: FileText },
       { label: "Wallet", to: "/app/finance/wallet", icon: Wallet },
