@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AlertTriangle } from "lucide-react";
 import {
-  PAYMENT_TYPES, createEmployeePayment, findExistingCompensation, getEmployeePaymentContext, setEmployeePaymentStatus,
+  PAYMENT_TYPES, createEmployeePayment, findExistingCompensation, getEmployeePaymentContext, setEmployeePaymentStatus, updateEmployeePayment,
 } from "@/lib/fund-ops.functions";
 import { bdt, useFundOptions } from "@/components/finance/fund-move-dialog";
 import { Button } from "@/components/ui/button";
@@ -28,7 +28,7 @@ export const Route = createFileRoute("/_authenticated/app/finance/employee-payme
 const TYPE_LABEL: Record<string, string> = { project_payment: "Project Payment", salary: "Salary", bonus: "Bonus", incentive: "Incentive", commission: "Commission", overtime: "Overtime", adjustment: "Adjustment" };
 const STATUS_CLS: Record<string, string> = { draft: "bg-muted text-muted-foreground", approved: "bg-sky-100 text-sky-800", committed: "bg-amber-100 text-amber-800", paid: "bg-emerald-100 text-emerald-800", cancelled: "bg-rose-100 text-rose-700" };
 const sel = "h-9 w-full rounded-sm border border-input bg-background px-2 text-[13px]";
-const empty = { employee_id: "", payment_type: "project_payment", amount: "", project_id: "", invoice_id: "", salary_slip_id: "", invoice_payout_id: "", description: "", payment_method: "", transaction_reference: "", notes: "" };
+const empty = { employee_id: "", payment_type: "project_payment", amount: "", project_id: "", task_id: "", invoice_id: "", salary_slip_id: "", invoice_payout_id: "", description: "", payment_method: "", transaction_reference: "", notes: "" };
 
 function EmployeePaymentsPage() {
   const qc = useQueryClient();
@@ -45,10 +45,21 @@ function EmployeePaymentsPage() {
   });
   const create = useServerFn(createEmployeePayment);
   const setStatus = useServerFn(setEmployeePaymentStatus);
+  const updateFn = useServerFn(updateEmployeePayment);
+  const [editing, setEditing] = useState<any | null>(null);
+  const mUpdate = useMutation({
+    mutationFn: (e: any) => updateFn({ data: {
+      id: e.id, amount: Number(e.amount), project_id: e.project_id || null, task_id: e.task_id || null,
+      description: e.description || null, payment_method: e.payment_method || null,
+      transaction_reference: e.transaction_reference || null, notes: e.notes || null, reason: e.reason || null,
+    } }),
+    onSuccess: () => { toast.success("Payment updated"); setEditing(null); void qc.invalidateQueries(); },
+    onError: (e) => toast.error((e as Error).message),
+  });
   const mCreate = useMutation({
     mutationFn: (status: "draft" | "approved") => create({ data: {
       employee_id: f.employee_id, payment_type: f.payment_type as never, amount: Number(f.amount),
-      project_id: f.project_id || null, invoice_id: f.invoice_id || null,
+      project_id: f.project_id || null, task_id: f.task_id || null, invoice_id: f.invoice_id || null,
       salary_slip_id: f.payment_type === "salary" ? f.salary_slip_id || null : null,
       invoice_payout_id: f.invoice_payout_id || null,
       description: f.description || null, payment_method: f.payment_method || null,
@@ -96,10 +107,16 @@ function EmployeePaymentsPage() {
             {PAYMENT_TYPES.map((t) => <option key={t} value={t}>{TYPE_LABEL[t]}</option>)}
           </select>
           <Input className="h-9 font-mono" type="number" placeholder="Amount (BDT)" value={f.amount} onChange={(e) => setF({ ...f, amount: e.target.value })} />
-          <select className={sel} value={f.project_id} onChange={(e) => setF({ ...f, project_id: e.target.value })}>
+          <select className={sel} value={f.project_id} onChange={(e) => setF({ ...f, project_id: e.target.value, task_id: "" })}>
             <option value="">— Project (optional) —</option>
             {(d?.projects ?? []).map((p: any) => <option key={p.id} value={p.id}>{p.title}</option>)}
           </select>
+          {f.project_id && (
+            <select className={sel} value={f.task_id} onChange={(e) => setF({ ...f, task_id: e.target.value })}>
+              <option value="">— Task (optional) —</option>
+              {((d as any)?.tasks ?? []).filter((t: any) => t.project_id === f.project_id).map((t: any) => <option key={t.id} value={t.id}>{t.title}</option>)}
+            </select>
+          )}
           <select className={sel} value={f.invoice_id} onChange={(e) => setF({ ...f, invoice_id: e.target.value, invoice_payout_id: "" })}>
             <option value="">— Invoice (optional) —</option>
             {(d?.invoices ?? []).map((i: any) => <option key={i.id} value={i.id}>{i.slug} · {i.title}</option>)}
@@ -157,8 +174,30 @@ function EmployeePaymentsPage() {
                   {p.cancel_reason ? ` · cancelled: ${p.cancel_reason}` : ""}
                 </div>
               </div>
+              {editing?.id === p.id && (
+                <div className="grid w-full gap-2 rounded-sm border border-border bg-muted/40 p-2.5 sm:grid-cols-3">
+                  <Input className="h-8 font-mono" type="number" value={editing.amount} onChange={(e) => setEditing({ ...editing, amount: e.target.value })} />
+                  <select className={sel} value={editing.project_id ?? ""} onChange={(e) => setEditing({ ...editing, project_id: e.target.value, task_id: "" })}>
+                    <option value="">— Project —</option>
+                    {(d?.projects ?? []).map((x: any) => <option key={x.id} value={x.id}>{x.title}</option>)}
+                  </select>
+                  <select className={sel} value={editing.task_id ?? ""} onChange={(e) => setEditing({ ...editing, task_id: e.target.value })}>
+                    <option value="">— Task —</option>
+                    {((d as any)?.tasks ?? []).filter((t: any) => t.project_id === editing.project_id).map((t: any) => <option key={t.id} value={t.id}>{t.title}</option>)}
+                  </select>
+                  <Input className="h-8" placeholder="Description" value={editing.description ?? ""} onChange={(e) => setEditing({ ...editing, description: e.target.value })} />
+                  <Input className="h-8" placeholder="Payment method" value={editing.payment_method ?? ""} onChange={(e) => setEditing({ ...editing, payment_method: e.target.value })} />
+                  <Input className="h-8" placeholder="Reference" value={editing.transaction_reference ?? ""} onChange={(e) => setEditing({ ...editing, transaction_reference: e.target.value })} />
+                  {p.status === "approved" && <Input className="h-8 sm:col-span-2" placeholder="Reason for editing an approved payment (required)" value={editing.reason} onChange={(e) => setEditing({ ...editing, reason: e.target.value })} />}
+                  <div className="flex gap-2">
+                    <Button size="sm" className="h-8" disabled={mUpdate.isPending || !(Number(editing.amount) > 0) || (p.status === "approved" && editing.reason.trim().length < 5)} onClick={() => mUpdate.mutate(editing)}>Save</Button>
+                    <Button size="sm" variant="ghost" className="h-8" onClick={() => setEditing(null)}>Close</Button>
+                  </div>
+                </div>
+              )}
               <div className="flex flex-wrap items-center gap-1.5">
                 <span className={`rounded-sm px-1.5 py-0.5 text-[11px] font-semibold ${STATUS_CLS[p.status]}`}>{p.status}</span>
+                {(p.status === "draft" || p.status === "approved") && <Button size="sm" variant="ghost" className="h-7" onClick={() => setEditing({ ...p, reason: "" })}>Edit</Button>}
                 {p.status === "draft" && <Button size="sm" variant="ghost" className="h-7" onClick={() => mStatus.mutate({ id: p.id, status: "approved" })}>Approve</Button>}
                 {(p.status === "draft" || p.status === "approved") && <Button size="sm" variant="ghost" className="h-7" onClick={() => mStatus.mutate({ id: p.id, status: "committed" })}>Commit</Button>}
                 {(p.status === "approved" || p.status === "committed") && <Button size="sm" className="h-7" onClick={() => mStatus.mutate({ id: p.id, status: "paid" })}>Mark paid</Button>}

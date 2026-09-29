@@ -1487,6 +1487,7 @@ const ExpenseAttachmentIn = z.object({
 const ExpenseIn = z.object({
   paying_fund_id: z.string().uuid().nullable().optional(),
   fund_exception_reason: z.string().nullable().optional(),
+  idempotency_key: z.string().uuid().nullable().optional(),
   category: z.enum(["salary", "tools", "ads", "office", "misc", "tax", "refund"]),
   amount: z.number().nonnegative(),
   currency: z.enum(["BDT", "USD"]).default("BDT"),
@@ -1572,21 +1573,22 @@ export const createExpense = createServerFn({ method: "POST" })
       const av = Number(fb.ledger_balance) - Number(fb.committed);
       if (base.amount > av) throw new Error(`INSUFFICIENT_FUND: required ${base.amount}, available ${av}, shortfall ${base.amount - av}`);
     }
-    const { data: row, error } = await context.supabase
-      .from("expenses")
-      .insert({ ...base, created_by: context.userId } as never)
-      .select("*").single();
+    // One DB transaction: expense + line items + receipt rows + fund debit + audit.
+    // Receipts are already uploaded to storage (staged); only their rows are written here.
+    // idempotency_key makes double-click / retries return the same expense.
+    const { idempotency_key, ...expenseFields } = base as typeof base & { idempotency_key?: string | null };
+    const { data: newId, error: rpcError } = await (context.supabase as any).rpc("create_expense_atomic", {
+      _expense: expenseFields,
+      _items: items ?? [],
+      _attachments: attachments ?? [],
+      _fund: paying_fund_id ?? null,
+      _exceptional_reason: fund_exception_reason ?? null,
+      _idem: idempotency_key ?? null,
+    });
+    if (rpcError) throw new Error(rpcError.message);
+    const { data: row, error } = await context.supabase.from("expenses").select("*").eq("id", newId as string).single();
     if (error) throw new Error(error.message);
     const expense = row as unknown as ExpenseRow;
-    if (paying_fund_id) {
-      const { error: fe } = await (context.supabase as any).rpc("expense_fund_debit", { _expense: expense.id, _fund: paying_fund_id, _exceptional_reason: fund_exception_reason ?? null });
-      if (fe) {
-        // roll back the just-created expense so expense + fund debit stay atomic
-        await context.supabase.from("expenses").delete().eq("id", expense.id);
-        throw new Error(fe.message);
-      }
-    }
-    await writeExpenseChildren(context.supabase, expense.id, context.userId, items, attachments);
     if (expense.is_project_cost) {
       await syncInvoiceExpenseCosts(context.supabase, expense.linked_invoice_id);
     }

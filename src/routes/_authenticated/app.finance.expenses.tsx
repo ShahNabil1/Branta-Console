@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   listExpenses,
@@ -92,6 +92,7 @@ function fmt(n: number, cur: string) {
 function ExpensesPage() {
   const listFn = useServerFn(listExpenses);
   const create = useServerFn(createExpense);
+  const idemRef = useRef<string | null>(null);
   const update = useServerFn(updateExpense);
   const del = useServerFn(deleteExpense);
   const check = useServerFn(isFinanceAdminCheck);
@@ -467,10 +468,12 @@ function ExpensesPage() {
       if (editingId) {
         await update({ data: { id: editingId, ...payload, edit_reason: editReason ?? "" } });
       } else {
-        await create({ data: payload });
+        if (!idemRef.current) idemRef.current = crypto.randomUUID();
+        await create({ data: { ...payload, idempotency_key: idemRef.current } });
       }
     },
     onSuccess: () => {
+      idemRef.current = null;
       toast.success(editingId ? "Expense updated" : "Expense added");
       setOpen(false);
       setEditingId(null);
@@ -484,7 +487,7 @@ function ExpensesPage() {
       setUploading(false);
       const info = parseInsufficient((e as Error).message);
       if (info) setShortfall(info);
-      else toast.error((e as Error).message.replace("PROFIT_FUND_PROTECTED: ", "Profit Fund is protected — "));
+      else toast.error((e as Error).message.replace("PROFIT_FUND_PROTECTED: ", "Profit Fund is protected — ").replace("FUND_EXPENSE_LOCKED: ", ""));
     },
   });
 
