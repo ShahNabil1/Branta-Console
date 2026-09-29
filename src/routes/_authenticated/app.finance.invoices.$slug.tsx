@@ -392,7 +392,7 @@ function InvoiceDetail() {
 
         <div className="rounded-md border border-border bg-card">
           <div className="border-b border-border px-4 py-2.5">
-            <h2 className="text-[13px] font-semibold">Stakeholders</h2>
+            <h2 className="text-[13px] font-semibold">Legacy Revenue Split</h2>
             <p className="text-[11px] text-muted-foreground">Percent of net distributable</p>
           </div>
           <div className="divide-y divide-border">
@@ -804,7 +804,7 @@ function EditInvoiceDialog({
           )}
 
           <section className={cn("rounded-sm border border-border p-3", fundLedger && "hidden")}>
-            <div className="mb-2 flex items-center justify-between"><h4 className="text-[13px] font-semibold">Stakeholders</h4><span className={cn("font-mono text-[11px]", Math.abs(pctSum - 100) < 0.01 ? "text-emerald-600" : "text-rose-600")}>{pctSum.toFixed(2)}%</span></div>
+            <div className="mb-2 flex items-center justify-between"><h4 className="text-[13px] font-semibold">Legacy Revenue Split</h4><span className={cn("font-mono text-[11px]", Math.abs(pctSum - 100) < 0.01 ? "text-emerald-600" : "text-rose-600")}>{pctSum.toFixed(2)}%</span></div>
             <div className="space-y-2">
               {editStakeholders.map((s, idx) => (
                 <div key={idx} className="grid grid-cols-12 gap-2">
