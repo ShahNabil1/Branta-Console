@@ -72,6 +72,10 @@ export interface ProjectCostRow {
   name: string;
   amount: number;
   description: string | null;
+  cost_type?: string | null;
+  amount_mode?: string | null;
+  value?: number | null;
+  note?: string | null;
   created_at: string;
   updated_at: string;
 }
