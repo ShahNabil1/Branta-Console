@@ -34,7 +34,7 @@ export function txLabel(type: string, direction: string): string {
   return m[`${type}/${direction}`] ?? `${type.replace(/_/g, " ")} (${direction})`;
 }
 
-async function nameMaps(sb: any, rows: any[]) {
+export async function nameMaps(sb: any, rows: any[]) {
   const ids = (k: string) => [...new Set(rows.map((r) => r[k]).filter(Boolean))] as string[];
   const people = [...new Set([...ids("employee_id"), ...ids("created_by")])];
   const q = (t: string, cols: string, list: string[]) => (list.length ? sb.from(t).select(cols).in("id", list) : Promise.resolve({ data: [] }));
@@ -51,7 +51,7 @@ async function nameMaps(sb: any, rows: any[]) {
   return { c: mk(c), p: mk(p), i: mk(i), s: mk(s), pr: mk(pr), e: mk(e), a: mk(a) };
 }
 
-function shapeRow(r: any, m: Awaited<ReturnType<typeof nameMaps>>) {
+export function shapeRow(r: any, m: Awaited<ReturnType<typeof nameMaps>>) {
   const inv: any = m.i.get(r.invoice_id); const exp: any = m.e.get(r.expense_id); const al: any = m.a.get(r.allocation_id);
   const inst: any = m.s.get(r.installment_id); const cust: any = m.c.get(r.customer_id);
   const pct = al?.installment_allocation_items?.find((x: any) => x.fund_id === r.fund_id)?.percent;
