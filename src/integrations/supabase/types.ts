@@ -4521,6 +4521,10 @@ export type Database = {
         Args: { _task_id: string; _user: string }
         Returns: boolean
       }
+      materialize_employee_plan_for: {
+        Args: { _alloc: string }
+        Returns: number
+      }
       orphan_expense_receipts: {
         Args: { _older_hours?: number }
         Returns: string[]
