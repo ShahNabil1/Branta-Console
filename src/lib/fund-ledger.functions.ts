@@ -235,15 +235,15 @@ export const getAllocationEmployeePool = createServerFn({ method: "GET" })
     const [{ data: items }, { data: pays }, { data: emps }] = await Promise.all([
       sb.from("installment_allocation_items").select("amount,finance_funds!inner(code)").eq("allocation_id", data.allocationId).eq("finance_funds.code", "employee"),
       sb.from("employee_fund_payments").select("id,employee_id,amount,status,description").eq("allocation_id", data.allocationId).neq("status", "cancelled"),
-      sb.from("profiles").select("id,full_name,email").is("deactivated_at", null).order("full_name").limit(1000),
+      sb.from("profiles").select("id,full_name,legal_full_name,employee_code").is("deactivated_at", null).order("full_name").limit(1000),
     ]);
     const pool = (items ?? []).reduce((a: number, x: any) => a + Number(x.amount), 0);
     const assigned = (pays ?? []).reduce((a: number, x: any) => a + Number(x.amount), 0);
-    const names = new Map((emps ?? []).map((e: any) => [e.id, e.full_name || e.email]));
+    const names = new Map((emps ?? []).map((e: any) => [e.id, e.full_name || e.legal_full_name || e.employee_code || "Unnamed"]));
     return {
       pool, assigned, remaining: Math.round((pool - assigned) * 100) / 100,
       payments: (pays ?? []).map((p: any) => ({ ...p, amount: Number(p.amount), name: names.get(p.employee_id) ?? "—" })),
-      employees: (emps ?? []).map((e: any) => ({ id: e.id as string, name: (e.full_name || e.email) as string })),
+      employees: (emps ?? []).map((e: any) => ({ id: e.id as string, name: (e.full_name || e.legal_full_name || e.employee_code || "Unnamed") as string })),
     };
   });
 
@@ -270,7 +270,7 @@ export const getInvoiceFundPreviewContext = createServerFn({ method: "GET" })
     if (!allowed) return { allowed: false as const, funds: [], employees: [], tasks: [] };
     const [{ data: ver }, { data: emps }, tasksRes, { data: bals }] = await Promise.all([
       sb.from("fund_allocation_versions").select("id,name,fund_allocation_version_items(percent,finance_funds(code,name,display_order))").order("effective_from", { ascending: false }).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-      sb.from("profiles").select("id,user_id,full_name,email,avatar_url,employee_code,job_role").is("deactivated_at", null).order("full_name").limit(1000),
+      sb.from("profiles").select("id,user_id,full_name,legal_full_name,avatar_url,employee_code,job_role").is("deactivated_at", null).order("full_name").limit(1000),
       data.projectId ? sb.from("client_tasks").select("id,title").eq("project_id", data.projectId).is("archived_at", null).order("created_at") : Promise.resolve({ data: [] }),
       sb.from("v_wallet_balances").select("user_id,currency,available"),
     ]);
@@ -282,7 +282,7 @@ export const getInvoiceFundPreviewContext = createServerFn({ method: "GET" })
     return {
       allowed: true as const, versionName: (ver?.name ?? null) as string | null, funds,
       employees: ((emps ?? []) as any[]).map((e) => ({
-        id: e.id as string, name: (e.full_name || e.email) as string, avatar: (e.avatar_url ?? null) as string | null,
+        id: e.id as string, name: (e.full_name || e.legal_full_name || e.employee_code || "Unnamed") as string, avatar: (e.avatar_url ?? null) as string | null,
         code: (e.employee_code ?? null) as string | null, role: (e.job_role ?? null) as string | null,
         walletAvailable: wallet.get(e.user_id) ?? 0,
       })),
@@ -353,7 +353,7 @@ export const getInvoiceEmployeeEarnings = createServerFn({ method: "GET" })
     const empIds = Array.from(new Set([...(plans ?? []), ...(pays ?? [])].map((r: any) => r.employee_id)));
     const payoutIds = (pays ?? []).map((p: any) => p.invoice_payout_id).filter(Boolean);
     const [{ data: profs }, { data: pos }] = await Promise.all([
-      empIds.length ? sb.from("profiles").select("id,full_name,email,avatar_url,employee_code").in("id", empIds) : Promise.resolve({ data: [] }),
+      empIds.length ? sb.from("profiles").select("id,full_name,legal_full_name,avatar_url,employee_code").in("id", empIds) : Promise.resolve({ data: [] }),
       payoutIds.length ? sb.from("invoice_payouts").select("id,status").in("id", payoutIds) : Promise.resolve({ data: [] }),
     ]);
     const pm = new Map((profs ?? []).map((p: any) => [p.id, p]));
@@ -369,7 +369,7 @@ export const getInvoiceEmployeeEarnings = createServerFn({ method: "GET" })
         : statuses.some((s: string) => s.startsWith("wallet:")) ? "Partly in wallet" : statuses.includes("committed") || statuses.includes("approved") ? "Committed (not yet available)" : "Draft (not in wallet)";
       const p: any = pm.get(id);
       return {
-        employeeId: id, name: (p?.full_name || p?.email || "—") as string, avatar: (p?.avatar_url ?? null) as string | null, code: (p?.employee_code ?? null) as string | null,
+        employeeId: id, name: (p?.full_name || p?.legal_full_name || "—") as string, avatar: (p?.avatar_url ?? null) as string | null, code: (p?.employee_code ?? null) as string | null,
         planned: Math.round(planned * 100) / 100, earned: Math.round(earned * 100) / 100, inWallet: Math.round(inWallet * 100) / 100,
         pending: Math.max(Math.round((planned - earned) * 100) / 100, 0), walletStatus,
       };
