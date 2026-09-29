@@ -91,13 +91,14 @@ export const getEmployeePaymentContext = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const sb = await fin(context);
-    const [pays, emps, projects, invoices] = await Promise.all([
+    const [pays, emps, projects, invoices, tasks] = await Promise.all([
       sb.from("employee_fund_payments").select("*").order("created_at", { ascending: false }).limit(500),
       sb.from("profiles").select("user_id,full_name,employee_code").order("full_name"),
       sb.from("client_projects").select("id,title").order("created_at", { ascending: false }).limit(500),
       sb.from("invoices").select("id,slug,title").order("created_at", { ascending: false }).limit(500),
+      sb.from("client_tasks").select("id,title,project_id").not("project_id", "is", null).is("archived_at", null).order("created_at", { ascending: false }).limit(1000),
     ]);
-    return { payments: pays.data ?? [], employees: emps.data ?? [], projects: projects.data ?? [], invoices: invoices.data ?? [] };
+    return { payments: pays.data ?? [], employees: emps.data ?? [], projects: projects.data ?? [], invoices: invoices.data ?? [], tasks: tasks.data ?? [] };
   });
 
 /** Existing payouts / salary slips for an employee so finance can link instead of duplicating. */
@@ -159,6 +160,31 @@ export const setEmployeePaymentStatus = createServerFn({ method: "POST" })
     const sb = await fin(context);
     const { error } = await sb.rpc("employee_payment_set_status", { _id: data.id, _status: data.status, _reason: data.reason ?? null, _method: data.method ?? null, _ref: data.ref ?? null });
     rpcErr(error); return { ok: true };
+  });
+
+/** Draft: freely editable. Approved: editable with mandatory reason + audit (before/after). Committed+ locked (DB trigger). */
+export const updateEmployeePayment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({
+    id: uuid, amount: money, project_id: uuid.nullable().optional(), task_id: uuid.nullable().optional(),
+    description: z.string().nullable().optional(), payment_method: z.string().nullable().optional(),
+    transaction_reference: z.string().nullable().optional(), notes: z.string().nullable().optional(),
+    reason: z.string().nullable().optional(),
+  }).parse(d))
+  .handler(async ({ data, context }) => {
+    const sb = await fin(context);
+    const { data: before, error: be } = await sb.from("employee_fund_payments").select("*").eq("id", data.id).single();
+    if (be) throw new Error(be.message);
+    if (!["draft", "approved"].includes(before.status)) throw new Error(`PAYMENT_LOCKED: ${before.status} payments cannot be edited — use cancellation/correction`);
+    if (before.status === "approved" && (data.reason ?? "").trim().length < 5) throw new Error("Reason (min 5 chars) required to edit an approved payment");
+    const { id, reason, ...patch } = data;
+    const next = { ...patch, project_id: patch.project_id ?? null, task_id: patch.task_id ?? null };
+    const { error } = await sb.from("employee_fund_payments").update(next).eq("id", id).eq("status", before.status);
+    if (error) throw new Error(error.message);
+    const prev: Record<string, unknown> = {}; const changed: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(next)) if ((before as any)[k] !== v && !(k === "amount" && Number(before.amount) === Number(v))) { prev[k] = (before as any)[k]; changed[k] = v; }
+    await sb.from("fund_audit_logs").insert({ user_id: context.userId, action: before.status === "approved" ? "employee_payment_approved_edit" : "employee_payment_draft_edit", record_type: "employee_fund_payment", record_id: id, previous: prev, next: changed, reason: reason ?? null });
+    return { ok: true };
   });
 
 /** Parse "INSUFFICIENT_FUND: required X, available Y, shortfall Z" errors. */
