@@ -37,6 +37,7 @@ import { SearchableSelect, type SearchableItem } from "@/components/finance/sear
 import { Loader2, ArrowLeft, Trash2, CheckCircle2, RotateCcw, Send, Download, Printer, Mail, Clock, CheckCheck, MailOpen, AlertCircle, Pencil, Activity, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { QtyPriceFields, invoiceStatusLabel } from "@/components/finance/qty-price-fields";
+import { InvoiceFundAllocation } from "@/components/finance/invoice-fund-allocation";
 
 export const Route = createFileRoute("/_authenticated/app/finance/invoices/$slug")({
   head: ({ params }) => ({
@@ -297,6 +298,8 @@ function InvoiceDetail() {
           <StatBox label="Status" value={invoiceStatusLabel(invoice.status)} tone={invoice.status === "paid" ? "good" : "neutral"} />
         </div>
       </div>
+
+      <InvoiceFundAllocation invoiceId={q.data.invoice.id} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="rounded-md border border-border bg-card lg:col-span-2">

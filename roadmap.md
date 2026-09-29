@@ -9,3 +9,9 @@
 
 ## Connectors (new workspace)
 - [x] Re-link Brevo, Gmail, Google Calendar, Google Docs, Google Sheets, Resend, Telegram
+
+## Branta Fund Ledger
+- [x] Phase 1: core ledger, auto allocation, versions, settings, invoice allocation, failure retry
+- [ ] Phase 2: spending (expense fund, transfers, loans, employee payments, owner withdrawal)
+- [ ] Phase 3: fund detail, profitability, analytics, reconciliation
+- [ ] Phase 4: historical allocation preview, Finance Sheets export
