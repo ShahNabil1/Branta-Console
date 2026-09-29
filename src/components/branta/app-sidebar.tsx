@@ -56,6 +56,8 @@ const NAV: NavGroup[] = [
     label: "Finance",
     items: [
       { label: "Dashboard", to: "/app/finance", icon: PiggyBank },
+      { label: "Fund Ledger", to: "/app/finance/funds", icon: Shield },
+      { label: "Fund Settings", to: "/app/finance/fund-settings", icon: Settings },
       { label: "Income", to: "/app/finance/income", icon: TrendingUp },
       { label: "Invoices", to: "/app/finance/invoices", icon: FileText },
       { label: "Wallet", to: "/app/finance/wallet", icon: Wallet },
