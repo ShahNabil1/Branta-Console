@@ -1,3 +1,4 @@
+import { ProjectEarningsSection } from "@/components/profile/project-earnings-section";
 // Employee detail page: full profile, RBAC, lead assignment, ban / delete,
 // password reset, one-click impersonation, wallet + sessions.
 import { useEffect, useMemo, useState } from "react";
@@ -973,6 +974,7 @@ function WalletTab({
         )}
       </section>
 
+      <ProjectEarningsSection userId={userId} />
       {/* Payment methods */}
       <section className="rounded-sm border border-border bg-card p-4 sm:p-5">
         <div className="mb-3 flex items-center gap-2">

@@ -268,17 +268,24 @@ export const getInvoiceFundPreviewContext = createServerFn({ method: "GET" })
     const sb = context.supabase as any;
     const { data: allowed } = await sb.rpc("is_finance_admin", { _user_id: context.userId });
     if (!allowed) return { allowed: false as const, funds: [], employees: [], tasks: [] };
-    const [{ data: ver }, { data: emps }, tasksRes] = await Promise.all([
+    const [{ data: ver }, { data: emps }, tasksRes, { data: bals }] = await Promise.all([
       sb.from("fund_allocation_versions").select("id,name,fund_allocation_version_items(percent,finance_funds(code,name,display_order))").order("effective_from", { ascending: false }).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-      sb.from("profiles").select("id,full_name,email").is("deactivated_at", null).order("full_name").limit(1000),
+      sb.from("profiles").select("id,user_id,full_name,email,avatar_url,employee_code,job_role").is("deactivated_at", null).order("full_name").limit(1000),
       data.projectId ? sb.from("client_tasks").select("id,title").eq("project_id", data.projectId).is("archived_at", null).order("created_at") : Promise.resolve({ data: [] }),
+      sb.from("v_wallet_balances").select("user_id,currency,available"),
     ]);
+    const wallet = new Map<string, number>();
+    ((bals ?? []) as any[]).forEach((b) => { if (b.currency === "BDT") wallet.set(b.user_id, Number(b.available ?? 0)); });
     const funds = ((ver?.fund_allocation_version_items ?? []) as any[])
       .map((i) => ({ code: i.finance_funds?.code as string, name: i.finance_funds?.name as string, order: Number(i.finance_funds?.display_order ?? 0), percent: Number(i.percent) }))
       .sort((a, b) => a.order - b.order);
     return {
       allowed: true as const, versionName: (ver?.name ?? null) as string | null, funds,
-      employees: ((emps ?? []) as any[]).map((e) => ({ id: e.id as string, name: (e.full_name || e.email) as string })),
+      employees: ((emps ?? []) as any[]).map((e) => ({
+        id: e.id as string, name: (e.full_name || e.email) as string, avatar: (e.avatar_url ?? null) as string | null,
+        code: (e.employee_code ?? null) as string | null, role: (e.job_role ?? null) as string | null,
+        walletAvailable: wallet.get(e.user_id) ?? 0,
+      })),
       tasks: ((tasksRes.data ?? []) as any[]).map((t) => ({ id: t.id as string, title: t.title as string })),
     };
   });
@@ -329,4 +336,43 @@ export const listAllocationMismatches = createServerFn({ method: "GET" })
           allocationStatus: r.status, amount: Number(r.received_amount), fundImpact: Number(r.distributable_amount),
         };
       });
+  });
+
+/** Per-employee planned vs earned (paid installments) vs pending, with wallet status. Finance only. */
+export const getInvoiceEmployeeEarnings = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ invoiceId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase as any;
+    const { data: allowed } = await sb.rpc("is_finance_admin", { _user_id: context.userId });
+    if (!allowed) return { allowed: false as const, rows: [] };
+    const [{ data: plans }, { data: pays }] = await Promise.all([
+      sb.from("invoice_employee_plans").select("id,employee_id,planned_amount").eq("invoice_id", data.invoiceId).order("sequence"),
+      sb.from("employee_fund_payments").select("id,employee_id,amount,status,plan_id,invoice_payout_id").eq("invoice_id", data.invoiceId).neq("status", "cancelled"),
+    ]);
+    const empIds = Array.from(new Set([...(plans ?? []), ...(pays ?? [])].map((r: any) => r.employee_id)));
+    const payoutIds = (pays ?? []).map((p: any) => p.invoice_payout_id).filter(Boolean);
+    const [{ data: profs }, { data: pos }] = await Promise.all([
+      empIds.length ? sb.from("profiles").select("id,full_name,email,avatar_url,employee_code").in("id", empIds) : Promise.resolve({ data: [] }),
+      payoutIds.length ? sb.from("invoice_payouts").select("id,status").in("id", payoutIds) : Promise.resolve({ data: [] }),
+    ]);
+    const pm = new Map((profs ?? []).map((p: any) => [p.id, p]));
+    const posm = new Map((pos ?? []).map((p: any) => [p.id, p.status]));
+    const rows = empIds.map((id) => {
+      const planned = (plans ?? []).filter((p: any) => p.employee_id === id).reduce((a: number, p: any) => a + Number(p.planned_amount), 0);
+      const mine = (pays ?? []).filter((p: any) => p.employee_id === id);
+      const earned = mine.reduce((a: number, p: any) => a + Number(p.amount), 0);
+      const inWallet = mine.filter((p: any) => p.status === "paid").reduce((a: number, p: any) => a + Number(p.amount), 0);
+      const statuses = mine.map((p: any) => (p.status === "paid" ? `wallet:${posm.get(p.invoice_payout_id) ?? "available"}` : p.status));
+      const walletStatus = !mine.length ? "Waiting for client payment"
+        : statuses.every((s: string) => s.startsWith("wallet:")) ? (statuses.some((s: string) => s === "wallet:paid") ? "Withdrawn" : statuses.some((s: string) => s === "wallet:requested") ? "Requested" : "Available")
+        : statuses.some((s: string) => s.startsWith("wallet:")) ? "Partly in wallet" : statuses.includes("committed") || statuses.includes("approved") ? "Committed (not yet available)" : "Draft (not in wallet)";
+      const p: any = pm.get(id);
+      return {
+        employeeId: id, name: (p?.full_name || p?.email || "—") as string, avatar: (p?.avatar_url ?? null) as string | null, code: (p?.employee_code ?? null) as string | null,
+        planned: Math.round(planned * 100) / 100, earned: Math.round(earned * 100) / 100, inWallet: Math.round(inWallet * 100) / 100,
+        pending: Math.max(Math.round((planned - earned) * 100) / 100, 0), walletStatus,
+      };
+    });
+    return { allowed: true as const, rows };
   });

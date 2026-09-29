@@ -661,6 +661,7 @@ export type Database = {
           paid_at: string | null
           payment_method: string | null
           payment_type: string
+          plan_id: string | null
           project_id: string | null
           salary_slip_id: string | null
           status: string
@@ -683,6 +684,7 @@ export type Database = {
           paid_at?: string | null
           payment_method?: string | null
           payment_type: string
+          plan_id?: string | null
           project_id?: string | null
           salary_slip_id?: string | null
           status?: string
@@ -705,6 +707,7 @@ export type Database = {
           paid_at?: string | null
           payment_method?: string | null
           payment_type?: string
+          plan_id?: string | null
           project_id?: string | null
           salary_slip_id?: string | null
           status?: string
@@ -4518,6 +4521,10 @@ export type Database = {
         Args: { _task_id: string; _user: string }
         Returns: boolean
       }
+      materialize_employee_plan_for: {
+        Args: { _alloc: string }
+        Returns: number
+      }
       orphan_expense_receipts: {
         Args: { _older_hours?: number }
         Returns: string[]
@@ -4534,6 +4541,22 @@ export type Database = {
           _user: string
         }
         Returns: string
+      }
+      project_earnings: {
+        Args: { _user: string }
+        Returns: {
+          amount: number
+          client: string
+          currency: string
+          earned_at: string
+          installment: string
+          invoice_slug: string
+          payout_id: string
+          project: string
+          project_id: string
+          status: string
+          task: string
+        }[]
       }
       purge_expired_expenses: { Args: never; Returns: number }
       reactivate_employee: { Args: { _user_id: string }; Returns: undefined }
