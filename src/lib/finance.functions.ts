@@ -121,7 +121,7 @@ export interface PayoutRow {
   currency: Currency;
   amount: number;
   status: PayoutStatus;
-  source: "invoice" | "manual";
+  source: "invoice" | "manual" | "employee_fund";
   kind: string | null;
   notes: string | null;
   unlocked_at: string | null;
