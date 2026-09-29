@@ -69,6 +69,7 @@ export const listCustomers = createServerFn({ method: "GET" })
     let q = context.supabase
       .from("customers")
       .select("*")
+      .is("archived_at" as never, null)
       .order("created_at", { ascending: false })
       .limit(1000);
     if (!viewAll) {
@@ -134,6 +135,7 @@ export const listCustomersForPicker = createServerFn({ method: "GET" })
     const { data, error } = await supabaseAdmin
       .from("customers")
       .select("id, customer_code, name, company, email, phone, currency")
+      .is("archived_at" as never, null)
       .order("created_at", { ascending: false })
       .limit(1000);
     if (error) throw dbError(error);

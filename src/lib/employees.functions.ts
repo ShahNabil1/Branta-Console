@@ -64,7 +64,7 @@ export const listEmployees = createServerFn({ method: "GET" })
 
     const [roles, profiles] = await Promise.all([
       supabaseAdmin.from("user_roles").select("user_id, role").in("user_id", ids),
-      supabaseAdmin.from("profiles").select("user_id, full_name").in("user_id", ids),
+      supabaseAdmin.from("profiles").select("user_id, full_name, deactivated_at").in("user_id", ids),
     ]);
 
     const roleByUser = new Map<string, string>();
@@ -213,8 +213,15 @@ export const deleteEmployee = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
     );
-    const { error } = await supabaseAdmin.auth.admin.deleteUser(data.userId);
+    // Deactivate instead of deleting: finance, payout, task and audit history keep pointing at this person.
+    const { error } = await (context.supabase as never as { rpc: (f: string, a: object) => Promise<{ error: { message: string; code?: string } | null }> })
+      .rpc("deactivate_employee", { _user_id: data.userId, _reason: "Removed from employee directory" });
     if (error) throw dbError(error);
+    // Block sign-in and end sessions (best effort — history is already preserved).
+    try {
+      await supabaseAdmin.auth.admin.updateUserById(data.userId, { ban_duration: "876000h" });
+      await supabaseAdmin.auth.admin.signOut(data.userId);
+    } catch { /* service key missing or auth call failed; roles are already removed */ }
     return { ok: true as const };
   });
 
