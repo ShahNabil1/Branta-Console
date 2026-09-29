@@ -399,7 +399,7 @@ export const getFundAnalytics = createServerFn({ method: "POST" })
       sb.from("invoices").select("currency,total_amount,paid_amount").neq("status", "void"), pq.limit(50000),
     ]);
     const aIds = (allocs.data ?? []).map((a: any) => a.id);
-    const { data: items } = aIds.length ? await sb.from("installment_allocation_items").select("fund_id,amount").in("allocation_id", aIds) : { data: [] };
+    const { data: items } = aIds.length ? await sb.from("installment_allocation_items").select("fund_id,amount,installment_allocations(created_at)").in("allocation_id", aIds) : { data: [] };
     const funds = (bal.data ?? []) as any[];
     const byId = new Map(funds.map((x) => [x.fund_id, x]));
     const inR = (at: string) => !f || at >= f;
@@ -417,8 +417,7 @@ export const getFundAnalytics = createServerFn({ method: "POST" })
       const mo = monthOf(x.created_at); const mm = p.months.get(mo) ?? { allocated: 0, spent: 0, net: 0 };
       mm.net += signed;
       let alloc = 0, spent = 0;
-      if (x.transaction_type === "allocation" && x.direction === "credit") alloc = n(x.amount);
-      if (x.transaction_type === "reversal" && x.direction === "debit" && !x.loan_id) alloc = -n(x.amount);
+      // Allocated is NOT derived from ledger rows — see allocation items below (same definition as fund_balances).
       if (x.direction === "debit" && !INTERNAL.includes(x.transaction_type)) spent = n(x.amount);
       if (x.direction === "credit" && x.transaction_type === "expense_reversal") spent = -n(x.amount);
       mm.allocated += alloc; mm.spent += spent; p.months.set(mo, mm); p.allocated += alloc; p.spent += spent;
@@ -431,6 +430,12 @@ export const getFundAnalytics = createServerFn({ method: "POST" })
         if (x.transaction_type === "owner_withdrawal") p.withdrawals += spent;
       }
       if (x.transaction_type === "transfer_out") p.transfersOut += n(x.amount);
+    }
+    // Allocated = active installment allocation items (single definition shared with fund_balances.allocation_total)
+    for (const it of (items ?? []) as any[]) {
+      const p = per.get(it.fund_id); if (!p) continue;
+      const mo = monthOf(it.installment_allocations.created_at); const mm = p.months.get(mo) ?? { allocated: 0, spent: 0, net: 0 };
+      mm.allocated += n(it.amount); p.months.set(mo, mm); p.allocated += n(it.amount);
     }
     const distributable = (allocs.data ?? []).reduce((a: number, x: any) => a + n(x.distributable_amount), 0);
     const distByFund = new Map<string, number>();
