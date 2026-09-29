@@ -1048,6 +1048,90 @@ export type Database = {
         }
         Relationships: []
       }
+      finance_sheet_settings: {
+        Row: {
+          created_at: string
+          id: number
+          last_error: string | null
+          last_failure_at: string | null
+          last_success_at: string | null
+          scheduled_enabled: boolean
+          spreadsheet_id: string | null
+          spreadsheet_name: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          last_error?: string | null
+          last_failure_at?: string | null
+          last_success_at?: string | null
+          scheduled_enabled?: boolean
+          spreadsheet_id?: string | null
+          spreadsheet_name?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          last_error?: string | null
+          last_failure_at?: string | null
+          last_success_at?: string | null
+          scheduled_enabled?: boolean
+          spreadsheet_id?: string | null
+          spreadsheet_name?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      finance_sheet_sync_logs: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          error: string | null
+          id: string
+          initiated_by: string | null
+          rows_added: number
+          rows_processed: number
+          rows_updated: number
+          run_id: string
+          started_at: string
+          status: string
+          tab: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          initiated_by?: string | null
+          rows_added?: number
+          rows_processed?: number
+          rows_updated?: number
+          run_id: string
+          started_at?: string
+          status?: string
+          tab: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          initiated_by?: string | null
+          rows_added?: number
+          rows_processed?: number
+          rows_updated?: number
+          run_id?: string
+          started_at?: string
+          status?: string
+          tab?: string
+        }
+        Relationships: []
+      }
       fund_allocation_version_items: {
         Row: {
           fund_id: string
@@ -4275,6 +4359,16 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      historical_allocate: {
+        Args: {
+          _batch?: string
+          _deductions: Json
+          _installment_id: string
+          _reason: string
+          _version_id: string
+        }
+        Returns: string
       }
       is_finance_admin: { Args: { _user_id?: string }; Returns: boolean }
       is_lead_owner: { Args: { _lead_id: string }; Returns: boolean }
