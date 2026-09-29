@@ -4542,6 +4542,22 @@ export type Database = {
         }
         Returns: string
       }
+      project_earnings: {
+        Args: { _user: string }
+        Returns: {
+          amount: number
+          client: string
+          currency: string
+          earned_at: string
+          installment: string
+          invoice_slug: string
+          payout_id: string
+          project: string
+          project_id: string
+          status: string
+          task: string
+        }[]
+      }
       purge_expired_expenses: { Args: never; Returns: number }
       reactivate_employee: { Args: { _user_id: string }; Returns: undefined }
       retry_installment_allocation: {
