@@ -724,6 +724,11 @@ export const deleteInvoice = createServerFn({ method: "POST" })
   .inputValidator((d: { id: string }) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     await ensureFinanceAdmin(context.supabase as never, context.userId);
+    const { data: inv } = await context.supabase
+      .from("invoices")
+      .select("id, slug, title, currency, total_amount, paid_amount, status")
+      .eq("id", data.id)
+      .maybeSingle();
     if (inv) {
       const r = inv as { slug: string; title: string; currency: string; total_amount: number; paid_amount: number; status: string };
       await logInvoiceActivity(
