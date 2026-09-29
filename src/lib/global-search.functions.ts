@@ -63,7 +63,7 @@ export const globalSearch = createServerFn({ method: "POST" })
       supabase
         .from("invoices")
         .select("id, slug, title, currency, total_amount, customers(name)")
-        .or(`slug.ilike.${like},title.ilike.${like}`)
+        .or(`slug.ilike.${like},title.ilike.${like}`).is("archived_at" as never, null)
         .limit(limit),
       supabase
         .from("profiles")

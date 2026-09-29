@@ -321,7 +321,7 @@ export const getReportFacets = createServerFn({ method: "GET" })
     await ensureFinance(context.supabase, context.userId);
     const [{ data: custs }, { data: invs }, { data: exps }, { data: profs }] = await Promise.all([
       context.supabase.from("customers").select("id, name, customer_code").order("name").limit(1000),
-      context.supabase.from("invoices").select("id, slug, title").order("created_at", { ascending: false }).limit(500),
+      context.supabase.from("invoices").select("id, slug, title").is("archived_at" as never, null).order("created_at", { ascending: false }).limit(500),
       context.supabase.from("expenses").select("payment_method, department, vendor").is("deleted_at", null).limit(2000),
       context.supabase.from("profiles").select("user_id, full_name, employee_code").order("full_name").limit(500),
     ]);

@@ -270,7 +270,7 @@ export async function profitData(sb: any, d: z.infer<typeof ProfIn>, onlyProject
   const ids = list.map((p) => p.id);
   if (!ids.length) return { list, invs: [], insts: [], allocs: [], items: [], deds: [], pays: [], exps: [], fin: [] };
   const [invR, finR] = await Promise.all([
-    sb.from("invoices").select("id,slug,title,currency,total_amount,paid_amount,status,project_id,created_at").in("project_id", ids).neq("status", "void"),
+    sb.from("invoices").select("id,slug,title,currency,total_amount,paid_amount,status,project_id,created_at").in("project_id", ids).neq("status", "void").is("archived_at", null),
     sb.from("client_project_finance").select("project_id,currency,project_value,task_id").in("project_id", ids).is("task_id", null),
   ]);
   const invs = invR.data ?? []; const invIds = invs.map((i: any) => i.id);
@@ -392,7 +392,7 @@ export async function computeAnalytics(sb: any, data: { from?: string | null; to
     let pq = sb.from("employee_fund_payments").select("employee_id,project_id,payment_type,amount,status,paid_at,created_at").in("status", ["committed", "paid"]);
     const [led, bal, insts, allocs, invs, pays] = await Promise.all([
       lq.limit(100000), sb.from("fund_balances").select("*").order("display_order"), iq.limit(50000), aq.limit(50000),
-      sb.from("invoices").select("currency,total_amount,paid_amount").neq("status", "void"), pq.limit(50000),
+      sb.from("invoices").select("currency,total_amount,paid_amount").neq("status", "void").is("archived_at", null), pq.limit(50000),
     ]);
     const aIds = (allocs.data ?? []).map((a: any) => a.id);
     const { data: items } = aIds.length ? await sb.from("installment_allocation_items").select("fund_id,amount,installment_allocations(created_at)").in("allocation_id", aIds) : { data: [] };

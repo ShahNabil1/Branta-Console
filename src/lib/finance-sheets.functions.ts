@@ -80,7 +80,7 @@ async function buildTabs(sb: any): Promise<Tab[]> {
     fetchAll((a, b) => sb.from("employee_fund_payments").select("*").order("id").range(a, b)),
     fetchAll((a, b) => sb.from("expenses").select("id,voucher_no,category,vendor,request_purpose,amount,currency,spent_on,fund_id,txn_id,linked_invoice_id,deleted_at").order("id").range(a, b)),
     sb.from("fund_transfers").select("*"), sb.from("fund_loans").select("*"),
-    sb.from("invoices").select("id,slug,currency,total_amount,paid_amount,status,project_id"),
+    sb.from("invoices").select("id,slug,currency,total_amount,paid_amount,status,project_id").is("archived_at", null),
     classifyInstallments(sb),
   ]);
   const funds = (bal.data ?? []) as any[];
