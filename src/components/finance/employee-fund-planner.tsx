@@ -5,6 +5,7 @@ import { getInvoiceFundPreviewContext } from "@/lib/fund-ledger.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { SearchableSelect } from "@/components/finance/searchable-select";
 
 export type EmployeePlan = { employee_id: string; mode: "percent" | "fixed"; value: number; task_id: string; note: string };
 
@@ -56,10 +57,16 @@ export function EmployeeFundPlanner({
         <div className="mt-2 space-y-2">
           {plans.map((p, i) => (
             <div key={i} className="grid grid-cols-12 gap-2 rounded-sm border border-border bg-background p-2">
-              <select value={p.employee_id} onChange={(e) => set(i, { employee_id: e.target.value })} className="col-span-12 h-8 rounded-sm border border-input bg-background px-2 text-[12px] sm:col-span-4">
-                <option value="">— Team member —</option>
-                {d.employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
-              </select>
+              <div className="col-span-12 sm:col-span-4">
+                <SearchableSelect
+                  value={p.employee_id}
+                  onChange={(v) => set(i, { employee_id: v })}
+                  placeholder="— Team member —"
+                  emptyText="No active team members found"
+                  className="h-8 text-[12px]"
+                  items={d.employees.map((e) => ({ value: e.id, label: e.name, hint: [e.code, e.role].filter(Boolean).join(" · ") || null, keywords: [e.code, e.role] }))}
+                />
+              </div>
               <select value={p.mode} onChange={(e) => set(i, { mode: e.target.value as EmployeePlan["mode"] })} className="col-span-6 h-8 rounded-sm border border-input bg-background px-2 text-[12px] sm:col-span-3">
                 <option value="percent">% of Employee Fund</option>
                 <option value="fixed">Fixed amount</option>
