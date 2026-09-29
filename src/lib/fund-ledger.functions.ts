@@ -300,3 +300,33 @@ export const getInvoiceEmployeePlan = createServerFn({ method: "GET" })
     const expectedPool = Math.round(Math.max(Number(inv?.total_amount ?? 0) - Number(inv?.project_cost_total ?? 0), 0) * empPct) / 100;
     return { allowed: true as const, expectedPool, rows: ((rows ?? []) as any[]).map((r) => ({ ...r, value: Number(r.value), planned_amount: Number(r.planned_amount) })) };
   });
+
+/** Active fund allocations whose installment is no longer Paid — Finance must review and reverse. */
+export const listAllocationMismatches = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertFinance(context);
+    const sb = context.supabase as any;
+    const { data: allocs, error } = await sb.from("installment_allocations")
+      .select("id, status, received_amount, distributable_amount, installment_id, invoice_id, created_at")
+      .eq("status", "active").limit(1000);
+    if (error) throw dbError(error);
+    const rows = (allocs ?? []) as { id: string; status: string; received_amount: number; distributable_amount: number; installment_id: string; invoice_id: string; created_at: string }[];
+    if (!rows.length) return [];
+    const [{ data: insts }, { data: invs }] = await Promise.all([
+      sb.from("invoice_installments").select("id, sequence, label, status, amount").in("id", rows.map((r) => r.installment_id)),
+      sb.from("invoices").select("id, slug, title").in("id", Array.from(new Set(rows.map((r) => r.invoice_id)))),
+    ]);
+    const im = new Map((insts ?? []).map((i: any) => [i.id, i]));
+    const vm = new Map((invs ?? []).map((i: any) => [i.id, i]));
+    return rows
+      .filter((r) => (im.get(r.installment_id) as any)?.status !== "paid")
+      .map((r) => {
+        const i = im.get(r.installment_id) as any; const v = vm.get(r.invoice_id) as any;
+        return {
+          allocationId: r.id, invoiceSlug: v?.slug ?? "—", invoiceTitle: v?.title ?? "",
+          installment: i?.label || `Installment ${i?.sequence ?? "?"}`, installmentStatus: i?.status ?? "missing",
+          allocationStatus: r.status, amount: Number(r.received_amount), fundImpact: Number(r.distributable_amount),
+        };
+      });
+  });
