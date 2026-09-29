@@ -403,6 +403,7 @@ export const listSalaryEmployees = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("profiles")
       .select("user_id, full_name, employee_code, job_role")
+      .is("deactivated_at" as never, null)
       .order("full_name");
     if (error) throw dbError(error);
     return (data ?? []) as Array<{

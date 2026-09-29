@@ -235,7 +235,7 @@ export const getAllocationEmployeePool = createServerFn({ method: "GET" })
     const [{ data: items }, { data: pays }, { data: emps }] = await Promise.all([
       sb.from("installment_allocation_items").select("amount,finance_funds!inner(code)").eq("allocation_id", data.allocationId).eq("finance_funds.code", "employee"),
       sb.from("employee_fund_payments").select("id,employee_id,amount,status,description").eq("allocation_id", data.allocationId).neq("status", "cancelled"),
-      sb.from("profiles").select("id,full_name,email").order("full_name").limit(1000),
+      sb.from("profiles").select("id,full_name,email").is("deactivated_at", null).order("full_name").limit(1000),
     ]);
     const pool = (items ?? []).reduce((a: number, x: any) => a + Number(x.amount), 0);
     const assigned = (pays ?? []).reduce((a: number, x: any) => a + Number(x.amount), 0);
@@ -270,7 +270,7 @@ export const getInvoiceFundPreviewContext = createServerFn({ method: "GET" })
     if (!allowed) return { allowed: false as const, funds: [], employees: [], tasks: [] };
     const [{ data: ver }, { data: emps }, tasksRes] = await Promise.all([
       sb.from("fund_allocation_versions").select("id,name,fund_allocation_version_items(percent,finance_funds(code,name,display_order))").order("effective_from", { ascending: false }).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-      sb.from("profiles").select("id,full_name,email").order("full_name").limit(1000),
+      sb.from("profiles").select("id,full_name,email").is("deactivated_at", null).order("full_name").limit(1000),
       data.projectId ? sb.from("client_tasks").select("id,title").eq("project_id", data.projectId).is("archived_at", null).order("created_at") : Promise.resolve({ data: [] }),
     ]);
     const funds = ((ver?.fund_allocation_version_items ?? []) as any[])

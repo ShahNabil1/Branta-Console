@@ -371,6 +371,15 @@ function LoginPage() {
         setFormError(error.message);
         return;
       }
+      const { data: me } = await supabase.auth.getUser();
+      if (me.user) {
+        const { data: prof } = await supabase.from("profiles").select("deactivated_at" as never).eq("user_id", me.user.id).maybeSingle();
+        if ((prof as { deactivated_at?: string | null } | null)?.deactivated_at) {
+          await supabase.auth.signOut();
+          setFormError("This account has been deactivated. Contact an admin.");
+          return;
+        }
+      }
       await startTotpPhase();
     } finally {
       setSubmitting(false);

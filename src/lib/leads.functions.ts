@@ -1184,6 +1184,7 @@ export const listAssignableUsers = createServerFn({ method: "GET" })
       .from("profiles")
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .select("user_id, full_name, personal_gmail" as any)
+      .is("deactivated_at" as never, null)
       .order("full_name", { ascending: true })
       .limit(500);
     if (error) throw dbError(error);
