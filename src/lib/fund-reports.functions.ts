@@ -8,7 +8,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 const EMP_TYPES = ["employee_payment", "salary_payment", "bonus", "incentive", "commission", "overtime", "adjustment"];
 const INTERNAL = ["transfer_in", "transfer_out", "loan_in", "loan_out", "loan_repayment", "correction", "reversal"];
 
-async function finance(ctx: { supabase: any; userId: string }) {
+export async function finance(ctx: { supabase: any; userId: string }) {
   const { data } = await ctx.supabase.rpc("is_finance_admin", { _user_id: ctx.userId });
   if (!data) throw new Error("Finance access required");
   return ctx.supabase as any;
@@ -253,7 +253,7 @@ const ProfIn = z.object({
 type Money = { BDT: number; USD: number };
 const zero = (): Money => ({ BDT: 0, USD: 0 });
 
-async function profitData(sb: any, d: z.infer<typeof ProfIn>, onlyProject?: string) {
+export async function profitData(sb: any, d: z.infer<typeof ProfIn>, onlyProject?: string) {
   let pq = sb.from("client_projects").select("id,title,status,project_type,service,customer_id,client_manager_id,assignee_id,archived_at,customers(name,company)").order("created_at", { ascending: false }).limit(2000);
   if (onlyProject) pq = pq.eq("id", onlyProject);
   if (d.customerId) pq = pq.eq("customer_id", d.customerId);
@@ -292,7 +292,7 @@ async function profitData(sb: any, d: z.infer<typeof ProfIn>, onlyProject?: stri
   return { list, invs, insts: instR.data ?? [], allocs, items: itR.data ?? [], deds: dedR.data ?? [], pays, exps: expR.data ?? [], fin: finR.data ?? [] };
 }
 
-function summarise(D: Awaited<ReturnType<typeof profitData>>) {
+export function summarise(D: Awaited<ReturnType<typeof profitData>>) {
   const invById = new Map(D.invs.map((i: any) => [i.id, i]));
   const allocById = new Map(D.allocs.map((a: any) => [a.id, a]));
   return D.list.map((p: any) => {
@@ -381,11 +381,7 @@ export const getProjectProfitDetail = createServerFn({ method: "POST" })
   });
 
 /* ---------------------------- ANALYTICS ---------------------------- */
-export const getFundAnalytics = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ from: z.string().nullable().optional(), to: z.string().nullable().optional() }).parse(d))
-  .handler(async ({ data, context }) => {
-    const sb = await finance(context);
+export async function computeAnalytics(sb: any, data: { from?: string | null; to?: string | null }) {
     const f = startIso(data.from), t = endIso(data.to);
     let lq = sb.from("fund_ledger").select("fund_id,amount,direction,transaction_type,expense_id,loan_id,created_at").order("created_at").order("id");
     if (t) lq = lq.lte("created_at", t);
@@ -483,13 +479,14 @@ export const getFundAnalytics = createServerFn({ method: "POST" })
       },
       profit: profit ? { allocated: profit.allocated, withdrawals: profit.withdrawals, transfersOut: profit.transfersOut, exceptional: profit.exceptional, retained: profit.balance } : null,
     };
-  });
+}
+export const getFundAnalytics = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ from: z.string().nullable().optional(), to: z.string().nullable().optional() }).parse(d))
+  .handler(async ({ data, context }) => computeAnalytics(await finance(context), data));
 
 /* --------------------------- RECONCILIATION --------------------------- */
-export const getReconciliation = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const sb = await finance(context);
+export async function computeReconciliation(sb: any) {
     // Real company cash = same formula as getCompanyWallet (finance.functions.ts):
     //   real_balance(BDT) = Σ paid installment amounts (non-void invoices) + Σ company_ledger − Σ live expenses
     const [insts, cl, exps, bal, allocs, fails, efp, ow, loans] = await Promise.all([
@@ -547,7 +544,10 @@ export const getReconciliation = createServerFn({ method: "GET" })
       nonFundExpenses: nonFundExp.slice(0, 500).map((x) => ({ id: x.id, voucher_no: x.voucher_no, amount: n(x.amount), spent_on: x.spent_on, vendor: x.vendor, category: x.category })),
       companyLedgerRows: (cl.data ?? []).slice(0, 500),
     };
-  });
+}
+export const getReconciliation = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => computeReconciliation(await finance(context)));
 
 /* ------------------------------ EXPORT ------------------------------ */
 export const exportFundTable = createServerFn({ method: "POST" })
