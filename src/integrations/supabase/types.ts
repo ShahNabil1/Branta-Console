@@ -661,6 +661,7 @@ export type Database = {
           paid_at: string | null
           payment_method: string | null
           payment_type: string
+          plan_id: string | null
           project_id: string | null
           salary_slip_id: string | null
           status: string
@@ -683,6 +684,7 @@ export type Database = {
           paid_at?: string | null
           payment_method?: string | null
           payment_type: string
+          plan_id?: string | null
           project_id?: string | null
           salary_slip_id?: string | null
           status?: string
@@ -705,6 +707,7 @@ export type Database = {
           paid_at?: string | null
           payment_method?: string | null
           payment_type?: string
+          plan_id?: string | null
           project_id?: string | null
           salary_slip_id?: string | null
           status?: string
