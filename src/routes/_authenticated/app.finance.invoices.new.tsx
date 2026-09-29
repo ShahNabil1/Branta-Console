@@ -20,7 +20,8 @@ import { ArrowLeft, Loader2, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SearchableSelect, type SearchableItem } from "@/components/finance/searchable-select";
 import { QuickCustomerDialog } from "@/components/finance/quick-customer-dialog";
-import { ProjectCostEditor, sumProjectCosts, type ProjectCost } from "@/components/finance/project-cost-editor";
+import { ProjectCostEditor, sumProjectCosts, toCostPayload, type ProjectCost } from "@/components/finance/project-cost-editor";
+import { EmployeeFundPlanner, planAmount, toPlanPayload, EXCEEDS_MSG, type EmployeePlan } from "@/components/finance/employee-fund-planner";
 
 type Installment = { label: string; amount: number; due_date: string };
 type Stakeholder = { user_id: string; role: StakeholderRole; percent: number };
@@ -58,6 +59,8 @@ function NewInvoicePage() {
     { label: "Advance", amount: 0, due_date: new Date().toISOString().slice(0, 10) },
   ]);
   const [projectCosts, setProjectCosts] = useState<ProjectCost[]>([]);
+  const [plans, setPlans] = useState<EmployeePlan[]>([]);
+  const [empPool, setEmpPool] = useState(0);
   const [stakeholders, setStakeholders] = useState<Stakeholder[]>([
     { user_id: "", role: "company", percent: 100 },
   ]);
@@ -106,9 +109,8 @@ function NewInvoicePage() {
         notes: notes.trim() || null,
         installments: installments.map((i) => ({ label: i.label.trim(), amount: Number(i.amount), due_date: i.due_date })),
         stakeholders: [],
-        project_costs: projectCosts
-          .filter((c) => c.name.trim() || Number(c.amount) > 0)
-          .map((c) => ({ name: c.name.trim(), amount: Number(c.amount) || 0, description: c.description.trim() || null })),
+        project_costs: toCostPayload(projectCosts),
+        employee_plans: toPlanPayload(plans),
       }});
     },
     onSuccess: (inv) => {
@@ -130,8 +132,9 @@ function NewInvoicePage() {
     if (installments.some((i) => !(Number(i.amount) > 0))) out.push("Every installment amount must be greater than 0");
     if (projectCosts.some((c) => !c.name.trim())) out.push("Every project cost needs a name");
     if (costSum > totalNum + 0.01) out.push("Total project cost cannot exceed the invoice total");
+    if (plans.reduce((a, p) => a + planAmount(p, empPool), 0) > empPool + 0.005) out.push(EXCEEDS_MSG);
     return out;
-  }, [customerId, title, totalNum, instSum, installments, projectCosts, costSum]);
+  }, [customerId, title, totalNum, instSum, installments, projectCosts, costSum, plans, empPool]);
 
   const canSubmit = issues.length === 0;
 
@@ -279,11 +282,7 @@ function NewInvoicePage() {
       </section>
 
       <section className="rounded-md border border-border bg-card p-5">
-        <h3 className="text-[13px] font-semibold">Fund Ledger split</h3>
-        <p className="mt-1 text-[11.5px] text-muted-foreground">
-          After project cost ({currency} {netAmount.toFixed(2)} net), each paid installment is split across the 9 company funds automatically.
-          Employee payouts are assigned later from the invoice's Employee Fund share — no separate stakeholder split is needed.
-        </p>
+        <EmployeeFundPlanner net={netAmount} currency={currency} projectId={projectId || null} plans={plans} onChange={setPlans} onPoolChange={(p) => p !== empPool && setEmpPool(p)} />
       </section>
 
       <section className="rounded-md border border-border bg-card p-5">
