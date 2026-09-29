@@ -1,0 +1,1 @@
+ALTER FUNCTION public.orphan_expense_receipts(int) SECURITY INVOKER;
