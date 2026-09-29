@@ -722,6 +722,11 @@ export const deleteInvoice = createServerFn({ method: "POST" })
   .inputValidator((d: { id: string }) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     await ensureFinanceAdmin(context.supabase as never, context.userId);
+    // Fund Ledger history is append-only: an invoice whose payments were split into funds cannot be deleted.
+    const { data: allocs } = await (context.supabase as never as { from: (t: string) => { select: (c: string) => { eq: (k: string, v: string) => { limit: (n: number) => Promise<{ data: unknown[] | null }> } } } })
+      .from("installment_allocations").select("id").eq("invoice_id", data.id).limit(1);
+    if ((allocs ?? []).length)
+      throw new Error("এই ইনভয়েসের টাকা ইতিমধ্যে ফান্ডে ভাগ হয়েছে, তাই ডিলিট করা যাবে না। ফান্ডের হিসাবের ইতিহাস মুছে ফেলা যায় না — টাকা ফেরত নিতে Installment Revert বা Finance Allocation-এ Reverse ব্যবহার করুন।");
     // Snapshot invoice details BEFORE deletion so we can log a meaningful
     // "cancelled" event on the underlying lead.
     const { data: inv } = await context.supabase
