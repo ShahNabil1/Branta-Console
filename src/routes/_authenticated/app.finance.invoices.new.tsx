@@ -105,7 +105,7 @@ function NewInvoicePage() {
         unit_price: Number(unitPrice) || 0,
         notes: notes.trim() || null,
         installments: installments.map((i) => ({ label: i.label.trim(), amount: Number(i.amount), due_date: i.due_date })),
-        stakeholders: stakeholders.map((s) => ({ user_id: s.user_id, role: s.role, percent: Number(s.percent) })),
+        stakeholders: [],
         project_costs: projectCosts
           .filter((c) => c.name.trim() || Number(c.amount) > 0)
           .map((c) => ({ name: c.name.trim(), amount: Number(c.amount) || 0, description: c.description.trim() || null })),
@@ -130,11 +130,8 @@ function NewInvoicePage() {
     if (installments.some((i) => !(Number(i.amount) > 0))) out.push("Every installment amount must be greater than 0");
     if (projectCosts.some((c) => !c.name.trim())) out.push("Every project cost needs a name");
     if (costSum > totalNum + 0.01) out.push("Total project cost cannot exceed the invoice total");
-    if (Math.abs(pctSum - 100) >= 0.01) out.push(`Stakeholder split must total 100% (currently ${pctSum.toFixed(2)}%)`);
-    if (stakeholders.some((s) => !s.user_id)) out.push("Every stakeholder row needs an employee selected");
-    if (stakeholders.some((s) => !(Number(s.percent) > 0))) out.push("Every stakeholder percent must be greater than 0");
     return out;
-  }, [customerId, title, totalNum, instSum, installments, pctSum, stakeholders, projectCosts, costSum]);
+  }, [customerId, title, totalNum, instSum, installments, projectCosts, costSum]);
 
   const canSubmit = issues.length === 0;
 
@@ -282,51 +279,11 @@ function NewInvoicePage() {
       </section>
 
       <section className="rounded-md border border-border bg-card p-5">
-        <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-[13px] font-semibold">Stakeholders (revenue split)</h3>
-          <div className="text-[11.5px] text-muted-foreground">
-            Total: <span className={cn("font-mono font-semibold", Math.abs(pctSum - 100) < 0.01 ? "text-emerald-600" : "text-rose-600")}>
-              {pctSum.toFixed(2)}%
-            </span>
-          </div>
-        </div>
-        <p className="mb-2 text-[11px] text-muted-foreground">
-          Percentages apply to the net distributable amount ({currency} {netAmount.toFixed(2)}), not the invoice total.<br />
-          Roles: <b>outreach</b> = brought the lead · <b>lead_closer</b> = confirmed the deal · <b>worker</b> = does the work · <b>company</b> = Branta cut. Must sum to 100.
+        <h3 className="text-[13px] font-semibold">Fund Ledger split</h3>
+        <p className="mt-1 text-[11.5px] text-muted-foreground">
+          After project cost ({currency} {netAmount.toFixed(2)} net), each paid installment is split across the 9 company funds automatically.
+          Employee payouts are assigned later from the invoice's Employee Fund share — no separate stakeholder split is needed.
         </p>
-        <div className="space-y-2">
-          {stakeholders.map((s, idx) => (
-            <div key={idx} className="grid grid-cols-12 gap-2 rounded-sm border border-border bg-background p-2">
-              <div className="col-span-5">
-                <SearchableSelect
-                  items={employeeItems}
-                  value={s.user_id}
-                  onChange={(v) => setStakeholders(stakeholders.map((x, k) => k === idx ? { ...x, user_id: v } : x))}
-                  placeholder="— Employee —"
-                  emptyText="No employee matches"
-                  className="h-8 text-[12.5px]"
-                />
-              </div>
-              <select value={s.role} onChange={(e) => setStakeholders(stakeholders.map((x, k) => k === idx ? { ...x, role: e.target.value as StakeholderRole } : x))}
-                className="col-span-4 h-8 rounded-sm border border-input bg-background px-2 text-[12.5px] capitalize">
-                <option value="outreach">Outreach</option>
-                <option value="lead_closer">Lead closer</option>
-                <option value="worker">Worker</option>
-                <option value="company">Company</option>
-              </select>
-              <Input type="number" value={s.percent} onChange={(e) => setStakeholders(stakeholders.map((x, k) => k === idx ? { ...x, percent: Number(e.target.value) } : x))}
-                className="col-span-2 h-8 rounded-sm font-mono text-[12.5px]" placeholder="%" />
-              <button onClick={() => setStakeholders(stakeholders.filter((_, k) => k !== idx))}
-                className="col-span-1 grid place-items-center rounded-sm text-rose-600 hover:bg-rose-50" disabled={stakeholders.length === 1}>
-                <Trash2 className="size-3.5" />
-              </button>
-            </div>
-          ))}
-          <Button variant="outline" size="sm" onClick={() => setStakeholders([...stakeholders, { user_id: "", role: "worker", percent: 0 }])}
-            className="h-7 rounded-sm text-[11.5px]">
-            <Plus className="mr-1 size-3" /> Add stakeholder
-          </Button>
-        </div>
       </section>
 
       <section className="rounded-md border border-border bg-card p-5">

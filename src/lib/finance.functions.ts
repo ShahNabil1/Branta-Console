@@ -249,7 +249,7 @@ const CreateInvoiceIn = z.object({
   notes: z.string().trim().max(4000).nullable().optional(),
   internal_notes: z.string().trim().max(4000).nullable().optional(),
   installments: z.array(InstallmentIn).min(1).max(24),
-  stakeholders: z.array(StakeholderIn).min(1).max(20),
+  stakeholders: z.array(StakeholderIn).max(20).default([]),
   project_costs: z.array(ProjectCostIn).max(30).optional().default([]),
 });
 const UpdateInvoiceIn = CreateInvoiceIn.extend({
@@ -438,9 +438,7 @@ export const createInvoice = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await ensureFinanceAdmin(context.supabase as never, context.userId);
 
-    const pctSum = data.stakeholders.reduce((a, s) => a + s.percent, 0);
-    if (Math.abs(pctSum - 100) > 0.01)
-      throw new Error(`Stakeholder percentages must sum to 100 (got ${pctSum})`);
+    // New invoices are Fund Ledger invoices: no stakeholder revenue split (employees are paid from the Employee Fund).
     const instSum = data.installments.reduce((a, i) => a + i.amount, 0);
     if (Math.abs(instSum - data.total_amount) > 0.01)
       throw new Error(`Installment amounts must sum to total (got ${instSum})`);
@@ -488,18 +486,7 @@ export const createInvoice = createServerFn({ method: "POST" })
       if (cErr) throw new Error(cErr.message);
     }
 
-    // Stakeholders first (so payout sync trigger has percent info when installments insert)
-    const { error: sErr } = await context.supabase.from("invoice_stakeholders").insert(
-      data.stakeholders.map((s) => ({
-        invoice_id: invoiceId,
-        user_id: s.user_id,
-        role: s.role,
-        percent: s.percent,
-        note: s.note ?? null,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      })) as any,
-    );
-    if (sErr) throw new Error(sErr.message);
+    // Fund Ledger invoice: no stakeholder rows are created.
 
     const { error: iErr } = await context.supabase.from("invoice_installments").insert(
       data.installments.map((i, idx) => ({
@@ -584,9 +571,13 @@ export const updateInvoice = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => UpdateInvoiceIn.parse(data))
   .handler(async ({ data, context }) => {
     await ensureFinanceAdmin(context.supabase as never, context.userId);
-    const pctSum = data.stakeholders.reduce((a, s) => a + s.percent, 0);
-    if (Math.abs(pctSum - 100) > 0.01)
-      throw new Error(`Stakeholder percentages must sum to 100 (got ${pctSum})`);
+    const { data: flRow } = await context.supabase.from("invoices").select("fund_ledger_mode").eq("id", data.id).maybeSingle();
+    const fundLedger = !!(flRow as { fund_ledger_mode?: boolean } | null)?.fund_ledger_mode;
+    if (!fundLedger) {
+      const pctSum = data.stakeholders.reduce((a, s) => a + s.percent, 0);
+      if (Math.abs(pctSum - 100) > 0.01)
+        throw new Error(`Stakeholder percentages must sum to 100 (got ${pctSum})`);
+    }
     const instSum = data.installments.reduce((a, i) => a + i.amount, 0);
     if (Math.abs(instSum - data.total_amount) > 0.01)
       throw new Error(`Installment amounts must sum to total (got ${instSum})`);
@@ -637,10 +628,12 @@ export const updateInvoice = createServerFn({ method: "POST" })
       if (cErr) throw new Error(cErr.message);
     }
 
-    const { error: sErr } = await context.supabase.from("invoice_stakeholders").insert(
-      data.stakeholders.map((s) => ({ invoice_id: data.id, user_id: s.user_id, role: s.role, percent: s.percent, note: s.note ?? null })) as never,
-    );
-    if (sErr) throw new Error(sErr.message);
+    if (!fundLedger) {
+      const { error: sErr } = await context.supabase.from("invoice_stakeholders").insert(
+        data.stakeholders.map((s) => ({ invoice_id: data.id, user_id: s.user_id, role: s.role, percent: s.percent, note: s.note ?? null })) as never,
+      );
+      if (sErr) throw new Error(sErr.message);
+    }
     const { error: iErr } = await context.supabase.from("invoice_installments").insert(
       data.installments.map((i, idx) => ({ invoice_id: data.id, sequence: idx + 1, label: i.label, amount: i.amount, due_date: i.due_date })) as never,
     );

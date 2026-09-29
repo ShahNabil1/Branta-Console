@@ -638,6 +638,7 @@ export type Database = {
       }
       employee_fund_payments: {
         Row: {
+          allocation_id: string | null
           amount: number
           cancel_reason: string | null
           created_at: string
@@ -659,6 +660,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          allocation_id?: string | null
           amount: number
           cancel_reason?: string | null
           created_at?: string
@@ -680,6 +682,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          allocation_id?: string | null
           amount?: number
           cancel_reason?: string | null
           created_at?: string
@@ -701,6 +704,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "employee_fund_payments_allocation_id_fkey"
+            columns: ["allocation_id"]
+            isOneToOne: false
+            referencedRelation: "installment_allocations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "employee_fund_payments_invoice_id_fkey"
             columns: ["invoice_id"]
@@ -2630,6 +2640,7 @@ export type Database = {
           discount_amount: number
           due_date: string | null
           ends_on: string | null
+          fund_ledger_mode: boolean
           id: string
           internal_notes: string | null
           notes: string | null
@@ -2655,6 +2666,7 @@ export type Database = {
           discount_amount?: number
           due_date?: string | null
           ends_on?: string | null
+          fund_ledger_mode?: boolean
           id?: string
           internal_notes?: string | null
           notes?: string | null
@@ -2680,6 +2692,7 @@ export type Database = {
           discount_amount?: number
           due_date?: string | null
           ends_on?: string | null
+          fund_ledger_mode?: boolean
           id?: string
           internal_notes?: string | null
           notes?: string | null
@@ -4289,9 +4302,22 @@ export type Database = {
         Args: { _schema: string; _table: string }
         Returns: undefined
       }
+      assign_allocation_employee_payouts: {
+        Args: {
+          _allocation_id: string
+          _mode: string
+          _note: string
+          _rows: Json
+        }
+        Returns: number
+      }
       can_manage_task: {
         Args: { _task_id: string; _user: string }
         Returns: boolean
+      }
+      correct_allocation_base: {
+        Args: { _allocation_id: string; _reason: string }
+        Returns: string
       }
       create_expense_atomic: {
         Args: {
@@ -4369,6 +4395,14 @@ export type Database = {
           _version_id: string
         }
         Returns: string
+      }
+      installment_project_cost_share: {
+        Args: {
+          _exclude_alloc?: string
+          _installment_id: string
+          _received: number
+        }
+        Returns: number
       }
       is_finance_admin: { Args: { _user_id?: string }; Returns: boolean }
       is_lead_owner: { Args: { _lead_id: string }; Returns: boolean }
