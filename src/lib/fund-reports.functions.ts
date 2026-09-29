@@ -196,7 +196,7 @@ export const getFundDetail = createServerFn({ method: "POST" })
     const toList = (m: Map<string, number>) => [...m.entries()].map(([label, amount]) => ({ label, amount: r2(amount) })).filter((x) => Math.abs(x.amount) > 0.001).sort((a, b) => b.amount - a.amount);
 
     // Employee special view
-    let employees: any = null;
+    let employees: { rows: { employee_id: string; name: string; committed: number; paid: number; project: number; salary: number; bonus: number; outstanding: number }[]; byProject: { project_id: string; project: string; amount: number }[] } | null = null;
     if (bal.code === "employee") {
       let eq = sb.from("employee_fund_payments").select("employee_id,project_id,payment_type,amount,status,created_at,paid_at").in("status", ["committed", "paid"]);
       if (data.from) eq = eq.gte("created_at", startIso(data.from));
@@ -224,7 +224,7 @@ export const getFundDetail = createServerFn({ method: "POST" })
 
     const o = opts.data ?? [];
     const om = await nameMaps(sb, o.slice(0, 2000));
-    const uniq = (k: string, map: Map<any, any>, lab: (x: any) => string) => [...new Set(o.map((x: any) => x[k]).filter(Boolean))].map((id) => ({ id, label: map.get(id) ? lab(map.get(id)) : String(id).slice(0, 8) }));
+    const uniq = (k: string, map: Map<any, any>, lab: (x: any) => string) => ([...new Set(o.map((x: any) => x[k]).filter(Boolean))] as string[]).map((id) => ({ id, label: map.get(id) ? lab(map.get(id)) : id.slice(0, 8) }));
     return {
       fund: {
         fund_id: fundId, code: bal.code, name: bal.name, kind: bal.kind, is_active: bal.is_active, percent,
@@ -235,7 +235,7 @@ export const getFundDetail = createServerFn({ method: "POST" })
       },
       rows, totals, sources, usage: toList(usage), vendors: toList(vendors), employees,
       options: {
-        types: [...new Set(o.map((x: any) => x.transaction_type))].map((t: any) => ({ id: t, label: t.replace(/_/g, " ") })),
+        types: ([...new Set(o.map((x: any) => x.transaction_type))] as string[]).map((t) => ({ id: t, label: t.replace(/_/g, " ") })),
         projects: uniq("project_id", om.p, (x) => x.title), clients: uniq("customer_id", om.c, (x) => x.company || x.name),
         employees: uniq("employee_id", om.pr, (x) => x.full_name), invoices: uniq("invoice_id", om.i, (x) => x.slug),
       },
@@ -499,7 +499,7 @@ export const getReconciliation = createServerFn({ method: "GET" })
       sb.from("fund_loans").select("principal_amount,repaid_amount,status").in("status", ["open", "partially_repaid"]),
     ]);
     const paid = ((insts.data ?? []) as any[]).filter((s) => s.invoices.currency === "BDT");
-    const allocated = new Map((allocs.data ?? []).map((a: any) => [a.installment_id, n(a.deduction_total)]));
+    const allocated = new Map<string, number>((allocs.data ?? []).map((a: any) => [a.installment_id as string, n(a.deduction_total)]));
     const failed = new Map((fails.data ?? []).map((x: any) => [x.installment_id, x]));
     const amt = (s: any) => n(s.paid_amount) || n(s.amount);
     const shape = (s: any, extra: any = {}) => ({ installment_id: s.id, invoice_slug: s.invoices.slug, invoice_title: s.invoices.title, client: s.invoices.customers?.company || s.invoices.customers?.name, label: s.label || `Installment ${s.sequence}`, paid_at: s.paid_at, amount: amt(s), ...extra });
