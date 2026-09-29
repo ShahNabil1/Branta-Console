@@ -19,7 +19,6 @@ import {
   Receipt,
   PiggyBank,
   ArrowLeftRight,
-  Palette,
   Bell,
   RadioTower,
   Menu,
