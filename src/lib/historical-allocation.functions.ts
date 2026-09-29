@@ -137,7 +137,7 @@ export const previewHistorical = createServerFn({ method: "POST" })
         amount: r2(x.amount_type === "percent" ? (r.amount * n(x.value)) / 100 : n(x.value)),
       }));
       const deductions = it.deductions ?? recorded;
-      const dedTotal = r2(deductions.reduce((a, x) => a + x.amount, 0));
+      const dedTotal = r2(deductions.reduce((a: number, x: { amount: number }) => a + x.amount, 0));
       if (dedTotal > r.amount) warnings.push("Deductions exceed received amount");
       if (!it.deductions && !recorded.length) warnings.push("No deduction evidence on record — defaults to no deduction; confirm");
       const dist = r2(Math.max(0, r.amount - dedTotal));
