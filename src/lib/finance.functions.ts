@@ -2422,3 +2422,13 @@ export const revokeManualEmployeePayout = createServerFn({ method: "POST" })
 
     throw new Error("This payout can no longer be revoked");
   });
+
+export const getInvoiceDeleteBlockers = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string }) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: blk, error } = await (context.supabase as never as { rpc: (f: string, a: object) => Promise<{ data: unknown; error: { message: string; code?: string } | null }> })
+      .rpc("invoice_delete_blockers", { _invoice_id: data.id });
+    if (error) throw dbError(error);
+    return (blk ?? {}) as Record<string, number>;
+  });

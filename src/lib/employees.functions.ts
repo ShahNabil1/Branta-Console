@@ -215,6 +215,16 @@ export const deleteEmployee = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
     );
+    type Rpc = { rpc: (f: string, a: object) => Promise<{ data: unknown; error: { message: string; code?: string } | null }> };
+    const sbr = context.supabase as never as Rpc;
+    // Pre-flight: permanent delete only for an employee with no business history.
+    const { data: blk, error: bErr } = await sbr.rpc("employee_delete_blockers", { _user_id: data.userId });
+    if (bErr) throw dbError(bErr);
+    const blockers = (blk ?? {}) as Record<string, number>;
+    if (Object.keys(blockers).length === 0) {
+      const { error: delErr } = await supabaseAdmin.auth.admin.deleteUser(data.userId);
+      if (!delErr) return { ok: true as const, result: "deleted" as const, blockers };
+    }
     // Deactivate instead of deleting: finance, payout, task and audit history keep pointing at this person.
     const { error } = await (context.supabase as never as { rpc: (f: string, a: object) => Promise<{ error: { message: string; code?: string } | null }> })
       .rpc("deactivate_employee", { _user_id: data.userId, _reason: "Removed from employee directory" });
@@ -224,7 +234,7 @@ export const deleteEmployee = createServerFn({ method: "POST" })
       await supabaseAdmin.auth.admin.updateUserById(data.userId, { ban_duration: "876000h" });
       await supabaseAdmin.auth.admin.signOut(data.userId);
     } catch { /* service key missing or auth call failed; roles are already removed */ }
-    return { ok: true as const };
+    return { ok: true as const, result: "deactivated" as const, blockers };
   });
 
 export const syncRecentEmailEvents = createServerFn({ method: "POST" })
@@ -254,4 +264,29 @@ export const checkIsAdmin = createServerFn({ method: "GET" })
       isSuperAdmin: !!su.data,
       isAdmin: !!su.data || !!ad.data,
     };
+  });
+
+export const getEmployeeDeleteBlockers = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ userId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { data: blk, error } = await (context.supabase as never as { rpc: (f: string, a: object) => Promise<{ data: unknown; error: { message: string; code?: string } | null }> })
+      .rpc("employee_delete_blockers", { _user_id: data.userId });
+    if (error) throw dbError(error);
+    return (blk ?? {}) as Record<string, number>;
+  });
+
+export const reactivateEmployee = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ userId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const { error } = await (context.supabase as never as { rpc: (f: string, a: object) => Promise<{ error: { message: string; code?: string } | null }> })
+      .rpc("reactivate_employee", { _user_id: data.userId });
+    if (error) throw dbError(error);
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      await supabaseAdmin.auth.admin.updateUserById(data.userId, { ban_duration: "none" });
+    } catch { /* ignore */ }
+    return { ok: true as const };
   });
