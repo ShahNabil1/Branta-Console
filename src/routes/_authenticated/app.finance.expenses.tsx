@@ -286,6 +286,8 @@ function ExpensesPage() {
       linked_invoice_id: r.linked_invoice_id ?? "",
       is_project_cost: !!r.is_project_cost,
       request_purpose: r.request_purpose ?? "",
+      paying_fund_id: "",
+      fund_exception_reason: "",
     });
     setItems((r.items ?? []).map((i) => ({
       name: i.name,
