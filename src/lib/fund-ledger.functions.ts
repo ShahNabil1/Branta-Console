@@ -369,7 +369,7 @@ export const getInvoiceEmployeeEarnings = createServerFn({ method: "GET" })
         : statuses.some((s: string) => s.startsWith("wallet:")) ? "Partly in wallet" : statuses.includes("committed") || statuses.includes("approved") ? "Committed (not yet available)" : "Draft (not in wallet)";
       const p: any = pm.get(id);
       return {
-        employeeId: id, name: (p?.full_name || p?.email || "—") as string, avatar: (p?.avatar_url ?? null) as string | null, code: (p?.employee_code ?? null) as string | null,
+        employeeId: id, name: (p?.full_name || p?.legal_full_name || "—") as string, avatar: (p?.avatar_url ?? null) as string | null, code: (p?.employee_code ?? null) as string | null,
         planned: Math.round(planned * 100) / 100, earned: Math.round(earned * 100) / 100, inWallet: Math.round(inWallet * 100) / 100,
         pending: Math.max(Math.round((planned - earned) * 100) / 100, 0), walletStatus,
       };
