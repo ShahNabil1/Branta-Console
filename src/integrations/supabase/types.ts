@@ -636,6 +636,108 @@ export type Database = {
         }
         Relationships: []
       }
+      employee_fund_payments: {
+        Row: {
+          amount: number
+          cancel_reason: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          employee_id: string
+          id: string
+          invoice_id: string | null
+          invoice_payout_id: string | null
+          notes: string | null
+          paid_at: string | null
+          payment_method: string | null
+          payment_type: string
+          project_id: string | null
+          salary_slip_id: string | null
+          status: string
+          task_id: string | null
+          transaction_reference: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          cancel_reason?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          employee_id: string
+          id?: string
+          invoice_id?: string | null
+          invoice_payout_id?: string | null
+          notes?: string | null
+          paid_at?: string | null
+          payment_method?: string | null
+          payment_type: string
+          project_id?: string | null
+          salary_slip_id?: string | null
+          status?: string
+          task_id?: string | null
+          transaction_reference?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          cancel_reason?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          employee_id?: string
+          id?: string
+          invoice_id?: string | null
+          invoice_payout_id?: string | null
+          notes?: string | null
+          paid_at?: string | null
+          payment_method?: string | null
+          payment_type?: string
+          project_id?: string | null
+          salary_slip_id?: string | null
+          status?: string
+          task_id?: string | null
+          transaction_reference?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_fund_payments_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_fund_payments_invoice_payout_id_fkey"
+            columns: ["invoice_payout_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_payouts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_fund_payments_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "client_projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_fund_payments_salary_slip_id_fkey"
+            columns: ["salary_slip_id"]
+            isOneToOne: false
+            referencedRelation: "salary_slips"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_fund_payments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "client_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       expense_activity_logs: {
         Row: {
           action: string
@@ -1170,6 +1272,188 @@ export type Database = {
           {
             foreignKeyName: "fund_ledger_fund_id_fkey"
             columns: ["fund_id"]
+            isOneToOne: false
+            referencedRelation: "fund_balances"
+            referencedColumns: ["fund_id"]
+          },
+        ]
+      }
+      fund_loan_repayments: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          id: string
+          loan_id: string
+          notes: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          loan_id: string
+          notes?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          loan_id?: string
+          notes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fund_loan_repayments_loan_id_fkey"
+            columns: ["loan_id"]
+            isOneToOne: false
+            referencedRelation: "fund_loans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fund_loans: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          from_fund_id: string
+          id: string
+          linked_expense_id: string | null
+          principal_amount: number
+          reason: string
+          repaid_amount: number
+          status: string
+          to_fund_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          from_fund_id: string
+          id?: string
+          linked_expense_id?: string | null
+          principal_amount: number
+          reason: string
+          repaid_amount?: number
+          status?: string
+          to_fund_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          from_fund_id?: string
+          id?: string
+          linked_expense_id?: string | null
+          principal_amount?: number
+          reason?: string
+          repaid_amount?: number
+          status?: string
+          to_fund_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fund_loans_from_fund_id_fkey"
+            columns: ["from_fund_id"]
+            isOneToOne: false
+            referencedRelation: "finance_funds"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fund_loans_from_fund_id_fkey"
+            columns: ["from_fund_id"]
+            isOneToOne: false
+            referencedRelation: "fund_balances"
+            referencedColumns: ["fund_id"]
+          },
+          {
+            foreignKeyName: "fund_loans_linked_expense_id_fkey"
+            columns: ["linked_expense_id"]
+            isOneToOne: false
+            referencedRelation: "expenses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fund_loans_to_fund_id_fkey"
+            columns: ["to_fund_id"]
+            isOneToOne: false
+            referencedRelation: "finance_funds"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fund_loans_to_fund_id_fkey"
+            columns: ["to_fund_id"]
+            isOneToOne: false
+            referencedRelation: "fund_balances"
+            referencedColumns: ["fund_id"]
+          },
+        ]
+      }
+      fund_transfers: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          from_fund_id: string
+          id: string
+          linked_expense_id: string | null
+          reason: string
+          to_fund_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          from_fund_id: string
+          id?: string
+          linked_expense_id?: string | null
+          reason: string
+          to_fund_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          from_fund_id?: string
+          id?: string
+          linked_expense_id?: string | null
+          reason?: string
+          to_fund_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fund_transfers_from_fund_id_fkey"
+            columns: ["from_fund_id"]
+            isOneToOne: false
+            referencedRelation: "finance_funds"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fund_transfers_from_fund_id_fkey"
+            columns: ["from_fund_id"]
+            isOneToOne: false
+            referencedRelation: "fund_balances"
+            referencedColumns: ["fund_id"]
+          },
+          {
+            foreignKeyName: "fund_transfers_linked_expense_id_fkey"
+            columns: ["linked_expense_id"]
+            isOneToOne: false
+            referencedRelation: "expenses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fund_transfers_to_fund_id_fkey"
+            columns: ["to_fund_id"]
+            isOneToOne: false
+            referencedRelation: "finance_funds"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fund_transfers_to_fund_id_fkey"
+            columns: ["to_fund_id"]
             isOneToOne: false
             referencedRelation: "fund_balances"
             referencedColumns: ["fund_id"]
@@ -3149,6 +3433,51 @@ export type Database = {
         }
         Relationships: []
       }
+      owner_withdrawals: {
+        Row: {
+          amount: number
+          approved_by: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          payment_method: string | null
+          reason: string
+          recipient_name: string
+          recipient_user_id: string | null
+          transaction_reference: string | null
+          withdrawn_on: string
+        }
+        Insert: {
+          amount: number
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          payment_method?: string | null
+          reason: string
+          recipient_name: string
+          recipient_user_id?: string | null
+          transaction_reference?: string | null
+          withdrawn_on?: string
+        }
+        Update: {
+          amount?: number
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          payment_method?: string | null
+          reason?: string
+          recipient_name?: string
+          recipient_user_id?: string | null
+          transaction_reference?: string | null
+          withdrawn_on?: string
+        }
+        Relationships: []
+      }
       passkey_challenges: {
         Row: {
           branta_local: string | null
@@ -3748,13 +4077,17 @@ export type Database = {
       fund_balances: {
         Row: {
           allocation_total: number | null
+          borrowed: number | null
           code: string | null
+          committed: number | null
           display_order: number | null
           fund_id: string | null
           is_active: boolean | null
           kind: string | null
           ledger_balance: number | null
+          lent: number | null
           name: string | null
+          paid_total: number | null
           spent_total: number | null
           total_credits: number | null
           total_debits: number | null
@@ -3774,6 +4107,10 @@ export type Database = {
       }
     }
     Functions: {
+      _fund_guard: {
+        Args: { _amount: number; _fund: string }
+        Returns: undefined
+      }
       allocate_installment: {
         Args: { _actor?: string; _installment_id: string; _source?: string }
         Returns: string
@@ -3785,6 +4122,50 @@ export type Database = {
       can_manage_task: {
         Args: { _task_id: string; _user: string }
         Returns: boolean
+      }
+      employee_payment_set_status: {
+        Args: {
+          _id: string
+          _method?: string
+          _reason?: string
+          _ref?: string
+          _status: string
+        }
+        Returns: undefined
+      }
+      expense_fund_debit: {
+        Args: { _exceptional_reason?: string; _expense: string; _fund: string }
+        Returns: undefined
+      }
+      fund_available: { Args: { _fund_id: string }; Returns: number }
+      fund_committed: { Args: { _fund_id: string }; Returns: number }
+      fund_loan_cancel: {
+        Args: { _loan: string; _reason: string }
+        Returns: undefined
+      }
+      fund_loan_create: {
+        Args: {
+          _amount: number
+          _expense?: string
+          _from: string
+          _reason: string
+          _to: string
+        }
+        Returns: string
+      }
+      fund_loan_repay: {
+        Args: { _amount: number; _loan: string; _notes?: string }
+        Returns: undefined
+      }
+      fund_transfer: {
+        Args: {
+          _amount: number
+          _expense?: string
+          _from: string
+          _reason: string
+          _to: string
+        }
+        Returns: string
       }
       generate_employee_code: { Args: never; Returns: string }
       has_permission: {
@@ -3804,6 +4185,19 @@ export type Database = {
       is_task_assignee: {
         Args: { _task_id: string; _user: string }
         Returns: boolean
+      }
+      owner_withdraw: {
+        Args: {
+          _amount: number
+          _date: string
+          _method: string
+          _name: string
+          _notes: string
+          _reason: string
+          _ref: string
+          _user: string
+        }
+        Returns: string
       }
       purge_expired_expenses: { Args: never; Returns: number }
       retry_installment_allocation: {

@@ -32,6 +32,8 @@ import { ExportMenu } from "@/components/finance/export-menu";
 import { ReasonDialog } from "@/components/finance/reason-dialog";
 import { ExpenseLogsDialog } from "@/components/finance/expense-logs-dialog";
 import { logExpenseAction } from "@/lib/expense-logs.functions";
+import { FundSelect, InsufficientFundDialog, useFundOptions } from "@/components/finance/fund-move-dialog";
+import { parseInsufficient } from "@/lib/fund-ops.functions";
 import { defaultFilters, type ReportFilters } from "@/lib/report-filters";
 import { Loader2, Plus, Trash2, Receipt, Eye, Download, X, FileText, Printer, Stamp, Pencil, Link2, History } from "lucide-react";
 
@@ -191,6 +193,8 @@ function ExpensesPage() {
     linked_invoice_id: "",
     is_project_cost: false,
     request_purpose: "",
+    paying_fund_id: "",
+    fund_exception_reason: "",
   };
 
   // Advanced filtering — same model the export uses, so what you see is what
@@ -282,6 +286,8 @@ function ExpensesPage() {
       linked_invoice_id: r.linked_invoice_id ?? "",
       is_project_cost: !!r.is_project_cost,
       request_purpose: r.request_purpose ?? "",
+      paying_fund_id: "",
+      fund_exception_reason: "",
     });
     setItems((r.items ?? []).map((i) => ({
       name: i.name,
@@ -408,6 +414,9 @@ function ExpensesPage() {
     finally { setBusyId(null); }
   };
 
+  const [shortfall, setShortfall] = useState<{ required: number; available: number; shortfall: number } | null>(null);
+  const fundOpts = useFundOptions();
+  const selectedFund = (fundOpts.data ?? []).find((x) => x.id === form.paying_fund_id);
   const add = useMutation({
     mutationFn: async () => {
       setUploading(true);
@@ -440,6 +449,8 @@ function ExpensesPage() {
         linked_invoice_id: form.linked_invoice_id || null,
         is_project_cost: !!form.linked_invoice_id && form.is_project_cost,
         request_purpose: form.request_purpose.trim() || null,
+        paying_fund_id: editingId ? null : form.paying_fund_id || null,
+        fund_exception_reason: form.fund_exception_reason.trim() || null,
         items: items
           .filter((i) => i.name.trim())
           .map((i) => ({
@@ -469,7 +480,12 @@ function ExpensesPage() {
       setForm(emptyForm);
       void q.refetch();
     },
-    onError: (e) => { setUploading(false); toast.error((e as Error).message); },
+    onError: (e) => {
+      setUploading(false);
+      const info = parseInsufficient((e as Error).message);
+      if (info) setShortfall(info);
+      else toast.error((e as Error).message.replace("PROFIT_FUND_PROTECTED: ", "Profit Fund is protected — "));
+    },
   });
 
   if (isAdmin.isLoading) return <div className="grid h-64 place-items-center"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>;
@@ -842,6 +858,25 @@ function ExpensesPage() {
                   </div>
                 </div>
               </div>
+              {!editingId && (
+                <div className="rounded-sm border border-border bg-muted/30 p-2.5">
+                  <label className="text-[11px] font-semibold uppercase text-muted-foreground">Paying fund (Fund Ledger · optional)</label>
+                  <div className="mt-1">
+                    <FundSelect value={form.paying_fund_id} onChange={(v) => setForm({ ...form, paying_fund_id: v })} funds={fundOpts.data ?? []} placeholder="— Not charged to a fund —" />
+                  </div>
+                  {selectedFund && Number(form.amount) > selectedFund.available && (
+                    <p className="mt-1 text-[11.5px] font-medium text-destructive">Amount is above this fund's available balance.</p>
+                  )}
+                  {selectedFund?.code === "profit" && (
+                    <div className="mt-2 rounded-sm border border-rose-300 bg-rose-50 p-2 text-[12px] text-rose-800">
+                      Company Profit Fund is protected. Normal expenses should not use it — enter an exceptional reason to continue.
+                      <Input className="mt-1 h-8" value={form.fund_exception_reason} onChange={(e) => setForm({ ...form, fund_exception_reason: e.target.value })} placeholder="Exceptional reason (min 5 chars)" />
+                    </div>
+                  )}
+                  {form.paying_fund_id && form.currency !== "BDT" && <p className="mt-1 text-[11.5px] text-destructive">Fund-backed expenses must be in BDT.</p>}
+                </div>
+              )}
+              <InsufficientFundDialog info={shortfall} fundId={form.paying_fund_id} fundName={selectedFund?.name} onClose={() => { setShortfall(null); void fundOpts.refetch(); }} />
               <div className="rounded-sm border border-border bg-muted/30 p-2.5">
                 <label className="text-[11px] font-semibold uppercase text-muted-foreground">Linked invoice / project</label>
                 <div className="mt-1">

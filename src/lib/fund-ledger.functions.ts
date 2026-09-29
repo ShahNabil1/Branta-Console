@@ -11,7 +11,7 @@ async function assertFinance(ctx: { supabase: any; userId: string }) {
 export type FundBalance = {
   fund_id: string; code: string; name: string; kind: string; is_active: boolean; display_order: number;
   ledger_balance: number; allocation_total: number; spent_total: number;
-  committed: number; borrowed: number; lent: number; available: number; percent: number;
+  committed: number; borrowed: number; lent: number; available: number; percent: number; paid_total: number;
 };
 
 export const getFundDashboard = createServerFn({ method: "GET" })
@@ -35,7 +35,9 @@ export const getFundDashboard = createServerFn({ method: "GET" })
     const funds: FundBalance[] = (bal.data ?? []).map((b: any) => ({
       ...b,
       ledger_balance: Number(b.ledger_balance), allocation_total: Number(b.allocation_total), spent_total: Number(b.spent_total),
-      committed: 0, borrowed: 0, lent: 0, available: Number(b.ledger_balance), percent: pct[b.fund_id] ?? 0,
+      committed: Number(b.committed ?? 0), borrowed: Number(b.borrowed ?? 0), lent: Number(b.lent ?? 0),
+      paid_total: Number(b.paid_total ?? 0),
+      available: Number(b.ledger_balance) - Number(b.committed ?? 0), percent: pct[b.fund_id] ?? 0,
     }));
     const sum = (arr: any[], k: string) => arr.reduce((a, r) => a + Number(r[k] ?? 0), 0);
     const a = allocs.data ?? [];
