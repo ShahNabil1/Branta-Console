@@ -9,6 +9,7 @@ import {
   type DeletedExpenseRow,
 } from "@/lib/expense-logs.functions";
 import { isFinanceAdminCheck } from "@/lib/finance.functions";
+import { parseInsufficient } from "@/lib/fund-ops.functions";
 import { ExpenseLogsDialog } from "@/components/finance/expense-logs-dialog";
 import { Button } from "@/components/ui/button";
 import { Loader2, Trash2, Undo2, History, ArrowLeft, ShieldAlert } from "lucide-react";
@@ -142,7 +143,9 @@ function RecycleBinPage() {
       toast.success("Recovered — back in Expenses");
       void q.refetch();
     } catch (e) {
-      toast.error((e as Error).message);
+      const info = parseInsufficient((e as Error).message);
+      if (info) toast.error(`Fund shortage — cannot recover. Required ৳${info.required.toLocaleString()}, available ৳${info.available.toLocaleString()}, shortfall ৳${info.shortfall.toLocaleString()}. Expense stays in Recycle Bin.`, { duration: 10000 });
+      else toast.error((e as Error).message);
     } finally {
       setBusyId(null);
     }
