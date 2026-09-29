@@ -731,7 +731,8 @@ export const updateInvoice = createServerFn({ method: "POST" })
           const { error: uErr } = await context.supabase.from("invoice_installments").update(patch as never).eq("id", e.id);
           if (uErr) throw dbError(uErr);
         } else {
-          const { error: nErr } = await context.supabase.from("invoice_installments").insert({ invoice_id: data.id, sequence: k + 1, label: inp.label, amount: inp.amount, due_date: inp.due_date } as never);
+          const maxSeq = existing.reduce((m, x) => Math.max(m, x.sequence), 0);
+          const { error: nErr } = await context.supabase.from("invoice_installments").insert({ invoice_id: data.id, sequence: maxSeq + (k - existing.length) + 1, label: inp.label, amount: inp.amount, due_date: inp.due_date } as never);
           if (nErr) throw dbError(nErr);
         }
       }
