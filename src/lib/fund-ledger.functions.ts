@@ -184,3 +184,77 @@ export const saveDeductionRule = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+/* ---------- Fund Ledger base correction (project cost before fund split) ---------- */
+
+/** Active allocations whose distributable ignored the invoice project cost. Read-only preview. */
+export const getAllocationBaseReport = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const sb = context.supabase as any;
+    const { data: allowed } = await sb.rpc("is_finance_admin", { _user_id: context.userId });
+    if (!allowed) return { allowed: false as const, rows: [] };
+    const { data: allocs } = await sb.from("installment_allocations")
+      .select("id,installment_id,received_amount,deduction_total,distributable_amount,status,source,invoices(slug,title,total_amount,project_cost_total),invoice_installments(label,sequence),installment_allocation_deductions(amount_type,amount)")
+      .eq("status", "active").limit(5000);
+    const rows = (allocs ?? []).flatMap((a: any) => {
+      const total = Number(a.invoices?.total_amount ?? 0), cost = Number(a.invoices?.project_cost_total ?? 0);
+      const recv = Number(a.received_amount);
+      const hasCost = (a.installment_allocation_deductions ?? []).some((d: any) => d.amount_type === "project_cost");
+      if (hasCost || cost <= 0 || total <= 0) return [];
+      const share = Math.round(recv * Math.min(cost, total) / total * 100) / 100;
+      const correct = Math.max(Number(a.distributable_amount) - share, 0);
+      return [{
+        allocation_id: a.id, invoice: a.invoices?.slug, title: a.invoices?.title,
+        installment: a.invoice_installments?.label ?? `Installment ${a.invoice_installments?.sequence ?? ""}`,
+        received: recv, project_cost: share, current: Number(a.distributable_amount), correct,
+        difference: Math.round((Number(a.distributable_amount) - correct) * 100) / 100, status: a.status, source: a.source,
+      }];
+    });
+    return { allowed: true as const, rows };
+  });
+
+export const correctAllocationBase = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ allocationId: z.string().uuid(), reason: z.string().min(5) }).parse(d))
+  .handler(async ({ data, context }) => {
+    await assertFinance(context);
+    const { data: id, error } = await (context.supabase as any).rpc("correct_allocation_base", { _allocation_id: data.allocationId, _reason: data.reason });
+    if (error) throw new Error(error.message);
+    return { ok: true, allocationId: id as string };
+  });
+
+/** Employee Fund pool for one allocation + employees for assignment. */
+export const getAllocationEmployeePool = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ allocationId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase as any;
+    await assertFinance(context);
+    const [{ data: items }, { data: pays }, { data: emps }] = await Promise.all([
+      sb.from("installment_allocation_items").select("amount,finance_funds!inner(code)").eq("allocation_id", data.allocationId).eq("finance_funds.code", "employee"),
+      sb.from("employee_fund_payments").select("id,employee_id,amount,status,description").eq("allocation_id", data.allocationId).neq("status", "cancelled"),
+      sb.from("profiles").select("id,full_name,email").order("full_name").limit(1000),
+    ]);
+    const pool = (items ?? []).reduce((a: number, x: any) => a + Number(x.amount), 0);
+    const assigned = (pays ?? []).reduce((a: number, x: any) => a + Number(x.amount), 0);
+    const names = new Map((emps ?? []).map((e: any) => [e.id, e.full_name || e.email]));
+    return {
+      pool, assigned, remaining: Math.round((pool - assigned) * 100) / 100,
+      payments: (pays ?? []).map((p: any) => ({ ...p, amount: Number(p.amount), name: names.get(p.employee_id) ?? "—" })),
+      employees: (emps ?? []).map((e: any) => ({ id: e.id as string, name: (e.full_name || e.email) as string })),
+    };
+  });
+
+export const assignAllocationEmployeePayouts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({
+    allocationId: z.string().uuid(), mode: z.enum(["fixed", "percent"]), note: z.string().max(500).optional(),
+    rows: z.array(z.object({ employee_id: z.string().uuid(), value: z.number().positive() })).min(1).max(50),
+  }).parse(d))
+  .handler(async ({ data, context }) => {
+    await assertFinance(context);
+    const { error } = await (context.supabase as any).rpc("assign_allocation_employee_payouts", { _allocation_id: data.allocationId, _mode: data.mode, _rows: data.rows, _note: data.note ?? null });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
