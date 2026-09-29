@@ -188,7 +188,7 @@ export const getOverviewBoard = createServerFn({ method: "POST" })
       ]);
       if (invRes.error) throw dbError(invRes.error);
       openInvoices = (invRes.data ?? []).map((i) => ({
-        id: i.id, slug: i.slug, title: i.title, total: Number(i.total_amount ?? 0),
+        id: i.id, slug: i.slug ?? i.id, title: i.title, total: Number(i.total_amount ?? 0),
         paid: Number(i.paid_amount ?? 0), currency: i.currency, due: i.due_date, status: i.status,
       }));
       invoicesOverdue = openInvoices.filter((i) => i.status === "overdue" || (i.due && i.due < today));
