@@ -64,8 +64,8 @@ function EmployeePaymentsPage() {
   });
 
   const d = q.data;
-  const empName = useMemo(() => new Map((d?.employees ?? []).map((e: any) => [e.user_id, e.full_name ?? e.employee_code])), [d]);
-  const projName = useMemo(() => new Map((d?.projects ?? []).map((p: any) => [p.id, p.title])), [d]);
+  const empName = useMemo(() => new Map<string, string>((d?.employees ?? []).map((e: any) => [e.user_id as string, String(e.full_name ?? e.employee_code ?? "")])), [d]);
+  const projName = useMemo(() => new Map<string, string>((d?.projects ?? []).map((p: any) => [p.id as string, String(p.title ?? "")])), [d]);
   const pays = (d?.payments ?? []) as any[];
   const committed = pays.filter((p) => p.status === "committed").reduce((a, p) => a + Number(p.amount), 0);
   const paid = pays.filter((p) => p.status === "paid").reduce((a, p) => a + Number(p.amount), 0);
