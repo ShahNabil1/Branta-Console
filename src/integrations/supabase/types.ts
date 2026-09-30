@@ -4439,6 +4439,19 @@ export type Database = {
         Returns: undefined
       }
       employee_delete_blockers: { Args: { _user_id: string }; Returns: Json }
+      employee_fund_project_summary: {
+        Args: never
+        Returns: {
+          allocated: number
+          assigned: number
+          client: string
+          committed: number
+          paid: number
+          project: string
+          project_id: string
+          withdrawn: number
+        }[]
+      }
       employee_payment_set_status: {
         Args: {
           _id: string
@@ -4573,6 +4586,29 @@ export type Database = {
         Returns: undefined
       }
       validate_branta_email: { Args: { _email: string }; Returns: boolean }
+      wallet_transactions: {
+        Args: { _user?: string }
+        Returns: {
+          client: string
+          credit: number
+          currency: string
+          debit: number
+          description: string
+          installment: string
+          invoice_slug: string
+          occurred_at: string
+          pending: number
+          project: string
+          project_id: string
+          reference: string
+          source: string
+          status: string
+          task: string
+          txn_id: string
+          txn_type: string
+          user_id: string
+        }[]
+      }
     }
     Enums: {
       app_role: "super_admin" | "admin" | "manager" | "user" | "finance"
