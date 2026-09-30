@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -143,7 +143,7 @@ export function WalletStatement({ userId, rows: given }: { userId?: string; rows
                 ["Pending", open.pending ? money(open.pending, open.currency) : null], ["Balance after", money(open.balance, open.currency)],
                 ["Status", open.status], ["Reference", open.reference], ["Transaction ID", open.txn_id],
               ] as [string, string | null][]).filter(([, v]) => v).map(([k, v]) => (
-                <><dt key={`${k}k`} className="text-muted-foreground">{k}</dt><dd key={`${k}v`} className="font-medium break-all">{v}</dd></>
+                <Fragment key={k}><dt className="text-muted-foreground">{k}</dt><dd className="font-medium break-all">{v}</dd></Fragment>
               ))}
             </dl>
             <div className="mt-4 flex justify-end gap-2">
