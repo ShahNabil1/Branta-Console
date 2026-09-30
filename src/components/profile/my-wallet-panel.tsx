@@ -1,4 +1,4 @@
-import { ProjectEarningsSection } from "@/components/profile/project-earnings-section";
+import { WalletStatement } from "@/components/finance/wallet-statement";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -114,7 +114,7 @@ export function MyWalletPanel() {
 
       <BalanceCard cur="BDT" bal={bdt} onWithdraw={() => setModal({ cur: "BDT", available: bdt.available })} />
       {usd && <BalanceCard cur="USD" bal={usd} onWithdraw={() => setModal({ cur: "USD", available: usd.available })} />}
-      <ProjectEarningsSection />
+      <WalletStatement />
 
       <section className="rounded-md border border-border bg-card">
         <div className="border-b border-border px-4 py-2.5">
