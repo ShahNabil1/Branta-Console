@@ -4227,6 +4227,292 @@ export type Database = {
         }
         Relationships: []
       }
+      wallet_audit: {
+        Row: {
+          action: string
+          amount: number | null
+          created_at: string
+          currency: string | null
+          employee_id: string | null
+          id: string
+          meta: Json | null
+          performed_by: string | null
+          reason: string | null
+          source: string | null
+        }
+        Insert: {
+          action: string
+          amount?: number | null
+          created_at?: string
+          currency?: string | null
+          employee_id?: string | null
+          id?: string
+          meta?: Json | null
+          performed_by?: string | null
+          reason?: string | null
+          source?: string | null
+        }
+        Update: {
+          action?: string
+          amount?: number | null
+          created_at?: string
+          currency?: string | null
+          employee_id?: string | null
+          id?: string
+          meta?: Json | null
+          performed_by?: string | null
+          reason?: string | null
+          source?: string | null
+        }
+        Relationships: []
+      }
+      wallet_ledger: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          currency: string
+          description: string | null
+          direction: string
+          employee_id: string
+          employee_payment_id: string | null
+          id: string
+          installment_id: string | null
+          invoice_id: string | null
+          project_id: string | null
+          reference: string | null
+          reverses_id: string | null
+          salary_slip_id: string | null
+          source_id: string
+          source_type: string
+          status: string
+          task_id: string | null
+          transaction_type: Database["public"]["Enums"]["wallet_txn_type"]
+          withdrawal_id: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          description?: string | null
+          direction: string
+          employee_id: string
+          employee_payment_id?: string | null
+          id?: string
+          installment_id?: string | null
+          invoice_id?: string | null
+          project_id?: string | null
+          reference?: string | null
+          reverses_id?: string | null
+          salary_slip_id?: string | null
+          source_id: string
+          source_type: string
+          status?: string
+          task_id?: string | null
+          transaction_type: Database["public"]["Enums"]["wallet_txn_type"]
+          withdrawal_id?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          description?: string | null
+          direction?: string
+          employee_id?: string
+          employee_payment_id?: string | null
+          id?: string
+          installment_id?: string | null
+          invoice_id?: string | null
+          project_id?: string | null
+          reference?: string | null
+          reverses_id?: string | null
+          salary_slip_id?: string | null
+          source_id?: string
+          source_type?: string
+          status?: string
+          task_id?: string | null
+          transaction_type?: Database["public"]["Enums"]["wallet_txn_type"]
+          withdrawal_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_ledger_reverses_id_fkey"
+            columns: ["reverses_id"]
+            isOneToOne: false
+            referencedRelation: "wallet_ledger"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wallet_legacy_actions: {
+        Row: {
+          action: string
+          amount: number
+          created_at: string
+          employee_id: string
+          employee_payment_id: string | null
+          id: string
+          ledger_id: string | null
+          payout_id: string
+          performed_by: string
+          reason: string
+        }
+        Insert: {
+          action: string
+          amount: number
+          created_at?: string
+          employee_id: string
+          employee_payment_id?: string | null
+          id?: string
+          ledger_id?: string | null
+          payout_id: string
+          performed_by: string
+          reason: string
+        }
+        Update: {
+          action?: string
+          amount?: number
+          created_at?: string
+          employee_id?: string
+          employee_payment_id?: string | null
+          id?: string
+          ledger_id?: string | null
+          payout_id?: string
+          performed_by?: string
+          reason?: string
+        }
+        Relationships: []
+      }
+      wallet_migrations: {
+        Row: {
+          basis: string
+          created_at: string
+          currency: string
+          difference: number
+          employee_id: string
+          id: string
+          ledger_id: string | null
+          mismatch_resolution: string | null
+          old_available: number
+          old_locked: number
+          old_paid: number
+          old_requested: number
+          opening_balance: number
+          performed_by: string
+          reason: string
+          recalculated: number
+          snapshot: Json
+        }
+        Insert: {
+          basis: string
+          created_at?: string
+          currency?: string
+          difference: number
+          employee_id: string
+          id?: string
+          ledger_id?: string | null
+          mismatch_resolution?: string | null
+          old_available: number
+          old_locked: number
+          old_paid: number
+          old_requested: number
+          opening_balance: number
+          performed_by: string
+          reason: string
+          recalculated: number
+          snapshot: Json
+        }
+        Update: {
+          basis?: string
+          created_at?: string
+          currency?: string
+          difference?: number
+          employee_id?: string
+          id?: string
+          ledger_id?: string | null
+          mismatch_resolution?: string | null
+          old_available?: number
+          old_locked?: number
+          old_paid?: number
+          old_requested?: number
+          opening_balance?: number
+          performed_by?: string
+          reason?: string
+          recalculated?: number
+          snapshot?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_migrations_ledger_id_fkey"
+            columns: ["ledger_id"]
+            isOneToOne: false
+            referencedRelation: "wallet_ledger"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wallet_withdrawals: {
+        Row: {
+          admin_note: string | null
+          amount: number
+          created_at: string
+          currency: string
+          decided_at: string | null
+          decided_by: string | null
+          employee_id: string
+          id: string
+          note: string | null
+          paid_at: string | null
+          paid_by: string | null
+          payment_method_id: string | null
+          payment_method_snapshot: Json | null
+          requested_at: string
+          status: string
+          transfer_ref: string | null
+          updated_at: string
+        }
+        Insert: {
+          admin_note?: string | null
+          amount: number
+          created_at?: string
+          currency?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          employee_id: string
+          id?: string
+          note?: string | null
+          paid_at?: string | null
+          paid_by?: string | null
+          payment_method_id?: string | null
+          payment_method_snapshot?: Json | null
+          requested_at?: string
+          status?: string
+          transfer_ref?: string | null
+          updated_at?: string
+        }
+        Update: {
+          admin_note?: string | null
+          amount?: number
+          created_at?: string
+          currency?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          employee_id?: string
+          id?: string
+          note?: string | null
+          paid_at?: string | null
+          paid_by?: string | null
+          payment_method_id?: string | null
+          payment_method_snapshot?: Json | null
+          requested_at?: string
+          status?: string
+          transfer_ref?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       withdrawal_requests: {
         Row: {
           admin_note: string | null
@@ -4586,6 +4872,184 @@ export type Database = {
         Returns: undefined
       }
       validate_branta_email: { Args: { _email: string }; Returns: boolean }
+      wallet_balances_v2: {
+        Args: { _user?: string }
+        Returns: {
+          available: number
+          currency: string
+          employee_id: string
+          holds: number
+          ledger_balance: number
+          legacy_pending: number
+          migrated: boolean
+          month_earned: number
+          pending_committed: number
+          today_earned: number
+          total_earned: number
+          total_withdrawn: number
+          week_earned: number
+        }[]
+      }
+      wallet_holds: {
+        Args: { _currency: string; _user: string }
+        Returns: number
+      }
+      wallet_is_migrated: {
+        Args: { _currency?: string; _user: string }
+        Returns: boolean
+      }
+      wallet_ledger_balance: {
+        Args: { _currency: string; _user: string }
+        Returns: number
+      }
+      wallet_legacy_pending: {
+        Args: { _user?: string }
+        Returns: {
+          action: string
+          amount: number
+          created_at: string
+          currency: string
+          employee_id: string
+          installment: string
+          invoice_slug: string
+          payout_id: string
+          reason: string
+        }[]
+      }
+      wallet_legacy_pending_action: {
+        Args: {
+          _action: string
+          _efp?: string
+          _payout: string
+          _reason: string
+        }
+        Returns: undefined
+      }
+      wallet_migrate: {
+        Args: {
+          _basis: string
+          _currency: string
+          _reason: string
+          _resolution?: string
+          _user: string
+        }
+        Returns: string
+      }
+      wallet_migration_preview: {
+        Args: never
+        Returns: {
+          currency: string
+          difference: number
+          employee_id: string
+          migrated: boolean
+          name: string
+          old_available: number
+          old_locked: number
+          old_paid: number
+          old_requested: number
+          open_withdrawals: number
+          opening_balance: number
+          paid_withdrawals: number
+          payout_count: number
+          payouts_credited: number
+          recalculated: number
+          withdrawal_count: number
+        }[]
+      }
+      wallet_post: {
+        Args: {
+          _actor?: string
+          _amount: number
+          _currency: string
+          _desc: string
+          _dir: string
+          _efp?: string
+          _inst?: string
+          _invoice?: string
+          _project?: string
+          _ref?: string
+          _reverses?: string
+          _slip?: string
+          _source_id: string
+          _source_type: string
+          _task?: string
+          _type: Database["public"]["Enums"]["wallet_txn_type"]
+          _user: string
+          _wd?: string
+        }
+        Returns: string
+      }
+      wallet_post_manual: {
+        Args: {
+          _amount: number
+          _currency: string
+          _idem?: string
+          _project?: string
+          _reason: string
+          _ref?: string
+          _type: string
+          _user: string
+        }
+        Returns: string
+      }
+      wallet_reconciliation: {
+        Args: never
+        Returns: {
+          credits: number
+          currency: string
+          debits: number
+          difference: number
+          employee_id: string
+          expected: number
+          ledger_balance: number
+          opening: number
+          pending_payments: number
+          pending_withdrawals: number
+          total_earned: number
+          total_withdrawn: number
+        }[]
+      }
+      wallet_request_withdrawal: {
+        Args: {
+          _amount: number
+          _currency: string
+          _method_id: string
+          _note?: string
+          _snapshot: Json
+        }
+        Returns: string
+      }
+      wallet_resolve_user: { Args: { _emp: string }; Returns: string }
+      wallet_reverse: {
+        Args: { _id: string; _reason: string }
+        Returns: string
+      }
+      wallet_statement_v2: {
+        Args: { _user?: string }
+        Returns: {
+          client: string
+          created_at: string
+          created_by: string
+          credit: number
+          currency: string
+          debit: number
+          description: string
+          direction: string
+          employee_id: string
+          id: string
+          installment: string
+          invoice_slug: string
+          project: string
+          project_id: string
+          reference: string
+          reverses_id: string
+          source_id: string
+          source_type: string
+          status: string
+          task: string
+          transaction_type: string
+        }[]
+      }
       wallet_transactions: {
         Args: { _user?: string }
         Returns: {
@@ -4608,6 +5072,10 @@ export type Database = {
           txn_type: string
           user_id: string
         }[]
+      }
+      wallet_withdrawal_set_status: {
+        Args: { _id: string; _note?: string; _ref?: string; _status: string }
+        Returns: undefined
       }
     }
     Enums: {
@@ -4661,6 +5129,20 @@ export type Database = {
         | "lost"
       payout_status: "locked" | "available" | "requested" | "paid" | "cancelled"
       stakeholder_role: "outreach" | "lead_closer" | "worker" | "company"
+      wallet_txn_type:
+        | "project_earning"
+        | "salary"
+        | "bonus"
+        | "incentive"
+        | "commission"
+        | "overtime"
+        | "adjustment_credit"
+        | "adjustment_debit"
+        | "withdrawal"
+        | "refund"
+        | "migration_opening_balance"
+        | "correction"
+        | "reversal"
       withdrawal_status: "pending" | "approved" | "rejected" | "paid"
     }
     CompositeTypes: {
@@ -4845,6 +5327,21 @@ export const Constants = {
       ],
       payout_status: ["locked", "available", "requested", "paid", "cancelled"],
       stakeholder_role: ["outreach", "lead_closer", "worker", "company"],
+      wallet_txn_type: [
+        "project_earning",
+        "salary",
+        "bonus",
+        "incentive",
+        "commission",
+        "overtime",
+        "adjustment_credit",
+        "adjustment_debit",
+        "withdrawal",
+        "refund",
+        "migration_opening_balance",
+        "correction",
+        "reversal",
+      ],
       withdrawal_status: ["pending", "approved", "rejected", "paid"],
     },
   },

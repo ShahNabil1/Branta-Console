@@ -1,4 +1,6 @@
 import { WalletStatement } from "@/components/finance/wallet-statement";
+import { WalletLedgerView } from "@/components/finance/wallet-ledger-view";
+import { getWalletV2 } from "@/lib/wallet-ledger.functions";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -34,6 +36,9 @@ export function MyWalletPanel() {
   const request = useServerFn(requestWithdrawal);
   const cancelReq = useServerFn(cancelMyWithdrawal);
   const profile = useServerFn(getMyProfile);
+  const v2 = useServerFn(getWalletV2);
+  const v2q = useQuery({ queryKey: ["wallet-v2", "me"], queryFn: () => v2({ data: {} }), staleTime: 15_000 });
+  const migrated = !!v2q.data?.balances.find((b) => b.currency === "BDT")?.migrated;
 
   const w = useQuery({ queryKey: ["wallet"], queryFn: () => wallet(), staleTime: 15_000 });
   const p = useQuery({ queryKey: ["my-payouts"], queryFn: () => payouts(), staleTime: 15_000 });
@@ -102,6 +107,16 @@ export function MyWalletPanel() {
     () => w.data?.find((x) => x.currency === "USD") ?? null,
     [w.data],
   );
+
+  if (migrated) {
+    return (
+      <div className="space-y-4">
+        <h2 className="text-[13px] font-semibold text-foreground flex items-center gap-2"><Wallet className="size-4 text-brand" /> My Wallet</h2>
+        <WalletLedgerView own />
+        <MySalarySlips />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">

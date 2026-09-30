@@ -67,6 +67,7 @@ import { Route as AuthenticatedAppFinanceFundSettingsRouteImport } from './route
 import { Route as AuthenticatedAppFinanceFundLoansRouteImport } from './routes/_authenticated/app.finance.fund-loans'
 import { Route as AuthenticatedAppFinanceFundAnalyticsRouteImport } from './routes/_authenticated/app.finance.fund-analytics'
 import { Route as AuthenticatedAppFinanceExpensesRouteImport } from './routes/_authenticated/app.finance.expenses'
+import { Route as AuthenticatedAppFinanceEmployeeWalletsRouteImport } from './routes/_authenticated/app.finance.employee-wallets'
 import { Route as AuthenticatedAppFinanceEmployeePaymentsRouteImport } from './routes/_authenticated/app.finance.employee-payments'
 import { Route as AuthenticatedAppFinanceEmployeeEarningsRouteImport } from './routes/_authenticated/app.finance.employee-earnings'
 import { Route as AuthenticatedAppEmployeesUserIdRouteImport } from './routes/_authenticated/app.employees.$userId'
@@ -411,6 +412,12 @@ const AuthenticatedAppFinanceExpensesRoute =
     path: '/expenses',
     getParentRoute: () => AuthenticatedAppFinanceRoute,
   } as any)
+const AuthenticatedAppFinanceEmployeeWalletsRoute =
+  AuthenticatedAppFinanceEmployeeWalletsRouteImport.update({
+    id: '/employee-wallets',
+    path: '/employee-wallets',
+    getParentRoute: () => AuthenticatedAppFinanceRoute,
+  } as any)
 const AuthenticatedAppFinanceEmployeePaymentsRoute =
   AuthenticatedAppFinanceEmployeePaymentsRouteImport.update({
     id: '/employee-payments',
@@ -490,6 +497,7 @@ export interface FileRoutesByFullPath {
   '/app/employees/$userId': typeof AuthenticatedAppEmployeesUserIdRoute
   '/app/finance/employee-earnings': typeof AuthenticatedAppFinanceEmployeeEarningsRoute
   '/app/finance/employee-payments': typeof AuthenticatedAppFinanceEmployeePaymentsRoute
+  '/app/finance/employee-wallets': typeof AuthenticatedAppFinanceEmployeeWalletsRoute
   '/app/finance/expenses': typeof AuthenticatedAppFinanceExpensesRoute
   '/app/finance/fund-analytics': typeof AuthenticatedAppFinanceFundAnalyticsRoute
   '/app/finance/fund-loans': typeof AuthenticatedAppFinanceFundLoansRoute
@@ -553,6 +561,7 @@ export interface FileRoutesByTo {
   '/app/employees/$userId': typeof AuthenticatedAppEmployeesUserIdRoute
   '/app/finance/employee-earnings': typeof AuthenticatedAppFinanceEmployeeEarningsRoute
   '/app/finance/employee-payments': typeof AuthenticatedAppFinanceEmployeePaymentsRoute
+  '/app/finance/employee-wallets': typeof AuthenticatedAppFinanceEmployeeWalletsRoute
   '/app/finance/expenses': typeof AuthenticatedAppFinanceExpensesRoute
   '/app/finance/fund-analytics': typeof AuthenticatedAppFinanceFundAnalyticsRoute
   '/app/finance/fund-loans': typeof AuthenticatedAppFinanceFundLoansRoute
@@ -623,6 +632,7 @@ export interface FileRoutesById {
   '/_authenticated/app/employees/$userId': typeof AuthenticatedAppEmployeesUserIdRoute
   '/_authenticated/app/finance/employee-earnings': typeof AuthenticatedAppFinanceEmployeeEarningsRoute
   '/_authenticated/app/finance/employee-payments': typeof AuthenticatedAppFinanceEmployeePaymentsRoute
+  '/_authenticated/app/finance/employee-wallets': typeof AuthenticatedAppFinanceEmployeeWalletsRoute
   '/_authenticated/app/finance/expenses': typeof AuthenticatedAppFinanceExpensesRoute
   '/_authenticated/app/finance/fund-analytics': typeof AuthenticatedAppFinanceFundAnalyticsRoute
   '/_authenticated/app/finance/fund-loans': typeof AuthenticatedAppFinanceFundLoansRoute
@@ -693,6 +703,7 @@ export interface FileRouteTypes {
     | '/app/employees/$userId'
     | '/app/finance/employee-earnings'
     | '/app/finance/employee-payments'
+    | '/app/finance/employee-wallets'
     | '/app/finance/expenses'
     | '/app/finance/fund-analytics'
     | '/app/finance/fund-loans'
@@ -756,6 +767,7 @@ export interface FileRouteTypes {
     | '/app/employees/$userId'
     | '/app/finance/employee-earnings'
     | '/app/finance/employee-payments'
+    | '/app/finance/employee-wallets'
     | '/app/finance/expenses'
     | '/app/finance/fund-analytics'
     | '/app/finance/fund-loans'
@@ -825,6 +837,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/employees/$userId'
     | '/_authenticated/app/finance/employee-earnings'
     | '/_authenticated/app/finance/employee-payments'
+    | '/_authenticated/app/finance/employee-wallets'
     | '/_authenticated/app/finance/expenses'
     | '/_authenticated/app/finance/fund-analytics'
     | '/_authenticated/app/finance/fund-loans'
@@ -1295,6 +1308,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppFinanceExpensesRouteImport
       parentRoute: typeof AuthenticatedAppFinanceRoute
     }
+    '/_authenticated/app/finance/employee-wallets': {
+      id: '/_authenticated/app/finance/employee-wallets'
+      path: '/employee-wallets'
+      fullPath: '/app/finance/employee-wallets'
+      preLoaderRoute: typeof AuthenticatedAppFinanceEmployeeWalletsRouteImport
+      parentRoute: typeof AuthenticatedAppFinanceRoute
+    }
     '/_authenticated/app/finance/employee-payments': {
       id: '/_authenticated/app/finance/employee-payments'
       path: '/employee-payments'
@@ -1380,6 +1400,7 @@ const AuthenticatedAppCustomersRouteWithChildren =
 interface AuthenticatedAppFinanceRouteChildren {
   AuthenticatedAppFinanceEmployeeEarningsRoute: typeof AuthenticatedAppFinanceEmployeeEarningsRoute
   AuthenticatedAppFinanceEmployeePaymentsRoute: typeof AuthenticatedAppFinanceEmployeePaymentsRoute
+  AuthenticatedAppFinanceEmployeeWalletsRoute: typeof AuthenticatedAppFinanceEmployeeWalletsRoute
   AuthenticatedAppFinanceExpensesRoute: typeof AuthenticatedAppFinanceExpensesRoute
   AuthenticatedAppFinanceFundAnalyticsRoute: typeof AuthenticatedAppFinanceFundAnalyticsRoute
   AuthenticatedAppFinanceFundLoansRoute: typeof AuthenticatedAppFinanceFundLoansRoute
@@ -1410,6 +1431,8 @@ const AuthenticatedAppFinanceRouteChildren: AuthenticatedAppFinanceRouteChildren
       AuthenticatedAppFinanceEmployeeEarningsRoute,
     AuthenticatedAppFinanceEmployeePaymentsRoute:
       AuthenticatedAppFinanceEmployeePaymentsRoute,
+    AuthenticatedAppFinanceEmployeeWalletsRoute:
+      AuthenticatedAppFinanceEmployeeWalletsRoute,
     AuthenticatedAppFinanceExpensesRoute: AuthenticatedAppFinanceExpensesRoute,
     AuthenticatedAppFinanceFundAnalyticsRoute:
       AuthenticatedAppFinanceFundAnalyticsRoute,

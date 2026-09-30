@@ -110,7 +110,8 @@ const FINANCE_NAV: FinanceNavGroup[] = [
     icon: HandCoins,
     items: [
       { label: "Employee Payments", to: "/app/finance/employee-payments", icon: BadgeDollarSign },
-      { label: "Employee Earnings", to: "/app/finance/employee-earnings", icon: Wallet },
+      { label: "Employee Wallets", to: "/app/finance/employee-wallets", icon: Wallet },
+      { label: "Employee Earnings (Legacy)", to: "/app/finance/employee-earnings", icon: Wallet },
       { label: "Salary", to: "/app/finance/salary", icon: BadgeDollarSign },
       { label: "Salary Report", to: "/app/finance/salary-report", icon: FileText },
       { label: "Wallet", to: "/app/finance/wallet", icon: Wallet },

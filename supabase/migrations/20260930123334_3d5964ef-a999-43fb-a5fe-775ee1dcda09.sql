@@ -1,0 +1,3 @@
+REVOKE ALL ON FUNCTION public.wallet_is_migrated(uuid,text), public.wallet_resolve_user(uuid), public.wallet_ledger_balance(uuid,text), public.wallet_holds(uuid,text),
+  public.wallet_ledger_immutable(), public.salary_wallet_credit(), public.legacy_withdrawal_block(), public.efp_wallet_credit() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.wallet_post FROM PUBLIC, anon, authenticated;
