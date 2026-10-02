@@ -9,87 +9,92 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as IndexRouteImport } from './routes/index'
 import { Route as XVoucherRouteImport } from './routes/x.$voucher'
+import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app.index'
-import { Route as AuthenticatedAppAnalyticsRouteImport } from './routes/_authenticated/app.analytics'
-import { Route as AuthenticatedAppCustomersRouteImport } from './routes/_authenticated/app.customers'
-import { Route as AuthenticatedAppFinanceRouteImport } from './routes/_authenticated/app.finance'
-import { Route as AuthenticatedAppInboxRouteImport } from './routes/_authenticated/app.inbox'
-import { Route as AuthenticatedAppLeadsRouteImport } from './routes/_authenticated/app.leads'
-import { Route as AuthenticatedAppMailQueueRouteImport } from './routes/_authenticated/app.mail-queue'
-import { Route as AuthenticatedAppNotificationsRouteImport } from './routes/_authenticated/app.notifications'
-import { Route as AuthenticatedAppOperationsRouteImport } from './routes/_authenticated/app.operations'
-import { Route as AuthenticatedAppProfileRouteImport } from './routes/_authenticated/app.profile'
-import { Route as AuthenticatedAppSettingsRouteImport } from './routes/_authenticated/app.settings'
-import { Route as AuthenticatedAppTransfersRouteImport } from './routes/_authenticated/app.transfers'
-import { Route as AuthenticatedOnboardingPasswordRouteImport } from './routes/_authenticated/onboarding.password'
-import { Route as AuthenticatedOnboardingTelegramRouteImport } from './routes/_authenticated/onboarding.telegram'
 import { Route as ApiPublicR2HealthRouteImport } from './routes/api/public/r2-health'
-import { Route as AuthenticatedAppCustomersIndexRouteImport } from './routes/_authenticated/app.customers.index'
-import { Route as AuthenticatedAppCustomersCodeRouteImport } from './routes/_authenticated/app.customers.$code'
-import { Route as AuthenticatedAppEmployeesIndexRouteImport } from './routes/_authenticated/app.employees.index'
-import { Route as AuthenticatedAppEmployeesUserIdRouteImport } from './routes/_authenticated/app.employees.$userId'
-import { Route as AuthenticatedAppFinanceIndexRouteImport } from './routes/_authenticated/app.finance.index'
-import { Route as AuthenticatedAppFinanceEmployeeEarningsRouteImport } from './routes/_authenticated/app.finance.employee-earnings'
-import { Route as AuthenticatedAppFinanceEmployeePaymentsRouteImport } from './routes/_authenticated/app.finance.employee-payments'
-import { Route as AuthenticatedAppFinanceEmployeeWalletsRouteImport } from './routes/_authenticated/app.finance.employee-wallets'
-import { Route as AuthenticatedAppFinanceExpensesRouteImport } from './routes/_authenticated/app.finance.expenses'
-import { Route as AuthenticatedAppFinanceFundAnalyticsRouteImport } from './routes/_authenticated/app.finance.fund-analytics'
-import { Route as AuthenticatedAppFinanceFundLoansRouteImport } from './routes/_authenticated/app.finance.fund-loans'
-import { Route as AuthenticatedAppFinanceFundSettingsRouteImport } from './routes/_authenticated/app.finance.fund-settings'
-import { Route as AuthenticatedAppFinanceFundTransfersRouteImport } from './routes/_authenticated/app.finance.fund-transfers'
-import { Route as AuthenticatedAppFinanceHistoricalAllocationRouteImport } from './routes/_authenticated/app.finance.historical-allocation'
-import { Route as AuthenticatedAppFinanceIncomeRouteImport } from './routes/_authenticated/app.finance.income'
-import { Route as AuthenticatedAppFinanceProfitabilityRouteImport } from './routes/_authenticated/app.finance.profitability'
-import { Route as AuthenticatedAppFinanceReconciliationRouteImport } from './routes/_authenticated/app.finance.reconciliation'
-import { Route as AuthenticatedAppFinanceRecycleBinRouteImport } from './routes/_authenticated/app.finance.recycle-bin'
-import { Route as AuthenticatedAppFinanceSalaryRouteImport } from './routes/_authenticated/app.finance.salary'
-import { Route as AuthenticatedAppFinanceSalaryReportRouteImport } from './routes/_authenticated/app.finance.salary-report'
-import { Route as AuthenticatedAppFinanceSheetsRouteImport } from './routes/_authenticated/app.finance.sheets'
-import { Route as AuthenticatedAppFinanceTemplatesRouteImport } from './routes/_authenticated/app.finance.templates'
-import { Route as AuthenticatedAppFinanceWalletRouteImport } from './routes/_authenticated/app.finance.wallet'
-import { Route as AuthenticatedAppFinanceWithdrawalsRouteImport } from './routes/_authenticated/app.finance.withdrawals'
-import { Route as AuthenticatedAppLeadsIndexRouteImport } from './routes/_authenticated/app.leads.index'
-import { Route as AuthenticatedAppLeadsSlugRouteImport } from './routes/_authenticated/app.leads.$slug'
-import { Route as AuthenticatedAppLeadsDashboardRouteImport } from './routes/_authenticated/app.leads.dashboard'
-import { Route as AuthenticatedAppLeadsDraftsRouteImport } from './routes/_authenticated/app.leads.drafts'
+import { Route as AuthenticatedOnboardingTelegramRouteImport } from './routes/_authenticated/onboarding.telegram'
+import { Route as AuthenticatedOnboardingPasswordRouteImport } from './routes/_authenticated/onboarding.password'
+import { Route as AuthenticatedAppTransfersRouteImport } from './routes/_authenticated/app.transfers'
+import { Route as AuthenticatedAppSettingsRouteImport } from './routes/_authenticated/app.settings'
+import { Route as AuthenticatedAppProfileRouteImport } from './routes/_authenticated/app.profile'
+import { Route as AuthenticatedAppOperationsRouteImport } from './routes/_authenticated/app.operations'
+import { Route as AuthenticatedAppNotificationsRouteImport } from './routes/_authenticated/app.notifications'
+import { Route as AuthenticatedAppMailQueueRouteImport } from './routes/_authenticated/app.mail-queue'
+import { Route as AuthenticatedAppLeadsRouteImport } from './routes/_authenticated/app.leads'
+import { Route as AuthenticatedAppInboxRouteImport } from './routes/_authenticated/app.inbox'
+import { Route as AuthenticatedAppFinanceRouteImport } from './routes/_authenticated/app.finance'
+import { Route as AuthenticatedAppCustomersRouteImport } from './routes/_authenticated/app.customers'
+import { Route as AuthenticatedAppAnalyticsRouteImport } from './routes/_authenticated/app.analytics'
 import { Route as AuthenticatedAppProfileIndexRouteImport } from './routes/_authenticated/app.profile.index'
-import { Route as AuthenticatedAppProfileActivityRouteImport } from './routes/_authenticated/app.profile.activity'
-import { Route as AuthenticatedAppProfileFinanceRouteImport } from './routes/_authenticated/app.profile.finance'
-import { Route as AuthenticatedAppProfilePersonalRouteImport } from './routes/_authenticated/app.profile.personal'
-import { Route as AuthenticatedAppProfileSecurityRouteImport } from './routes/_authenticated/app.profile.security'
-import { Route as AuthenticatedAppProfileWalletRouteImport } from './routes/_authenticated/app.profile.wallet'
-import { Route as ApiPublicBrevoWebhookRouteImport } from './routes/api/public/brevo.webhook'
-import { Route as ApiPublicExpensesVoucherDotpdfRouteImport } from './routes/api/public/expenses.$voucher[.]pdf'
-import { Route as ApiPublicHooksInvoiceRemindersRouteImport } from './routes/api/public/hooks/invoice-reminders'
-import { Route as ApiPublicHooksNotificationsDrainRouteImport } from './routes/api/public/hooks/notifications-drain'
-import { Route as ApiPublicIncomeVoucherDotpdfRouteImport } from './routes/api/public/income.$voucher[.]pdf'
-import { Route as ApiPublicInvoicesSlugDotpdfRouteImport } from './routes/api/public/invoices.$slug[.]pdf'
-import { Route as ApiPublicResendWebhookRouteImport } from './routes/api/public/resend.webhook'
-import { Route as ApiPublicSalarySlipDotpdfRouteImport } from './routes/api/public/salary.$slip[.]pdf'
+import { Route as AuthenticatedAppLeadsIndexRouteImport } from './routes/_authenticated/app.leads.index'
+import { Route as AuthenticatedAppFinanceIndexRouteImport } from './routes/_authenticated/app.finance.index'
+import { Route as AuthenticatedAppEmployeesIndexRouteImport } from './routes/_authenticated/app.employees.index'
+import { Route as AuthenticatedAppCustomersIndexRouteImport } from './routes/_authenticated/app.customers.index'
 import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram.webhook'
-import { Route as AuthenticatedAppFinanceFundsIndexRouteImport } from './routes/_authenticated/app.finance.funds.index'
-import { Route as AuthenticatedAppFinanceFundsCodeRouteImport } from './routes/_authenticated/app.finance.funds.$code'
+import { Route as ApiPublicSalarySlipDotpdfRouteImport } from './routes/api/public/salary.$slip[.]pdf'
+import { Route as ApiPublicResendWebhookRouteImport } from './routes/api/public/resend.webhook'
+import { Route as ApiPublicInvoicesSlugDotpdfRouteImport } from './routes/api/public/invoices.$slug[.]pdf'
+import { Route as ApiPublicIncomeVoucherDotpdfRouteImport } from './routes/api/public/income.$voucher[.]pdf'
+import { Route as ApiPublicHooksNotificationsDrainRouteImport } from './routes/api/public/hooks/notifications-drain'
+import { Route as ApiPublicHooksInvoiceRemindersRouteImport } from './routes/api/public/hooks/invoice-reminders'
+import { Route as ApiPublicExpensesVoucherDotpdfRouteImport } from './routes/api/public/expenses.$voucher[.]pdf'
+import { Route as ApiPublicBrevoWebhookRouteImport } from './routes/api/public/brevo.webhook'
+import { Route as AuthenticatedAppProfileWalletRouteImport } from './routes/_authenticated/app.profile.wallet'
+import { Route as AuthenticatedAppProfileSecurityRouteImport } from './routes/_authenticated/app.profile.security'
+import { Route as AuthenticatedAppProfilePersonalRouteImport } from './routes/_authenticated/app.profile.personal'
+import { Route as AuthenticatedAppProfileFinanceRouteImport } from './routes/_authenticated/app.profile.finance'
+import { Route as AuthenticatedAppProfileActivityRouteImport } from './routes/_authenticated/app.profile.activity'
+import { Route as AuthenticatedAppLeadsDraftsRouteImport } from './routes/_authenticated/app.leads.drafts'
+import { Route as AuthenticatedAppLeadsDashboardRouteImport } from './routes/_authenticated/app.leads.dashboard'
+import { Route as AuthenticatedAppLeadsSlugRouteImport } from './routes/_authenticated/app.leads.$slug'
+import { Route as AuthenticatedAppFinanceWithdrawalsRouteImport } from './routes/_authenticated/app.finance.withdrawals'
+import { Route as AuthenticatedAppFinanceWalletRouteImport } from './routes/_authenticated/app.finance.wallet'
+import { Route as AuthenticatedAppFinanceTemplatesRouteImport } from './routes/_authenticated/app.finance.templates'
+import { Route as AuthenticatedAppFinanceSheetsRouteImport } from './routes/_authenticated/app.finance.sheets'
+import { Route as AuthenticatedAppFinanceSalaryReportRouteImport } from './routes/_authenticated/app.finance.salary-report'
+import { Route as AuthenticatedAppFinanceSalaryRouteImport } from './routes/_authenticated/app.finance.salary'
+import { Route as AuthenticatedAppFinanceRecycleBinRouteImport } from './routes/_authenticated/app.finance.recycle-bin'
+import { Route as AuthenticatedAppFinanceReconciliationRouteImport } from './routes/_authenticated/app.finance.reconciliation'
+import { Route as AuthenticatedAppFinanceProfitabilityRouteImport } from './routes/_authenticated/app.finance.profitability'
+import { Route as AuthenticatedAppFinanceIncomeRouteImport } from './routes/_authenticated/app.finance.income'
+import { Route as AuthenticatedAppFinanceHistoricalAllocationRouteImport } from './routes/_authenticated/app.finance.historical-allocation'
+import { Route as AuthenticatedAppFinanceFundTransfersRouteImport } from './routes/_authenticated/app.finance.fund-transfers'
+import { Route as AuthenticatedAppFinanceFundSettingsRouteImport } from './routes/_authenticated/app.finance.fund-settings'
+import { Route as AuthenticatedAppFinanceFundLoansRouteImport } from './routes/_authenticated/app.finance.fund-loans'
+import { Route as AuthenticatedAppFinanceFundAnalyticsRouteImport } from './routes/_authenticated/app.finance.fund-analytics'
+import { Route as AuthenticatedAppFinanceExpensesRouteImport } from './routes/_authenticated/app.finance.expenses'
+import { Route as AuthenticatedAppFinanceEmployeeWalletsRouteImport } from './routes/_authenticated/app.finance.employee-wallets'
+import { Route as AuthenticatedAppFinanceEmployeePaymentsRouteImport } from './routes/_authenticated/app.finance.employee-payments'
+import { Route as AuthenticatedAppFinanceEmployeeEarningsRouteImport } from './routes/_authenticated/app.finance.employee-earnings'
+import { Route as AuthenticatedAppEmployeesUserIdRouteImport } from './routes/_authenticated/app.employees.$userId'
+import { Route as AuthenticatedAppCustomersCodeRouteImport } from './routes/_authenticated/app.customers.$code'
 import { Route as AuthenticatedAppFinanceInvoicesIndexRouteImport } from './routes/_authenticated/app.finance.invoices.index'
-import { Route as AuthenticatedAppFinanceInvoicesSlugRouteImport } from './routes/_authenticated/app.finance.invoices.$slug'
+import { Route as AuthenticatedAppFinanceFundsIndexRouteImport } from './routes/_authenticated/app.finance.funds.index'
 import { Route as AuthenticatedAppFinanceInvoicesNewRouteImport } from './routes/_authenticated/app.finance.invoices.new'
+import { Route as AuthenticatedAppFinanceInvoicesSlugRouteImport } from './routes/_authenticated/app.finance.invoices.$slug'
+import { Route as AuthenticatedAppFinanceFundsCodeRouteImport } from './routes/_authenticated/app.finance.funds.$code'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const XVoucherRoute = XVoucherRouteImport.update({
+  id: '/x/$voucher',
+  path: '/x/$voucher',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAppRoute = AuthenticatedAppRouteImport.update({
@@ -97,47 +102,49 @@ const AuthenticatedAppRoute = AuthenticatedAppRouteImport.update({
   path: '/app',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const XVoucherRoute = XVoucherRouteImport.update({
-  id: '/x/$voucher',
-  path: '/x/$voucher',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AuthenticatedAppIndexRoute = AuthenticatedAppIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
-const AuthenticatedAppAnalyticsRoute =
-  AuthenticatedAppAnalyticsRouteImport.update({
-    id: '/analytics',
-    path: '/analytics',
+const ApiPublicR2HealthRoute = ApiPublicR2HealthRouteImport.update({
+  id: '/api/public/r2-health',
+  path: '/api/public/r2-health',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedOnboardingTelegramRoute =
+  AuthenticatedOnboardingTelegramRouteImport.update({
+    id: '/onboarding/telegram',
+    path: '/onboarding/telegram',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedOnboardingPasswordRoute =
+  AuthenticatedOnboardingPasswordRouteImport.update({
+    id: '/onboarding/password',
+    path: '/onboarding/password',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAppTransfersRoute =
+  AuthenticatedAppTransfersRouteImport.update({
+    id: '/transfers',
+    path: '/transfers',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
-const AuthenticatedAppCustomersRoute =
-  AuthenticatedAppCustomersRouteImport.update({
-    id: '/customers',
-    path: '/customers',
+const AuthenticatedAppSettingsRoute =
+  AuthenticatedAppSettingsRouteImport.update({
+    id: '/settings',
+    path: '/settings',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
-const AuthenticatedAppFinanceRoute = AuthenticatedAppFinanceRouteImport.update({
-  id: '/finance',
-  path: '/finance',
+const AuthenticatedAppProfileRoute = AuthenticatedAppProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
-const AuthenticatedAppInboxRoute = AuthenticatedAppInboxRouteImport.update({
-  id: '/inbox',
-  path: '/inbox',
-  getParentRoute: () => AuthenticatedAppRoute,
-} as any)
-const AuthenticatedAppLeadsRoute = AuthenticatedAppLeadsRouteImport.update({
-  id: '/leads',
-  path: '/leads',
-  getParentRoute: () => AuthenticatedAppRoute,
-} as any)
-const AuthenticatedAppMailQueueRoute =
-  AuthenticatedAppMailQueueRouteImport.update({
-    id: '/mail-queue',
-    path: '/mail-queue',
+const AuthenticatedAppOperationsRoute =
+  AuthenticatedAppOperationsRouteImport.update({
+    id: '/operations',
+    path: '/operations',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
 const AuthenticatedAppNotificationsRoute =
@@ -146,213 +153,38 @@ const AuthenticatedAppNotificationsRoute =
     path: '/notifications',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
-const AuthenticatedAppOperationsRoute =
-  AuthenticatedAppOperationsRouteImport.update({
-    id: '/operations',
-    path: '/operations',
+const AuthenticatedAppMailQueueRoute =
+  AuthenticatedAppMailQueueRouteImport.update({
+    id: '/mail-queue',
+    path: '/mail-queue',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
-const AuthenticatedAppProfileRoute = AuthenticatedAppProfileRouteImport.update({
-  id: '/profile',
-  path: '/profile',
+const AuthenticatedAppLeadsRoute = AuthenticatedAppLeadsRouteImport.update({
+  id: '/leads',
+  path: '/leads',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
-const AuthenticatedAppSettingsRoute =
-  AuthenticatedAppSettingsRouteImport.update({
-    id: '/settings',
-    path: '/settings',
-    getParentRoute: () => AuthenticatedAppRoute,
-  } as any)
-const AuthenticatedAppTransfersRoute =
-  AuthenticatedAppTransfersRouteImport.update({
-    id: '/transfers',
-    path: '/transfers',
-    getParentRoute: () => AuthenticatedAppRoute,
-  } as any)
-const AuthenticatedOnboardingPasswordRoute =
-  AuthenticatedOnboardingPasswordRouteImport.update({
-    id: '/onboarding/password',
-    path: '/onboarding/password',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedOnboardingTelegramRoute =
-  AuthenticatedOnboardingTelegramRouteImport.update({
-    id: '/onboarding/telegram',
-    path: '/onboarding/telegram',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const ApiPublicR2HealthRoute = ApiPublicR2HealthRouteImport.update({
-  id: '/api/public/r2-health',
-  path: '/api/public/r2-health',
-  getParentRoute: () => rootRouteImport,
+const AuthenticatedAppInboxRoute = AuthenticatedAppInboxRouteImport.update({
+  id: '/inbox',
+  path: '/inbox',
+  getParentRoute: () => AuthenticatedAppRoute,
 } as any)
-const AuthenticatedAppCustomersIndexRoute =
-  AuthenticatedAppCustomersIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => AuthenticatedAppCustomersRoute,
-  } as any)
-const AuthenticatedAppCustomersCodeRoute =
-  AuthenticatedAppCustomersCodeRouteImport.update({
-    id: '/$code',
-    path: '/$code',
-    getParentRoute: () => AuthenticatedAppCustomersRoute,
-  } as any)
-const AuthenticatedAppEmployeesIndexRoute =
-  AuthenticatedAppEmployeesIndexRouteImport.update({
-    id: '/employees/',
-    path: '/employees/',
+const AuthenticatedAppFinanceRoute = AuthenticatedAppFinanceRouteImport.update({
+  id: '/finance',
+  path: '/finance',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppCustomersRoute =
+  AuthenticatedAppCustomersRouteImport.update({
+    id: '/customers',
+    path: '/customers',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
-const AuthenticatedAppEmployeesUserIdRoute =
-  AuthenticatedAppEmployeesUserIdRouteImport.update({
-    id: '/employees/$userId',
-    path: '/employees/$userId',
+const AuthenticatedAppAnalyticsRoute =
+  AuthenticatedAppAnalyticsRouteImport.update({
+    id: '/analytics',
+    path: '/analytics',
     getParentRoute: () => AuthenticatedAppRoute,
-  } as any)
-const AuthenticatedAppFinanceIndexRoute =
-  AuthenticatedAppFinanceIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => AuthenticatedAppFinanceRoute,
-  } as any)
-const AuthenticatedAppFinanceEmployeeEarningsRoute =
-  AuthenticatedAppFinanceEmployeeEarningsRouteImport.update({
-    id: '/employee-earnings',
-    path: '/employee-earnings',
-    getParentRoute: () => AuthenticatedAppFinanceRoute,
-  } as any)
-const AuthenticatedAppFinanceEmployeePaymentsRoute =
-  AuthenticatedAppFinanceEmployeePaymentsRouteImport.update({
-    id: '/employee-payments',
-    path: '/employee-payments',
-    getParentRoute: () => AuthenticatedAppFinanceRoute,
-  } as any)
-const AuthenticatedAppFinanceEmployeeWalletsRoute =
-  AuthenticatedAppFinanceEmployeeWalletsRouteImport.update({
-    id: '/employee-wallets',
-    path: '/employee-wallets',
-    getParentRoute: () => AuthenticatedAppFinanceRoute,
-  } as any)
-const AuthenticatedAppFinanceExpensesRoute =
-  AuthenticatedAppFinanceExpensesRouteImport.update({
-    id: '/expenses',
-    path: '/expenses',
-    getParentRoute: () => AuthenticatedAppFinanceRoute,
-  } as any)
-const AuthenticatedAppFinanceFundAnalyticsRoute =
-  AuthenticatedAppFinanceFundAnalyticsRouteImport.update({
-    id: '/fund-analytics',
-    path: '/fund-analytics',
-    getParentRoute: () => AuthenticatedAppFinanceRoute,
-  } as any)
-const AuthenticatedAppFinanceFundLoansRoute =
-  AuthenticatedAppFinanceFundLoansRouteImport.update({
-    id: '/fund-loans',
-    path: '/fund-loans',
-    getParentRoute: () => AuthenticatedAppFinanceRoute,
-  } as any)
-const AuthenticatedAppFinanceFundSettingsRoute =
-  AuthenticatedAppFinanceFundSettingsRouteImport.update({
-    id: '/fund-settings',
-    path: '/fund-settings',
-    getParentRoute: () => AuthenticatedAppFinanceRoute,
-  } as any)
-const AuthenticatedAppFinanceFundTransfersRoute =
-  AuthenticatedAppFinanceFundTransfersRouteImport.update({
-    id: '/fund-transfers',
-    path: '/fund-transfers',
-    getParentRoute: () => AuthenticatedAppFinanceRoute,
-  } as any)
-const AuthenticatedAppFinanceHistoricalAllocationRoute =
-  AuthenticatedAppFinanceHistoricalAllocationRouteImport.update({
-    id: '/historical-allocation',
-    path: '/historical-allocation',
-    getParentRoute: () => AuthenticatedAppFinanceRoute,
-  } as any)
-const AuthenticatedAppFinanceIncomeRoute =
-  AuthenticatedAppFinanceIncomeRouteImport.update({
-    id: '/income',
-    path: '/income',
-    getParentRoute: () => AuthenticatedAppFinanceRoute,
-  } as any)
-const AuthenticatedAppFinanceProfitabilityRoute =
-  AuthenticatedAppFinanceProfitabilityRouteImport.update({
-    id: '/profitability',
-    path: '/profitability',
-    getParentRoute: () => AuthenticatedAppFinanceRoute,
-  } as any)
-const AuthenticatedAppFinanceReconciliationRoute =
-  AuthenticatedAppFinanceReconciliationRouteImport.update({
-    id: '/reconciliation',
-    path: '/reconciliation',
-    getParentRoute: () => AuthenticatedAppFinanceRoute,
-  } as any)
-const AuthenticatedAppFinanceRecycleBinRoute =
-  AuthenticatedAppFinanceRecycleBinRouteImport.update({
-    id: '/recycle-bin',
-    path: '/recycle-bin',
-    getParentRoute: () => AuthenticatedAppFinanceRoute,
-  } as any)
-const AuthenticatedAppFinanceSalaryRoute =
-  AuthenticatedAppFinanceSalaryRouteImport.update({
-    id: '/salary',
-    path: '/salary',
-    getParentRoute: () => AuthenticatedAppFinanceRoute,
-  } as any)
-const AuthenticatedAppFinanceSalaryReportRoute =
-  AuthenticatedAppFinanceSalaryReportRouteImport.update({
-    id: '/salary-report',
-    path: '/salary-report',
-    getParentRoute: () => AuthenticatedAppFinanceRoute,
-  } as any)
-const AuthenticatedAppFinanceSheetsRoute =
-  AuthenticatedAppFinanceSheetsRouteImport.update({
-    id: '/sheets',
-    path: '/sheets',
-    getParentRoute: () => AuthenticatedAppFinanceRoute,
-  } as any)
-const AuthenticatedAppFinanceTemplatesRoute =
-  AuthenticatedAppFinanceTemplatesRouteImport.update({
-    id: '/templates',
-    path: '/templates',
-    getParentRoute: () => AuthenticatedAppFinanceRoute,
-  } as any)
-const AuthenticatedAppFinanceWalletRoute =
-  AuthenticatedAppFinanceWalletRouteImport.update({
-    id: '/wallet',
-    path: '/wallet',
-    getParentRoute: () => AuthenticatedAppFinanceRoute,
-  } as any)
-const AuthenticatedAppFinanceWithdrawalsRoute =
-  AuthenticatedAppFinanceWithdrawalsRouteImport.update({
-    id: '/withdrawals',
-    path: '/withdrawals',
-    getParentRoute: () => AuthenticatedAppFinanceRoute,
-  } as any)
-const AuthenticatedAppLeadsIndexRoute =
-  AuthenticatedAppLeadsIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => AuthenticatedAppLeadsRoute,
-  } as any)
-const AuthenticatedAppLeadsSlugRoute =
-  AuthenticatedAppLeadsSlugRouteImport.update({
-    id: '/$slug',
-    path: '/$slug',
-    getParentRoute: () => AuthenticatedAppLeadsRoute,
-  } as any)
-const AuthenticatedAppLeadsDashboardRoute =
-  AuthenticatedAppLeadsDashboardRouteImport.update({
-    id: '/dashboard',
-    path: '/dashboard',
-    getParentRoute: () => AuthenticatedAppLeadsRoute,
-  } as any)
-const AuthenticatedAppLeadsDraftsRoute =
-  AuthenticatedAppLeadsDraftsRouteImport.update({
-    id: '/drafts',
-    path: '/drafts',
-    getParentRoute: () => AuthenticatedAppLeadsRoute,
   } as any)
 const AuthenticatedAppProfileIndexRoute =
   AuthenticatedAppProfileIndexRouteImport.update({
@@ -360,57 +192,51 @@ const AuthenticatedAppProfileIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedAppProfileRoute,
   } as any)
-const AuthenticatedAppProfileActivityRoute =
-  AuthenticatedAppProfileActivityRouteImport.update({
-    id: '/activity',
-    path: '/activity',
-    getParentRoute: () => AuthenticatedAppProfileRoute,
+const AuthenticatedAppLeadsIndexRoute =
+  AuthenticatedAppLeadsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedAppLeadsRoute,
   } as any)
-const AuthenticatedAppProfileFinanceRoute =
-  AuthenticatedAppProfileFinanceRouteImport.update({
-    id: '/finance',
-    path: '/finance',
-    getParentRoute: () => AuthenticatedAppProfileRoute,
+const AuthenticatedAppFinanceIndexRoute =
+  AuthenticatedAppFinanceIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedAppFinanceRoute,
   } as any)
-const AuthenticatedAppProfilePersonalRoute =
-  AuthenticatedAppProfilePersonalRouteImport.update({
-    id: '/personal',
-    path: '/personal',
-    getParentRoute: () => AuthenticatedAppProfileRoute,
+const AuthenticatedAppEmployeesIndexRoute =
+  AuthenticatedAppEmployeesIndexRouteImport.update({
+    id: '/employees/',
+    path: '/employees/',
+    getParentRoute: () => AuthenticatedAppRoute,
   } as any)
-const AuthenticatedAppProfileSecurityRoute =
-  AuthenticatedAppProfileSecurityRouteImport.update({
-    id: '/security',
-    path: '/security',
-    getParentRoute: () => AuthenticatedAppProfileRoute,
+const AuthenticatedAppCustomersIndexRoute =
+  AuthenticatedAppCustomersIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedAppCustomersRoute,
   } as any)
-const AuthenticatedAppProfileWalletRoute =
-  AuthenticatedAppProfileWalletRouteImport.update({
-    id: '/wallet',
-    path: '/wallet',
-    getParentRoute: () => AuthenticatedAppProfileRoute,
+const ApiPublicTelegramWebhookRoute =
+  ApiPublicTelegramWebhookRouteImport.update({
+    id: '/api/public/telegram/webhook',
+    path: '/api/public/telegram/webhook',
+    getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicBrevoWebhookRoute = ApiPublicBrevoWebhookRouteImport.update({
-  id: '/api/public/brevo/webhook',
-  path: '/api/public/brevo/webhook',
+const ApiPublicSalarySlipDotpdfRoute =
+  ApiPublicSalarySlipDotpdfRouteImport.update({
+    id: '/api/public/salary/$slip.pdf',
+    path: '/api/public/salary/$slip.pdf',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicResendWebhookRoute = ApiPublicResendWebhookRouteImport.update({
+  id: '/api/public/resend/webhook',
+  path: '/api/public/resend/webhook',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicExpensesVoucherDotpdfRoute =
-  ApiPublicExpensesVoucherDotpdfRouteImport.update({
-    id: '/api/public/expenses/$voucher.pdf',
-    path: '/api/public/expenses/$voucher.pdf',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicHooksInvoiceRemindersRoute =
-  ApiPublicHooksInvoiceRemindersRouteImport.update({
-    id: '/api/public/hooks/invoice-reminders',
-    path: '/api/public/hooks/invoice-reminders',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicHooksNotificationsDrainRoute =
-  ApiPublicHooksNotificationsDrainRouteImport.update({
-    id: '/api/public/hooks/notifications-drain',
-    path: '/api/public/hooks/notifications-drain',
+const ApiPublicInvoicesSlugDotpdfRoute =
+  ApiPublicInvoicesSlugDotpdfRouteImport.update({
+    id: '/api/public/invoices/$slug.pdf',
+    path: '/api/public/invoices/$slug.pdf',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ApiPublicIncomeVoucherDotpdfRoute =
@@ -419,28 +245,208 @@ const ApiPublicIncomeVoucherDotpdfRoute =
     path: '/api/public/income/$voucher.pdf',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicInvoicesSlugDotpdfRoute =
-  ApiPublicInvoicesSlugDotpdfRouteImport.update({
-    id: '/api/public/invoices/$slug.pdf',
-    path: '/api/public/invoices/$slug.pdf',
+const ApiPublicHooksNotificationsDrainRoute =
+  ApiPublicHooksNotificationsDrainRouteImport.update({
+    id: '/api/public/hooks/notifications-drain',
+    path: '/api/public/hooks/notifications-drain',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicResendWebhookRoute = ApiPublicResendWebhookRouteImport.update({
-  id: '/api/public/resend/webhook',
-  path: '/api/public/resend/webhook',
+const ApiPublicHooksInvoiceRemindersRoute =
+  ApiPublicHooksInvoiceRemindersRouteImport.update({
+    id: '/api/public/hooks/invoice-reminders',
+    path: '/api/public/hooks/invoice-reminders',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicExpensesVoucherDotpdfRoute =
+  ApiPublicExpensesVoucherDotpdfRouteImport.update({
+    id: '/api/public/expenses/$voucher.pdf',
+    path: '/api/public/expenses/$voucher.pdf',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicBrevoWebhookRoute = ApiPublicBrevoWebhookRouteImport.update({
+  id: '/api/public/brevo/webhook',
+  path: '/api/public/brevo/webhook',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicSalarySlipDotpdfRoute =
-  ApiPublicSalarySlipDotpdfRouteImport.update({
-    id: '/api/public/salary/$slip.pdf',
-    path: '/api/public/salary/$slip.pdf',
-    getParentRoute: () => rootRouteImport,
+const AuthenticatedAppProfileWalletRoute =
+  AuthenticatedAppProfileWalletRouteImport.update({
+    id: '/wallet',
+    path: '/wallet',
+    getParentRoute: () => AuthenticatedAppProfileRoute,
   } as any)
-const ApiPublicTelegramWebhookRoute =
-  ApiPublicTelegramWebhookRouteImport.update({
-    id: '/api/public/telegram/webhook',
-    path: '/api/public/telegram/webhook',
-    getParentRoute: () => rootRouteImport,
+const AuthenticatedAppProfileSecurityRoute =
+  AuthenticatedAppProfileSecurityRouteImport.update({
+    id: '/security',
+    path: '/security',
+    getParentRoute: () => AuthenticatedAppProfileRoute,
+  } as any)
+const AuthenticatedAppProfilePersonalRoute =
+  AuthenticatedAppProfilePersonalRouteImport.update({
+    id: '/personal',
+    path: '/personal',
+    getParentRoute: () => AuthenticatedAppProfileRoute,
+  } as any)
+const AuthenticatedAppProfileFinanceRoute =
+  AuthenticatedAppProfileFinanceRouteImport.update({
+    id: '/finance',
+    path: '/finance',
+    getParentRoute: () => AuthenticatedAppProfileRoute,
+  } as any)
+const AuthenticatedAppProfileActivityRoute =
+  AuthenticatedAppProfileActivityRouteImport.update({
+    id: '/activity',
+    path: '/activity',
+    getParentRoute: () => AuthenticatedAppProfileRoute,
+  } as any)
+const AuthenticatedAppLeadsDraftsRoute =
+  AuthenticatedAppLeadsDraftsRouteImport.update({
+    id: '/drafts',
+    path: '/drafts',
+    getParentRoute: () => AuthenticatedAppLeadsRoute,
+  } as any)
+const AuthenticatedAppLeadsDashboardRoute =
+  AuthenticatedAppLeadsDashboardRouteImport.update({
+    id: '/dashboard',
+    path: '/dashboard',
+    getParentRoute: () => AuthenticatedAppLeadsRoute,
+  } as any)
+const AuthenticatedAppLeadsSlugRoute =
+  AuthenticatedAppLeadsSlugRouteImport.update({
+    id: '/$slug',
+    path: '/$slug',
+    getParentRoute: () => AuthenticatedAppLeadsRoute,
+  } as any)
+const AuthenticatedAppFinanceWithdrawalsRoute =
+  AuthenticatedAppFinanceWithdrawalsRouteImport.update({
+    id: '/withdrawals',
+    path: '/withdrawals',
+    getParentRoute: () => AuthenticatedAppFinanceRoute,
+  } as any)
+const AuthenticatedAppFinanceWalletRoute =
+  AuthenticatedAppFinanceWalletRouteImport.update({
+    id: '/wallet',
+    path: '/wallet',
+    getParentRoute: () => AuthenticatedAppFinanceRoute,
+  } as any)
+const AuthenticatedAppFinanceTemplatesRoute =
+  AuthenticatedAppFinanceTemplatesRouteImport.update({
+    id: '/templates',
+    path: '/templates',
+    getParentRoute: () => AuthenticatedAppFinanceRoute,
+  } as any)
+const AuthenticatedAppFinanceSheetsRoute =
+  AuthenticatedAppFinanceSheetsRouteImport.update({
+    id: '/sheets',
+    path: '/sheets',
+    getParentRoute: () => AuthenticatedAppFinanceRoute,
+  } as any)
+const AuthenticatedAppFinanceSalaryReportRoute =
+  AuthenticatedAppFinanceSalaryReportRouteImport.update({
+    id: '/salary-report',
+    path: '/salary-report',
+    getParentRoute: () => AuthenticatedAppFinanceRoute,
+  } as any)
+const AuthenticatedAppFinanceSalaryRoute =
+  AuthenticatedAppFinanceSalaryRouteImport.update({
+    id: '/salary',
+    path: '/salary',
+    getParentRoute: () => AuthenticatedAppFinanceRoute,
+  } as any)
+const AuthenticatedAppFinanceRecycleBinRoute =
+  AuthenticatedAppFinanceRecycleBinRouteImport.update({
+    id: '/recycle-bin',
+    path: '/recycle-bin',
+    getParentRoute: () => AuthenticatedAppFinanceRoute,
+  } as any)
+const AuthenticatedAppFinanceReconciliationRoute =
+  AuthenticatedAppFinanceReconciliationRouteImport.update({
+    id: '/reconciliation',
+    path: '/reconciliation',
+    getParentRoute: () => AuthenticatedAppFinanceRoute,
+  } as any)
+const AuthenticatedAppFinanceProfitabilityRoute =
+  AuthenticatedAppFinanceProfitabilityRouteImport.update({
+    id: '/profitability',
+    path: '/profitability',
+    getParentRoute: () => AuthenticatedAppFinanceRoute,
+  } as any)
+const AuthenticatedAppFinanceIncomeRoute =
+  AuthenticatedAppFinanceIncomeRouteImport.update({
+    id: '/income',
+    path: '/income',
+    getParentRoute: () => AuthenticatedAppFinanceRoute,
+  } as any)
+const AuthenticatedAppFinanceHistoricalAllocationRoute =
+  AuthenticatedAppFinanceHistoricalAllocationRouteImport.update({
+    id: '/historical-allocation',
+    path: '/historical-allocation',
+    getParentRoute: () => AuthenticatedAppFinanceRoute,
+  } as any)
+const AuthenticatedAppFinanceFundTransfersRoute =
+  AuthenticatedAppFinanceFundTransfersRouteImport.update({
+    id: '/fund-transfers',
+    path: '/fund-transfers',
+    getParentRoute: () => AuthenticatedAppFinanceRoute,
+  } as any)
+const AuthenticatedAppFinanceFundSettingsRoute =
+  AuthenticatedAppFinanceFundSettingsRouteImport.update({
+    id: '/fund-settings',
+    path: '/fund-settings',
+    getParentRoute: () => AuthenticatedAppFinanceRoute,
+  } as any)
+const AuthenticatedAppFinanceFundLoansRoute =
+  AuthenticatedAppFinanceFundLoansRouteImport.update({
+    id: '/fund-loans',
+    path: '/fund-loans',
+    getParentRoute: () => AuthenticatedAppFinanceRoute,
+  } as any)
+const AuthenticatedAppFinanceFundAnalyticsRoute =
+  AuthenticatedAppFinanceFundAnalyticsRouteImport.update({
+    id: '/fund-analytics',
+    path: '/fund-analytics',
+    getParentRoute: () => AuthenticatedAppFinanceRoute,
+  } as any)
+const AuthenticatedAppFinanceExpensesRoute =
+  AuthenticatedAppFinanceExpensesRouteImport.update({
+    id: '/expenses',
+    path: '/expenses',
+    getParentRoute: () => AuthenticatedAppFinanceRoute,
+  } as any)
+const AuthenticatedAppFinanceEmployeeWalletsRoute =
+  AuthenticatedAppFinanceEmployeeWalletsRouteImport.update({
+    id: '/employee-wallets',
+    path: '/employee-wallets',
+    getParentRoute: () => AuthenticatedAppFinanceRoute,
+  } as any)
+const AuthenticatedAppFinanceEmployeePaymentsRoute =
+  AuthenticatedAppFinanceEmployeePaymentsRouteImport.update({
+    id: '/employee-payments',
+    path: '/employee-payments',
+    getParentRoute: () => AuthenticatedAppFinanceRoute,
+  } as any)
+const AuthenticatedAppFinanceEmployeeEarningsRoute =
+  AuthenticatedAppFinanceEmployeeEarningsRouteImport.update({
+    id: '/employee-earnings',
+    path: '/employee-earnings',
+    getParentRoute: () => AuthenticatedAppFinanceRoute,
+  } as any)
+const AuthenticatedAppEmployeesUserIdRoute =
+  AuthenticatedAppEmployeesUserIdRouteImport.update({
+    id: '/employees/$userId',
+    path: '/employees/$userId',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppCustomersCodeRoute =
+  AuthenticatedAppCustomersCodeRouteImport.update({
+    id: '/$code',
+    path: '/$code',
+    getParentRoute: () => AuthenticatedAppCustomersRoute,
+  } as any)
+const AuthenticatedAppFinanceInvoicesIndexRoute =
+  AuthenticatedAppFinanceInvoicesIndexRouteImport.update({
+    id: '/invoices/',
+    path: '/invoices/',
+    getParentRoute: () => AuthenticatedAppFinanceRoute,
   } as any)
 const AuthenticatedAppFinanceFundsIndexRoute =
   AuthenticatedAppFinanceFundsIndexRouteImport.update({
@@ -448,16 +454,10 @@ const AuthenticatedAppFinanceFundsIndexRoute =
     path: '/funds/',
     getParentRoute: () => AuthenticatedAppFinanceRoute,
   } as any)
-const AuthenticatedAppFinanceFundsCodeRoute =
-  AuthenticatedAppFinanceFundsCodeRouteImport.update({
-    id: '/funds/$code',
-    path: '/funds/$code',
-    getParentRoute: () => AuthenticatedAppFinanceRoute,
-  } as any)
-const AuthenticatedAppFinanceInvoicesIndexRoute =
-  AuthenticatedAppFinanceInvoicesIndexRouteImport.update({
-    id: '/invoices/',
-    path: '/invoices/',
+const AuthenticatedAppFinanceInvoicesNewRoute =
+  AuthenticatedAppFinanceInvoicesNewRouteImport.update({
+    id: '/invoices/new',
+    path: '/invoices/new',
     getParentRoute: () => AuthenticatedAppFinanceRoute,
   } as any)
 const AuthenticatedAppFinanceInvoicesSlugRoute =
@@ -466,10 +466,10 @@ const AuthenticatedAppFinanceInvoicesSlugRoute =
     path: '/invoices/$slug',
     getParentRoute: () => AuthenticatedAppFinanceRoute,
   } as any)
-const AuthenticatedAppFinanceInvoicesNewRoute =
-  AuthenticatedAppFinanceInvoicesNewRouteImport.update({
-    id: '/invoices/new',
-    path: '/invoices/new',
+const AuthenticatedAppFinanceFundsCodeRoute =
+  AuthenticatedAppFinanceFundsCodeRouteImport.update({
+    id: '/funds/$code',
+    path: '/funds/$code',
     getParentRoute: () => AuthenticatedAppFinanceRoute,
   } as any)
 
@@ -902,11 +902,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated': {
@@ -916,11 +916,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/x/$voucher': {
+      id: '/x/$voucher'
+      path: '/x/$voucher'
+      fullPath: '/x/$voucher'
+      preLoaderRoute: typeof XVoucherRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/app': {
@@ -930,13 +937,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/x/$voucher': {
-      id: '/x/$voucher'
-      path: '/x/$voucher'
-      fullPath: '/x/$voucher'
-      preLoaderRoute: typeof XVoucherRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/_authenticated/app/': {
       id: '/_authenticated/app/'
       path: '/'
@@ -944,67 +944,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppIndexRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
-    '/_authenticated/app/analytics': {
-      id: '/_authenticated/app/analytics'
-      path: '/analytics'
-      fullPath: '/app/analytics'
-      preLoaderRoute: typeof AuthenticatedAppAnalyticsRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
+    '/api/public/r2-health': {
+      id: '/api/public/r2-health'
+      path: '/api/public/r2-health'
+      fullPath: '/api/public/r2-health'
+      preLoaderRoute: typeof ApiPublicR2HealthRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/app/customers': {
-      id: '/_authenticated/app/customers'
-      path: '/customers'
-      fullPath: '/app/customers'
-      preLoaderRoute: typeof AuthenticatedAppCustomersRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
+    '/_authenticated/onboarding/telegram': {
+      id: '/_authenticated/onboarding/telegram'
+      path: '/onboarding/telegram'
+      fullPath: '/onboarding/telegram'
+      preLoaderRoute: typeof AuthenticatedOnboardingTelegramRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/app/finance': {
-      id: '/_authenticated/app/finance'
-      path: '/finance'
-      fullPath: '/app/finance'
-      preLoaderRoute: typeof AuthenticatedAppFinanceRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
+    '/_authenticated/onboarding/password': {
+      id: '/_authenticated/onboarding/password'
+      path: '/onboarding/password'
+      fullPath: '/onboarding/password'
+      preLoaderRoute: typeof AuthenticatedOnboardingPasswordRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/app/inbox': {
-      id: '/_authenticated/app/inbox'
-      path: '/inbox'
-      fullPath: '/app/inbox'
-      preLoaderRoute: typeof AuthenticatedAppInboxRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/app/leads': {
-      id: '/_authenticated/app/leads'
-      path: '/leads'
-      fullPath: '/app/leads'
-      preLoaderRoute: typeof AuthenticatedAppLeadsRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/app/mail-queue': {
-      id: '/_authenticated/app/mail-queue'
-      path: '/mail-queue'
-      fullPath: '/app/mail-queue'
-      preLoaderRoute: typeof AuthenticatedAppMailQueueRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/app/notifications': {
-      id: '/_authenticated/app/notifications'
-      path: '/notifications'
-      fullPath: '/app/notifications'
-      preLoaderRoute: typeof AuthenticatedAppNotificationsRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/app/operations': {
-      id: '/_authenticated/app/operations'
-      path: '/operations'
-      fullPath: '/app/operations'
-      preLoaderRoute: typeof AuthenticatedAppOperationsRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/app/profile': {
-      id: '/_authenticated/app/profile'
-      path: '/profile'
-      fullPath: '/app/profile'
-      preLoaderRoute: typeof AuthenticatedAppProfileRouteImport
+    '/_authenticated/app/transfers': {
+      id: '/_authenticated/app/transfers'
+      path: '/transfers'
+      fullPath: '/app/transfers'
+      preLoaderRoute: typeof AuthenticatedAppTransfersRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
     '/_authenticated/app/settings': {
@@ -1014,229 +979,68 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppSettingsRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
-    '/_authenticated/app/transfers': {
-      id: '/_authenticated/app/transfers'
-      path: '/transfers'
-      fullPath: '/app/transfers'
-      preLoaderRoute: typeof AuthenticatedAppTransfersRouteImport
+    '/_authenticated/app/profile': {
+      id: '/_authenticated/app/profile'
+      path: '/profile'
+      fullPath: '/app/profile'
+      preLoaderRoute: typeof AuthenticatedAppProfileRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
-    '/_authenticated/onboarding/password': {
-      id: '/_authenticated/onboarding/password'
-      path: '/onboarding/password'
-      fullPath: '/onboarding/password'
-      preLoaderRoute: typeof AuthenticatedOnboardingPasswordRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/onboarding/telegram': {
-      id: '/_authenticated/onboarding/telegram'
-      path: '/onboarding/telegram'
-      fullPath: '/onboarding/telegram'
-      preLoaderRoute: typeof AuthenticatedOnboardingTelegramRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/api/public/r2-health': {
-      id: '/api/public/r2-health'
-      path: '/api/public/r2-health'
-      fullPath: '/api/public/r2-health'
-      preLoaderRoute: typeof ApiPublicR2HealthRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_authenticated/app/customers/': {
-      id: '/_authenticated/app/customers/'
-      path: '/'
-      fullPath: '/app/customers/'
-      preLoaderRoute: typeof AuthenticatedAppCustomersIndexRouteImport
-      parentRoute: typeof AuthenticatedAppCustomersRoute
-    }
-    '/_authenticated/app/customers/$code': {
-      id: '/_authenticated/app/customers/$code'
-      path: '/$code'
-      fullPath: '/app/customers/$code'
-      preLoaderRoute: typeof AuthenticatedAppCustomersCodeRouteImport
-      parentRoute: typeof AuthenticatedAppCustomersRoute
-    }
-    '/_authenticated/app/employees/': {
-      id: '/_authenticated/app/employees/'
-      path: '/employees'
-      fullPath: '/app/employees/'
-      preLoaderRoute: typeof AuthenticatedAppEmployeesIndexRouteImport
+    '/_authenticated/app/operations': {
+      id: '/_authenticated/app/operations'
+      path: '/operations'
+      fullPath: '/app/operations'
+      preLoaderRoute: typeof AuthenticatedAppOperationsRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
-    '/_authenticated/app/employees/$userId': {
-      id: '/_authenticated/app/employees/$userId'
-      path: '/employees/$userId'
-      fullPath: '/app/employees/$userId'
-      preLoaderRoute: typeof AuthenticatedAppEmployeesUserIdRouteImport
+    '/_authenticated/app/notifications': {
+      id: '/_authenticated/app/notifications'
+      path: '/notifications'
+      fullPath: '/app/notifications'
+      preLoaderRoute: typeof AuthenticatedAppNotificationsRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
-    '/_authenticated/app/finance/': {
-      id: '/_authenticated/app/finance/'
-      path: '/'
-      fullPath: '/app/finance/'
-      preLoaderRoute: typeof AuthenticatedAppFinanceIndexRouteImport
-      parentRoute: typeof AuthenticatedAppFinanceRoute
+    '/_authenticated/app/mail-queue': {
+      id: '/_authenticated/app/mail-queue'
+      path: '/mail-queue'
+      fullPath: '/app/mail-queue'
+      preLoaderRoute: typeof AuthenticatedAppMailQueueRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
     }
-    '/_authenticated/app/finance/employee-earnings': {
-      id: '/_authenticated/app/finance/employee-earnings'
-      path: '/employee-earnings'
-      fullPath: '/app/finance/employee-earnings'
-      preLoaderRoute: typeof AuthenticatedAppFinanceEmployeeEarningsRouteImport
-      parentRoute: typeof AuthenticatedAppFinanceRoute
+    '/_authenticated/app/leads': {
+      id: '/_authenticated/app/leads'
+      path: '/leads'
+      fullPath: '/app/leads'
+      preLoaderRoute: typeof AuthenticatedAppLeadsRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
     }
-    '/_authenticated/app/finance/employee-payments': {
-      id: '/_authenticated/app/finance/employee-payments'
-      path: '/employee-payments'
-      fullPath: '/app/finance/employee-payments'
-      preLoaderRoute: typeof AuthenticatedAppFinanceEmployeePaymentsRouteImport
-      parentRoute: typeof AuthenticatedAppFinanceRoute
+    '/_authenticated/app/inbox': {
+      id: '/_authenticated/app/inbox'
+      path: '/inbox'
+      fullPath: '/app/inbox'
+      preLoaderRoute: typeof AuthenticatedAppInboxRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
     }
-    '/_authenticated/app/finance/employee-wallets': {
-      id: '/_authenticated/app/finance/employee-wallets'
-      path: '/employee-wallets'
-      fullPath: '/app/finance/employee-wallets'
-      preLoaderRoute: typeof AuthenticatedAppFinanceEmployeeWalletsRouteImport
-      parentRoute: typeof AuthenticatedAppFinanceRoute
+    '/_authenticated/app/finance': {
+      id: '/_authenticated/app/finance'
+      path: '/finance'
+      fullPath: '/app/finance'
+      preLoaderRoute: typeof AuthenticatedAppFinanceRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
     }
-    '/_authenticated/app/finance/expenses': {
-      id: '/_authenticated/app/finance/expenses'
-      path: '/expenses'
-      fullPath: '/app/finance/expenses'
-      preLoaderRoute: typeof AuthenticatedAppFinanceExpensesRouteImport
-      parentRoute: typeof AuthenticatedAppFinanceRoute
+    '/_authenticated/app/customers': {
+      id: '/_authenticated/app/customers'
+      path: '/customers'
+      fullPath: '/app/customers'
+      preLoaderRoute: typeof AuthenticatedAppCustomersRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
     }
-    '/_authenticated/app/finance/fund-analytics': {
-      id: '/_authenticated/app/finance/fund-analytics'
-      path: '/fund-analytics'
-      fullPath: '/app/finance/fund-analytics'
-      preLoaderRoute: typeof AuthenticatedAppFinanceFundAnalyticsRouteImport
-      parentRoute: typeof AuthenticatedAppFinanceRoute
-    }
-    '/_authenticated/app/finance/fund-loans': {
-      id: '/_authenticated/app/finance/fund-loans'
-      path: '/fund-loans'
-      fullPath: '/app/finance/fund-loans'
-      preLoaderRoute: typeof AuthenticatedAppFinanceFundLoansRouteImport
-      parentRoute: typeof AuthenticatedAppFinanceRoute
-    }
-    '/_authenticated/app/finance/fund-settings': {
-      id: '/_authenticated/app/finance/fund-settings'
-      path: '/fund-settings'
-      fullPath: '/app/finance/fund-settings'
-      preLoaderRoute: typeof AuthenticatedAppFinanceFundSettingsRouteImport
-      parentRoute: typeof AuthenticatedAppFinanceRoute
-    }
-    '/_authenticated/app/finance/fund-transfers': {
-      id: '/_authenticated/app/finance/fund-transfers'
-      path: '/fund-transfers'
-      fullPath: '/app/finance/fund-transfers'
-      preLoaderRoute: typeof AuthenticatedAppFinanceFundTransfersRouteImport
-      parentRoute: typeof AuthenticatedAppFinanceRoute
-    }
-    '/_authenticated/app/finance/historical-allocation': {
-      id: '/_authenticated/app/finance/historical-allocation'
-      path: '/historical-allocation'
-      fullPath: '/app/finance/historical-allocation'
-      preLoaderRoute: typeof AuthenticatedAppFinanceHistoricalAllocationRouteImport
-      parentRoute: typeof AuthenticatedAppFinanceRoute
-    }
-    '/_authenticated/app/finance/income': {
-      id: '/_authenticated/app/finance/income'
-      path: '/income'
-      fullPath: '/app/finance/income'
-      preLoaderRoute: typeof AuthenticatedAppFinanceIncomeRouteImport
-      parentRoute: typeof AuthenticatedAppFinanceRoute
-    }
-    '/_authenticated/app/finance/profitability': {
-      id: '/_authenticated/app/finance/profitability'
-      path: '/profitability'
-      fullPath: '/app/finance/profitability'
-      preLoaderRoute: typeof AuthenticatedAppFinanceProfitabilityRouteImport
-      parentRoute: typeof AuthenticatedAppFinanceRoute
-    }
-    '/_authenticated/app/finance/reconciliation': {
-      id: '/_authenticated/app/finance/reconciliation'
-      path: '/reconciliation'
-      fullPath: '/app/finance/reconciliation'
-      preLoaderRoute: typeof AuthenticatedAppFinanceReconciliationRouteImport
-      parentRoute: typeof AuthenticatedAppFinanceRoute
-    }
-    '/_authenticated/app/finance/recycle-bin': {
-      id: '/_authenticated/app/finance/recycle-bin'
-      path: '/recycle-bin'
-      fullPath: '/app/finance/recycle-bin'
-      preLoaderRoute: typeof AuthenticatedAppFinanceRecycleBinRouteImport
-      parentRoute: typeof AuthenticatedAppFinanceRoute
-    }
-    '/_authenticated/app/finance/salary': {
-      id: '/_authenticated/app/finance/salary'
-      path: '/salary'
-      fullPath: '/app/finance/salary'
-      preLoaderRoute: typeof AuthenticatedAppFinanceSalaryRouteImport
-      parentRoute: typeof AuthenticatedAppFinanceRoute
-    }
-    '/_authenticated/app/finance/salary-report': {
-      id: '/_authenticated/app/finance/salary-report'
-      path: '/salary-report'
-      fullPath: '/app/finance/salary-report'
-      preLoaderRoute: typeof AuthenticatedAppFinanceSalaryReportRouteImport
-      parentRoute: typeof AuthenticatedAppFinanceRoute
-    }
-    '/_authenticated/app/finance/sheets': {
-      id: '/_authenticated/app/finance/sheets'
-      path: '/sheets'
-      fullPath: '/app/finance/sheets'
-      preLoaderRoute: typeof AuthenticatedAppFinanceSheetsRouteImport
-      parentRoute: typeof AuthenticatedAppFinanceRoute
-    }
-    '/_authenticated/app/finance/templates': {
-      id: '/_authenticated/app/finance/templates'
-      path: '/templates'
-      fullPath: '/app/finance/templates'
-      preLoaderRoute: typeof AuthenticatedAppFinanceTemplatesRouteImport
-      parentRoute: typeof AuthenticatedAppFinanceRoute
-    }
-    '/_authenticated/app/finance/wallet': {
-      id: '/_authenticated/app/finance/wallet'
-      path: '/wallet'
-      fullPath: '/app/finance/wallet'
-      preLoaderRoute: typeof AuthenticatedAppFinanceWalletRouteImport
-      parentRoute: typeof AuthenticatedAppFinanceRoute
-    }
-    '/_authenticated/app/finance/withdrawals': {
-      id: '/_authenticated/app/finance/withdrawals'
-      path: '/withdrawals'
-      fullPath: '/app/finance/withdrawals'
-      preLoaderRoute: typeof AuthenticatedAppFinanceWithdrawalsRouteImport
-      parentRoute: typeof AuthenticatedAppFinanceRoute
-    }
-    '/_authenticated/app/leads/': {
-      id: '/_authenticated/app/leads/'
-      path: '/'
-      fullPath: '/app/leads/'
-      preLoaderRoute: typeof AuthenticatedAppLeadsIndexRouteImport
-      parentRoute: typeof AuthenticatedAppLeadsRoute
-    }
-    '/_authenticated/app/leads/$slug': {
-      id: '/_authenticated/app/leads/$slug'
-      path: '/$slug'
-      fullPath: '/app/leads/$slug'
-      preLoaderRoute: typeof AuthenticatedAppLeadsSlugRouteImport
-      parentRoute: typeof AuthenticatedAppLeadsRoute
-    }
-    '/_authenticated/app/leads/dashboard': {
-      id: '/_authenticated/app/leads/dashboard'
-      path: '/dashboard'
-      fullPath: '/app/leads/dashboard'
-      preLoaderRoute: typeof AuthenticatedAppLeadsDashboardRouteImport
-      parentRoute: typeof AuthenticatedAppLeadsRoute
-    }
-    '/_authenticated/app/leads/drafts': {
-      id: '/_authenticated/app/leads/drafts'
-      path: '/drafts'
-      fullPath: '/app/leads/drafts'
-      preLoaderRoute: typeof AuthenticatedAppLeadsDraftsRouteImport
-      parentRoute: typeof AuthenticatedAppLeadsRoute
+    '/_authenticated/app/analytics': {
+      id: '/_authenticated/app/analytics'
+      path: '/analytics'
+      fullPath: '/app/analytics'
+      preLoaderRoute: typeof AuthenticatedAppAnalyticsRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
     }
     '/_authenticated/app/profile/': {
       id: '/_authenticated/app/profile/'
@@ -1245,88 +1049,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppProfileIndexRouteImport
       parentRoute: typeof AuthenticatedAppProfileRoute
     }
-    '/_authenticated/app/profile/activity': {
-      id: '/_authenticated/app/profile/activity'
-      path: '/activity'
-      fullPath: '/app/profile/activity'
-      preLoaderRoute: typeof AuthenticatedAppProfileActivityRouteImport
-      parentRoute: typeof AuthenticatedAppProfileRoute
+    '/_authenticated/app/leads/': {
+      id: '/_authenticated/app/leads/'
+      path: '/'
+      fullPath: '/app/leads/'
+      preLoaderRoute: typeof AuthenticatedAppLeadsIndexRouteImport
+      parentRoute: typeof AuthenticatedAppLeadsRoute
     }
-    '/_authenticated/app/profile/finance': {
-      id: '/_authenticated/app/profile/finance'
-      path: '/finance'
-      fullPath: '/app/profile/finance'
-      preLoaderRoute: typeof AuthenticatedAppProfileFinanceRouteImport
-      parentRoute: typeof AuthenticatedAppProfileRoute
+    '/_authenticated/app/finance/': {
+      id: '/_authenticated/app/finance/'
+      path: '/'
+      fullPath: '/app/finance/'
+      preLoaderRoute: typeof AuthenticatedAppFinanceIndexRouteImport
+      parentRoute: typeof AuthenticatedAppFinanceRoute
     }
-    '/_authenticated/app/profile/personal': {
-      id: '/_authenticated/app/profile/personal'
-      path: '/personal'
-      fullPath: '/app/profile/personal'
-      preLoaderRoute: typeof AuthenticatedAppProfilePersonalRouteImport
-      parentRoute: typeof AuthenticatedAppProfileRoute
+    '/_authenticated/app/employees/': {
+      id: '/_authenticated/app/employees/'
+      path: '/employees'
+      fullPath: '/app/employees/'
+      preLoaderRoute: typeof AuthenticatedAppEmployeesIndexRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
     }
-    '/_authenticated/app/profile/security': {
-      id: '/_authenticated/app/profile/security'
-      path: '/security'
-      fullPath: '/app/profile/security'
-      preLoaderRoute: typeof AuthenticatedAppProfileSecurityRouteImport
-      parentRoute: typeof AuthenticatedAppProfileRoute
+    '/_authenticated/app/customers/': {
+      id: '/_authenticated/app/customers/'
+      path: '/'
+      fullPath: '/app/customers/'
+      preLoaderRoute: typeof AuthenticatedAppCustomersIndexRouteImport
+      parentRoute: typeof AuthenticatedAppCustomersRoute
     }
-    '/_authenticated/app/profile/wallet': {
-      id: '/_authenticated/app/profile/wallet'
-      path: '/wallet'
-      fullPath: '/app/profile/wallet'
-      preLoaderRoute: typeof AuthenticatedAppProfileWalletRouteImport
-      parentRoute: typeof AuthenticatedAppProfileRoute
-    }
-    '/api/public/brevo/webhook': {
-      id: '/api/public/brevo/webhook'
-      path: '/api/public/brevo/webhook'
-      fullPath: '/api/public/brevo/webhook'
-      preLoaderRoute: typeof ApiPublicBrevoWebhookRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/expenses/$voucher.pdf': {
-      id: '/api/public/expenses/$voucher.pdf'
-      path: '/api/public/expenses/$voucher.pdf'
-      fullPath: '/api/public/expenses/$voucher.pdf'
-      preLoaderRoute: typeof ApiPublicExpensesVoucherDotpdfRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/hooks/invoice-reminders': {
-      id: '/api/public/hooks/invoice-reminders'
-      path: '/api/public/hooks/invoice-reminders'
-      fullPath: '/api/public/hooks/invoice-reminders'
-      preLoaderRoute: typeof ApiPublicHooksInvoiceRemindersRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/hooks/notifications-drain': {
-      id: '/api/public/hooks/notifications-drain'
-      path: '/api/public/hooks/notifications-drain'
-      fullPath: '/api/public/hooks/notifications-drain'
-      preLoaderRoute: typeof ApiPublicHooksNotificationsDrainRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/income/$voucher.pdf': {
-      id: '/api/public/income/$voucher.pdf'
-      path: '/api/public/income/$voucher.pdf'
-      fullPath: '/api/public/income/$voucher.pdf'
-      preLoaderRoute: typeof ApiPublicIncomeVoucherDotpdfRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/invoices/$slug.pdf': {
-      id: '/api/public/invoices/$slug.pdf'
-      path: '/api/public/invoices/$slug.pdf'
-      fullPath: '/api/public/invoices/$slug.pdf'
-      preLoaderRoute: typeof ApiPublicInvoicesSlugDotpdfRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/resend/webhook': {
-      id: '/api/public/resend/webhook'
-      path: '/api/public/resend/webhook'
-      fullPath: '/api/public/resend/webhook'
-      preLoaderRoute: typeof ApiPublicResendWebhookRouteImport
+    '/api/public/telegram/webhook': {
+      id: '/api/public/telegram/webhook'
+      path: '/api/public/telegram/webhook'
+      fullPath: '/api/public/telegram/webhook'
+      preLoaderRoute: typeof ApiPublicTelegramWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/salary/$slip.pdf': {
@@ -1336,12 +1091,264 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicSalarySlipDotpdfRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/telegram/webhook': {
-      id: '/api/public/telegram/webhook'
-      path: '/api/public/telegram/webhook'
-      fullPath: '/api/public/telegram/webhook'
-      preLoaderRoute: typeof ApiPublicTelegramWebhookRouteImport
+    '/api/public/resend/webhook': {
+      id: '/api/public/resend/webhook'
+      path: '/api/public/resend/webhook'
+      fullPath: '/api/public/resend/webhook'
+      preLoaderRoute: typeof ApiPublicResendWebhookRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/api/public/invoices/$slug.pdf': {
+      id: '/api/public/invoices/$slug.pdf'
+      path: '/api/public/invoices/$slug.pdf'
+      fullPath: '/api/public/invoices/$slug.pdf'
+      preLoaderRoute: typeof ApiPublicInvoicesSlugDotpdfRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/income/$voucher.pdf': {
+      id: '/api/public/income/$voucher.pdf'
+      path: '/api/public/income/$voucher.pdf'
+      fullPath: '/api/public/income/$voucher.pdf'
+      preLoaderRoute: typeof ApiPublicIncomeVoucherDotpdfRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/notifications-drain': {
+      id: '/api/public/hooks/notifications-drain'
+      path: '/api/public/hooks/notifications-drain'
+      fullPath: '/api/public/hooks/notifications-drain'
+      preLoaderRoute: typeof ApiPublicHooksNotificationsDrainRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/invoice-reminders': {
+      id: '/api/public/hooks/invoice-reminders'
+      path: '/api/public/hooks/invoice-reminders'
+      fullPath: '/api/public/hooks/invoice-reminders'
+      preLoaderRoute: typeof ApiPublicHooksInvoiceRemindersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/expenses/$voucher.pdf': {
+      id: '/api/public/expenses/$voucher.pdf'
+      path: '/api/public/expenses/$voucher.pdf'
+      fullPath: '/api/public/expenses/$voucher.pdf'
+      preLoaderRoute: typeof ApiPublicExpensesVoucherDotpdfRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/brevo/webhook': {
+      id: '/api/public/brevo/webhook'
+      path: '/api/public/brevo/webhook'
+      fullPath: '/api/public/brevo/webhook'
+      preLoaderRoute: typeof ApiPublicBrevoWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/app/profile/wallet': {
+      id: '/_authenticated/app/profile/wallet'
+      path: '/wallet'
+      fullPath: '/app/profile/wallet'
+      preLoaderRoute: typeof AuthenticatedAppProfileWalletRouteImport
+      parentRoute: typeof AuthenticatedAppProfileRoute
+    }
+    '/_authenticated/app/profile/security': {
+      id: '/_authenticated/app/profile/security'
+      path: '/security'
+      fullPath: '/app/profile/security'
+      preLoaderRoute: typeof AuthenticatedAppProfileSecurityRouteImport
+      parentRoute: typeof AuthenticatedAppProfileRoute
+    }
+    '/_authenticated/app/profile/personal': {
+      id: '/_authenticated/app/profile/personal'
+      path: '/personal'
+      fullPath: '/app/profile/personal'
+      preLoaderRoute: typeof AuthenticatedAppProfilePersonalRouteImport
+      parentRoute: typeof AuthenticatedAppProfileRoute
+    }
+    '/_authenticated/app/profile/finance': {
+      id: '/_authenticated/app/profile/finance'
+      path: '/finance'
+      fullPath: '/app/profile/finance'
+      preLoaderRoute: typeof AuthenticatedAppProfileFinanceRouteImport
+      parentRoute: typeof AuthenticatedAppProfileRoute
+    }
+    '/_authenticated/app/profile/activity': {
+      id: '/_authenticated/app/profile/activity'
+      path: '/activity'
+      fullPath: '/app/profile/activity'
+      preLoaderRoute: typeof AuthenticatedAppProfileActivityRouteImport
+      parentRoute: typeof AuthenticatedAppProfileRoute
+    }
+    '/_authenticated/app/leads/drafts': {
+      id: '/_authenticated/app/leads/drafts'
+      path: '/drafts'
+      fullPath: '/app/leads/drafts'
+      preLoaderRoute: typeof AuthenticatedAppLeadsDraftsRouteImport
+      parentRoute: typeof AuthenticatedAppLeadsRoute
+    }
+    '/_authenticated/app/leads/dashboard': {
+      id: '/_authenticated/app/leads/dashboard'
+      path: '/dashboard'
+      fullPath: '/app/leads/dashboard'
+      preLoaderRoute: typeof AuthenticatedAppLeadsDashboardRouteImport
+      parentRoute: typeof AuthenticatedAppLeadsRoute
+    }
+    '/_authenticated/app/leads/$slug': {
+      id: '/_authenticated/app/leads/$slug'
+      path: '/$slug'
+      fullPath: '/app/leads/$slug'
+      preLoaderRoute: typeof AuthenticatedAppLeadsSlugRouteImport
+      parentRoute: typeof AuthenticatedAppLeadsRoute
+    }
+    '/_authenticated/app/finance/withdrawals': {
+      id: '/_authenticated/app/finance/withdrawals'
+      path: '/withdrawals'
+      fullPath: '/app/finance/withdrawals'
+      preLoaderRoute: typeof AuthenticatedAppFinanceWithdrawalsRouteImport
+      parentRoute: typeof AuthenticatedAppFinanceRoute
+    }
+    '/_authenticated/app/finance/wallet': {
+      id: '/_authenticated/app/finance/wallet'
+      path: '/wallet'
+      fullPath: '/app/finance/wallet'
+      preLoaderRoute: typeof AuthenticatedAppFinanceWalletRouteImport
+      parentRoute: typeof AuthenticatedAppFinanceRoute
+    }
+    '/_authenticated/app/finance/templates': {
+      id: '/_authenticated/app/finance/templates'
+      path: '/templates'
+      fullPath: '/app/finance/templates'
+      preLoaderRoute: typeof AuthenticatedAppFinanceTemplatesRouteImport
+      parentRoute: typeof AuthenticatedAppFinanceRoute
+    }
+    '/_authenticated/app/finance/sheets': {
+      id: '/_authenticated/app/finance/sheets'
+      path: '/sheets'
+      fullPath: '/app/finance/sheets'
+      preLoaderRoute: typeof AuthenticatedAppFinanceSheetsRouteImport
+      parentRoute: typeof AuthenticatedAppFinanceRoute
+    }
+    '/_authenticated/app/finance/salary-report': {
+      id: '/_authenticated/app/finance/salary-report'
+      path: '/salary-report'
+      fullPath: '/app/finance/salary-report'
+      preLoaderRoute: typeof AuthenticatedAppFinanceSalaryReportRouteImport
+      parentRoute: typeof AuthenticatedAppFinanceRoute
+    }
+    '/_authenticated/app/finance/salary': {
+      id: '/_authenticated/app/finance/salary'
+      path: '/salary'
+      fullPath: '/app/finance/salary'
+      preLoaderRoute: typeof AuthenticatedAppFinanceSalaryRouteImport
+      parentRoute: typeof AuthenticatedAppFinanceRoute
+    }
+    '/_authenticated/app/finance/recycle-bin': {
+      id: '/_authenticated/app/finance/recycle-bin'
+      path: '/recycle-bin'
+      fullPath: '/app/finance/recycle-bin'
+      preLoaderRoute: typeof AuthenticatedAppFinanceRecycleBinRouteImport
+      parentRoute: typeof AuthenticatedAppFinanceRoute
+    }
+    '/_authenticated/app/finance/reconciliation': {
+      id: '/_authenticated/app/finance/reconciliation'
+      path: '/reconciliation'
+      fullPath: '/app/finance/reconciliation'
+      preLoaderRoute: typeof AuthenticatedAppFinanceReconciliationRouteImport
+      parentRoute: typeof AuthenticatedAppFinanceRoute
+    }
+    '/_authenticated/app/finance/profitability': {
+      id: '/_authenticated/app/finance/profitability'
+      path: '/profitability'
+      fullPath: '/app/finance/profitability'
+      preLoaderRoute: typeof AuthenticatedAppFinanceProfitabilityRouteImport
+      parentRoute: typeof AuthenticatedAppFinanceRoute
+    }
+    '/_authenticated/app/finance/income': {
+      id: '/_authenticated/app/finance/income'
+      path: '/income'
+      fullPath: '/app/finance/income'
+      preLoaderRoute: typeof AuthenticatedAppFinanceIncomeRouteImport
+      parentRoute: typeof AuthenticatedAppFinanceRoute
+    }
+    '/_authenticated/app/finance/historical-allocation': {
+      id: '/_authenticated/app/finance/historical-allocation'
+      path: '/historical-allocation'
+      fullPath: '/app/finance/historical-allocation'
+      preLoaderRoute: typeof AuthenticatedAppFinanceHistoricalAllocationRouteImport
+      parentRoute: typeof AuthenticatedAppFinanceRoute
+    }
+    '/_authenticated/app/finance/fund-transfers': {
+      id: '/_authenticated/app/finance/fund-transfers'
+      path: '/fund-transfers'
+      fullPath: '/app/finance/fund-transfers'
+      preLoaderRoute: typeof AuthenticatedAppFinanceFundTransfersRouteImport
+      parentRoute: typeof AuthenticatedAppFinanceRoute
+    }
+    '/_authenticated/app/finance/fund-settings': {
+      id: '/_authenticated/app/finance/fund-settings'
+      path: '/fund-settings'
+      fullPath: '/app/finance/fund-settings'
+      preLoaderRoute: typeof AuthenticatedAppFinanceFundSettingsRouteImport
+      parentRoute: typeof AuthenticatedAppFinanceRoute
+    }
+    '/_authenticated/app/finance/fund-loans': {
+      id: '/_authenticated/app/finance/fund-loans'
+      path: '/fund-loans'
+      fullPath: '/app/finance/fund-loans'
+      preLoaderRoute: typeof AuthenticatedAppFinanceFundLoansRouteImport
+      parentRoute: typeof AuthenticatedAppFinanceRoute
+    }
+    '/_authenticated/app/finance/fund-analytics': {
+      id: '/_authenticated/app/finance/fund-analytics'
+      path: '/fund-analytics'
+      fullPath: '/app/finance/fund-analytics'
+      preLoaderRoute: typeof AuthenticatedAppFinanceFundAnalyticsRouteImport
+      parentRoute: typeof AuthenticatedAppFinanceRoute
+    }
+    '/_authenticated/app/finance/expenses': {
+      id: '/_authenticated/app/finance/expenses'
+      path: '/expenses'
+      fullPath: '/app/finance/expenses'
+      preLoaderRoute: typeof AuthenticatedAppFinanceExpensesRouteImport
+      parentRoute: typeof AuthenticatedAppFinanceRoute
+    }
+    '/_authenticated/app/finance/employee-wallets': {
+      id: '/_authenticated/app/finance/employee-wallets'
+      path: '/employee-wallets'
+      fullPath: '/app/finance/employee-wallets'
+      preLoaderRoute: typeof AuthenticatedAppFinanceEmployeeWalletsRouteImport
+      parentRoute: typeof AuthenticatedAppFinanceRoute
+    }
+    '/_authenticated/app/finance/employee-payments': {
+      id: '/_authenticated/app/finance/employee-payments'
+      path: '/employee-payments'
+      fullPath: '/app/finance/employee-payments'
+      preLoaderRoute: typeof AuthenticatedAppFinanceEmployeePaymentsRouteImport
+      parentRoute: typeof AuthenticatedAppFinanceRoute
+    }
+    '/_authenticated/app/finance/employee-earnings': {
+      id: '/_authenticated/app/finance/employee-earnings'
+      path: '/employee-earnings'
+      fullPath: '/app/finance/employee-earnings'
+      preLoaderRoute: typeof AuthenticatedAppFinanceEmployeeEarningsRouteImport
+      parentRoute: typeof AuthenticatedAppFinanceRoute
+    }
+    '/_authenticated/app/employees/$userId': {
+      id: '/_authenticated/app/employees/$userId'
+      path: '/employees/$userId'
+      fullPath: '/app/employees/$userId'
+      preLoaderRoute: typeof AuthenticatedAppEmployeesUserIdRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/customers/$code': {
+      id: '/_authenticated/app/customers/$code'
+      path: '/$code'
+      fullPath: '/app/customers/$code'
+      preLoaderRoute: typeof AuthenticatedAppCustomersCodeRouteImport
+      parentRoute: typeof AuthenticatedAppCustomersRoute
+    }
+    '/_authenticated/app/finance/invoices/': {
+      id: '/_authenticated/app/finance/invoices/'
+      path: '/invoices'
+      fullPath: '/app/finance/invoices/'
+      preLoaderRoute: typeof AuthenticatedAppFinanceInvoicesIndexRouteImport
+      parentRoute: typeof AuthenticatedAppFinanceRoute
     }
     '/_authenticated/app/finance/funds/': {
       id: '/_authenticated/app/finance/funds/'
@@ -1350,18 +1357,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppFinanceFundsIndexRouteImport
       parentRoute: typeof AuthenticatedAppFinanceRoute
     }
-    '/_authenticated/app/finance/funds/$code': {
-      id: '/_authenticated/app/finance/funds/$code'
-      path: '/funds/$code'
-      fullPath: '/app/finance/funds/$code'
-      preLoaderRoute: typeof AuthenticatedAppFinanceFundsCodeRouteImport
-      parentRoute: typeof AuthenticatedAppFinanceRoute
-    }
-    '/_authenticated/app/finance/invoices/': {
-      id: '/_authenticated/app/finance/invoices/'
-      path: '/invoices'
-      fullPath: '/app/finance/invoices/'
-      preLoaderRoute: typeof AuthenticatedAppFinanceInvoicesIndexRouteImport
+    '/_authenticated/app/finance/invoices/new': {
+      id: '/_authenticated/app/finance/invoices/new'
+      path: '/invoices/new'
+      fullPath: '/app/finance/invoices/new'
+      preLoaderRoute: typeof AuthenticatedAppFinanceInvoicesNewRouteImport
       parentRoute: typeof AuthenticatedAppFinanceRoute
     }
     '/_authenticated/app/finance/invoices/$slug': {
@@ -1371,11 +1371,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppFinanceInvoicesSlugRouteImport
       parentRoute: typeof AuthenticatedAppFinanceRoute
     }
-    '/_authenticated/app/finance/invoices/new': {
-      id: '/_authenticated/app/finance/invoices/new'
-      path: '/invoices/new'
-      fullPath: '/app/finance/invoices/new'
-      preLoaderRoute: typeof AuthenticatedAppFinanceInvoicesNewRouteImport
+    '/_authenticated/app/finance/funds/$code': {
+      id: '/_authenticated/app/finance/funds/$code'
+      path: '/funds/$code'
+      fullPath: '/app/finance/funds/$code'
+      preLoaderRoute: typeof AuthenticatedAppFinanceFundsCodeRouteImport
       parentRoute: typeof AuthenticatedAppFinanceRoute
     }
   }
