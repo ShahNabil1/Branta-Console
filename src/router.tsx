@@ -1,8 +1,10 @@
+import { lazy } from "react";
 import { QueryClient } from "@tanstack/react-query";
 import { createRouter, Link, useRouter } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
 
-function DefaultErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
+function DefaultErrorComponent({ error, reset }: { error: unknown; reset: () => void }) {
+  const err = error instanceof Error ? error : new Error(String(error));
   const router = useRouter();
 
   return (
@@ -11,7 +13,7 @@ function DefaultErrorComponent({ error, reset }: { error: Error; reset: () => vo
         <p className="text-[11px] font-semibold uppercase tracking-normal text-brand">Branta Console</p>
         <h1 className="mt-2 text-[20px] font-semibold">This page didn&apos;t load</h1>
         <p className="mt-2 text-[12.5px] text-muted-foreground">
-          {error.message || "Something went wrong while opening this page."}
+          {err.message || "Something went wrong while opening this page."}
         </p>
         <div className="mt-5 flex justify-center gap-2">
           <button
@@ -62,7 +64,9 @@ export const getRouter = () => {
     context: { queryClient },
     scrollRestoration: true,
     defaultPreloadStaleTime: 0,
-    defaultErrorComponent: DefaultErrorComponent,
+    defaultErrorComponent: lazy(() =>
+      Promise.resolve({ default: DefaultErrorComponent }),
+    ),
     defaultNotFoundComponent: DefaultNotFoundComponent,
   });
 
