@@ -1,3 +1,4 @@
+import { lazy } from "react";
 import { QueryClient } from "@tanstack/react-query";
 import { createRouter, Link, useRouter } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
