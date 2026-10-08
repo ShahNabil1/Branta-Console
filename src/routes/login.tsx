@@ -1046,7 +1046,7 @@ function LoginPage() {
                   ref={otpInputRef}
                   maxLength={6}
                   value={code}
-                  onChange={setCode}
+                  onChange={(v) => setCode(stripToDigits(v))}
                   disabled={locked || verifying}
                   autoFocus
                   containerClassName={cn(
