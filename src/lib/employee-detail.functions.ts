@@ -472,6 +472,16 @@ export const startImpersonation = createServerFn({ method: "POST" })
     if (bannedUntil && new Date(bannedUntil).getTime() > Date.now())
       throw new Error("This employee is banned. Unban before impersonating.");
 
+    const { data: prof } = await supabaseAdmin
+      .from("profiles")
+      .select("must_change_password, must_link_telegram")
+      .eq("user_id", data.userId)
+      .maybeSingle();
+    if (prof?.must_change_password || prof?.must_link_telegram)
+      throw new Error(
+        "This employee hasn't completed onboarding yet (personal password / Telegram). Impersonation is available only after onboarding is complete.",
+      );
+
     const { data: link, error: linkErr } =
       await supabaseAdmin.auth.admin.generateLink({
         type: "magiclink",
