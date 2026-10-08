@@ -10,6 +10,7 @@ import { EmailFailureNotifier } from "@/components/branta/email-failure-notifier
 import { InboxNotifier } from "@/components/branta/inbox-notifier";
 import { TransferNotifier } from "@/components/branta/transfer-notifier";
 import { ImpersonationBanner } from "@/components/branta/impersonation-banner";
+import { usePresenceTracker } from "@/hooks/use-presence";
 import { getOnboardingStatus } from "@/lib/onboarding.functions";
 
 export const Route = createFileRoute("/_authenticated/app")({
@@ -19,6 +20,7 @@ export const Route = createFileRoute("/_authenticated/app")({
 
 function AppShell() {
   const navigate = useNavigate();
+  usePresenceTracker();
   const statusFn = useServerFn(getOnboardingStatus);
 
   // Gate: force new employees through password + telegram before the app

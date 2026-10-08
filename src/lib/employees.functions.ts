@@ -41,6 +41,12 @@ export interface EmployeeRow {
   role: string;
   createdAt: string;
   lastSignInAt: string | null;
+  lastSeenAt: string | null;
+  avatarUrl: string | null;
+  employeeCode: string | null;
+  jobRole: string | null;
+  phone: string | null;
+  activeSessions: number;
 }
 
 export const listEmployees = createServerFn({ method: "GET" })
@@ -62,10 +68,30 @@ export const listEmployees = createServerFn({ method: "GET" })
     const users = data.users ?? [];
     const ids = users.map((u) => u.id);
 
-    const [roles, profiles] = await Promise.all([
+    const [roles, profiles, sessions] = await Promise.all([
       supabaseAdmin.from("user_roles").select("user_id, role").in("user_id", ids),
-      supabaseAdmin.from("profiles").select("user_id, full_name, deactivated_at").in("user_id", ids),
+      supabaseAdmin
+        .from("profiles")
+        .select("user_id, full_name, deactivated_at, avatar_url, employee_code, job_role, phone_primary")
+        .in("user_id", ids),
+      supabaseAdmin
+        .from("user_sessions")
+        .select("user_id, last_seen_at, revoked_at")
+        .in("user_id", ids)
+        .order("last_seen_at", { ascending: false })
+        .limit(1000),
     ]);
+
+    const seenByUser = new Map<string, string>();
+    const liveSessions = new Map<string, number>();
+    const cutoff = Date.now() - 30 * 86_400_000;
+    (sessions.data ?? []).forEach((s) => {
+      if (!seenByUser.has(s.user_id)) seenByUser.set(s.user_id, s.last_seen_at);
+      if (!s.revoked_at && new Date(s.last_seen_at).getTime() > cutoff)
+        liveSessions.set(s.user_id, (liveSessions.get(s.user_id) ?? 0) + 1);
+    });
+    type Extra = { avatarUrl: string | null; employeeCode: string | null; jobRole: string | null; phone: string | null };
+    const extraByUser = new Map<string, Extra>();
 
     const roleByUser = new Map<string, string>();
     (roles.data ?? []).forEach((r) => {
@@ -81,6 +107,12 @@ export const listEmployees = createServerFn({ method: "GET" })
     const inactive = new Set<string>();
     (profiles.data ?? []).forEach((p) => {
       nameByUser.set(p.user_id, p.full_name ?? null);
+      extraByUser.set(p.user_id, {
+        avatarUrl: p.avatar_url ?? null,
+        employeeCode: p.employee_code ?? null,
+        jobRole: p.job_role ?? null,
+        phone: p.phone_primary ?? null,
+      });
       if ((p as { deactivated_at?: string | null }).deactivated_at) inactive.add(p.user_id);
     });
 
@@ -96,6 +128,12 @@ export const listEmployees = createServerFn({ method: "GET" })
           role: roleByUser.get(u.id) ?? "user",
           createdAt: u.created_at ?? "",
           lastSignInAt: u.last_sign_in_at ?? null,
+          lastSeenAt: seenByUser.get(u.id) ?? u.last_sign_in_at ?? null,
+          avatarUrl: extraByUser.get(u.id)?.avatarUrl ?? null,
+          employeeCode: extraByUser.get(u.id)?.employeeCode ?? null,
+          jobRole: extraByUser.get(u.id)?.jobRole ?? null,
+          phone: extraByUser.get(u.id)?.phone ?? null,
+          activeSessions: liveSessions.get(u.id) ?? 0,
         };
       })
       .sort((a, b) => (a.createdAt > b.createdAt ? -1 : 1));
