@@ -7,6 +7,11 @@ import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { supabase } from "@/integrations/supabase/client";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { cn } from "@/lib/utils";
+import {
+  stripToLocal,
+  stripToPassword,
+  stripToDigits,
+} from "@/lib/branta-credentials";
 import brandLogo from "@/assets/brand-logo.png.asset.json";
 import { registerSession } from "@/lib/user-sessions.functions";
 import { beginPasskeyLogin, finishPasskeyLogin } from "@/lib/passkeys.functions";
@@ -55,10 +60,9 @@ const LOCAL_MIN = 3;
 const LOCAL_MAX = 10;
 const PASSWORD_LEN = 8;
 
-const stripToLocal = (v: string) =>
-  v.normalize("NFKC").toLowerCase().replace(/[^a-z]/g, "").slice(0, LOCAL_MAX);
-const stripToPassword = (v: string) =>
-  v.normalize("NFKC").replace(/[^\x20-\x7E]/g, "").slice(0, PASSWORD_LEN);
+// stripToLocal / stripToPassword / stripToDigits come from
+// @/lib/branta-credentials — they auto-convert Bengali/other-script digits to
+// English and drop any non-English characters.
 
 const localSchema = z
   .string()
@@ -1042,7 +1046,7 @@ function LoginPage() {
                   ref={otpInputRef}
                   maxLength={6}
                   value={code}
-                  onChange={setCode}
+                  onChange={(v) => setCode(stripToDigits(v))}
                   disabled={locked || verifying}
                   autoFocus
                   containerClassName={cn(

@@ -12,11 +12,37 @@ export const PASSWORD_LEN = 8;
 export const LOCAL_ALLOWED = /^[a-z]+$/;
 export const PASSWORD_ALLOWED = /^[\x20-\x7E]+$/;
 
+// Converts non-ASCII digit scripts (Bengali ০-৯, Arabic-Indic ٠-٩, Extended
+// Arabic-Indic ۰-۹, Devanagari ०-९) to plain English 0-9, so typing with a
+// Bengali/other keyboard layout still yields English digits.
+export const toEnglishDigits = (v: string) =>
+  v.replace(/[০-৯٠-٩۰-۹०-९]/g, (ch) => {
+    const cp = ch.codePointAt(0)!;
+    if (cp >= 0x09e6 && cp <= 0x09ef) return String(cp - 0x09e6); // Bengali
+    if (cp >= 0x0660 && cp <= 0x0669) return String(cp - 0x0660); // Arabic-Indic
+    if (cp >= 0x06f0 && cp <= 0x06f9) return String(cp - 0x06f0); // Extended Arabic-Indic
+    return String(cp - 0x0966); // Devanagari
+  });
+
 export const stripToLocal = (v: string) =>
-  v.normalize("NFKC").toLowerCase().replace(/[^a-z]/g, "").slice(0, LOCAL_MAX);
+  toEnglishDigits(v)
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[^a-z]/g, "")
+    .slice(0, LOCAL_MAX);
 
 export const stripToPassword = (v: string) =>
-  v.normalize("NFKC").replace(/[^\x20-\x7E]/g, "").slice(0, PASSWORD_LEN);
+  toEnglishDigits(v)
+    .normalize("NFKC")
+    .replace(/[^\x20-\x7E]/g, "")
+    .slice(0, PASSWORD_LEN);
+
+// Digits only, with Bengali/other-script digits auto-converted to English.
+export const stripToDigits = (v: string, max = 6) =>
+  toEnglishDigits(v)
+    .normalize("NFKC")
+    .replace(/[^0-9]/g, "")
+    .slice(0, max);
 
 export const localSchema = z
   .string()
