@@ -1,3 +1,5 @@
+import { useRouterState } from "@tanstack/react-router";
+import { ImpersonationBanner } from "@/components/branta/impersonation-banner";
 import { createFileRoute, Outlet, redirect, useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { useIdleTimeout } from "@/hooks/use-idle-timeout";
@@ -51,5 +53,11 @@ function AuthGate() {
     navigate({ to: "/login", search: { reason: "idle" } });
   });
   useSessionWatcher();
-  return <Outlet />;
+  const onboarding = useRouterState({ select: (s) => s.location.pathname.startsWith("/onboarding") });
+  return (
+    <>
+      {onboarding && <ImpersonationBanner />}
+      <Outlet />
+    </>
+  );
 }
