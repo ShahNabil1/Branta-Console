@@ -40,6 +40,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import { RequireSuperAdmin } from "@/components/branta/require-super-admin";
+import { EmployeesDirectory } from "@/components/branta/employees-directory";
 
 export const Route = createFileRoute("/_authenticated/app/employees/")({
   head: () => ({
@@ -221,7 +222,6 @@ function EmployeesPage() {
   });
 
   const [open, setOpen] = useState(false);
-  const [webhookOpen, setWebhookOpen] = useState(false);
 
   const { byEmail: emailEvents } = useEmailEvents(
     !!admin.data?.isAdmin,
@@ -260,128 +260,13 @@ function EmployeesPage() {
   const rows = employees.data ?? [];
 
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-screen-2xl flex-col gap-4 p-3 sm:p-5 lg:p-6">
-      <header className="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-        <div className="min-w-0">
-          <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-            Directory
-          </div>
-          <h1 className="mt-1 text-xl font-bold tracking-tight sm:text-2xl">Employees</h1>
-          <p className="mt-1 max-w-2xl text-[13px] font-medium text-muted-foreground sm:text-sm">
-            Provision Console access for Branta Tech staff. Accounts require @brantatech.com identities.
-          </p>
-        </div>
-        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center">
-          <button
-            onClick={() => setWebhookOpen(true)}
-            className="inline-flex h-10 min-w-0 items-center justify-center gap-2 rounded-sm border border-border bg-card px-3 text-[12.5px] font-semibold text-foreground transition-colors hover:bg-muted sm:h-9"
-          >
-            <Info className="size-3.5 text-muted-foreground" strokeWidth={2} />
-            Webhook setup
-          </button>
-          <button
-            onClick={() => setOpen(true)}
-            className="inline-flex h-10 min-w-0 items-center justify-center gap-2 rounded-sm bg-brand px-3 text-[13px] font-semibold text-primary-foreground transition-colors hover:bg-brand-700 sm:h-9"
-          >
-            <Plus className="size-3.5" strokeWidth={2} />
-            Create Employee
-          </button>
-        </div>
-      </header>
-
-      <div className="hairline shrink-0 rounded-sm border border-border bg-card">
-        {employees.isLoading ? (
-          <div className="flex h-40 items-center justify-center text-muted-foreground">
-            <Loader2 className="mr-2 size-4 animate-spin" />
-            <span className="text-sm">Loading employees…</span>
-          </div>
-        ) : rows.length === 0 ? (
-          <div className="flex h-40 flex-col items-center justify-center gap-1 text-muted-foreground">
-            <UserPlus className="size-5" strokeWidth={1.5} />
-            <p className="text-sm">No employees yet.</p>
-            <p className="text-[12px]">Click "Create Employee" to add the first one.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-3 p-3 sm:grid-cols-2 sm:p-4 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-            {rows.map((row) => {
-              const events = emailEvents.get(row.email) ?? [];
-              const latest = events[0];
-              const style = latest ? EVENT_STYLES[latest.event] : null;
-              return (
-                <button
-                  key={row.userId}
-                  type="button"
-                  onClick={() =>
-                    navigate({
-                      to: "/app/employees/$userId",
-                      params: { userId: row.userId },
-                    })
-                  }
-                  className="group flex min-w-0 flex-col gap-3 rounded-sm border border-border bg-card p-4 text-left transition-colors hover:border-brand/40 hover:bg-muted/40"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className="truncate text-[15px] font-bold text-foreground">
-                        {row.fullName ?? row.brantaId}
-                      </div>
-                      <div className="mt-0.5 truncate font-mono text-[12px] font-medium">
-                        <span className="text-muted-foreground">{row.brantaId}</span>
-                        <span className="text-brand">{DOMAIN}</span>
-                      </div>
-                    </div>
-                    <span
-                      className={cn(
-                        "inline-flex shrink-0 items-center rounded-sm border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em]",
-                        roleBadge(row.role),
-                      )}
-                    >
-                      {row.role.replace("_", " ")}
-                    </span>
-                  </div>
-
-                  <div className="flex min-w-0 flex-wrap items-center gap-2">
-                    {latest ? (
-                      <span
-                        className={cn(
-                          "inline-flex items-center gap-1 rounded-sm border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em]",
-                          style?.className ?? "border-border bg-muted text-muted-foreground",
-                        )}
-                      >
-                        {style?.label ?? latest.event}
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-[10.5px] text-muted-foreground">
-                        <Mail className="size-3" strokeWidth={1.75} />
-                        No mail activity
-                      </span>
-                    )}
-                    {latest && (
-                      <span className="font-mono text-[10.5px] text-muted-foreground">
-                        {timeAgo(latest.occurred_at)}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="mt-auto grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border-t border-border pt-2 text-[11px] font-medium text-muted-foreground">
-                    <span className="font-mono">
-                      Last sign-in ·{" "}
-                      {row.lastSignInAt
-                        ? new Date(row.lastSignInAt).toLocaleDateString()
-                        : "Never"}
-                    </span>
-                    <span className="shrink-0 font-mono font-semibold text-brand opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
-                      Open →
-                    </span>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-
-
+    <EmployeesDirectory
+      rows={rows}
+      loading={employees.isLoading}
+      emailEvents={emailEvents}
+      onOpen={(userId) => navigate({ to: "/app/employees/$userId", params: { userId } })}
+      onCreate={() => setOpen(true)}
+    >
       {del.isError && (
         <div className="rounded-sm border border-rose-200 bg-rose-50 px-3 py-2 text-[12px] text-rose-700">
           {del.error instanceof Error ? del.error.message : "Failed to remove employee."}
@@ -395,8 +280,7 @@ function EmployeesPage() {
         />
       )}
 
-      {webhookOpen && <WebhookSetupModal onClose={() => setWebhookOpen(false)} />}
-    </div>
+    </EmployeesDirectory>
   );
 }
 
@@ -797,187 +681,6 @@ function CreateEmployeeModal({
             </button>
           </div>
         </form>
-      </div>
-    </div>
-  );
-}
-
-const WEBHOOK_BASE = "https://console.brantatech.com/api/public/brevo/webhook";
-const WEBHOOK_EVENTS = [
-  "delivered",
-  "opened",
-  "clicked",
-  "hard_bounce",
-  "soft_bounce",
-  "spam",
-  "blocked",
-  "invalid_email",
-  "deferred",
-  "unsubscribed",
-] as const;
-
-function WebhookSetupModal({ onClose }: { onClose: () => void }) {
-  const [token, setToken] = useState("");
-  const [copiedUrl, setCopiedUrl] = useState(false);
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [onClose]);
-
-  const fullUrl = token
-    ? `${WEBHOOK_BASE}?token=${encodeURIComponent(token)}`
-    : `${WEBHOOK_BASE}?token=YOUR_SECRET`;
-
-  const copy = async (v: string) => {
-    try {
-      await navigator.clipboard.writeText(v);
-    } catch {
-      /* ignore */
-    }
-    setCopiedUrl(true);
-    window.setTimeout(() => setCopiedUrl(false), 1500);
-  };
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/40 p-0 sm:items-center sm:p-4"
-      role="dialog"
-      aria-modal="true"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div className="flex max-h-[calc(100dvh-0.5rem)] w-full max-w-xl flex-col overflow-hidden rounded-t-md border border-border bg-card shadow-xl sm:max-h-[calc(100dvh-2rem)] sm:rounded-sm">
-        <div className="shrink-0 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-border px-4 py-3 sm:px-5">
-          <div>
-            <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-              Integration
-            </div>
-            <div className="mt-0.5 text-[15px] font-semibold">Brevo webhook setup</div>
-          </div>
-          <button
-            onClick={onClose}
-            aria-label="Close"
-            className="grid size-7 place-items-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            <X className="size-4" />
-          </button>
-        </div>
-
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 text-[13px] leading-relaxed sm:px-5">
-          <p className="text-muted-foreground">
-            Brevo will POST transactional email events (delivered, opened,
-            clicked, bounced, spam, blocked, invalid, deferred, unsubscribed)
-            to the endpoint below. Events land in
-            real time and update the table without a refresh.
-          </p>
-
-          <div>
-            <div className="mb-1.5 flex items-center justify-between">
-              <label className="text-[12px] font-medium text-muted-foreground">
-                Webhook secret{" "}
-                <span className="text-muted-foreground/70">
-                  (stored as <span className="font-mono">BREVO_WEBHOOK_SECRET</span>)
-                </span>
-              </label>
-            </div>
-            <input
-              type="text"
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-              placeholder="Paste BREVO_WEBHOOK_SECRET here to build the exact URL"
-              className="h-9 w-full rounded-sm border border-border bg-card px-3 font-mono text-[12px] outline-none focus:border-brand focus:ring-1 focus:ring-brand"
-            />
-            <p className="mt-1 text-[11px] text-muted-foreground">
-              Value only lives on the server. This field is a local helper to
-              paste the secret in once and copy the ready URL below.
-            </p>
-          </div>
-
-          <div>
-            <div className="mb-1.5 text-[12px] font-medium text-muted-foreground">
-              Webhook URL
-            </div>
-            <div className="grid grid-cols-[minmax(0,1fr)_auto] overflow-hidden rounded-sm border border-border bg-muted/40">
-              <code className="min-w-0 overflow-x-auto whitespace-nowrap px-3 py-2 font-mono text-[12px] text-foreground">
-                {fullUrl}
-              </code>
-              <button
-                onClick={() => copy(fullUrl)}
-                className="inline-flex items-center gap-1 border-l border-border bg-card px-3 text-[11.5px] font-semibold text-foreground hover:bg-muted"
-              >
-                {copiedUrl ? (
-                  <Check className="size-3.5 text-emerald-600" strokeWidth={2.25} />
-                ) : (
-                  <Copy className="size-3.5" strokeWidth={1.75} />
-                )}
-                {copiedUrl ? "Copied" : "Copy"}
-              </button>
-            </div>
-          </div>
-
-          <div>
-            <div className="mb-1.5 text-[12px] font-semibold text-foreground">
-              Steps in Brevo
-            </div>
-            <ol className="list-decimal space-y-1.5 pl-5 text-[12.5px] text-foreground">
-              <li>
-                Open Brevo →{" "}
-                <a
-                  href="https://app.brevo.com/settings/webhook/list/transactional"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="font-medium text-brand hover:underline"
-                >
-                  Transactional → Settings → Webhooks
-                </a>
-                . Click{" "}
-                <span className="font-semibold">Add a new webhook</span>.
-              </li>
-              <li>
-                Paste the Webhook URL above into the{" "}
-                <span className="font-mono">URL</span> field. If you use Brevo
-                Token authentication instead of the URL token, set token value
-                to the same <span className="font-mono">BREVO_WEBHOOK_SECRET</span>.
-              </li>
-              <li>
-                Under <span className="font-semibold">Events</span>, tick all of:
-                <div className="mt-1 flex flex-wrap gap-1">
-                  {WEBHOOK_EVENTS.map((e) => (
-                    <span
-                      key={e}
-                      className="rounded-sm border border-border bg-muted px-1.5 py-0.5 font-mono text-[10.5px] text-foreground"
-                    >
-                      {e}
-                    </span>
-                  ))}
-                </div>
-              </li>
-              <li>Save. Send yourself a test — the row updates instantly.</li>
-            </ol>
-          </div>
-
-          <div className="rounded-sm border border-border bg-muted/40 px-3 py-2 text-[11.5px] text-muted-foreground">
-            <span className="font-semibold text-foreground">Security:</span>{" "}
-            Requests missing the correct <span className="font-mono">?token</span>
-            are rejected with 401. Never share the URL publicly. Rotate the
-            secret from the project settings if it leaks.
-          </div>
-        </div>
-
-        <div className="shrink-0 flex items-center justify-end border-t border-border px-4 py-3 sm:px-5">
-          <button
-            type="button"
-            onClick={onClose}
-            className="h-9 rounded-sm bg-brand px-4 text-[13px] font-semibold text-white hover:bg-brand-700"
-          >
-            Done
-          </button>
-        </div>
       </div>
     </div>
   );
