@@ -685,18 +685,3 @@ function CreateEmployeeModal({
     </div>
   );
 }
-
-const WEBHOOK_BASE = "https://console.brantatech.com/api/public/brevo/webhook";
-const WEBHOOK_EVENTS = [
-  "delivered",
-  "opened",
-  "clicked",
-  "hard_bounce",
-  "soft_bounce",
-  "spam",
-  "blocked",
-  "invalid_email",
-  "deferred",
-  "unsubscribed",
-] as const;
-
