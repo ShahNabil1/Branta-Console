@@ -269,75 +269,24 @@ function collectTags(item: Record<string, unknown>): string[] {
 }
 
 async function insertEmailEvents(rows: EventRow[]): Promise<number> {
-  const databaseUrl = process.env.SUPABASE_DB_URL;
-  if (!databaseUrl) {
-    throw new Error("SUPABASE_DB_URL is not configured");
-  }
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const payload = rows.map((row) => ({
+    event: row.event,
+    email: row.email,
+    message_id: row.message_id,
+    subject: row.subject,
+    reason: row.reason,
+    tag: row.tag,
+    link: row.link,
+    list_id: row.list_id,
+    occurred_at: row.occurred_at,
+    raw: row.raw,
+  }));
 
-  const { default: postgres } = await import("postgres");
-  const sql = postgres(databaseUrl, {
-    max: 1,
-    idle_timeout: 5,
-    connect_timeout: 10,
-    ssl: "require",
-    prepare: false,
-  });
-
-  try {
-    const payload = rows.map((row) => ({
-      event: row.event,
-      email: row.email,
-      message_id: row.message_id,
-      subject: row.subject,
-      reason: row.reason,
-      tag: row.tag,
-      link: row.link,
-      list_id: row.list_id,
-      occurred_at: row.occurred_at,
-      raw: row.raw,
-    }));
-
-    const inserted = await sql<{ id: string }[]>`
-      INSERT INTO public.email_events (
-        event,
-        email,
-        message_id,
-        subject,
-        reason,
-        tag,
-        link,
-        list_id,
-        occurred_at,
-        raw
-      )
-      SELECT
-        item.event,
-        item.email,
-        item.message_id,
-        item.subject,
-        item.reason,
-        item.tag,
-        item.link,
-        item.list_id,
-        item.occurred_at,
-        item.raw
-      FROM jsonb_to_recordset(${JSON.stringify(payload)}::jsonb) AS item(
-        event text,
-        email text,
-        message_id text,
-        subject text,
-        reason text,
-        tag text,
-        link text,
-        list_id integer,
-        occurred_at timestamptz,
-        raw jsonb
-      )
-      RETURNING id
-    `;
-
-    return inserted.length;
-  } finally {
-    await sql.end({ timeout: 1 });
-  }
+  const { data, error } = await supabaseAdmin
+    .from("email_events")
+    .insert(payload as never)
+    .select("id");
+  if (error) throw new Error(error.message);
+  return data?.length ?? 0;
 }
