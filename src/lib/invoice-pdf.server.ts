@@ -480,7 +480,7 @@ export async function renderInvoicePdf(
   for (const it of items) {
     const descLines = wrap(it.description, font, 9.5, cQty - cDesc - 12);
     const rowH = Math.max(20, descLines.length * 12 + 8);
-    if (y - rowH < CONTENT_BOTTOM) { newPage(); tableHeader(); }
+    if (y - rowH < CONTENT_BOTTOM + 22) { newPage(); tableHeader(); }
     descLines.forEach((ln, i) => draw(ln, cDesc, y - 13 - i * 12, 9.5, font, text));
     draw(String(it.sequence), cSeq, y - 13, 9, mono, muted);
     draw(Number(it.quantity).toString(), cQty, y - 13, 9.5, font, text);
@@ -506,7 +506,7 @@ export async function renderInvoicePdf(
   const words = amountInWords(grand, cur);
   const wordsLines = wrap(words, bold, 9.5, CONTENT_W - 260);
   const wordsBesideTotals = 23 + wordsLines.length * 12 <= totalsH;
-  ensure(totalsH + 8);
+  ensure(totalsH + 22);
   y -= 10;
   if (wordsBesideTotals) {
     draw("Amount in Words:", SIDE, y - 18, 8.5, bold, muted);
@@ -545,7 +545,7 @@ export async function renderInvoicePdf(
     draw("STATUS", cAmt - 46, y - 10, 8, bold, muted);
     y -= 16;
     for (const it of data.installments) {
-      ensure(18);
+      ensure(38);
       draw(String(it.sequence), cSeq, y - 11, 9, mono, muted);
       draw(wrap(it.label, font, 9.5, cQty - cDesc - 10)[0] ?? "", cDesc, y - 11, 9.5, font, text);
       draw(fmtDate(it.due_date), cQty, y - 11, 9, font, muted);
