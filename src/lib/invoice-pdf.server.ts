@@ -11,6 +11,7 @@
 
 import type { PDFDocument, PDFFont, PDFImage, PDFPage, RGB } from "pdf-lib";
 import { brandEmailList, embedBrandLogo, generatedByLine, type GeneratedBy } from "@/lib/brand/pdf-brand.server";
+import { BANGLA_QR_MERCHANT_ID, BANGLA_QR_PNG_B64 } from "@/lib/brand/bangla-qr.server";
 
 export type { GeneratedBy };
 
@@ -570,7 +571,13 @@ export async function renderInvoicePdf(
     const introLines = wrap(intro, font, 8.5, CONTENT_W - 28);
     const infoLines = infoText.split("\n").map((l) => l.trim()).filter(Boolean);
     const noteLines = wrap(noteText, font, 8, CONTENT_W - 28);
-    const detailW = CONTENT_W - 28;
+    // Local-currency merchant QR only; never imply it accepts foreign currency.
+    const qrImage = cur === "BDT"
+      ? await pdf.embedPng(Uint8Array.from(atob(BANGLA_QR_PNG_B64), (c) => c.charCodeAt(0)))
+      : null;
+    const qrW = 100;
+    const qrGap = 18;
+    const detailW = CONTENT_W - 28 - (qrImage ? qrW + qrGap : 0);
     const detailGap = 18;
     const detailColW = (detailW - detailGap) / 2;
     // Pair short bank details; keep long values full-width and wrapped.
@@ -593,8 +600,10 @@ export async function renderInvoicePdf(
       }
     }
     if (pending !== undefined) detailRows.push([{ lines: [pending], x: SIDE + 14 }]);
-    const detailH = detailRows.reduce((h, row) => h + Math.max(...row.map((cell) => cell.lines.length)) * 11.5, 0);
-    const blockH = 26 + introLines.length * 11 + 8 + detailH + 12 + noteLines.length * 10 + 12;
+    const detailLead = qrImage ? 10 : 11.5;
+    const detailH = detailRows.reduce((h, row) => h + Math.max(...row.map((cell) => cell.lines.length)) * detailLead, 0);
+    const paymentBodyH = qrImage ? Math.max(detailH + 22, qrW + 8) : detailH;
+    const blockH = 26 + introLines.length * 10 + 6 + paymentBodyH + 10 + noteLines.length * 9 + 4;
     // Reserve the page-number band as well as the signature's writing space.
     ensure(blockH + 14 + (!hasTerms && !hasNotes ? SIGNATURE_H : 0));
 
@@ -604,37 +613,58 @@ export async function renderInvoicePdf(
     let iy = top - 16;
     draw("PAYMENT INFORMATION", SIDE + 14, iy, 9, bold, brand);
     iy -= 14;
-    introLines.forEach((ln) => { draw(ln, SIDE + 14, iy, 8.5, font, muted); iy -= 11; });
-    iy -= 6;
+    introLines.forEach((ln) => { draw(ln, SIDE + 14, iy, 8.5, font, muted); iy -= 10; });
+    iy -= 4;
+    const bodyTop = iy;
+    if (qrImage) {
+      const qx = PAGE_W - SIDE - 14 - qrW;
+      page.drawLine({ start: { x: qx - qrGap / 2, y: bodyTop + 8 }, end: { x: qx - qrGap / 2, y: bodyTop - paymentBodyH + 8 }, thickness: 0.5, color: hair });
+      const centered = (label: string, baseline: number, size: number, f: PDFFont, color: RGB) => {
+        draw(label, qx + (qrW - f.widthOfTextAtSize(label, size)) / 2, baseline, size, f, color);
+      };
+      centered("BANGLA QR", bodyTop, 9, bold, brand);
+      page.drawImage(qrImage, { x: qx, y: bodyTop - 8 - qrW, width: qrW, height: qrW });
+      draw(`Bangla QR Merchant: BRANTA TECH | ${BANGLA_QR_MERCHANT_ID}`, SIDE + 14, bodyTop - detailH - 4, 7.5, bold, text);
+      draw("Scan using a supported bank or mobile banking app.", SIDE + 14, bodyTop - detailH - 15, 7.5, font, muted);
+    }
     detailRows.forEach((row) => {
       row.forEach((cell) => cell.lines.forEach((ln, lineIndex) => {
-      const lineY = iy - lineIndex * 11.5;
-      const idx = ln.indexOf(":");
-      if (idx > 0 && idx < 30) {
-        const k = ln.slice(0, idx + 1);
-        draw(k, cell.x, lineY, 8.5, bold, text);
-        draw(ln.slice(idx + 1).trim(), cell.x + bold.widthOfTextAtSize(safeText(k), 8.5) + 5, lineY, 8.5, font, text);
-      } else {
-        draw(ln, cell.x, lineY, 8.5, font, text);
-      }
+      const lineY = iy - lineIndex * detailLead;
+      // Use the measured width unchanged, including punctuation/spacing.
+      draw(ln, cell.x, lineY, 8.5, font, text);
       }));
-      iy -= Math.max(...row.map((cell) => cell.lines.length)) * 11.5;
+      iy -= Math.max(...row.map((cell) => cell.lines.length)) * detailLead;
     });
-    iy -= 6;
+    iy = bodyTop - paymentBodyH - 4;
     draw("Payment Note:", SIDE + 14, iy, 8, bold, muted);
     iy -= 10;
-    noteLines.forEach((ln) => { draw(ln, SIDE + 14, iy, 8, font, muted); iy -= 10; });
+    noteLines.forEach((ln) => { draw(ln, SIDE + 14, iy, 8, font, muted); iy -= 9; });
     y = top - blockH - 14;
   }
 
+  // Short final notes share a row so the signature is not orphaned by headings.
+  const finalColW = (CONTENT_W - 20) / 2;
+  const shortTerms = hasTerms ? wrap(inv.terms || "", font, 8.5, finalColW) : [];
+  const shortNotes = hasNotes ? wrap(inv.notes || "", font, 8.5, finalColW) : [];
+  const pairedFinal = hasTerms && hasNotes && shortTerms.length <= 2 && shortNotes.length <= 2;
+  if (pairedFinal) {
+    const finalH = 22 + Math.max(shortTerms.length, shortNotes.length) * 11;
+    ensure(finalH + SIGNATURE_H);
+    draw("TERMS AND CONDITIONS", SIDE, y - 11, 8.5, bold, brand);
+    draw("NOTES", SIDE + finalColW + 20, y - 11, 8.5, bold, brand);
+    shortTerms.forEach((ln, i) => draw(ln, SIDE, y - 25 - i * 11, 8.5, font, muted));
+    shortNotes.forEach((ln, i) => draw(ln, SIDE + finalColW + 20, y - 25 - i * 11, 8.5, font, muted));
+    y -= finalH;
+  }
+
   /* ---------- terms ---------- */
-  if (s.sections.terms !== false && inv.terms) {
+  if (!pairedFinal && s.sections.terms !== false && inv.terms) {
     sectionTitle("Terms and Conditions");
     paragraph(inv.terms, 8.5, font, muted, 11, !hasNotes);
   }
 
   /* ---------- notes ---------- */
-  if (s.sections.notes !== false && inv.notes) {
+  if (!pairedFinal && s.sections.notes !== false && inv.notes) {
     sectionTitle("Notes");
     paragraph(inv.notes, 8.5, font, muted, 11, true);
   }
