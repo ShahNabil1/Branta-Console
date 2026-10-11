@@ -600,9 +600,10 @@ export async function renderInvoicePdf(
       }
     }
     if (pending !== undefined) detailRows.push([{ lines: [pending], x: SIDE + 14 }]);
-    const detailH = detailRows.reduce((h, row) => h + Math.max(...row.map((cell) => cell.lines.length)) * 11.5, 0);
-    const paymentBodyH = qrImage ? Math.max(detailH + 26, qrW + 8) : detailH;
-    const blockH = 26 + introLines.length * 11 + 8 + paymentBodyH + 12 + noteLines.length * 10 + 6;
+    const detailLead = qrImage ? 10 : 11.5;
+    const detailH = detailRows.reduce((h, row) => h + Math.max(...row.map((cell) => cell.lines.length)) * detailLead, 0);
+    const paymentBodyH = qrImage ? Math.max(detailH + 22, qrW + 8) : detailH;
+    const blockH = 26 + introLines.length * 10 + 6 + paymentBodyH + 10 + noteLines.length * 9 + 4;
     // Reserve the page-number band as well as the signature's writing space.
     ensure(blockH + 14 + (!hasTerms && !hasNotes ? SIGNATURE_H : 0));
 
@@ -612,8 +613,8 @@ export async function renderInvoicePdf(
     let iy = top - 16;
     draw("PAYMENT INFORMATION", SIDE + 14, iy, 9, bold, brand);
     iy -= 14;
-    introLines.forEach((ln) => { draw(ln, SIDE + 14, iy, 8.5, font, muted); iy -= 11; });
-    iy -= 6;
+    introLines.forEach((ln) => { draw(ln, SIDE + 14, iy, 8.5, font, muted); iy -= 10; });
+    iy -= 4;
     const bodyTop = iy;
     if (qrImage) {
       const qx = PAGE_W - SIDE - 14 - qrW;
@@ -628,16 +629,16 @@ export async function renderInvoicePdf(
     }
     detailRows.forEach((row) => {
       row.forEach((cell) => cell.lines.forEach((ln, lineIndex) => {
-      const lineY = iy - lineIndex * 11.5;
+      const lineY = iy - lineIndex * detailLead;
       // Use the measured width unchanged, including punctuation/spacing.
       draw(ln, cell.x, lineY, 8.5, font, text);
       }));
-      iy -= Math.max(...row.map((cell) => cell.lines.length)) * 11.5;
+      iy -= Math.max(...row.map((cell) => cell.lines.length)) * detailLead;
     });
-    iy = bodyTop - paymentBodyH - 6;
+    iy = bodyTop - paymentBodyH - 4;
     draw("Payment Note:", SIDE + 14, iy, 8, bold, muted);
     iy -= 10;
-    noteLines.forEach((ln) => { draw(ln, SIDE + 14, iy, 8, font, muted); iy -= 10; });
+    noteLines.forEach((ln) => { draw(ln, SIDE + 14, iy, 8, font, muted); iy -= 9; });
     y = top - blockH - 14;
   }
 
