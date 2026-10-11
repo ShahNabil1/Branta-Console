@@ -601,7 +601,7 @@ export async function renderInvoicePdf(
     }
     if (pending !== undefined) detailRows.push([{ lines: [pending], x: SIDE + 14 }]);
     const detailH = detailRows.reduce((h, row) => h + Math.max(...row.map((cell) => cell.lines.length)) * 11.5, 0);
-    const paymentBodyH = Math.max(detailH, qrImage ? qrW + 45 : 0);
+    const paymentBodyH = qrImage ? Math.max(detailH + 26, qrW + 8) : detailH;
     const blockH = 26 + introLines.length * 11 + 8 + paymentBodyH + 12 + noteLines.length * 10 + 6;
     // Reserve the page-number band as well as the signature's writing space.
     ensure(blockH + 14 + (!hasTerms && !hasNotes ? SIGNATURE_H : 0));
@@ -623,9 +623,8 @@ export async function renderInvoicePdf(
       };
       centered("BANGLA QR", bodyTop, 9, bold, brand);
       page.drawImage(qrImage, { x: qx, y: bodyTop - 8 - qrW, width: qrW, height: qrW });
-      centered("BRANTA TECH", bodyTop - qrW - 18, 8, bold, text);
-      centered(BANGLA_QR_MERCHANT_ID, bodyTop - qrW - 28, 7, mono, muted);
-      centered("Bank / mobile banking app", bodyTop - qrW - 39, 7, font, muted);
+      draw(`Bangla QR Merchant: BRANTA TECH | ${BANGLA_QR_MERCHANT_ID}`, SIDE + 14, bodyTop - detailH - 4, 7.5, bold, text);
+      draw("Scan using a supported bank or mobile banking app.", SIDE + 14, bodyTop - detailH - 15, 7.5, font, muted);
     }
     detailRows.forEach((row) => {
       row.forEach((cell) => cell.lines.forEach((ln, lineIndex) => {
