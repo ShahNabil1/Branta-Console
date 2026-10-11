@@ -642,14 +642,29 @@ export async function renderInvoicePdf(
     y = top - blockH - 14;
   }
 
+  // Short final notes share a row so the signature is not orphaned by headings.
+  const finalColW = (CONTENT_W - 20) / 2;
+  const shortTerms = hasTerms ? wrap(inv.terms || "", font, 8.5, finalColW) : [];
+  const shortNotes = hasNotes ? wrap(inv.notes || "", font, 8.5, finalColW) : [];
+  const pairedFinal = hasTerms && hasNotes && shortTerms.length <= 2 && shortNotes.length <= 2;
+  if (pairedFinal) {
+    const finalH = 22 + Math.max(shortTerms.length, shortNotes.length) * 11;
+    ensure(finalH + SIGNATURE_H);
+    draw("TERMS AND CONDITIONS", SIDE, y - 11, 8.5, bold, brand);
+    draw("NOTES", SIDE + finalColW + 20, y - 11, 8.5, bold, brand);
+    shortTerms.forEach((ln, i) => draw(ln, SIDE, y - 25 - i * 11, 8.5, font, muted));
+    shortNotes.forEach((ln, i) => draw(ln, SIDE + finalColW + 20, y - 25 - i * 11, 8.5, font, muted));
+    y -= finalH;
+  }
+
   /* ---------- terms ---------- */
-  if (s.sections.terms !== false && inv.terms) {
+  if (!pairedFinal && s.sections.terms !== false && inv.terms) {
     sectionTitle("Terms and Conditions");
     paragraph(inv.terms, 8.5, font, muted, 11, !hasNotes);
   }
 
   /* ---------- notes ---------- */
-  if (s.sections.notes !== false && inv.notes) {
+  if (!pairedFinal && s.sections.notes !== false && inv.notes) {
     sectionTitle("Notes");
     paragraph(inv.notes, 8.5, font, muted, 11, true);
   }
