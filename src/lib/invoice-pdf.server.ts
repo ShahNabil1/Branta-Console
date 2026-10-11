@@ -503,8 +503,15 @@ export async function renderInvoicePdf(
     ["Balance Due", money(balance, cur), true],
   ];
   const totalsH = 14 + totalRows.length * 16;
+  const words = amountInWords(grand, cur);
+  const wordsLines = wrap(words, bold, 9.5, CONTENT_W - 260);
+  const wordsBesideTotals = 23 + wordsLines.length * 12 <= totalsH;
   ensure(totalsH + 8);
   y -= 10;
+  if (wordsBesideTotals) {
+    draw("Amount in Words:", SIDE, y - 18, 8.5, bold, muted);
+    wordsLines.forEach((ln, i) => draw(ln, SIDE, y - 31 - i * 12, 9.5, bold, text));
+  }
   const tx = PAGE_W - SIDE - 240;
   page.drawRectangle({ x: tx, y: y - totalsH, width: 240, height: totalsH, color: panel, borderColor: hair, borderWidth: 0.5 });
   totalRows.forEach(([label, val, strong], i) => {
@@ -518,11 +525,13 @@ export async function renderInvoicePdf(
   y -= totalsH + 12;
 
   /* ---------- amount in words ---------- */
-  ensure(30);
-  draw("Amount in Words:", SIDE, y - 10, 8.5, bold, muted);
-  y -= 11;
-  paragraph(amountInWords(grand, cur), 9.5, bold, text, 12);
-  y -= 4;
+  if (!wordsBesideTotals) {
+    ensure(30);
+    draw("Amount in Words:", SIDE, y - 10, 8.5, bold, muted);
+    y -= 11;
+    paragraph(words, 9.5, bold, text, 12);
+    y -= 4;
+  }
 
   /* ---------- installment schedule ---------- */
   if (s.sections.installments !== false && data.installments.length > 1) {
