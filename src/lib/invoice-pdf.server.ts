@@ -11,6 +11,7 @@
 
 import type { PDFDocument, PDFFont, PDFImage, PDFPage, RGB } from "pdf-lib";
 import { brandEmailList, embedBrandLogo, generatedByLine, type GeneratedBy } from "@/lib/brand/pdf-brand.server";
+import { BANGLA_QR_MERCHANT_ID, BANGLA_QR_PNG_B64 } from "@/lib/brand/bangla-qr.server";
 
 export type { GeneratedBy };
 
@@ -570,7 +571,13 @@ export async function renderInvoicePdf(
     const introLines = wrap(intro, font, 8.5, CONTENT_W - 28);
     const infoLines = infoText.split("\n").map((l) => l.trim()).filter(Boolean);
     const noteLines = wrap(noteText, font, 8, CONTENT_W - 28);
-    const detailW = CONTENT_W - 28;
+    // Local-currency merchant QR only; never imply it accepts foreign currency.
+    const qrImage = cur === "BDT"
+      ? await pdf.embedPng(Uint8Array.from(atob(BANGLA_QR_PNG_B64), (c) => c.charCodeAt(0)))
+      : null;
+    const qrW = 112;
+    const qrGap = 18;
+    const detailW = CONTENT_W - 28 - (qrImage ? qrW + qrGap : 0);
     const detailGap = 18;
     const detailColW = (detailW - detailGap) / 2;
     // Pair short bank details; keep long values full-width and wrapped.
@@ -594,7 +601,8 @@ export async function renderInvoicePdf(
     }
     if (pending !== undefined) detailRows.push([{ lines: [pending], x: SIDE + 14 }]);
     const detailH = detailRows.reduce((h, row) => h + Math.max(...row.map((cell) => cell.lines.length)) * 11.5, 0);
-    const blockH = 26 + introLines.length * 11 + 8 + detailH + 12 + noteLines.length * 10 + 12;
+    const paymentBodyH = Math.max(detailH, qrImage ? qrW + 55 : 0);
+    const blockH = 26 + introLines.length * 11 + 8 + paymentBodyH + 12 + noteLines.length * 10 + 12;
     // Reserve the page-number band as well as the signature's writing space.
     ensure(blockH + 14 + (!hasTerms && !hasNotes ? SIGNATURE_H : 0));
 
@@ -606,21 +614,29 @@ export async function renderInvoicePdf(
     iy -= 14;
     introLines.forEach((ln) => { draw(ln, SIDE + 14, iy, 8.5, font, muted); iy -= 11; });
     iy -= 6;
+    const bodyTop = iy;
+    if (qrImage) {
+      const qx = PAGE_W - SIDE - 14 - qrW;
+      page.drawLine({ start: { x: qx - qrGap / 2, y: bodyTop + 8 }, end: { x: qx - qrGap / 2, y: bodyTop - paymentBodyH + 8 }, thickness: 0.5, color: hair });
+      const centered = (label: string, baseline: number, size: number, f: PDFFont, color: RGB) => {
+        draw(label, qx + (qrW - f.widthOfTextAtSize(label, size)) / 2, baseline, size, f, color);
+      };
+      centered("BANGLA QR", bodyTop, 9, bold, brand);
+      page.drawImage(qrImage, { x: qx, y: bodyTop - 8 - qrW, width: qrW, height: qrW });
+      centered("BRANTA TECH", bodyTop - qrW - 18, 8, bold, text);
+      centered(BANGLA_QR_MERCHANT_ID, bodyTop - qrW - 28, 7, mono, muted);
+      centered("Scan with a supported bank", bodyTop - qrW - 39, 7, font, muted);
+      centered("or mobile banking app", bodyTop - qrW - 48, 7, font, muted);
+    }
     detailRows.forEach((row) => {
       row.forEach((cell) => cell.lines.forEach((ln, lineIndex) => {
       const lineY = iy - lineIndex * 11.5;
-      const idx = ln.indexOf(":");
-      if (idx > 0 && idx < 30) {
-        const k = ln.slice(0, idx + 1);
-        draw(k, cell.x, lineY, 8.5, bold, text);
-        draw(ln.slice(idx + 1).trim(), cell.x + bold.widthOfTextAtSize(safeText(k), 8.5) + 5, lineY, 8.5, font, text);
-      } else {
-        draw(ln, cell.x, lineY, 8.5, font, text);
-      }
+      // Use the measured width unchanged, including punctuation/spacing.
+      draw(ln, cell.x, lineY, 8.5, font, text);
       }));
       iy -= Math.max(...row.map((cell) => cell.lines.length)) * 11.5;
     });
-    iy -= 6;
+    iy = bodyTop - paymentBodyH - 6;
     draw("Payment Note:", SIDE + 14, iy, 8, bold, muted);
     iy -= 10;
     noteLines.forEach((ln) => { draw(ln, SIDE + 14, iy, 8, font, muted); iy -= 10; });
