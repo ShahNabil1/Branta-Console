@@ -575,7 +575,7 @@ export async function renderInvoicePdf(
     const qrImage = cur === "BDT"
       ? await pdf.embedPng(Uint8Array.from(atob(BANGLA_QR_PNG_B64), (c) => c.charCodeAt(0)))
       : null;
-    const qrW = 112;
+    const qrW = 100;
     const qrGap = 18;
     const detailW = CONTENT_W - 28 - (qrImage ? qrW + qrGap : 0);
     const detailGap = 18;
@@ -601,8 +601,8 @@ export async function renderInvoicePdf(
     }
     if (pending !== undefined) detailRows.push([{ lines: [pending], x: SIDE + 14 }]);
     const detailH = detailRows.reduce((h, row) => h + Math.max(...row.map((cell) => cell.lines.length)) * 11.5, 0);
-    const paymentBodyH = Math.max(detailH, qrImage ? qrW + 55 : 0);
-    const blockH = 26 + introLines.length * 11 + 8 + paymentBodyH + 12 + noteLines.length * 10 + 12;
+    const paymentBodyH = Math.max(detailH, qrImage ? qrW + 45 : 0);
+    const blockH = 26 + introLines.length * 11 + 8 + paymentBodyH + 12 + noteLines.length * 10 + 6;
     // Reserve the page-number band as well as the signature's writing space.
     ensure(blockH + 14 + (!hasTerms && !hasNotes ? SIGNATURE_H : 0));
 
@@ -625,8 +625,7 @@ export async function renderInvoicePdf(
       page.drawImage(qrImage, { x: qx, y: bodyTop - 8 - qrW, width: qrW, height: qrW });
       centered("BRANTA TECH", bodyTop - qrW - 18, 8, bold, text);
       centered(BANGLA_QR_MERCHANT_ID, bodyTop - qrW - 28, 7, mono, muted);
-      centered("Scan with a supported bank", bodyTop - qrW - 39, 7, font, muted);
-      centered("or mobile banking app", bodyTop - qrW - 48, 7, font, muted);
+      centered("Bank / mobile banking app", bodyTop - qrW - 39, 7, font, muted);
     }
     detailRows.forEach((row) => {
       row.forEach((cell) => cell.lines.forEach((ln, lineIndex) => {
