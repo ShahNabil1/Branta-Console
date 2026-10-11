@@ -376,12 +376,12 @@ export async function renderInvoicePdf(
   };
 
   const sectionTitle = (label: string) => {
-    ensure(28);
-    y -= 6;
+    ensure(22);
+    y -= 4;
     draw(label.toUpperCase(), SIDE, y - 9, 9, bold, brand);
-    y -= 13;
+    y -= 11;
     page.drawLine({ start: { x: SIDE, y }, end: { x: PAGE_W - SIDE, y }, thickness: 0.6, color: hair });
-    y -= 10;
+    y -= 6;
   };
 
   /* ---------- title block ---------- */
