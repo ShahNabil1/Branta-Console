@@ -363,21 +363,25 @@ export async function renderInvoicePdf(
     return out;
   };
 
-  const paragraph = (t: string, size = 9.5, f: PDFFont = font, color: RGB = muted, lead = 12.5) => {
-    for (const ln of wrap(t, f, size, CONTENT_W)) {
-      ensure(lead);
+  const SIGNATURE_H = 60;
+  const paragraph = (t: string, size = 9.5, f: PDFFont = font, color: RGB = muted, lead = 12.5, reserveSignature = false) => {
+    const lines = wrap(t, f, size, CONTENT_W);
+    for (const [i, ln] of lines.entries()) {
+      // Keep the final two lines with the signature, even on long invoices.
+      const remaining = lines.length - i;
+      ensure(reserveSignature && remaining <= 2 ? remaining * lead + SIGNATURE_H : lead);
       draw(ln, SIDE, y - size, size, f, color);
       y -= lead;
     }
   };
 
   const sectionTitle = (label: string) => {
-    ensure(28);
-    y -= 6;
+    ensure(22);
+    y -= 4;
     draw(label.toUpperCase(), SIDE, y - 9, 9, bold, brand);
-    y -= 13;
+    y -= 11;
     page.drawLine({ start: { x: SIDE, y }, end: { x: PAGE_W - SIDE, y }, thickness: 0.6, color: hair });
-    y -= 10;
+    y -= 6;
   };
 
   /* ---------- title block ---------- */
@@ -476,7 +480,7 @@ export async function renderInvoicePdf(
   for (const it of items) {
     const descLines = wrap(it.description, font, 9.5, cQty - cDesc - 12);
     const rowH = Math.max(20, descLines.length * 12 + 8);
-    if (y - rowH < CONTENT_BOTTOM) { newPage(); tableHeader(); }
+    if (y - rowH < CONTENT_BOTTOM + 22) { newPage(); tableHeader(); }
     descLines.forEach((ln, i) => draw(ln, cDesc, y - 13 - i * 12, 9.5, font, text));
     draw(String(it.sequence), cSeq, y - 13, 9, mono, muted);
     draw(Number(it.quantity).toString(), cQty, y - 13, 9.5, font, text);
@@ -499,8 +503,15 @@ export async function renderInvoicePdf(
     ["Balance Due", money(balance, cur), true],
   ];
   const totalsH = 14 + totalRows.length * 16;
-  ensure(totalsH + 8);
+  const words = amountInWords(grand, cur);
+  const wordsLines = wrap(words, bold, 9.5, CONTENT_W - 260);
+  const wordsBesideTotals = 23 + wordsLines.length * 12 <= totalsH;
+  ensure(totalsH + 22);
   y -= 10;
+  if (wordsBesideTotals) {
+    draw("Amount in Words:", SIDE, y - 18, 8.5, bold, muted);
+    wordsLines.forEach((ln, i) => draw(ln, SIDE, y - 31 - i * 12, 9.5, bold, text));
+  }
   const tx = PAGE_W - SIDE - 240;
   page.drawRectangle({ x: tx, y: y - totalsH, width: 240, height: totalsH, color: panel, borderColor: hair, borderWidth: 0.5 });
   totalRows.forEach(([label, val, strong], i) => {
@@ -514,11 +525,13 @@ export async function renderInvoicePdf(
   y -= totalsH + 12;
 
   /* ---------- amount in words ---------- */
-  ensure(30);
-  draw("Amount in Words:", SIDE, y - 10, 8.5, bold, muted);
-  y -= 11;
-  paragraph(amountInWords(grand, cur), 9.5, bold, text, 12);
-  y -= 4;
+  if (!wordsBesideTotals) {
+    ensure(30);
+    draw("Amount in Words:", SIDE, y - 10, 8.5, bold, muted);
+    y -= 11;
+    paragraph(words, 9.5, bold, text, 12);
+    y -= 4;
+  }
 
   /* ---------- installment schedule ---------- */
   if (s.sections.installments !== false && data.installments.length > 1) {
@@ -532,7 +545,7 @@ export async function renderInvoicePdf(
     draw("STATUS", cAmt - 46, y - 10, 8, bold, muted);
     y -= 16;
     for (const it of data.installments) {
-      ensure(18);
+      ensure(38);
       draw(String(it.sequence), cSeq, y - 11, 9, mono, muted);
       draw(wrap(it.label, font, 9.5, cQty - cDesc - 10)[0] ?? "", cDesc, y - 11, 9.5, font, text);
       draw(fmtDate(it.due_date), cQty, y - 11, 9, font, muted);
@@ -547,6 +560,8 @@ export async function renderInvoicePdf(
   }
 
   /* ---------- payment information ---------- */
+  const hasTerms = s.sections.terms !== false && Boolean(inv.terms);
+  const hasNotes = s.sections.notes !== false && Boolean(inv.notes);
   if (s.sections.payment_info !== false) {
     const infoText = s.payment_info || DEFAULT_PAYMENT_INFO;
     const noteText = s.payment_note || DEFAULT_PAYMENT_NOTE;
@@ -555,8 +570,33 @@ export async function renderInvoicePdf(
     const introLines = wrap(intro, font, 8.5, CONTENT_W - 28);
     const infoLines = infoText.split("\n").map((l) => l.trim()).filter(Boolean);
     const noteLines = wrap(noteText, font, 8, CONTENT_W - 28);
-    const blockH = 26 + introLines.length * 11 + 8 + infoLines.length * 11.5 + 12 + noteLines.length * 10 + 12;
-    if (y - blockH < CONTENT_BOTTOM) newPage();
+    const detailW = CONTENT_W - 28;
+    const detailGap = 18;
+    const detailColW = (detailW - detailGap) / 2;
+    // Pair short bank details; keep long values full-width and wrapped.
+    // Measure with bold (the wider label font), so no field is clipped.
+    const detailRows: Array<Array<{ lines: string[]; x: number }>> = [];
+    let pending: string | undefined;
+    for (const ln of infoLines) {
+      if (bold.widthOfTextAtSize(safeText(ln), 8.5) <= detailColW) {
+        if (pending === undefined) pending = ln;
+        else {
+          detailRows.push([{ lines: [pending], x: SIDE + 14 }, { lines: [ln], x: SIDE + 14 + detailColW + detailGap }]);
+          pending = undefined;
+        }
+      } else {
+        if (pending !== undefined) {
+          detailRows.push([{ lines: [pending], x: SIDE + 14 }]);
+          pending = undefined;
+        }
+        detailRows.push([{ lines: wrap(ln, bold, 8.5, detailW), x: SIDE + 14 }]);
+      }
+    }
+    if (pending !== undefined) detailRows.push([{ lines: [pending], x: SIDE + 14 }]);
+    const detailH = detailRows.reduce((h, row) => h + Math.max(...row.map((cell) => cell.lines.length)) * 11.5, 0);
+    const blockH = 26 + introLines.length * 11 + 8 + detailH + 12 + noteLines.length * 10 + 12;
+    // Reserve the page-number band as well as the signature's writing space.
+    ensure(blockH + 14 + (!hasTerms && !hasNotes ? SIGNATURE_H : 0));
 
     const top = y;
     page.drawRectangle({ x: SIDE, y: top - blockH, width: CONTENT_W, height: blockH, color: panel, borderColor: hair, borderWidth: 0.5 });
@@ -566,16 +606,19 @@ export async function renderInvoicePdf(
     iy -= 14;
     introLines.forEach((ln) => { draw(ln, SIDE + 14, iy, 8.5, font, muted); iy -= 11; });
     iy -= 6;
-    infoLines.forEach((ln) => {
+    detailRows.forEach((row) => {
+      row.forEach((cell) => cell.lines.forEach((ln, lineIndex) => {
+      const lineY = iy - lineIndex * 11.5;
       const idx = ln.indexOf(":");
       if (idx > 0 && idx < 30) {
         const k = ln.slice(0, idx + 1);
-        draw(k, SIDE + 14, iy, 8.5, bold, text);
-        draw(ln.slice(idx + 1).trim(), SIDE + 14 + bold.widthOfTextAtSize(safeText(k), 8.5) + 5, iy, 8.5, font, text);
+        draw(k, cell.x, lineY, 8.5, bold, text);
+        draw(ln.slice(idx + 1).trim(), cell.x + bold.widthOfTextAtSize(safeText(k), 8.5) + 5, lineY, 8.5, font, text);
       } else {
-        draw(ln, SIDE + 14, iy, 8.5, font, text);
+        draw(ln, cell.x, lineY, 8.5, font, text);
       }
-      iy -= 11.5;
+      }));
+      iy -= Math.max(...row.map((cell) => cell.lines.length)) * 11.5;
     });
     iy -= 6;
     draw("Payment Note:", SIDE + 14, iy, 8, bold, muted);
@@ -587,17 +630,17 @@ export async function renderInvoicePdf(
   /* ---------- terms ---------- */
   if (s.sections.terms !== false && inv.terms) {
     sectionTitle("Terms and Conditions");
-    paragraph(inv.terms, 8.5, font, muted, 11);
+    paragraph(inv.terms, 8.5, font, muted, 11, !hasNotes);
   }
 
   /* ---------- notes ---------- */
   if (s.sections.notes !== false && inv.notes) {
     sectionTitle("Notes");
-    paragraph(inv.notes, 8.5, font, muted, 11);
+    paragraph(inv.notes, 8.5, font, muted, 11, true);
   }
 
   /* ---------- signature ---------- */
-  ensure(60);
+  ensure(SIGNATURE_H);
   y -= 24;
   const sigX = PAGE_W - SIDE - 200;
   page.drawLine({ start: { x: sigX, y }, end: { x: PAGE_W - SIDE, y }, thickness: 0.7, color: hair });
