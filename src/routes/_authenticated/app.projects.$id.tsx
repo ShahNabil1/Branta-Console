@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { SERVICE_TRACKS, TRACK_FIELDS, getHubProject, updateHubProjectDetails, type HubProjectDetail, type ServiceTrack } from "@/lib/projects-hub.functions";
+import { HANDOVER_LINKS, getHandover, listProjectInvoices, saveHandover, type HandoverItem, SERVICE_TRACKS, TRACK_FIELDS, getHubProject, updateHubProjectDetails, type HubProjectDetail, type ServiceTrack } from "@/lib/projects-hub.functions";
 import { PROJECT_ROLES, listProjectMembers, setProjectMember, type ProjectRole } from "@/lib/project-team.functions";
 import { listAssignableUsers } from "@/lib/leads.functions";
 import { createClientTask, listProjectTasks, stepLabel, type ClientTask } from "@/lib/client-tasks.functions";
@@ -70,6 +70,7 @@ function ProjectPage() {
               : fields.map((f) => <Row key={f.key} label={f.label} value={p.track_meta[f.key] ?? null} link={f.kind === "url"} />)}
           </Panel>
           <ProjectTasks projectId={p.id} canManage={p.canManage} />
+          <HandoverPanel projectId={p.id} canManage={p.canManage} />
         </div>
         <div className="space-y-4">
           <TeamPanel projectId={p.id} />
@@ -293,5 +294,84 @@ function NewTaskDialog({ projectId, onClose }: { projectId: string; onClose: () 
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function HandoverPanel({ projectId, canManage }: { projectId: string; canManage: boolean }) {
+  const get = useServerFn(getHandover);
+  const save = useServerFn(saveHandover);
+  const invFn = useServerFn(listProjectInvoices);
+  const qc = useQueryClient();
+  const q = useQuery({ queryKey: ["project-handover", projectId], queryFn: () => get({ data: { id: projectId } }) });
+  const inv = useQuery({ queryKey: ["project-invoices", projectId], queryFn: () => invFn({ data: { id: projectId } }) });
+  const [items, setItems] = useState<HandoverItem[]>([]);
+  const [links, setLinks] = useState<Record<string, string>>({});
+  const [notes, setNotes] = useState("");
+  const [newItem, setNewItem] = useState("");
+  useEffect(() => { if (q.data) { setItems(q.data.checklist); setLinks(q.data.links); setNotes(q.data.notes ?? ""); } }, [q.data]);
+  const m = useMutation({
+    mutationFn: (complete: boolean) => save({ data: { id: projectId, checklist: items, links, notes: notes.trim() || null, complete } }),
+    onSuccess: (r) => {
+      toast.success(r.handedOver ? "Project handed over — team notified" : "Handover saved");
+      ["project-handover", "hub-project"].forEach((k) => qc.invalidateQueries({ queryKey: [k, projectId] }));
+      qc.invalidateQueries({ queryKey: ["hub-projects"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  if (q.isLoading || !q.data) return <Panel title="Handover & delivery"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></Panel>;
+  const done = !!q.data.handed_over_at;
+  const allTicked = items.length > 0 && items.every((i) => i.done);
+  const ro = !canManage;
+  return (
+    <Panel title="Handover & delivery">
+      {done && (
+        <div className="mb-3 rounded border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-foreground">
+          Handed over {new Date(q.data.handed_over_at!).toLocaleString()}{q.data.handed_over_by_name ? ` by ${q.data.handed_over_by_name}` : ""}
+        </div>
+      )}
+      <div className="grid gap-1.5">
+        {items.map((it) => (
+          <label key={it.id} className="flex items-start gap-2 text-sm">
+            <Checkbox disabled={ro} checked={it.done} onCheckedChange={(v) => setItems((x) => x.map((y) => y.id === it.id ? { ...y, done: !!v } : y))} />
+            <span className="min-w-0 break-words">{it.label}</span>
+          </label>
+        ))}
+        {!ro && (
+          <div className="mt-1 flex gap-2">
+            <Input className="h-8" placeholder="Add checklist item…" value={newItem} onChange={(e) => setNewItem(e.target.value)} />
+            <Button size="sm" variant="outline" disabled={!newItem.trim()} onClick={() => { setItems((x) => [...x, { id: `c${Date.now()}`, label: newItem.trim(), done: false }]); setNewItem(""); }}>Add</Button>
+          </div>
+        )}
+      </div>
+      <div className="mt-4 grid gap-2">
+        {HANDOVER_LINKS.map((l) => ro ? <Row key={l.key} label={l.label} value={links[l.key] ?? null} link /> : (
+          <div key={l.key}><Label className="text-xs">{l.label}</Label>
+            <Input type="url" className="h-8" placeholder="https://…" value={links[l.key] ?? ""} onChange={(e) => setLinks((x) => ({ ...x, [l.key]: e.target.value }))} /></div>
+        ))}
+        {ro ? (notes && <p className="whitespace-pre-wrap text-xs text-muted-foreground">{notes}</p>) : (
+          <div><Label className="text-xs">Handover notes</Label><Textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
+        )}
+      </div>
+      {(inv.data ?? []).length > 0 && (
+        <div className="mt-4">
+          <div className="mb-1 text-xs text-muted-foreground">Linked invoices</div>
+          <div className="flex flex-wrap gap-1.5">
+            {inv.data!.map((i) => (
+              <Link key={i.slug} to="/app/finance/invoices/$slug" params={{ slug: i.slug }} className="rounded border border-border px-2 py-0.5 font-mono text-[11px] hover:border-primary/50">
+                {i.slug} · {i.status}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+      {!ro && (
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button size="sm" variant="outline" disabled={m.isPending} onClick={() => m.mutate(false)}>Save</Button>
+          {!done && <Button size="sm" disabled={m.isPending || !allTicked} onClick={() => m.mutate(true)} title={allTicked ? "" : "Tick every checklist item first"}>
+            {m.isPending && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}Complete handover
+          </Button>}
+        </div>
+      )}
+    </Panel>
   );
 }
