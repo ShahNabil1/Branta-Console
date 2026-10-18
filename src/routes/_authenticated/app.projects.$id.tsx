@@ -12,7 +12,9 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { SERVICE_TRACKS, TRACK_FIELDS, getHubProject, updateHubProjectDetails, type HubProjectDetail, type ServiceTrack } from "@/lib/projects-hub.functions";
 import { PROJECT_ROLES, listProjectMembers, setProjectMember, type ProjectRole } from "@/lib/project-team.functions";
 import { listAssignableUsers } from "@/lib/leads.functions";
-import { stepLabel } from "@/lib/client-tasks.functions";
+import { createClientTask, listProjectTasks, stepLabel, type ClientTask } from "@/lib/client-tasks.functions";
+import { TaskDetailSheet } from "@/components/clients/client-tasks";
+import { Textarea } from "@/components/ui/textarea";
 import { STATUS_LABEL, trackLabel } from "./app.projects.index";
 
 export const Route = createFileRoute("/_authenticated/app/projects/$id")({
@@ -67,16 +69,7 @@ function ProjectPage() {
             {fields.length === 0 ? <p className="text-xs text-muted-foreground">Choose a service track to add its links.</p>
               : fields.map((f) => <Row key={f.key} label={f.label} value={p.track_meta[f.key] ?? null} link={f.kind === "url"} />)}
           </Panel>
-          <Panel title={`Tasks (${p.task_done}/${p.task_total} done)`}>
-            {p.tasks.length === 0 ? (
-              <p className="text-xs text-muted-foreground">No tasks yet.{p.customer_code ? " Create tasks from the client's Tasks tab and link them to this project." : ""}</p>
-            ) : p.tasks.map((t) => (
-              <div key={t.id} className="flex items-center justify-between gap-2 border-b border-border py-2 text-sm last:border-0">
-                <span className="min-w-0 break-words">{t.title}</span>
-                <span className="shrink-0 text-[11px] text-muted-foreground">{stepLabel(t.status as never)}{t.revision_round ? ` · R${t.revision_round}` : ""}{t.due_on ? ` · ${t.due_on}` : ""}</span>
-              </div>
-            ))}
-          </Panel>
+          <ProjectTasks projectId={p.id} canManage={p.canManage} />
         </div>
         <div className="space-y-4">
           <TeamPanel projectId={p.id} />
@@ -227,6 +220,76 @@ function EditDialog({ p, onClose }: { p: HubProjectDetail; onClose: () => void }
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button disabled={m.isPending} onClick={() => m.mutate()}>{m.isPending && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}Save</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ProjectTasks({ projectId, canManage }: { projectId: string; canManage: boolean }) {
+  const list = useServerFn(listProjectTasks);
+  const usersFn = useServerFn(listAssignableUsers);
+  const q = useQuery({ queryKey: ["project-tasks", projectId], queryFn: () => list({ data: { projectId } }) });
+  const users = useQuery({ queryKey: ["assignable-users"], queryFn: () => usersFn() });
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const qc = useQueryClient();
+  const rows = q.data ?? [];
+  const done = rows.filter((t) => ["completed", "delivered", "approved"].includes(t.status)).length;
+  const open = rows.find((t) => t.id === openId) ?? null;
+  return (
+    <Panel title={`Tasks (${done}/${rows.length} done)`}>
+      {q.isLoading ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> : rows.length === 0
+        ? <p className="text-xs text-muted-foreground">No tasks yet.</p>
+        : rows.map((t: ClientTask) => (
+          <button key={t.id} onClick={() => setOpenId(t.id)} className="flex w-full items-center justify-between gap-2 border-b border-border py-2 text-left text-sm last:border-0 hover:text-primary">
+            <span className="min-w-0 break-words">{t.title}<span className="block text-[11px] text-muted-foreground">{t.assignees.map((a) => a.name ?? "Member").join(", ") || "Unassigned"}</span></span>
+            <span className="shrink-0 text-[11px] text-muted-foreground">{stepLabel(t.status)}{t.revision_round ? ` · R${t.revision_round}` : ""}{t.due_on ? ` · ${t.due_on}` : ""}</span>
+          </button>
+        ))}
+      {canManage && <Button size="sm" variant="outline" className="mt-2" onClick={() => setCreating(true)}>Add task</Button>}
+      {open && <TaskDetailSheet task={open} users={users.data ?? []} onClose={() => { setOpenId(null); qc.invalidateQueries({ queryKey: ["project-tasks", projectId] }); qc.invalidateQueries({ queryKey: ["hub-project", projectId] }); }} />}
+      {creating && <NewTaskDialog projectId={projectId} onClose={() => setCreating(false)} />}
+    </Panel>
+  );
+}
+
+function NewTaskDialog({ projectId, onClose }: { projectId: string; onClose: () => void }) {
+  const create = useServerFn(createClientTask);
+  const qc = useQueryClient();
+  const [title, setTitle] = useState("");
+  const [instructions, setInstructions] = useState("");
+  const [due, setDue] = useState("");
+  const [priority, setPriority] = useState<"low" | "medium" | "high" | "urgent">("medium");
+  const m = useMutation({
+    mutationFn: () => create({ data: { customer_id: null, project_id: projectId, title: title.trim(), instructions: instructions.trim() || null, due_on: due || null, priority } }),
+    onSuccess: () => {
+      toast.success("Task created — open it to assign the team");
+      qc.invalidateQueries({ queryKey: ["project-tasks", projectId] });
+      qc.invalidateQueries({ queryKey: ["hub-project", projectId] });
+      qc.invalidateQueries({ queryKey: ["hub-projects"] });
+      onClose();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  return (
+    <Dialog open onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader><DialogTitle>New task</DialogTitle></DialogHeader>
+        <div className="grid gap-3">
+          <div><Label>Title</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} /></div>
+          <div><Label>Instructions</Label><Textarea rows={4} value={instructions} onChange={(e) => setInstructions(e.target.value)} /></div>
+          <div className="grid grid-cols-2 gap-2">
+            <div><Label>Submission deadline</Label><Input type="date" value={due} onChange={(e) => setDue(e.target.value)} /></div>
+            <div><Label>Priority</Label>
+              <select className="h-9 w-full rounded border border-input bg-background px-2 text-sm" value={priority} onChange={(e) => setPriority(e.target.value as typeof priority)}>
+                <option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="urgent">Urgent</option>
+              </select></div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button disabled={m.isPending || title.trim().length < 2} onClick={() => m.mutate()}>{m.isPending && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}Create</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
