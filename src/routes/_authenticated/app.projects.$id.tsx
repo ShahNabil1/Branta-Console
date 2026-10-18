@@ -356,7 +356,7 @@ function HandoverPanel({ projectId, canManage }: { projectId: string; canManage:
         <div className="mt-4">
           <div className="mb-1 text-xs text-muted-foreground">Linked invoices</div>
           <div className="flex flex-wrap gap-1.5">
-            {inv.data!.map((i) => (
+            {inv.data!.map((i: { slug: string; status: string }) => (
               <Link key={i.slug} to="/app/finance/invoices/$slug" params={{ slug: i.slug }} className="rounded border border-border px-2 py-0.5 font-mono text-[11px] hover:border-primary/50">
                 {i.slug} · {i.status}
               </Link>
