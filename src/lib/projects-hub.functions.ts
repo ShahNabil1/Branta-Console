@@ -202,3 +202,102 @@ export const listCustomersForPicker = createServerFn({ method: "GET" })
       .is("archived_at", null).order("name").limit(1000);
     return (data ?? []) as { id: string; name: string; company: string | null; customer_code: string }[];
   });
+
+// ---------- Handover dossier (Phase 4) ----------
+export const HANDOVER_LINKS = [
+  { key: "live_url", label: "Live / production link" },
+  { key: "assets_url", label: "Final assets drive" },
+  { key: "source_url", label: "Source code / project files" },
+  { key: "guide_url", label: "User guide / SOP" },
+  { key: "final_doc_url", label: "Final submission / handover doc" },
+  { key: "credentials_ref", label: "Credentials reference (vault / doc link — never paste passwords)" },
+] as const;
+export interface HandoverItem { id: string; label: string; done: boolean }
+export interface Handover {
+  checklist: HandoverItem[]; links: Record<string, string>; notes: string | null;
+  handed_over_at: string | null; handed_over_by_name: string | null;
+}
+const DEFAULT_CHECKLIST = [
+  "All Scope of Work items delivered", "Internal QC passed on every task", "Client approved final delivery",
+  "Final files / source handed to client", "Access & credentials transferred",
+];
+
+export const getHandover = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }): Promise<Handover> => {
+    const sb = context.supabase as any;
+    const { data: p, error } = await sb.from("client_projects").select("handover,handed_over_at,handed_over_by").eq("id", data.id).single();
+    if (error) throw dbError(error);
+    const h = (p.handover ?? {}) as any;
+    let by: string | null = null;
+    if (p.handed_over_by) {
+      const { data: pr } = await sb.from("profiles").select("full_name").eq("user_id", p.handed_over_by).maybeSingle();
+      by = pr?.full_name ?? null;
+    }
+    return {
+      checklist: Array.isArray(h.checklist) && h.checklist.length ? h.checklist
+        : DEFAULT_CHECKLIST.map((label, i) => ({ id: `d${i}`, label, done: false })),
+      links: h.links ?? {}, notes: h.notes ?? null, handed_over_at: p.handed_over_at, handed_over_by_name: by,
+    };
+  });
+
+const HandoverInput = z.object({
+  id: z.string().uuid(),
+  checklist: z.array(z.object({ id: z.string().max(40), label: z.string().trim().min(1).max(200), done: z.boolean() })).max(40),
+  links: z.record(z.string().max(40), z.string().trim().max(1000)),
+  notes: z.string().trim().max(4000).nullable(),
+  complete: z.boolean().default(false),
+});
+
+export const saveHandover = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => HandoverInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase as any;
+    const { data: can } = await sb.rpc("can_manage_project", { _project_id: data.id, _user: context.userId });
+    if (!can) throw new Error("Only project leadership or admins can edit the handover");
+    for (const [k, v] of Object.entries(data.links)) {
+      if (v && !/^https?:\/\/\S+\.\S+/i.test(v)) throw new Error(`"${HANDOVER_LINKS.find((l) => l.key === k)?.label ?? k}" must be a link starting with https://`);
+    }
+    const { data: before, error: e0 } = await sb.from("client_projects").select("title,customer_id,handed_over_at").eq("id", data.id).single();
+    if (e0) throw dbError(e0);
+    if (data.complete && data.checklist.some((c) => !c.done)) throw new Error("Tick every checklist item before handing over");
+    const links: Record<string, string> = {};
+    for (const [k, v] of Object.entries(data.links)) if (v) links[k] = v;
+    const upd: Record<string, unknown> = { handover: { checklist: data.checklist, links, notes: data.notes } };
+    const completing = data.complete && !before.handed_over_at;
+    if (completing) Object.assign(upd, { handed_over_at: new Date().toISOString(), handed_over_by: context.userId, status: "completed" });
+    const { data: saved, error } = await sb.from("client_projects").update(upd).eq("id", data.id).select("id");
+    if (error) throw dbError(error);
+    if (!saved?.length) throw new Error("You don't have permission to update this project");
+    await sb.from("client_project_activity").insert({
+      project_id: data.id, customer_id: before.customer_id, actor_id: context.userId,
+      action: completing ? "handover" : "updated", body: completing ? `"${before.title}" handed over to client` : `"${before.title}" handover dossier updated`,
+    });
+    if (completing) {
+      try {
+        const { projectRecipients } = await import("@/lib/project-recipients.server");
+        const team = await projectRecipients(data.id, ["project_head", "team_lead", "qc_checker", "specialist"], [context.userId]);
+        const { data: ts } = await sb.from("client_tasks").select("id").eq("project_id", data.id);
+        const ids = (ts ?? []).map((t: any) => t.id);
+        const { data: as } = ids.length ? await sb.from("client_task_assignees").select("user_id").in("task_id", ids) : { data: [] };
+        const all = [...new Set<string>([...team, ...(as ?? []).map((a: any) => a.user_id)])].filter((u) => u !== context.userId);
+        if (all.length) {
+          const { notify } = await import("@/lib/notify.server");
+          await notify({ event: "project.handover", recipients: all, actorId: context.userId, vars: { project: before.title }, dedupeKey: `proj:${data.id}:handover` });
+        }
+      } catch (e) { console.warn("[handover] notify failed", e); }
+    }
+    return { ok: true, handedOver: completing };
+  });
+
+/** Linked invoices (code + status only, never amounts). RLS limits visibility to finance users. */
+export const listProjectInvoices = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: rows } = await (context.supabase as any).from("invoices").select("slug,status,archived_at")
+      .eq("project_id", data.id).is("archived_at", null).order("created_at", { ascending: false });
+    return (rows ?? []).map((r: any) => ({ slug: r.slug as string, status: r.status as string }));
+  });
