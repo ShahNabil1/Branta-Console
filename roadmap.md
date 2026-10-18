@@ -24,7 +24,7 @@
 
 ## Project & Delivery Management
 - [x] Phase 1: multi-role project team, project/QC fields, team-aware task permissions, Telegram events (role assigned, submission → QC/Lead/Head)
-- [ ] Phase 2: /app/projects hub, service tracks, SOW/requirement docs, team manager UI (internal projects need optional client)
+- [x] Phase 2: /app/projects hub, service tracks + track links, SOW/requirement docs, multi-role team manager, internal projects without client
 - [ ] Phase 3: two-tier QC (internal + client revisions) with deadlines and Telegram alerts
 - [ ] Phase 4: handover dossier, invoice delivery sync, celebration alert
 - [ ] Sandbox environment with Tester/Developer roles
