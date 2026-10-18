@@ -63,6 +63,8 @@ import { Route as AuthenticatedAppProfileFinanceRouteImport } from './routes/_au
 import { Route as AuthenticatedAppProfilePersonalRouteImport } from './routes/_authenticated/app.profile.personal'
 import { Route as AuthenticatedAppProfileSecurityRouteImport } from './routes/_authenticated/app.profile.security'
 import { Route as AuthenticatedAppProfileWalletRouteImport } from './routes/_authenticated/app.profile.wallet'
+import { Route as AuthenticatedAppProjectsIndexRouteImport } from './routes/_authenticated/app.projects.index'
+import { Route as AuthenticatedAppProjectsIdRouteImport } from './routes/_authenticated/app.projects.$id'
 import { Route as ApiPublicBrevoWebhookRouteImport } from './routes/api/public/brevo.webhook'
 import { Route as ApiPublicExpensesVoucherDotpdfRouteImport } from './routes/api/public/expenses.$voucher[.]pdf'
 import { Route as ApiPublicHooksInvoiceRemindersRouteImport } from './routes/api/public/hooks/invoice-reminders'
@@ -390,6 +392,18 @@ const AuthenticatedAppProfileWalletRoute =
     path: '/wallet',
     getParentRoute: () => AuthenticatedAppProfileRoute,
   } as any)
+const AuthenticatedAppProjectsIndexRoute =
+  AuthenticatedAppProjectsIndexRouteImport.update({
+    id: '/projects/',
+    path: '/projects/',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppProjectsIdRoute =
+  AuthenticatedAppProjectsIdRouteImport.update({
+    id: '/projects/$id',
+    path: '/projects/$id',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
 const ApiPublicBrevoWebhookRoute = ApiPublicBrevoWebhookRouteImport.update({
   id: '/api/public/brevo/webhook',
   path: '/api/public/brevo/webhook',
@@ -522,6 +536,7 @@ export interface FileRoutesByFullPath {
   '/app/profile/personal': typeof AuthenticatedAppProfilePersonalRoute
   '/app/profile/security': typeof AuthenticatedAppProfileSecurityRoute
   '/app/profile/wallet': typeof AuthenticatedAppProfileWalletRoute
+  '/app/projects/$id': typeof AuthenticatedAppProjectsIdRoute
   '/api/public/brevo/webhook': typeof ApiPublicBrevoWebhookRoute
   '/api/public/expenses/$voucher.pdf': typeof ApiPublicExpensesVoucherDotpdfRoute
   '/api/public/hooks/invoice-reminders': typeof ApiPublicHooksInvoiceRemindersRoute
@@ -536,6 +551,7 @@ export interface FileRoutesByFullPath {
   '/app/finance/': typeof AuthenticatedAppFinanceIndexRoute
   '/app/leads/': typeof AuthenticatedAppLeadsIndexRoute
   '/app/profile/': typeof AuthenticatedAppProfileIndexRoute
+  '/app/projects/': typeof AuthenticatedAppProjectsIndexRoute
   '/app/finance/funds/$code': typeof AuthenticatedAppFinanceFundsCodeRoute
   '/app/finance/invoices/$slug': typeof AuthenticatedAppFinanceInvoicesSlugRoute
   '/app/finance/invoices/new': typeof AuthenticatedAppFinanceInvoicesNewRoute
@@ -586,6 +602,7 @@ export interface FileRoutesByTo {
   '/app/profile/personal': typeof AuthenticatedAppProfilePersonalRoute
   '/app/profile/security': typeof AuthenticatedAppProfileSecurityRoute
   '/app/profile/wallet': typeof AuthenticatedAppProfileWalletRoute
+  '/app/projects/$id': typeof AuthenticatedAppProjectsIdRoute
   '/api/public/brevo/webhook': typeof ApiPublicBrevoWebhookRoute
   '/api/public/expenses/$voucher.pdf': typeof ApiPublicExpensesVoucherDotpdfRoute
   '/api/public/hooks/invoice-reminders': typeof ApiPublicHooksInvoiceRemindersRoute
@@ -600,6 +617,7 @@ export interface FileRoutesByTo {
   '/app/finance': typeof AuthenticatedAppFinanceIndexRoute
   '/app/leads': typeof AuthenticatedAppLeadsIndexRoute
   '/app/profile': typeof AuthenticatedAppProfileIndexRoute
+  '/app/projects': typeof AuthenticatedAppProjectsIndexRoute
   '/app/finance/funds/$code': typeof AuthenticatedAppFinanceFundsCodeRoute
   '/app/finance/invoices/$slug': typeof AuthenticatedAppFinanceInvoicesSlugRoute
   '/app/finance/invoices/new': typeof AuthenticatedAppFinanceInvoicesNewRoute
@@ -657,6 +675,7 @@ export interface FileRoutesById {
   '/_authenticated/app/profile/personal': typeof AuthenticatedAppProfilePersonalRoute
   '/_authenticated/app/profile/security': typeof AuthenticatedAppProfileSecurityRoute
   '/_authenticated/app/profile/wallet': typeof AuthenticatedAppProfileWalletRoute
+  '/_authenticated/app/projects/$id': typeof AuthenticatedAppProjectsIdRoute
   '/api/public/brevo/webhook': typeof ApiPublicBrevoWebhookRoute
   '/api/public/expenses/$voucher.pdf': typeof ApiPublicExpensesVoucherDotpdfRoute
   '/api/public/hooks/invoice-reminders': typeof ApiPublicHooksInvoiceRemindersRoute
@@ -671,6 +690,7 @@ export interface FileRoutesById {
   '/_authenticated/app/finance/': typeof AuthenticatedAppFinanceIndexRoute
   '/_authenticated/app/leads/': typeof AuthenticatedAppLeadsIndexRoute
   '/_authenticated/app/profile/': typeof AuthenticatedAppProfileIndexRoute
+  '/_authenticated/app/projects/': typeof AuthenticatedAppProjectsIndexRoute
   '/_authenticated/app/finance/funds/$code': typeof AuthenticatedAppFinanceFundsCodeRoute
   '/_authenticated/app/finance/invoices/$slug': typeof AuthenticatedAppFinanceInvoicesSlugRoute
   '/_authenticated/app/finance/invoices/new': typeof AuthenticatedAppFinanceInvoicesNewRoute
@@ -728,6 +748,7 @@ export interface FileRouteTypes {
     | '/app/profile/personal'
     | '/app/profile/security'
     | '/app/profile/wallet'
+    | '/app/projects/$id'
     | '/api/public/brevo/webhook'
     | '/api/public/expenses/$voucher.pdf'
     | '/api/public/hooks/invoice-reminders'
@@ -742,6 +763,7 @@ export interface FileRouteTypes {
     | '/app/finance/'
     | '/app/leads/'
     | '/app/profile/'
+    | '/app/projects/'
     | '/app/finance/funds/$code'
     | '/app/finance/invoices/$slug'
     | '/app/finance/invoices/new'
@@ -792,6 +814,7 @@ export interface FileRouteTypes {
     | '/app/profile/personal'
     | '/app/profile/security'
     | '/app/profile/wallet'
+    | '/app/projects/$id'
     | '/api/public/brevo/webhook'
     | '/api/public/expenses/$voucher.pdf'
     | '/api/public/hooks/invoice-reminders'
@@ -806,6 +829,7 @@ export interface FileRouteTypes {
     | '/app/finance'
     | '/app/leads'
     | '/app/profile'
+    | '/app/projects'
     | '/app/finance/funds/$code'
     | '/app/finance/invoices/$slug'
     | '/app/finance/invoices/new'
@@ -862,6 +886,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/profile/personal'
     | '/_authenticated/app/profile/security'
     | '/_authenticated/app/profile/wallet'
+    | '/_authenticated/app/projects/$id'
     | '/api/public/brevo/webhook'
     | '/api/public/expenses/$voucher.pdf'
     | '/api/public/hooks/invoice-reminders'
@@ -876,6 +901,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/finance/'
     | '/_authenticated/app/leads/'
     | '/_authenticated/app/profile/'
+    | '/_authenticated/app/projects/'
     | '/_authenticated/app/finance/funds/$code'
     | '/_authenticated/app/finance/invoices/$slug'
     | '/_authenticated/app/finance/invoices/new'
@@ -1280,6 +1306,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppProfileWalletRouteImport
       parentRoute: typeof AuthenticatedAppProfileRoute
     }
+    '/_authenticated/app/projects/': {
+      id: '/_authenticated/app/projects/'
+      path: '/projects'
+      fullPath: '/app/projects/'
+      preLoaderRoute: typeof AuthenticatedAppProjectsIndexRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/projects/$id': {
+      id: '/_authenticated/app/projects/$id'
+      path: '/projects/$id'
+      fullPath: '/app/projects/$id'
+      preLoaderRoute: typeof AuthenticatedAppProjectsIdRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
     '/api/public/brevo/webhook': {
       id: '/api/public/brevo/webhook'
       path: '/api/public/brevo/webhook'
@@ -1535,7 +1575,9 @@ interface AuthenticatedAppRouteChildren {
   AuthenticatedAppTransfersRoute: typeof AuthenticatedAppTransfersRoute
   AuthenticatedAppIndexRoute: typeof AuthenticatedAppIndexRoute
   AuthenticatedAppEmployeesUserIdRoute: typeof AuthenticatedAppEmployeesUserIdRoute
+  AuthenticatedAppProjectsIdRoute: typeof AuthenticatedAppProjectsIdRoute
   AuthenticatedAppEmployeesIndexRoute: typeof AuthenticatedAppEmployeesIndexRoute
+  AuthenticatedAppProjectsIndexRoute: typeof AuthenticatedAppProjectsIndexRoute
 }
 
 const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
@@ -1552,7 +1594,9 @@ const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
   AuthenticatedAppTransfersRoute: AuthenticatedAppTransfersRoute,
   AuthenticatedAppIndexRoute: AuthenticatedAppIndexRoute,
   AuthenticatedAppEmployeesUserIdRoute: AuthenticatedAppEmployeesUserIdRoute,
+  AuthenticatedAppProjectsIdRoute: AuthenticatedAppProjectsIdRoute,
   AuthenticatedAppEmployeesIndexRoute: AuthenticatedAppEmployeesIndexRoute,
+  AuthenticatedAppProjectsIndexRoute: AuthenticatedAppProjectsIndexRoute,
 }
 
 const AuthenticatedAppRouteWithChildren =

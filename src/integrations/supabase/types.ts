@@ -21,7 +21,7 @@ export type Database = {
           body: string | null
           changes: Json
           created_at: string
-          customer_id: string
+          customer_id: string | null
           id: string
           project_id: string
         }
@@ -31,7 +31,7 @@ export type Database = {
           body?: string | null
           changes?: Json
           created_at?: string
-          customer_id: string
+          customer_id?: string | null
           id?: string
           project_id: string
         }
@@ -41,7 +41,7 @@ export type Database = {
           body?: string | null
           changes?: Json
           created_at?: string
-          customer_id?: string
+          customer_id?: string | null
           id?: string
           project_id?: string
         }
@@ -132,7 +132,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           currency: string
-          customer_id: string
+          customer_id: string | null
           due_on: string | null
           id: string
           monthly_deliverables: string | null
@@ -164,7 +164,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           currency?: string
-          customer_id: string
+          customer_id?: string | null
           due_on?: string | null
           id?: string
           monthly_deliverables?: string | null
@@ -196,7 +196,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           currency?: string
-          customer_id?: string
+          customer_id?: string | null
           due_on?: string | null
           id?: string
           monthly_deliverables?: string | null

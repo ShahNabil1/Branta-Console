@@ -30,6 +30,7 @@ import {
   FileStack,
   HandCoins,
   Plug,
+  FolderKanban,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import brandLogo from "@/assets/brand-logo.png.asset.json";
@@ -48,6 +49,7 @@ const NAV: NavGroup[] = [
     items: [
       { label: "Overview", to: "/app", icon: LayoutDashboard },
       { label: "Today's Operations", to: "/app/operations", icon: RadioTower },
+      { label: "Projects", to: "/app/projects", icon: FolderKanban },
       { label: "Analytics", to: "/app/analytics", icon: BarChart3 },
     ],
   },
