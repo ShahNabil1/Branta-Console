@@ -125,6 +125,7 @@ export type Database = {
           assignee_id: string | null
           billing_day: number | null
           budget: number | null
+          category: string
           client_manager_id: string | null
           contract_end: string | null
           contract_start: string | null
@@ -138,12 +139,16 @@ export type Database = {
           monthly_fee: number | null
           notes: string | null
           project_type: string
+          requirements_doc_url: string | null
           service: string | null
+          service_track: string | null
           services_included: string | null
+          sow_doc_url: string | null
           start_time: string | null
           starts_on: string | null
           status: string
           title: string
+          track_meta: Json
           updated_at: string
           work_value: number | null
         }
@@ -152,6 +157,7 @@ export type Database = {
           assignee_id?: string | null
           billing_day?: number | null
           budget?: number | null
+          category?: string
           client_manager_id?: string | null
           contract_end?: string | null
           contract_start?: string | null
@@ -165,12 +171,16 @@ export type Database = {
           monthly_fee?: number | null
           notes?: string | null
           project_type?: string
+          requirements_doc_url?: string | null
           service?: string | null
+          service_track?: string | null
           services_included?: string | null
+          sow_doc_url?: string | null
           start_time?: string | null
           starts_on?: string | null
           status?: string
           title: string
+          track_meta?: Json
           updated_at?: string
           work_value?: number | null
         }
@@ -179,6 +189,7 @@ export type Database = {
           assignee_id?: string | null
           billing_day?: number | null
           budget?: number | null
+          category?: string
           client_manager_id?: string | null
           contract_end?: string | null
           contract_start?: string | null
@@ -192,12 +203,16 @@ export type Database = {
           monthly_fee?: number | null
           notes?: string | null
           project_type?: string
+          requirements_doc_url?: string | null
           service?: string | null
+          service_track?: string | null
           services_included?: string | null
+          sow_doc_url?: string | null
           start_time?: string | null
           starts_on?: string | null
           status?: string
           title?: string
+          track_meta?: Json
           updated_at?: string
           work_value?: number | null
         }
@@ -309,13 +324,17 @@ export type Database = {
       client_task_submissions: {
         Row: {
           created_at: string
+          feedback_doc_url: string | null
           id: string
           items_completed: number | null
           links: Json
           notes: string | null
           review_note: string | null
+          review_stage: string
           reviewed_at: string | null
           reviewed_by: string | null
+          revision_deadline: string | null
+          revision_round: number
           status: string
           submitted_by: string
           task_id: string
@@ -323,13 +342,17 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          feedback_doc_url?: string | null
           id?: string
           items_completed?: number | null
           links?: Json
           notes?: string | null
           review_note?: string | null
+          review_stage?: string
           reviewed_at?: string | null
           reviewed_by?: string | null
+          revision_deadline?: string | null
+          revision_round?: number
           status?: string
           submitted_by: string
           task_id: string
@@ -337,13 +360,17 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          feedback_doc_url?: string | null
           id?: string
           items_completed?: number | null
           links?: Json
           notes?: string | null
           review_note?: string | null
+          review_stage?: string
           reviewed_at?: string | null
           reviewed_by?: string | null
+          revision_deadline?: string | null
+          revision_round?: number
           status?: string
           submitted_by?: string
           task_id?: string
@@ -3927,6 +3954,47 @@ export type Database = {
         }
         Relationships: []
       }
+      project_members: {
+        Row: {
+          active: boolean
+          added_by: string | null
+          created_at: string
+          id: string
+          project_id: string
+          roles: string[]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          added_by?: string | null
+          created_at?: string
+          id?: string
+          project_id: string
+          roles?: string[]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          added_by?: string | null
+          created_at?: string
+          id?: string
+          project_id?: string
+          roles?: string[]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_members_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "client_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       salary_slips: {
         Row: {
           bank_name: string | null
@@ -4700,6 +4768,10 @@ export type Database = {
         }
         Returns: number
       }
+      can_manage_project: {
+        Args: { _project_id: string; _user: string }
+        Returns: boolean
+      }
       can_manage_task: {
         Args: { _task_id: string; _user: string }
         Returns: boolean
@@ -4785,6 +4857,10 @@ export type Database = {
       generate_employee_code: { Args: never; Returns: string }
       has_permission: {
         Args: { _perm: string; _user_id: string }
+        Returns: boolean
+      }
+      has_project_role: {
+        Args: { _project_id: string; _roles: string[]; _user: string }
         Returns: boolean
       }
       has_role: {

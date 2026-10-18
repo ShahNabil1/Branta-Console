@@ -21,3 +21,10 @@
 - [x] Invoice form: cost types (fixed/%), live 9-fund preview, planned Employee Fund Distribution linked to Employee Payments
 - [x] CRUD safety: code generators fixed, archive/deactivate/revert RPCs, friendly DB errors
 - [x] Reorganize Finance sidebar into collapsible route groups with active-page expansion
+
+## Project & Delivery Management
+- [x] Phase 1: multi-role project team, project/QC fields, team-aware task permissions, Telegram events (role assigned, submission → QC/Lead/Head)
+- [ ] Phase 2: /app/projects hub, service tracks, SOW/requirement docs, team manager UI (internal projects need optional client)
+- [ ] Phase 3: two-tier QC (internal + client revisions) with deadlines and Telegram alerts
+- [ ] Phase 4: handover dossier, invoice delivery sync, celebration alert
+- [ ] Sandbox environment with Tester/Developer roles
