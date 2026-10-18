@@ -134,6 +134,9 @@ export type Database = {
           currency: string
           customer_id: string | null
           due_on: string | null
+          handed_over_at: string | null
+          handed_over_by: string | null
+          handover: Json
           id: string
           monthly_deliverables: string | null
           monthly_fee: number | null
@@ -166,6 +169,9 @@ export type Database = {
           currency?: string
           customer_id?: string | null
           due_on?: string | null
+          handed_over_at?: string | null
+          handed_over_by?: string | null
+          handover?: Json
           id?: string
           monthly_deliverables?: string | null
           monthly_fee?: number | null
@@ -198,6 +204,9 @@ export type Database = {
           currency?: string
           customer_id?: string | null
           due_on?: string | null
+          handed_over_at?: string | null
+          handed_over_by?: string | null
+          handover?: Json
           id?: string
           monthly_deliverables?: string | null
           monthly_fee?: number | null
