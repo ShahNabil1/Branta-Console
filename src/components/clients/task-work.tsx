@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Check, ExternalLink, FileText, Folder, HardDrive, Loader2, Lock, Pencil, Plus, RotateCcw, Send, Trash2, X, XCircle, BadgeCheck } from "lucide-react";
 import {
   PAYMENT_STATUSES, editWorkUpdate, getFinance, listSubmissions, listWorkUpdates, postWorkUpdate, reviewSubmission,
-  saveFinance, submitWork, suggestPaymentStatus, type PaymentStatus, type SubmissionLink, type WorkSubmission,
+  saveFinance, submitWork, suggestPaymentStatus, type PaymentStatus, type SubmissionLink, type WorkSubmission, type ReviewAction,
 } from "@/lib/task-work.functions";
 import { cn } from "@/lib/utils";
 
@@ -152,7 +152,7 @@ export function SubmissionsPanel({ taskId, canSubmit, canReview, onChanged }: { 
   const list = useServerFn(listSubmissions);
   const q = useQuery({ queryKey: ["task-submissions", taskId], queryFn: () => list({ data: { taskId } }) });
   const [open, setOpen] = useState(false);
-  const [reviewing, setReviewing] = useState<{ s: WorkSubmission; action: "approved" | "revision_requested" | "rejected" | "completed" } | null>(null);
+  const [reviewing, setReviewing] = useState<{ s: WorkSubmission; action: ReviewAction } | null>(null);
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ["task-submissions", taskId] });
     qc.invalidateQueries({ queryKey: ["task-updates", taskId] });
@@ -194,12 +194,26 @@ export function SubmissionsPanel({ taskId, canSubmit, canReview, onChanged }: { 
           {s.reviewed_at && (
             <div className="mt-2 text-[12.5px] text-muted-foreground"><span className="font-semibold text-foreground">{s.reviewer_name || "Manager"}</span> · {fmtTs(s.reviewed_at)}{s.review_note && <> — {s.review_note}</>}</div>
           )}
-          {canReview && s.status !== "completed" && (
+          {(s.feedback_doc_url || s.revision_deadline) && (
+            <div className="mt-1.5 flex flex-wrap gap-2 text-[12.5px]">
+              {s.feedback_doc_url && <a href={s.feedback_doc_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-semibold text-primary hover:underline">Feedback doc<ExternalLink className="size-3" /></a>}
+              {s.revision_deadline && <span className="text-muted-foreground">Revision due <span className="font-mono font-semibold text-foreground">{fmtTs(s.revision_deadline)}</span></span>}
+              {s.revision_round > 0 && <span className="text-muted-foreground">Round {s.revision_round}</span>}
+            </div>
+          )}
+          {s.review_stage === "client_review" && <div className="mt-1.5 text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground">Client review</div>}
+          {canReview && !(s.status === "completed" && s.review_stage === "client_review") && (
             <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {s.status !== "approved" && <ReviewBtn icon={Check} label="Approve" onClick={() => setReviewing({ s, action: "approved" })} />}
-              <ReviewBtn icon={RotateCcw} label="Request Revision" onClick={() => setReviewing({ s, action: "revision_requested" })} />
-              {s.status !== "rejected" && <ReviewBtn icon={XCircle} label="Reject" danger onClick={() => setReviewing({ s, action: "rejected" })} />}
-              <ReviewBtn icon={BadgeCheck} label="Mark Completed" primary onClick={() => setReviewing({ s, action: "completed" })} />
+              {(s.status === "submitted" || s.status === "revision_requested" || s.status === "rejected") ? (<>
+                <ReviewBtn icon={Check} label="QC Approve" onClick={() => setReviewing({ s, action: "approved" })} />
+                <ReviewBtn icon={RotateCcw} label="Request Changes" onClick={() => setReviewing({ s, action: "revision_requested" })} />
+                {s.status !== "rejected" && <ReviewBtn icon={XCircle} label="Reject" danger onClick={() => setReviewing({ s, action: "rejected" })} />}
+                <ReviewBtn icon={BadgeCheck} label="Mark Completed" primary onClick={() => setReviewing({ s, action: "completed" })} />
+              </>) : (<>
+                <ReviewBtn icon={RotateCcw} label="Client Revision" onClick={() => setReviewing({ s, action: "client_revision" })} />
+                <ReviewBtn icon={BadgeCheck} label="Client Approved" primary onClick={() => setReviewing({ s, action: "client_approved" })} />
+                {s.status === "approved" && <ReviewBtn icon={Check} label="Mark Completed" onClick={() => setReviewing({ s, action: "completed" })} />}
+              </>)}
             </div>
           )}
         </div>
@@ -259,15 +273,23 @@ function SubmitSheet({ taskId, onClose, onSaved }: { taskId: string; onClose: ()
   );
 }
 
-const ACTION_TITLE = { approved: "Approve submission", revision_requested: "Request revision", rejected: "Reject submission", completed: "Mark completed" } as const;
-function ReviewSheet({ s, action, onClose, onSaved }: { s: WorkSubmission; action: keyof typeof ACTION_TITLE; onClose: () => void; onSaved: () => void }) {
+const ACTION_TITLE: Record<ReviewAction, string> = {
+  approved: "QC approve", revision_requested: "Request changes", rejected: "Reject submission", completed: "Mark completed",
+  client_revision: "Client revision", client_approved: "Client approved",
+};
+function ReviewSheet({ s, action, onClose, onSaved }: { s: WorkSubmission; action: ReviewAction; onClose: () => void; onSaved: () => void }) {
   const review = useServerFn(reviewSubmission);
-  const needNote = action === "revision_requested" || action === "rejected";
+  const isRevision = action === "revision_requested" || action === "rejected" || action === "client_revision";
   const [note, setNote] = useState("");
+  const [doc, setDoc] = useState("");
+  const [deadline, setDeadline] = useState("");
   const m = useMutation({
     mutationFn: () => {
-      if (needNote && note.trim().length < 3) throw new Error("Please write a note (at least 3 characters)");
-      return review({ data: { id: s.id, action, note: note.trim() || null } });
+      const d = doc.trim();
+      if (d && !/^https?:\/\/\S+\.\S+/i.test(d)) throw new Error("Feedback doc link must start with https://");
+      if (isRevision && note.trim().length < 3 && !d) throw new Error("Write feedback or add a feedback doc link");
+      return review({ data: { id: s.id, action, note: note.trim() || null, feedback_doc_url: d || null,
+        revision_deadline: isRevision && deadline ? new Date(deadline).toISOString() : null } });
     },
     onSuccess: () => { toast.success(ACTION_TITLE[action]); onSaved(); onClose(); },
     onError: (e: Error) => toast.error(e.message),
@@ -275,9 +297,19 @@ function ReviewSheet({ s, action, onClose, onSaved }: { s: WorkSubmission; actio
   return (
     <MiniSheet title={`${ACTION_TITLE[action]} · #${s.no}`} onClose={onClose} footer={
       <PrimaryBtn pending={m.isPending} onClick={() => m.mutate()} className={action === "rejected" ? "bg-destructive text-destructive-foreground" : undefined}>Confirm</PrimaryBtn>}>
-      <label className="grid gap-1"><span className="text-[12.5px] font-semibold text-muted-foreground">{needNote ? "Note (required)" : "Note (optional)"}</span>
-        <textarea rows={4} autoFocus className={cn(input, "h-auto py-2")} value={note} onChange={(e) => setNote(e.target.value)} placeholder={needNote ? "e.g. Product 06 side image requires revision" : ""} /></label>
-      <div className="mt-2 text-[12px] text-muted-foreground">The task tracking updates automatically and the submitter is notified.</div>
+      <div className="grid gap-3">
+        <label className="grid gap-1"><span className="text-[12.5px] font-semibold text-muted-foreground">{action === "client_revision" ? "Client feedback" : isRevision ? "Feedback" : "Note (optional)"}</span>
+          <textarea rows={4} autoFocus className={cn(input, "h-auto py-2")} value={note} onChange={(e) => setNote(e.target.value)} placeholder={isRevision ? "e.g. Product 06 side image requires revision" : ""} /></label>
+        {(isRevision || action === "client_approved") && (
+          <label className="grid gap-1"><span className="text-[12.5px] font-semibold text-muted-foreground">Feedback / changes doc link (Google Docs)</span>
+            <input type="url" inputMode="url" className={input} value={doc} onChange={(e) => setDoc(e.target.value)} placeholder="https://docs.google.com/…" /></label>
+        )}
+        {isRevision && (
+          <label className="grid gap-1"><span className="text-[12.5px] font-semibold text-muted-foreground">Revision deadline</span>
+            <input type="datetime-local" className={input} value={deadline} onChange={(e) => setDeadline(e.target.value)} /></label>
+        )}
+        <div className="text-[12px] text-muted-foreground">Tracking updates automatically and the right people get a Telegram alert.</div>
+      </div>
     </MiniSheet>
   );
 }

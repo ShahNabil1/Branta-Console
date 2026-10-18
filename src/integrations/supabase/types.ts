@@ -277,7 +277,7 @@ export type Database = {
         Row: {
           actor_id: string | null
           created_at: string
-          customer_id: string
+          customer_id: string | null
           id: string
           meta: Json
           note: string | null
@@ -287,7 +287,7 @@ export type Database = {
         Insert: {
           actor_id?: string | null
           created_at?: string
-          customer_id: string
+          customer_id?: string | null
           id?: string
           meta?: Json
           note?: string | null
@@ -297,7 +297,7 @@ export type Database = {
         Update: {
           actor_id?: string | null
           created_at?: string
-          customer_id?: string
+          customer_id?: string | null
           id?: string
           meta?: Json
           note?: string | null
@@ -432,7 +432,7 @@ export type Database = {
           archived_at: string | null
           created_at: string
           created_by: string | null
-          customer_id: string
+          customer_id: string | null
           due_on: string | null
           id: string
           instructions: string | null
@@ -452,7 +452,7 @@ export type Database = {
           archived_at?: string | null
           created_at?: string
           created_by?: string | null
-          customer_id: string
+          customer_id?: string | null
           due_on?: string | null
           id?: string
           instructions?: string | null
@@ -472,7 +472,7 @@ export type Database = {
           archived_at?: string | null
           created_at?: string
           created_by?: string | null
-          customer_id?: string
+          customer_id?: string | null
           due_on?: string | null
           id?: string
           instructions?: string | null

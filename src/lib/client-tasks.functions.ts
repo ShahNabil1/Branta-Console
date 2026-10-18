@@ -48,7 +48,7 @@ export interface TaskEvent {
 }
 export interface ClientTask {
   id: string;
-  customer_id: string;
+  customer_id: string | null;
   project_id: string | null;
   project_title: string | null;
   customer_name?: string | null;
@@ -91,12 +91,19 @@ async function isManager(sb: any, userId: string) {
 async function hydrate(sb: any, userId: string, rows: any[]): Promise<ClientTask[]> {
   if (!rows.length) return [];
   const ids = rows.map((r) => r.id);
-  const [{ data: as }, { data: projs }, { data: custs }, mgr] = await Promise.all([
+  const projIds = [...new Set(rows.map((r) => r.project_id).filter(Boolean))];
+  const [{ data: as }, { data: projs }, { data: custs }, mgr, { data: myRoles }] = await Promise.all([
     sb.from("client_task_assignees").select("*").in("task_id", ids).order("created_at"),
-    sb.from("client_projects").select("id, title").in("id", rows.map((r) => r.project_id).filter(Boolean)),
-    sb.from("customers").select("id, name, customer_code, owner_id").in("id", [...new Set(rows.map((r) => r.customer_id))]),
+    sb.from("client_projects").select("id, title").in("id", projIds),
+    sb.from("customers").select("id, name, customer_code, owner_id").in("id", [...new Set(rows.map((r) => r.customer_id).filter(Boolean))]),
     isManager(sb, userId),
+    projIds.length
+      ? sb.from("project_members").select("project_id, roles").eq("user_id", userId).eq("active", true).in("project_id", projIds)
+      : Promise.resolve({ data: [] }),
   ]);
+  const leadProjects = new Set((myRoles ?? [])
+    .filter((m: any) => (m.roles ?? []).some((r: string) => ["project_head", "team_lead", "qc_checker"].includes(r)))
+    .map((m: any) => m.project_id));
   const pm = await profileMap(sb, [...(as ?? []).map((a: any) => a.user_id), ...rows.map((r) => r.created_by)]);
   const projMap = new Map((projs ?? []).map((p: any) => [p.id, p.title]));
   const custMap = new Map((custs ?? []).map((c: any) => [c.id, c]));
@@ -105,10 +112,10 @@ async function hydrate(sb: any, userId: string, rows: any[]): Promise<ClientTask
     return {
       ...r,
       project_title: r.project_id ? (projMap.get(r.project_id) as string) ?? null : null,
-      customer_name: c?.name ?? null,
+      customer_name: c?.name ?? (r.customer_id ? null : "Internal"),
       customer_code: c?.customer_code ?? null,
       created_by_name: r.created_by ? pm.get(r.created_by)?.name ?? null : null,
-      can_manage: mgr || r.created_by === userId || c?.owner_id === userId,
+      can_manage: mgr || r.created_by === userId || c?.owner_id === userId || (!!r.project_id && leadProjects.has(r.project_id)),
       assignees: (as ?? [])
         .filter((a: any) => a.task_id === r.id)
         .map((a: any) => ({
@@ -120,7 +127,7 @@ async function hydrate(sb: any, userId: string, rows: any[]): Promise<ClientTask
   });
 }
 
-async function logEvent(sb: any, task: { id: string; customer_id: string }, actor: string, status: string, note?: string | null, meta: Record<string, unknown> = {}) {
+async function logEvent(sb: any, task: { id: string; customer_id: string | null }, actor: string, status: string, note?: string | null, meta: Record<string, unknown> = {}) {
   await sb.from("client_task_events").insert({ task_id: task.id, customer_id: task.customer_id, status, note: note ?? null, actor_id: actor, meta });
 }
 
@@ -139,6 +146,16 @@ export const listClientTasks = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const sb = context.supabase as any;
     const { data: rows, error } = await sb.from("client_tasks").select("*").eq("customer_id", data.customerId).is("archived_at", null).order("created_at", { ascending: false });
+    if (error) throw dbError(error);
+    return hydrate(sb, context.userId, rows ?? []);
+  });
+
+export const listProjectTasks = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { projectId: string }) => z.object({ projectId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase as any;
+    const { data: rows, error } = await sb.from("client_tasks").select("*").eq("project_id", data.projectId).is("archived_at", null).order("created_at", { ascending: true });
     if (error) throw dbError(error);
     return hydrate(sb, context.userId, rows ?? []);
   });
@@ -184,9 +201,16 @@ const TaskInput = z.object({
 
 export const createClientTask = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => TaskInput.extend({ customer_id: z.string().uuid() }).parse(d))
+  .inputValidator((d: unknown) => TaskInput.extend({ customer_id: z.string().uuid().nullable() })
+    .refine((v) => !!v.customer_id || !!v.project_id, "Choose a client or a project").parse(d))
   .handler(async ({ data, context }) => {
     const sb = context.supabase as any;
+    if (data.project_id) {
+      const { data: proj } = await sb.from("client_projects").select("customer_id").eq("id", data.project_id).maybeSingle();
+      if (!proj) throw new Error("Project not found");
+      if (data.customer_id && proj.customer_id && proj.customer_id !== data.customer_id) throw new Error("This project belongs to another client");
+      data.customer_id = proj.customer_id ?? null;
+    }
     const { data: row, error } = await sb.from("client_tasks").insert({ ...data, status: "created", created_by: context.userId }).select("id, customer_id").single();
     if (error) throw dbError(error);
     await logEvent(sb, row, context.userId, "created", null, { title: data.title });

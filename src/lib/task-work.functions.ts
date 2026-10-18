@@ -14,6 +14,8 @@ export interface WorkSubmission {
   links: SubmissionLink[]; notes: string | null; items_completed: number | null;
   status: "submitted" | "approved" | "revision_requested" | "rejected" | "completed";
   reviewer_name: string | null; review_note: string | null; reviewed_at: string | null; created_at: string;
+  review_stage: "internal_qc" | "client_review"; feedback_doc_url: string | null;
+  revision_deadline: string | null; revision_round: number;
 }
 export const PAYMENT_STATUSES = [
   { key: "not_invoiced", label: "Not Invoiced" },
@@ -127,6 +129,8 @@ export const listSubmissions = createServerFn({ method: "GET" })
       review_note: r.review_note, reviewed_at: r.reviewed_at, created_at: r.created_at,
       submitter_name: pm.get(r.submitted_by)?.name ?? null, submitter_avatar: pm.get(r.submitted_by)?.avatar ?? null,
       reviewer_name: r.reviewed_by ? pm.get(r.reviewed_by)?.name ?? null : null,
+      review_stage: r.review_stage ?? "internal_qc", feedback_doc_url: r.feedback_doc_url ?? null,
+      revision_deadline: r.revision_deadline ?? null, revision_round: Number(r.revision_round ?? 0),
     })).reverse();
   });
 
@@ -174,36 +178,91 @@ export const submitWork = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-const REVIEW_TO_STEP = { approved: "approved", revision_requested: "revision_requested", rejected: "revision_requested", completed: "completed" } as const;
-const REVIEW_LABEL = { approved: "Approved", revision_requested: "Revision requested", rejected: "Rejected", completed: "Marked completed" } as const;
+// Two-tier review: internal QC (approved / revision_requested / rejected / completed)
+// then client review (client_revision / client_approved) on an internally approved submission.
+const REVIEW_TO_STEP = {
+  approved: "approved", revision_requested: "revision_requested", rejected: "revision_requested", completed: "completed",
+  client_revision: "revision_requested", client_approved: "completed",
+} as const;
+const REVIEW_LABEL = {
+  approved: "QC approved", revision_requested: "QC changes requested", rejected: "Rejected", completed: "Marked completed",
+  client_revision: "Client revision requested", client_approved: "Client approved",
+} as const;
+const SUB_STATUS_FOR = {
+  approved: "approved", revision_requested: "revision_requested", rejected: "rejected", completed: "completed",
+  client_revision: "revision_requested", client_approved: "completed",
+} as const;
+export type ReviewAction = keyof typeof REVIEW_TO_STEP;
+const NEEDS_NOTE: ReviewAction[] = ["revision_requested", "rejected", "client_revision"];
 
 export const reviewSubmission = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({
     id: z.string().uuid(),
-    action: z.enum(["approved", "revision_requested", "rejected", "completed"]),
+    action: z.enum(["approved", "revision_requested", "rejected", "completed", "client_revision", "client_approved"]),
     note: z.string().trim().max(2000).nullable().optional(),
-  }).refine((v) => !(["revision_requested", "rejected"].includes(v.action)) || (v.note && v.note.length >= 3), "Please write a note (at least 3 characters)").parse(d))
+    feedback_doc_url: z.string().trim().url().max(1000).nullable().optional(),
+    revision_deadline: z.string().datetime({ offset: true }).nullable().optional(),
+  }).refine((v) => !NEEDS_NOTE.includes(v.action) || (v.note && v.note.length >= 3) || !!v.feedback_doc_url,
+    "Write feedback (at least 3 characters) or add a feedback doc link").parse(d))
   .handler(async ({ data, context }) => {
     const sb = context.supabase as any;
-    const { data: s, error: e0 } = await sb.from("client_task_submissions").select("id, task_id, submitted_by").eq("id", data.id).single();
-    if (e0) throw new Error(e0.message);
-    if (!(await canManage(sb, s.task_id, context.userId))) throw new Error("Only managers can review submissions");
-    const { error } = await sb.from("client_task_submissions").update({
-      status: data.action, review_note: data.note ?? null, reviewed_by: context.userId, reviewed_at: new Date().toISOString(),
-    }).eq("id", s.id);
-    if (error) throw dbError(error);
-    const { data: t } = await sb.from("client_tasks").select("id, status, revision_round, title").eq("id", s.task_id).single();
+    const { data: s, error: e0 } = await sb.from("client_task_submissions").select("id, task_id, submitted_by, status, review_stage").eq("id", data.id).single();
+    if (e0) throw dbError(e0);
+    if (!(await canManage(sb, s.task_id, context.userId))) throw new Error("Only QC checkers, team leads or managers can review submissions");
+    const isClient = data.action === "client_revision" || data.action === "client_approved";
+    if (isClient && !["approved", "completed"].includes(s.status)) throw new Error("Client feedback can be recorded only after internal QC approval");
+
+    const { data: t } = await sb.from("client_tasks").select("id, status, revision_round, title, project_id").eq("id", s.task_id).single();
     const step = REVIEW_TO_STEP[data.action];
     const label = REVIEW_LABEL[data.action];
-    if (t && t.status !== step) {
-      const round = step === "revision_requested" ? t.revision_round + 1 : t.revision_round;
+    const isRevision = step === "revision_requested";
+    const round = t ? (isRevision ? t.revision_round + 1 : t.revision_round) : 0;
+
+    const { error } = await sb.from("client_task_submissions").update({
+      status: SUB_STATUS_FOR[data.action], review_note: data.note ?? null, reviewed_by: context.userId, reviewed_at: new Date().toISOString(),
+      review_stage: isClient ? "client_review" : s.review_stage ?? "internal_qc",
+      feedback_doc_url: data.feedback_doc_url ?? null,
+      revision_deadline: isRevision ? data.revision_deadline ?? null : null,
+      revision_round: round,
+    }).eq("id", s.id);
+    if (error) throw dbError(error);
+
+    const deadlineTxt = isRevision && data.revision_deadline ? new Date(data.revision_deadline).toLocaleString("en-GB", { timeZone: "Asia/Dhaka", dateStyle: "medium", timeStyle: "short" }) : "—";
+    const extra = [data.note, data.feedback_doc_url ? `Doc: ${data.feedback_doc_url}` : null, isRevision && data.revision_deadline ? `Deadline: ${deadlineTxt}` : null].filter(Boolean).join(" · ");
+    if (t && (t.status !== step || isRevision)) {
       await sb.from("client_tasks").update({ status: step, revision_round: round }).eq("id", t.id);
-      await logEvent(sb, t.id, context.userId, step, `${label}${data.note ? ` — ${data.note}` : ""}`, { from: t.status, ...(step.startsWith("revision") ? { round } : {}) });
+      await logEvent(sb, t.id, context.userId, step, `${label}${extra ? ` — ${extra}` : ""}`, { from: t.status, ...(isRevision ? { round } : {}), stage: isClient ? "client_review" : "internal_qc" });
     }
-    await sb.from("client_task_updates").insert({ task_id: s.task_id, author_id: context.userId, body: `${label}${data.note ? `: ${data.note}` : ""}`, is_manager: true });
-    if (s.submitted_by !== context.userId) await notifySafe({ event: "task.status_changed", recipients: [s.submitted_by], actorId: context.userId,
-      vars: { title: t?.title ?? "", client: "", status: label }, dedupeKey: `task:${s.task_id}:review:${s.id}:${data.action}` });
+    await sb.from("client_task_updates").insert({ task_id: s.task_id, author_id: context.userId, body: `${label}${extra ? `: ${extra}` : ""}`, is_manager: true });
+
+    // ---- Notifications ----
+    const dk = `task:${s.task_id}:review:${s.id}:${data.action}:${round}`;
+    if (!t?.project_id) {
+      if (s.submitted_by !== context.userId) await notifySafe({ event: "task.status_changed", recipients: [s.submitted_by], actorId: context.userId,
+        vars: { title: t?.title ?? "", client: "", status: label }, dedupeKey: dk });
+      return { ok: true };
+    }
+    const { data: p } = await sb.from("client_projects").select("title").eq("id", t.project_id).maybeSingle();
+    const { data: as } = await sb.from("client_task_assignees").select("user_id").eq("task_id", t.id);
+    const assignees = [...new Set<string>([s.submitted_by, ...(as ?? []).map((a: any) => a.user_id)])];
+    const { projectRecipients } = await import("@/lib/project-recipients.server");
+    const uniq = (xs: string[]) => [...new Set(xs)].filter((u) => u && u !== context.userId);
+    const feedback = [data.note, data.feedback_doc_url].filter(Boolean).join("\n") || "—";
+    const vars = { task: t.title, project: p?.title ?? "", feedback, deadline: deadlineTxt, round };
+    if (data.action === "revision_requested" || data.action === "rejected") {
+      await notifySafe({ event: "project.qc.changes", recipients: uniq(assignees), actorId: context.userId, vars, dedupeKey: dk });
+    } else if (data.action === "approved" || data.action === "completed") {
+      const leads = await projectRecipients(t.project_id, ["team_lead", "project_head"]);
+      await notifySafe({ event: "project.qc.approved", recipients: uniq([...assignees, ...leads]), actorId: context.userId, vars, dedupeKey: dk });
+    } else if (data.action === "client_revision") {
+      const leads = await projectRecipients(t.project_id, ["team_lead", "project_head"]);
+      await notifySafe({ event: "project.client.revision", recipients: uniq([...assignees, ...leads]), actorId: context.userId, vars, dedupeKey: dk });
+    } else if (data.action === "client_approved") {
+      const team = await projectRecipients(t.project_id, ["project_head", "team_lead", "qc_checker", "specialist"]);
+      await notifySafe({ event: "project.client.approved", recipients: uniq([...assignees, ...team]), actorId: context.userId,
+        vars: { ...vars, project: `${p?.title ?? ""} — ${t.title}` }, dedupeKey: dk });
+    }
     return { ok: true };
   });
 
