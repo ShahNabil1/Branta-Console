@@ -108,9 +108,9 @@ function OperationsPage() {
   const grouped = useMemo(() => {
     const result = new Map<string, { name: string; code: string | null; tasks: OperationsTask[] }>();
     for (const task of visibleTasks) {
-      const group = result.get(task.customer_id) ?? { name: task.customer_name || "Unknown client", code: task.customer_code ?? null, tasks: [] };
+      const group = result.get(task.customer_id ?? "internal") ?? { name: task.customer_name || (task.customer_id ? "Unknown client" : "Internal"), code: task.customer_code ?? null, tasks: [] };
       group.tasks.push(task);
-      result.set(task.customer_id, group);
+      result.set(task.customer_id ?? "internal", group);
     }
     return [...result.entries()].sort((a, b) => a[1].name.localeCompare(b[1].name));
   }, [visibleTasks]);
