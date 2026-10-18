@@ -144,7 +144,7 @@ export const submitWork = createServerFn({ method: "POST" })
       items_completed: data.items_completed ?? null, status: "submitted",
     });
     if (error) throw dbError(error);
-    const { data: t } = await sb.from("client_tasks").select("id, status, title, customer_id, created_by").eq("id", data.taskId).single();
+    const { data: t } = await sb.from("client_tasks").select("id, status, title, customer_id, created_by, project_id").eq("id", data.taskId).single();
     const pm = await profileMap(sb, [context.userId]);
     const who = pm.get(context.userId)?.name || "Member";
     const note = `${who} submitted work${data.items_completed != null ? ` · ${data.items_completed} items` : ""}`;
@@ -158,6 +158,18 @@ export const submitWork = createServerFn({ method: "POST" })
       const recips = [...new Set([t.created_by, c?.owner_id].filter((u) => u && u !== context.userId))];
       if (recips.length) await notifySafe({ event: "task.status_changed", recipients: recips, actorId: context.userId,
         vars: { title: t.title, client: c?.name ?? "", status: "Submitted for Review" }, dedupeKey: `task:${t.id}:submit:${Date.now()}` });
+      if (t.project_id) {
+        try {
+          const { projectRecipients } = await import("@/lib/project-recipients.server");
+          const qc = (await projectRecipients(t.project_id, ["qc_checker", "team_lead", "project_head"], [context.userId]))
+            .filter((u) => !recips.includes(u));
+          if (qc.length) {
+            const { data: p } = await sb.from("client_projects").select("title").eq("id", t.project_id).maybeSingle();
+            await notifySafe({ event: "project.submission.qc", recipients: qc, actorId: context.userId,
+              vars: { task: t.title, project: p?.title ?? "", who }, dedupeKey: `task:${t.id}:qc:${Date.now()}` });
+          }
+        } catch (e) { console.warn("[task-work] project notify failed", e); }
+      }
     }
     return { ok: true };
   });
