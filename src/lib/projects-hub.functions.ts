@@ -291,3 +291,13 @@ export const saveHandover = createServerFn({ method: "POST" })
     }
     return { ok: true, handedOver: completing };
   });
+
+/** Linked invoices (code + status only, never amounts). RLS limits visibility to finance users. */
+export const listProjectInvoices = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: rows } = await (context.supabase as any).from("invoices").select("slug,status,archived_at")
+      .eq("project_id", data.id).is("archived_at", null).order("created_at", { ascending: false });
+    return (rows ?? []).map((r: any) => ({ slug: r.slug as string, status: r.status as string }));
+  });
