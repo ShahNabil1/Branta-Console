@@ -115,7 +115,7 @@ async function hydrate(sb: any, userId: string, rows: any[]): Promise<ClientTask
       customer_name: c?.name ?? (r.customer_id ? null : "Internal"),
       customer_code: c?.customer_code ?? null,
       created_by_name: r.created_by ? pm.get(r.created_by)?.name ?? null : null,
-      can_manage: mgr || r.created_by === userId || c?.owner_id === userId || (r.project_id && leadProjects.has(r.project_id)),
+      can_manage: mgr || r.created_by === userId || c?.owner_id === userId || (!!r.project_id && leadProjects.has(r.project_id)),
       assignees: (as ?? [])
         .filter((a: any) => a.task_id === r.id)
         .map((a: any) => ({
