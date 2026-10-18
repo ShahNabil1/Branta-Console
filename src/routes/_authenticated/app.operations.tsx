@@ -89,7 +89,7 @@ function OperationsPage() {
   }, [queryClient]);
 
   const allTasks = operations.data?.tasks ?? [];
-  const clients = useMemo(() => [...new Map(allTasks.map((task) => [task.customer_id, task.customer_name || "Unknown client"])).entries()].sort((a, b) => a[1].localeCompare(b[1])), [allTasks]);
+  const clients = useMemo(() => [...new Map(allTasks.map((task) => [task.customer_id ?? "internal", task.customer_name || (task.customer_id ? "Unknown client" : "Internal")])).entries()].sort((a, b) => a[1].localeCompare(b[1])), [allTasks]);
   const members = useMemo(() => [...new Map(allTasks.flatMap((task) => task.assignees.map((member) => [member.user_id, member.name || "Team member"] as const))).entries()].sort((a, b) => a[1].localeCompare(b[1])), [allTasks]);
   const visibleTasks = useMemo(() => {
     const needle = search.trim().toLocaleLowerCase();
@@ -101,7 +101,7 @@ function OperationsPage() {
         || (filter === "completed" && task.status === "completed");
       const matchesSearch = !needle || [task.title, task.customer_name, task.project_title, ...task.assignees.map((member) => member.name)]
         .some((value) => value?.toLocaleLowerCase().includes(needle));
-      return matchesView && matchesSearch && (clientId === "all" || task.customer_id === clientId)
+      return matchesView && matchesSearch && (clientId === "all" || (task.customer_id ?? "internal") === clientId)
         && (memberId === "all" || task.assignees.some((member) => member.user_id === memberId));
     });
   }, [allTasks, clientId, filter, memberId, search]);
