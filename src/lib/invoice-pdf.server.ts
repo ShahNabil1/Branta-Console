@@ -578,8 +578,8 @@ export async function renderInvoicePdf(
     const qrImage = cur === "BDT"
       ? await pdf.embedPng(Uint8Array.from(atob(BANGLA_QR_PNG_B64), (c) => c.charCodeAt(0)))
       : null;
-    const qrW = 100;
-    const qrGap = 18;
+    const qrW = 128;
+    const qrGap = 22;
     const detailW = CONTENT_W - 28 - (qrImage ? qrW + qrGap : 0);
     const detailGap = 18;
     const detailColW = (detailW - detailGap) / 2;
