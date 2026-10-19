@@ -165,9 +165,7 @@ Routing Number: 210100374
 SWIFT Code: SDBLBDDH
 Bank Address: Helal Mansion, Sherpur Road, Sutrapur, Bogura
 Branch Code: 00034
-Payment Reference: Please mention the Invoice Number when making the payment.
-Bkash: +8801933228681 (Send Money)
-Nagad: +8801749781779 (Send Money)`;
+Payment Reference: Please mention the Invoice Number when making the payment.`;
 
 export const DEFAULT_PAYMENT_NOTE =
   "All applicable bank charges and transaction fees must be borne by the client. The payment will be considered confirmed after the amount has been successfully credited to our account.";
