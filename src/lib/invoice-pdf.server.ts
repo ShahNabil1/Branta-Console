@@ -579,7 +579,7 @@ export async function renderInvoicePdf(
       ? await pdf.embedPng(Uint8Array.from(atob(BANGLA_QR_PNG_B64), (c) => c.charCodeAt(0)))
       : null;
     const qrW = 104;
-    const qrGap = 22;
+    const qrGap = 18;
     const detailW = CONTENT_W - 28 - (qrImage ? qrW + qrGap : 0);
     const detailGap = 18;
     const detailColW = (detailW - detailGap) / 2;
@@ -632,8 +632,8 @@ export async function renderInvoicePdf(
       qy -= 10;
       centered(`Bangla QR Merchant ID: ${BANGLA_QR_MERCHANT_ID}`, qy, 7, font, muted);
       qy -= 11;
-      const qrNote = "Scan with bKash, Nagad, Rocket or any mobile banking / bank app to pay instantly.";
-      const qrNoteLines = wrap(qrNote, font, 7, qrW + 10);
+      const qrNote = "bKash, Nagad, Rocket or any banking app - just scan to pay.";
+      const qrNoteLines = wrap(qrNote, font, 7, qrW + 22);
       qrNoteLines.forEach((ln) => { centered(ln, qy, 7, font, muted); qy -= 8; });
     }
     detailRows.forEach((row) => {
@@ -648,7 +648,7 @@ export async function renderInvoicePdf(
     draw("Payment Note:", SIDE + 14, iy, 8, bold, muted);
     iy -= 10;
     noteLines.forEach((ln) => { draw(ln, SIDE + 14, iy, 8, font, muted); iy -= 9; });
-    y = top - blockH - 14;
+    y = top - blockH - 10;
   }
 
   // Short final notes share a row so the signature is not orphaned by headings.
