@@ -627,14 +627,6 @@ export async function renderInvoicePdf(
       };
       centered("SCAN TO PAY", bodyTop, 9.5, bold, brand);
       page.drawImage(qrImage, { x: qx, y: bodyTop - 10 - qrW, width: qrW, height: qrW });
-      let qy = bodyTop - 10 - qrW - 12;
-      centered("BRANTA TECH", qy, 8.5, bold, text);
-      qy -= 10;
-      centered(`Bangla QR Merchant ID: ${BANGLA_QR_MERCHANT_ID}`, qy, 7, font, muted);
-      qy -= 11;
-      const qrNote = "bKash, Nagad, Rocket or any banking app - just scan to pay.";
-      const qrNoteLines = wrap(qrNote, font, 7, qrW + 22);
-      qrNoteLines.forEach((ln) => { centered(ln, qy, 7, font, muted); qy -= 8; });
     }
     detailRows.forEach((row) => {
       row.forEach((cell) => cell.lines.forEach((ln, lineIndex) => {
@@ -644,6 +636,14 @@ export async function renderInvoicePdf(
       }));
       iy -= Math.max(...row.map((cell) => cell.lines.length)) * detailLead;
     });
+    if (qrImage) {
+      // Merchant identity + scan guidance sit under the bank details, using the empty left-column space.
+      iy -= 3;
+      draw(`BRANTA TECH  |  Bangla QR Merchant ID: ${BANGLA_QR_MERCHANT_ID}`, SIDE + 14, iy, 7.5, bold, text);
+      iy -= 10;
+      const qrNote = "To pay with bKash, Nagad, Rocket or any other mobile banking or bank app, simply scan the QR code.";
+      wrap(qrNote, font, 7.5, detailW).forEach((ln) => { draw(ln, SIDE + 14, iy, 7.5, font, muted); iy -= 9; });
+    }
     iy = bodyTop - paymentBodyH - 4;
     draw("Payment Note:", SIDE + 14, iy, 8, bold, muted);
     iy -= 10;
