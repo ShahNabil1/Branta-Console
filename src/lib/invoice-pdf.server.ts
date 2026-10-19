@@ -578,7 +578,7 @@ export async function renderInvoicePdf(
     const qrImage = cur === "BDT"
       ? await pdf.embedPng(Uint8Array.from(atob(BANGLA_QR_PNG_B64), (c) => c.charCodeAt(0)))
       : null;
-    const qrW = 128;
+    const qrW = 116;
     const qrGap = 22;
     const detailW = CONTENT_W - 28 - (qrImage ? qrW + qrGap : 0);
     const detailGap = 18;
@@ -605,7 +605,7 @@ export async function renderInvoicePdf(
     if (pending !== undefined) detailRows.push([{ lines: [pending], x: SIDE + 14 }]);
     const detailLead = qrImage ? 10 : 11.5;
     const detailH = detailRows.reduce((h, row) => h + Math.max(...row.map((cell) => cell.lines.length)) * detailLead, 0);
-    const paymentBodyH = qrImage ? Math.max(detailH + 22, qrW + 62) : detailH;
+    const paymentBodyH = qrImage ? Math.max(detailH + 22, qrW + 52) : detailH;
     const blockH = 26 + introLines.length * 10 + 6 + paymentBodyH + 10 + noteLines.length * 9 + 4;
     // Reserve the page-number band as well as the signature's writing space.
     ensure(blockH + 14 + (!hasTerms && !hasNotes ? SIGNATURE_H : 0));
@@ -632,9 +632,9 @@ export async function renderInvoicePdf(
       qy -= 10;
       centered(`Bangla QR Merchant ID: ${BANGLA_QR_MERCHANT_ID}`, qy, 7, font, muted);
       qy -= 11;
-      const qrNote = "To pay with bKash, Nagad, Rocket or any other mobile banking or bank app, simply scan this QR code.";
+      const qrNote = "Scan with bKash, Nagad, Rocket or any mobile banking / bank app to pay instantly.";
       const qrNoteLines = wrap(qrNote, font, 7, qrW + 10);
-      qrNoteLines.forEach((ln) => { centered(ln, qy, 7, font, muted); qy -= 8.5; });
+      qrNoteLines.forEach((ln) => { centered(ln, qy, 7, font, muted); qy -= 8; });
     }
     detailRows.forEach((row) => {
       row.forEach((cell) => cell.lines.forEach((ln, lineIndex) => {
