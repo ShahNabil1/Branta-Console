@@ -578,7 +578,7 @@ export async function renderInvoicePdf(
     const qrImage = cur === "BDT"
       ? await pdf.embedPng(Uint8Array.from(atob(BANGLA_QR_PNG_B64), (c) => c.charCodeAt(0)))
       : null;
-    const qrW = 108;
+    const qrW = 104;
     const qrGap = 22;
     const detailW = CONTENT_W - 28 - (qrImage ? qrW + qrGap : 0);
     const detailGap = 18;
@@ -603,9 +603,9 @@ export async function renderInvoicePdf(
       }
     }
     if (pending !== undefined) detailRows.push([{ lines: [pending], x: SIDE + 14 }]);
-    const detailLead = qrImage ? 10 : 11.5;
+    const detailLead = qrImage ? 9.5 : 11.5;
     const detailH = detailRows.reduce((h, row) => h + Math.max(...row.map((cell) => cell.lines.length)) * detailLead, 0);
-    const paymentBodyH = qrImage ? Math.max(detailH + 22, qrW + 50) : detailH;
+    const paymentBodyH = qrImage ? Math.max(detailH + 22, qrW + 48) : detailH;
     const blockH = 24 + introLines.length * 10 + 4 + paymentBodyH + 8 + noteLines.length * 9 + 4;
     // Reserve the page-number band as well as the signature's writing space.
     ensure(blockH + 14 + (!hasTerms && !hasNotes ? SIGNATURE_H : 0));
