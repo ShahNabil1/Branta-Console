@@ -605,7 +605,7 @@ export async function renderInvoicePdf(
     if (pending !== undefined) detailRows.push([{ lines: [pending], x: SIDE + 14 }]);
     const detailLead = qrImage ? 10 : 11.5;
     const detailH = detailRows.reduce((h, row) => h + Math.max(...row.map((cell) => cell.lines.length)) * detailLead, 0);
-    const paymentBodyH = qrImage ? Math.max(detailH + 22, qrW + 8) : detailH;
+    const paymentBodyH = qrImage ? Math.max(detailH + 22, qrW + 62) : detailH;
     const blockH = 26 + introLines.length * 10 + 6 + paymentBodyH + 10 + noteLines.length * 9 + 4;
     // Reserve the page-number band as well as the signature's writing space.
     ensure(blockH + 14 + (!hasTerms && !hasNotes ? SIGNATURE_H : 0));
@@ -625,10 +625,16 @@ export async function renderInvoicePdf(
       const centered = (label: string, baseline: number, size: number, f: PDFFont, color: RGB) => {
         draw(label, qx + (qrW - f.widthOfTextAtSize(label, size)) / 2, baseline, size, f, color);
       };
-      centered("BANGLA QR", bodyTop, 9, bold, brand);
-      page.drawImage(qrImage, { x: qx, y: bodyTop - 8 - qrW, width: qrW, height: qrW });
-      draw(`Bangla QR Merchant: BRANTA TECH | ${BANGLA_QR_MERCHANT_ID}`, SIDE + 14, bodyTop - detailH - 4, 7.5, bold, text);
-      draw("Scan using a supported bank or mobile banking app.", SIDE + 14, bodyTop - detailH - 15, 7.5, font, muted);
+      centered("SCAN TO PAY", bodyTop, 9.5, bold, brand);
+      page.drawImage(qrImage, { x: qx, y: bodyTop - 10 - qrW, width: qrW, height: qrW });
+      let qy = bodyTop - 10 - qrW - 12;
+      centered("BRANTA TECH", qy, 8.5, bold, text);
+      qy -= 10;
+      centered(`Bangla QR Merchant ID: ${BANGLA_QR_MERCHANT_ID}`, qy, 7, font, muted);
+      qy -= 11;
+      const qrNote = "To pay with bKash, Nagad, Rocket or any other mobile banking or bank app, simply scan this QR code.";
+      const qrNoteLines = wrap(qrNote, font, 7, qrW + 10);
+      qrNoteLines.forEach((ln) => { centered(ln, qy, 7, font, muted); qy -= 8.5; });
     }
     detailRows.forEach((row) => {
       row.forEach((cell) => cell.lines.forEach((ln, lineIndex) => {
