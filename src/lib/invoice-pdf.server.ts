@@ -565,7 +565,7 @@ export async function renderInvoicePdf(
     const infoText = s.payment_info || DEFAULT_PAYMENT_INFO;
     const noteText = s.payment_note || DEFAULT_PAYMENT_NOTE;
     const intro =
-      "Please make the payment using the following bank details. After completing the payment, kindly share the transaction receipt or payment confirmation with us for verification.";
+      "Please make the payment via bank transfer using the details below, or scan the Bangla QR to pay instantly from bKash, Nagad, Rocket or any mobile banking / bank app. After completing the payment, kindly share the transaction receipt or payment confirmation with us for verification.";
     const introLines = wrap(intro, font, 8.5, CONTENT_W - 28);
     const infoLines = infoText.split("\n").map((l) => l.trim()).filter(Boolean);
     const noteLines = wrap(noteText, font, 8, CONTENT_W - 28);
