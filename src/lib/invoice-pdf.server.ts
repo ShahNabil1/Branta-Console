@@ -165,9 +165,7 @@ Routing Number: 210100374
 SWIFT Code: SDBLBDDH
 Bank Address: Helal Mansion, Sherpur Road, Sutrapur, Bogura
 Branch Code: 00034
-Payment Reference: Please mention the Invoice Number when making the payment.
-Bkash: +8801933228681 (Send Money)
-Nagad: +8801749781779 (Send Money)`;
+Payment Reference: Please mention the Invoice Number when making the payment.`;
 
 export const DEFAULT_PAYMENT_NOTE =
   "All applicable bank charges and transaction fees must be borne by the client. The payment will be considered confirmed after the amount has been successfully credited to our account.";
@@ -567,15 +565,20 @@ export async function renderInvoicePdf(
     const infoText = s.payment_info || DEFAULT_PAYMENT_INFO;
     const noteText = s.payment_note || DEFAULT_PAYMENT_NOTE;
     const intro =
-      "Please make the payment using the following bank details. After completing the payment, kindly share the transaction receipt or payment confirmation with us for verification.";
+      "Pay via bank transfer using the details below, or scan the Bangla QR with bKash, Nagad, Rocket or any mobile banking / bank app. After payment, kindly share the receipt or confirmation for verification.";
     const introLines = wrap(intro, font, 8.5, CONTENT_W - 28);
-    const infoLines = infoText.split("\n").map((l) => l.trim()).filter(Boolean);
+    // Legacy saved settings may still carry the retired bKash/Nagad wallet lines — never render them.
+    const infoLines = infoText
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .filter((l) => !/^(bkash|bikash|nagad|rocket)\s*:/i.test(l));
     const noteLines = wrap(noteText, font, 8, CONTENT_W - 28);
     // Local-currency merchant QR only; never imply it accepts foreign currency.
     const qrImage = cur === "BDT"
       ? await pdf.embedPng(Uint8Array.from(atob(BANGLA_QR_PNG_B64), (c) => c.charCodeAt(0)))
       : null;
-    const qrW = 100;
+    const qrW = 104;
     const qrGap = 18;
     const detailW = CONTENT_W - 28 - (qrImage ? qrW + qrGap : 0);
     const detailGap = 18;
@@ -600,19 +603,19 @@ export async function renderInvoicePdf(
       }
     }
     if (pending !== undefined) detailRows.push([{ lines: [pending], x: SIDE + 14 }]);
-    const detailLead = qrImage ? 10 : 11.5;
+    const detailLead = qrImage ? 9.5 : 11.5;
     const detailH = detailRows.reduce((h, row) => h + Math.max(...row.map((cell) => cell.lines.length)) * detailLead, 0);
-    const paymentBodyH = qrImage ? Math.max(detailH + 22, qrW + 8) : detailH;
-    const blockH = 26 + introLines.length * 10 + 6 + paymentBodyH + 10 + noteLines.length * 9 + 4;
+    const paymentBodyH = qrImage ? Math.max(detailH + 52, qrW + 16) : detailH;
+    const blockH = 24 + introLines.length * 10 + 4 + paymentBodyH + 8 + noteLines.length * 9 + 4;
     // Reserve the page-number band as well as the signature's writing space.
     ensure(blockH + 14 + (!hasTerms && !hasNotes ? SIGNATURE_H : 0));
 
     const top = y;
     page.drawRectangle({ x: SIDE, y: top - blockH, width: CONTENT_W, height: blockH, color: panel, borderColor: hair, borderWidth: 0.5 });
     page.drawRectangle({ x: SIDE, y: top - blockH, width: 3, height: blockH, color: brand });
-    let iy = top - 16;
+    let iy = top - 15;
     draw("PAYMENT INFORMATION", SIDE + 14, iy, 9, bold, brand);
-    iy -= 14;
+    iy -= 13;
     introLines.forEach((ln) => { draw(ln, SIDE + 14, iy, 8.5, font, muted); iy -= 10; });
     iy -= 4;
     const bodyTop = iy;
@@ -622,10 +625,8 @@ export async function renderInvoicePdf(
       const centered = (label: string, baseline: number, size: number, f: PDFFont, color: RGB) => {
         draw(label, qx + (qrW - f.widthOfTextAtSize(label, size)) / 2, baseline, size, f, color);
       };
-      centered("BANGLA QR", bodyTop, 9, bold, brand);
-      page.drawImage(qrImage, { x: qx, y: bodyTop - 8 - qrW, width: qrW, height: qrW });
-      draw(`Bangla QR Merchant: BRANTA TECH | ${BANGLA_QR_MERCHANT_ID}`, SIDE + 14, bodyTop - detailH - 4, 7.5, bold, text);
-      draw("Scan using a supported bank or mobile banking app.", SIDE + 14, bodyTop - detailH - 15, 7.5, font, muted);
+      centered("SCAN TO PAY", bodyTop, 9.5, bold, brand);
+      page.drawImage(qrImage, { x: qx, y: bodyTop - 10 - qrW, width: qrW, height: qrW });
     }
     detailRows.forEach((row) => {
       row.forEach((cell) => cell.lines.forEach((ln, lineIndex) => {
@@ -635,11 +636,19 @@ export async function renderInvoicePdf(
       }));
       iy -= Math.max(...row.map((cell) => cell.lines.length)) * detailLead;
     });
+    if (qrImage) {
+      // Merchant identity + scan guidance sit under the bank details, using the empty left-column space.
+      iy -= 3;
+      draw(`BRANTA TECH  |  Bangla QR Merchant ID: ${BANGLA_QR_MERCHANT_ID}`, SIDE + 14, iy, 7.5, bold, text);
+      iy -= 10;
+      const qrNote = "To pay with bKash, Nagad, Rocket or any other mobile banking or bank app, simply scan the QR code.";
+      wrap(qrNote, font, 7.5, detailW).forEach((ln) => { draw(ln, SIDE + 14, iy, 7.5, font, muted); iy -= 9; });
+    }
     iy = bodyTop - paymentBodyH - 4;
     draw("Payment Note:", SIDE + 14, iy, 8, bold, muted);
     iy -= 10;
     noteLines.forEach((ln) => { draw(ln, SIDE + 14, iy, 8, font, muted); iy -= 9; });
-    y = top - blockH - 14;
+    y = top - blockH - 10;
   }
 
   // Short final notes share a row so the signature is not orphaned by headings.
