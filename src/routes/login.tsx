@@ -103,7 +103,7 @@ function LoginPage() {
     } catch {
       /* non-fatal */
     }
-    navigate({ to: sanitizeRedirect(redirectParam) });
+    navigate({ href: sanitizeRedirect(redirectParam), replace: true });
   };
 
   const onPasskeySignIn = async () => {

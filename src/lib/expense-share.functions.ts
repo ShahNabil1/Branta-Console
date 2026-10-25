@@ -1,5 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+
+export type ExpenseLinkResult =
+  | { status: "ok"; expense: PublicExpenseView }
+  | { status: "forbidden" }
+  | { status: "not_found" };
 
 export interface PublicExpenseView {
   voucher_no: string | null;
@@ -26,15 +32,17 @@ export interface PublicExpenseView {
 }
 
 /**
- * Read-only public view of one expense voucher, unlocked by the share token.
- * No session required — the token is the only key, and sharing is off by
- * default until Finance turns it on for that expense.
+ * Private expense voucher link: requires a signed-in session AND the Finance
+ * role (checked server-side via is_finance_admin). No token grants access.
  */
-export const getPublicExpense = createServerFn({ method: "GET" })
-  .inputValidator((d: { voucher: string; token: string }) =>
-    z.object({ voucher: z.string().min(1).max(60), token: z.string().min(8).max(80) }).parse(d),
+export const getExpenseByLink = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { voucher: string }) =>
+    z.object({ voucher: z.string().min(1).max(60) }).parse(d),
   )
-  .handler(async ({ data }): Promise<PublicExpenseView | null> => {
+  .handler(async ({ data, context }): Promise<ExpenseLinkResult> => {
+    const { data: ok, error: roleErr } = await context.supabase.rpc("is_finance_admin" as never, { _user_id: context.userId } as never);
+    if (roleErr || !ok) return { status: "forbidden" };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: exp } = await supabaseAdmin
       .from("expenses")
@@ -43,7 +51,7 @@ export const getPublicExpense = createServerFn({ method: "GET" })
       .is("deleted_at", null)
       .maybeSingle();
     const e = exp as Record<string, unknown> | null;
-    if (!e || e["share_enabled"] !== true || e["share_token"] !== data.token) return null;
+    if (!e) return { status: "not_found" };
 
     const uids = [e["requested_by"], e["paid_by"]].filter(Boolean) as string[];
     const [{ data: items }, { data: atts }, { data: profs }, inv] = await Promise.all([
@@ -72,7 +80,7 @@ export const getPublicExpense = createServerFn({ method: "GET" })
 
     const invRow = (inv as { data?: { slug: string; title: string } | null } | null)?.data ?? null;
 
-    return {
+    return { status: "ok", expense: {
       voucher_no: (e["voucher_no"] as string) ?? null,
       category: e["category"] as string,
       amount: Number(e["amount"]),
@@ -98,5 +106,5 @@ export const getPublicExpense = createServerFn({ method: "GET" })
         note: i.note ?? null,
       })),
       receipts,
-    };
+    } };
   });
