@@ -50,6 +50,7 @@ import { SESSION_KEY_STORAGE } from "@/hooks/use-session-watcher";
 import { SessionHistoryLog } from "@/components/profile/session-history-log";
 import { PASSWORD_LEN, stripToPassword } from "@/lib/branta-credentials";
 import { TelegramConnectCard } from "@/components/profile/telegram-connect-card";
+import { ConnectedAppsCard } from "@/components/profile/connected-apps-card";
 import { NotificationPreferencesCard } from "@/components/profile/notification-preferences-card";
 
 export const Route = createFileRoute("/_authenticated/app/profile/security")({
@@ -695,6 +696,7 @@ function NotificationsPlaceholder() {
       icon={ShieldCheck}
     >
       <div className="space-y-3">
+        <ConnectedAppsCard />
         <TelegramConnectCard />
         <NotificationPreferencesCard />
       </div>
