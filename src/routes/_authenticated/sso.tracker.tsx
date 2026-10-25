@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { Loader2, ShieldAlert, ShieldCheck } from "lucide-react";
-import { issueTrackerToken, TRACKER_REDIRECT_RE } from "@/lib/tracker-sso.functions";
+import { issueTrackerSession, TRACKER_REDIRECT_RE } from "@/lib/tracker-sso.functions";
 
 export const Route = createFileRoute("/_authenticated/sso/tracker")({
   validateSearch: z.object({
@@ -25,7 +25,7 @@ export const Route = createFileRoute("/_authenticated/sso/tracker")({
 
 function TrackerSso() {
   const { redirect_uri, state } = Route.useSearch();
-  const issue = useServerFn(issueTrackerToken);
+  const issue = useServerFn(issueTrackerSession);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
@@ -36,9 +36,9 @@ function TrackerSso() {
     }
     let cancelled = false;
     issue({ data: { redirect_uri } })
-      .then(({ token, expires_in }) => {
+      .then(({ access_token, refresh_token, expires_in }) => {
         if (cancelled) return;
-        const frag = new URLSearchParams({ token, expires_in: String(expires_in) });
+        const frag = new URLSearchParams({ access_token, refresh_token, expires_in: String(expires_in) });
         if (state) frag.set("state", state);
         setDone(true);
         window.location.replace(`${redirect_uri}#${frag.toString()}`);
