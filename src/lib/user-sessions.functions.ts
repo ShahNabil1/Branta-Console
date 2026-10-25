@@ -135,6 +135,28 @@ export const registerSession = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
+/** Sessions silent longer than the 30-min idle policy (+ grace) are ended. */
+export const STALE_SESSION_MS = 35 * 60 * 1000;
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function expireStale(admin: any, userId: string) {
+  const cutoff = new Date(Date.now() - STALE_SESSION_MS).toISOString();
+  const { data: stale } = await admin
+    .from("user_sessions")
+    .select("id,last_seen_at")
+    .eq("user_id", userId)
+    .is("revoked_at", null)
+    .lt("last_seen_at", cutoff);
+  for (const s of (stale ?? []) as { id: string; last_seen_at: string }[]) {
+    await admin
+      .from("user_sessions")
+      .update({ revoked_at: s.last_seen_at, logout_reason: "idle_timeout" })
+      .eq("id", s.id)
+      .is("revoked_at", null);
+  }
+}
+export { expireStale as expireStaleSessions };
+
 /** Poll: returns whether *this* session_key has been revoked from elsewhere. */
 export const pingSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -143,6 +165,7 @@ export const pingSession = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
     );
+    await expireStale(supabaseAdmin, context.userId);
     const { data: row } = await supabaseAdmin
       .from("user_sessions")
       .select("id,revoked_at")
@@ -160,6 +183,29 @@ export const pingSession = createServerFn({ method: "POST" })
     return { revoked: false as const };
   });
 
+const LogoutReason = z.enum(["idle_timeout", "manual_logout"]);
+
+/** Ends this device's session record (idle auto-logout or user sign-out). */
+export const endMySession = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    RegisterInput.extend({ reason: LogoutReason }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import(
+      "@/integrations/supabase/client.server"
+    );
+    const { error } = await supabaseAdmin
+      .from("user_sessions")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .update({ revoked_at: new Date().toISOString(), logout_reason: data.reason } as any)
+      .eq("user_id", context.userId)
+      .eq("session_key", data.session_key)
+      .is("revoked_at", null);
+    if (error) throw dbError(error);
+    return { ok: true as const };
+  });
+
 export type UserSessionRow = {
   id: string;
   session_key: string;
@@ -173,6 +219,7 @@ export type UserSessionRow = {
   created_at: string;
   last_seen_at: string;
   revoked_at: string | null;
+  logout_reason?: string | null;
   is_current: boolean;
 };
 
@@ -185,20 +232,30 @@ export const listMySessions = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
     );
+    await expireStale(supabaseAdmin, context.userId);
+    const cols =
+      "id,session_key,device,browser,os,ip,country,city,region,created_at,last_seen_at,revoked_at,logout_reason";
     const { data: rows, error } = await supabaseAdmin
       .from("user_sessions")
-      .select(
-        "id,session_key,device,browser,os,ip,country,city,region,created_at,last_seen_at,revoked_at",
-      )
+      .select(cols)
       .eq("user_id", context.userId)
       .is("revoked_at", null)
       .order("last_seen_at", { ascending: false });
     if (error) throw dbError(error);
+    const { data: ended, error: e2 } = await supabaseAdmin
+      .from("user_sessions")
+      .select(cols)
+      .eq("user_id", context.userId)
+      .not("revoked_at", "is", null)
+      .order("revoked_at", { ascending: false })
+      .limit(20);
+    if (e2) throw dbError(e2);
     return {
       sessions: (rows ?? []).map((r) => ({
         ...r,
         is_current: r.session_key === data.current_session_key,
       })) as UserSessionRow[],
+      history: (ended ?? []).map((r) => ({ ...r, is_current: false })) as UserSessionRow[],
     };
   });
 
@@ -212,7 +269,7 @@ export const revokeSession = createServerFn({ method: "POST" })
     const { error } = await supabaseAdmin
       .from("user_sessions")
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .update({ revoked_at: new Date().toISOString() } as any)
+      .update({ revoked_at: new Date().toISOString(), logout_reason: "revoked" } as any)
       .eq("user_id", context.userId)
       .eq("id", data.session_id);
     if (error) throw dbError(error);
