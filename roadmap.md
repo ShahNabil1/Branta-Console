@@ -32,4 +32,4 @@
 - [x] Phase 3: two-tier QC (internal QC + client revisions, feedback doc, deadlines, rounds) with role-based Telegram alerts; tasks on internal projects
 - [x] Phase 4: handover dossier (checklist, final links, notes), linked invoice codes, completion + team Telegram alert; project leads can edit projects
 
-- [ ] Reconnect 7 integrations in new workspace (Brevo, Gmail, Calendar, Docs, Sheets, Resend, Telegram)
+- [x] Reconnect 7 integrations in new workspace (Brevo, Gmail, Calendar, Docs, Sheets, Resend, Telegram)
