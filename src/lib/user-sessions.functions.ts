@@ -288,7 +288,7 @@ export const revokeAllOtherSessions = createServerFn({ method: "POST" })
     const { error } = await supabaseAdmin
       .from("user_sessions")
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .update({ revoked_at: new Date().toISOString() } as any)
+      .update({ revoked_at: new Date().toISOString(), logout_reason: "revoked" } as any)
       .eq("user_id", context.userId)
       .neq("session_key", data.session_key)
       .is("revoked_at", null);

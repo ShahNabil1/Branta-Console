@@ -779,10 +779,12 @@ export const listEmployeeSessions = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
     );
+    const { expireStaleSessions } = await import("@/lib/user-sessions.functions");
+    await expireStaleSessions(supabaseAdmin, data.userId);
     const { data: rows, error } = await supabaseAdmin
       .from("user_sessions")
       .select(
-        "id, session_key, device, browser, os, ip, country, city, region, created_at, last_seen_at, revoked_at",
+        "id, session_key, device, browser, os, ip, country, city, region, created_at, last_seen_at, revoked_at, logout_reason",
       )
       .eq("user_id", data.userId)
       .order("last_seen_at", { ascending: false })
@@ -812,9 +814,10 @@ export const revokeEmployeeSession = createServerFn({ method: "POST" })
     const { error } = await supabaseAdmin
       .from("user_sessions")
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .update({ revoked_at: new Date().toISOString() } as any)
+      .update({ revoked_at: new Date().toISOString(), logout_reason: "revoked_by_admin" } as any)
       .eq("user_id", data.userId)
-      .eq("id", data.sessionId);
+      .eq("id", data.sessionId)
+      .is("revoked_at", null);
     if (error) throw dbError(error);
     if (data.userId !== context.userId) {
       try {
