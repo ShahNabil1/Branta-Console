@@ -550,6 +550,39 @@ export type Database = {
         }
         Relationships: []
       }
+      connected_apps: {
+        Row: {
+          app: string
+          connected_at: string
+          created_at: string
+          id: string
+          last_authorized_at: string
+          revoked_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          app: string
+          connected_at?: string
+          created_at?: string
+          id?: string
+          last_authorized_at?: string
+          revoked_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          app?: string
+          connected_at?: string
+          created_at?: string
+          id?: string
+          last_authorized_at?: string
+          revoked_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       customers: {
         Row: {
           address: string | null
