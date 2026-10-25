@@ -78,3 +78,69 @@ export async function mintTrackerSession(email: string) {
   if (vErr || !v.session) throw new Error(`Tracker session failed: ${vErr?.message ?? "no session"}`);
   return v.session;
 }
+
+/**
+ * Mirror one Console employee into the Tracker project (auth user + profiles row +
+ * default employee_tracker_settings if missing). Console is the only source of truth.
+ * Deleted/deactivated/banned employees become is_active=false and lose Tracker sessions.
+ */
+export async function syncTrackerEmployee(consoleUserId: string): Promise<void> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const sb = trackerAdmin();
+  const { data: authRes } = await supabaseAdmin.auth.admin.getUserById(consoleUserId);
+  const cu = authRes?.user ?? null;
+  const { data: prof } = await supabaseAdmin
+    .from("profiles")
+    .select("full_name, employee_code, job_role, avatar_url, deactivated_at")
+    .eq("user_id", consoleUserId)
+    .maybeSingle();
+
+  if (!cu?.email) {
+    // Hard-deleted in Console: mark inactive in Tracker (history kept).
+    await sb.from("profiles").update({ is_active: false, updated_at: new Date().toISOString() }).eq("console_user_id", consoleUserId);
+    return;
+  }
+  const banned = !!cu.banned_until && new Date(cu.banned_until).getTime() > Date.now();
+  const active = !prof?.deactivated_at && !banned;
+  const { data: roles } = await supabaseAdmin.from("user_roles").select("role").eq("user_id", consoleUserId);
+
+  const tu = await ensureTrackerUser({
+    console_user_id: consoleUserId,
+    email: cu.email,
+    name: prof?.full_name ?? null,
+    employee_code: prof?.employee_code ?? null,
+    job_role: prof?.job_role ?? null,
+    avatar_url: prof?.avatar_url ?? null,
+    roles: (roles ?? []).map((r) => r.role as string),
+  });
+  await sb.auth.admin.updateUserById(tu.id, { ban_duration: active ? "none" : "876000h" });
+  if (!active) await sb.auth.admin.signOut(tu.id).catch(() => {});
+
+  const { error } = await sb.from("profiles").upsert(
+    {
+      id: tu.id,
+      console_user_id: consoleUserId,
+      email: cu.email,
+      name: prof?.full_name ?? null,
+      employee_code: prof?.employee_code ?? null,
+      job_role: prof?.job_role ?? null,
+      avatar_url: prof?.avatar_url ?? null,
+      is_active: active,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "id" },
+  );
+  if (error) throw new Error(`Tracker profile sync failed: ${error.message}`);
+
+  const { data: s } = await sb.from("employee_tracker_settings").select("id").eq("employee_id", tu.id).maybeSingle();
+  if (!s) await sb.from("employee_tracker_settings").insert({ employee_id: tu.id });
+}
+
+/** Fire-and-log wrapper so a Tracker outage never blocks Console employee changes. */
+export async function syncTrackerEmployeeSafe(consoleUserId: string): Promise<void> {
+  try {
+    await syncTrackerEmployee(consoleUserId);
+  } catch (e) {
+    console.error("[tracker-sync]", consoleUserId, e);
+  }
+}

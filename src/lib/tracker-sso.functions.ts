@@ -30,7 +30,7 @@ export const issueTrackerSession = createServerFn({ method: "POST" })
       sb
         .from("profiles")
         .select("full_name, employee_code, job_role, avatar_url, deactivated_at")
-        .eq("id", context.userId)
+        .eq("user_id", context.userId)
         .maybeSingle(),
       sb.from("user_roles").select("role").eq("user_id", context.userId),
       sb.auth.getUser(),
@@ -49,6 +49,8 @@ export const issueTrackerSession = createServerFn({ method: "POST" })
       avatar_url: prof?.avatar_url ?? null,
       roles: (roles ?? []).map((r) => r.role as string),
     });
+    const { syncTrackerEmployee } = await import("./tracker.server");
+    await syncTrackerEmployee(context.userId);
     const session = await mintTrackerSession(email);
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
