@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.cta_guard_reassign() FROM PUBLIC, anon, authenticated;

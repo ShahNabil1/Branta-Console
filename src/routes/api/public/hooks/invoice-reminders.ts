@@ -42,11 +42,12 @@ async function wrap(request: Request): Promise<Response> {
 }
 
 async function handle(request: Request): Promise<Response> {
+  // Only the scheduler holding the dedicated cron secret may trigger sends.
   const providedKey =
-    request.headers.get("apikey") ??
+    request.headers.get("x-cron-secret") ??
     request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ??
     "";
-  const expected = process.env.SUPABASE_PUBLISHABLE_KEY ?? "";
+  const expected = process.env.INVOICE_REMINDERS_CRON_SECRET ?? "";
   if (!expected || providedKey !== expected) {
     return new Response(JSON.stringify({ error: "unauthorized" }), {
       status: 401,
