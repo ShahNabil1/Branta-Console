@@ -239,6 +239,7 @@ export const createEmployee = createServerFn({ method: "POST" })
       throw err instanceof Error ? err : new Error(String(err));
     }
 
+    { const { syncTrackerEmployeeSafe } = await import("@/lib/tracker.server"); await syncTrackerEmployeeSafe(newUserId); }
     return { ok: true as const, email, userId: newUserId };
   });
 
@@ -261,7 +262,10 @@ export const deleteEmployee = createServerFn({ method: "POST" })
     const blockers = (blk ?? {}) as Record<string, number>;
     if (Object.keys(blockers).length === 0) {
       const { error: delErr } = await supabaseAdmin.auth.admin.deleteUser(data.userId);
-      if (!delErr) return { ok: true as const, result: "deleted" as const, blockers };
+      if (!delErr) {
+    { const { syncTrackerEmployeeSafe } = await import("@/lib/tracker.server"); await syncTrackerEmployeeSafe(data.userId); }
+        return { ok: true as const, result: "deleted" as const, blockers };
+      }
     }
     // Deactivate instead of deleting: finance, payout, task and audit history keep pointing at this person.
     const { error } = await (context.supabase as never as { rpc: (f: string, a: object) => Promise<{ error: { message: string; code?: string } | null }> })
@@ -272,6 +276,7 @@ export const deleteEmployee = createServerFn({ method: "POST" })
       await supabaseAdmin.auth.admin.updateUserById(data.userId, { ban_duration: "876000h" });
       await supabaseAdmin.auth.admin.signOut(data.userId);
     } catch { /* service key missing or auth call failed; roles are already removed */ }
+    { const { syncTrackerEmployeeSafe } = await import("@/lib/tracker.server"); await syncTrackerEmployeeSafe(data.userId); }
     return { ok: true as const, result: "deactivated" as const, blockers };
   });
 
@@ -326,5 +331,6 @@ export const reactivateEmployee = createServerFn({ method: "POST" })
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       await supabaseAdmin.auth.admin.updateUserById(data.userId, { ban_duration: "none" });
     } catch { /* ignore */ }
+    { const { syncTrackerEmployeeSafe } = await import("@/lib/tracker.server"); await syncTrackerEmployeeSafe(data.userId); }
     return { ok: true as const };
   });
