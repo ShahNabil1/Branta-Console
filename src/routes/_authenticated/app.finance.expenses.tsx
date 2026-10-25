@@ -701,9 +701,9 @@ function ExpensesPage() {
       </div>
 
       {/* Mobile / tablet cards */}
-      <div className="w-full min-w-0 overflow-hidden rounded-md border border-border bg-card xl:hidden">
+      <div className="w-full min-w-0 space-y-2.5 xl:hidden">
         {visible.length === 0 ? (
-          <div className="px-3 py-10 text-center text-[12.5px] text-muted-foreground">
+          <div className="rounded-md border border-border bg-card px-3 py-10 text-center text-[12.5px] text-muted-foreground">
             {(q.data ?? []).length === 0 ? "No expenses yet." : "No expenses match the selected filters."}
           </div>
         ) : visible.map((r) => (
@@ -711,7 +711,7 @@ function ExpensesPage() {
             key={`m-${r.id}`}
             id={`exp-m-${r.id}`}
             data-exp-id={r.id}
-            className={`transition-all duration-500 ${
+            className={`overflow-hidden rounded-md border border-border bg-card shadow-sm transition-all duration-500 ${
               highlightId === r.id ? "bg-brand/10 shadow-[inset_0_0_0_2px_var(--color-brand)]" : ""
             }`}
           >

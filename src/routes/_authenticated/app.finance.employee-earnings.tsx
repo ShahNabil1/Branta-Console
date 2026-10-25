@@ -123,13 +123,13 @@ function EmployeeEarningsPage() {
             <PeriodFilter p={p} setP={setP} from={from} to={to} setFrom={setFrom} setTo={setTo} />
           </div>
         </div>
-        <table className="w-full text-[12px]">
+        <div className="overflow-x-auto"><table className="w-full min-w-[640px] text-[12px]">
           <thead className="text-left text-[10.5px] uppercase tracking-wider text-muted-foreground"><tr><th className="px-3 py-2">Group</th><th className="px-3 py-2 text-right">Earned</th><th className="px-3 py-2 text-right">Pending</th><th className="px-3 py-2 text-right">Withdrawn</th></tr></thead>
           <tbody className="divide-y divide-border">
             {breakdown.length === 0 ? <tr><td colSpan={4} className="p-4 text-center text-muted-foreground">Nothing in this period.</td></tr>
               : breakdown.map(([k, v]) => <tr key={k}><td className="px-3 py-2">{k}</td><td className="px-3 py-2 text-right font-mono">{money(v.earned)}</td><td className="px-3 py-2 text-right font-mono text-muted-foreground">{money(v.pending)}</td><td className="px-3 py-2 text-right font-mono">{money(v.withdrawn)}</td></tr>)}
           </tbody>
-        </table>
+        </table></div>
       </section>
 
       <section className="rounded-sm border border-border bg-card">

@@ -256,7 +256,8 @@ export function CommandPalette() {
           <CommandItem
             onSelect={async () => {
               setOpen(false);
-              await supabase.auth.signOut();
+              const { signOutWithLog } = await import("@/lib/sign-out");
+              await signOutWithLog("manual_logout");
               navigate({ to: "/login" });
             }}
           >

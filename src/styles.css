@@ -236,3 +236,18 @@
 }
 
 
+
+/* Lock the app's scroll container while any full-screen overlay (custom
+   modals, mobile sidebar backdrop) is mounted, so the page behind never
+   scrolls or rubber-bands. Radix dialogs already lock body themselves. */
+html:has(body .fixed.inset-0) main {
+  overflow: hidden !important;
+  overscroll-behavior: none;
+}
+html:has(body .fixed.inset-0) {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+.fixed.inset-0 {
+  overscroll-behavior: contain;
+}

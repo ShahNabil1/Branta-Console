@@ -64,7 +64,8 @@ export function ProfileMenu() {
       confirmLabel: "Sign out",
     });
     if (!ok) return;
-    await supabase.auth.signOut();
+    const { signOutWithLog } = await import("@/lib/sign-out");
+    await signOutWithLog("manual_logout");
     navigate({ to: "/login" });
   };
 

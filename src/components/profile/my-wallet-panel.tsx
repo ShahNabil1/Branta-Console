@@ -135,7 +135,8 @@ export function MyWalletPanel() {
         <div className="border-b border-border px-4 py-2.5">
           <h3 className="text-[13px] font-semibold">My payouts</h3>
         </div>
-        <table className="w-full text-[12.5px]">
+        <div className="overflow-x-auto overscroll-x-contain">
+        <table className="w-full min-w-[640px] text-[12.5px]">
           <thead className="text-left text-[10.5px] uppercase tracking-wider text-muted-foreground">
             <tr>
               <th className="px-3 py-2">Invoice</th>
@@ -171,13 +172,15 @@ export function MyWalletPanel() {
             ))}
           </tbody>
         </table>
+        </div>
       </section>
 
       <section className="rounded-md border border-border bg-card">
         <div className="border-b border-border px-4 py-2.5">
           <h3 className="text-[13px] font-semibold">Withdrawal history</h3>
         </div>
-        <table className="w-full text-[12.5px]">
+        <div className="overflow-x-auto overscroll-x-contain">
+        <table className="w-full min-w-[640px] text-[12.5px]">
           <thead className="text-left text-[10.5px] uppercase tracking-wider text-muted-foreground">
             <tr>
               <th className="px-3 py-2">Requested</th>
@@ -227,6 +230,7 @@ export function MyWalletPanel() {
             ))}
           </tbody>
         </table>
+        </div>
       </section>
 
       {modal && (
@@ -348,7 +352,7 @@ function MySalarySlips() {
 function BalanceCard({ cur, bal, onWithdraw }: { cur: Currency; bal: WalletBalance; onWithdraw: () => void }) {
   return (
     <div className="rounded-md border border-border bg-gradient-to-br from-brand/5 to-transparent">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-card px-5 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-card px-4 py-3 sm:px-5">
         <div>
           <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{cur} balance</div>
           <div className="mt-0.5 font-mono text-[24px] font-semibold text-emerald-600">
@@ -359,7 +363,7 @@ function BalanceCard({ cur, bal, onWithdraw }: { cur: Currency; bal: WalletBalan
           <Send className="mr-1.5 size-3.5" /> Request withdrawal
         </Button>
       </div>
-      <div className="grid grid-cols-3 gap-3 p-5">
+      <div className="grid grid-cols-1 gap-2 p-3 min-[420px]:grid-cols-3 sm:gap-3 sm:p-5">
         <MiniStat label="Locked" value={fmt(bal.locked, cur)} icon={<Lock className="size-3" />} tone="slate" />
         <MiniStat label="Requested" value={fmt(bal.requested, cur)} icon={<Send className="size-3" />} tone="amber" />
         <MiniStat label="Paid out" value={fmt(bal.paid_total, cur)} icon={<Unlock className="size-3" />} tone="blue" />

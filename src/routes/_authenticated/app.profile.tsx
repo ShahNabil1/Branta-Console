@@ -19,7 +19,7 @@ function ProfileLayout() {
   return (
     <div className="flex min-h-full flex-col">
       <div className="border-b border-border bg-background">
-        <div className="mx-auto flex max-w-5xl items-end justify-between gap-6 px-6 pt-6">
+        <div className="mx-auto flex max-w-5xl items-end justify-between gap-4 px-3 pt-5 sm:gap-6 sm:px-6 sm:pt-6">
           <div>
             <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
               Account
