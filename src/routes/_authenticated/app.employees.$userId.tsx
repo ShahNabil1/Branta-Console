@@ -1,4 +1,5 @@
 import { WalletLedgerView } from "@/components/finance/wallet-ledger-view";
+import { SessionHistoryLog } from "@/components/profile/session-history-log";
 // Employee detail page: full profile, RBAC, lead assignment, ban / delete,
 // password reset, one-click impersonation, wallet + sessions.
 import { useEffect, useMemo, useState } from "react";
@@ -1334,44 +1335,40 @@ function SessionsSection({
         <div className="flex items-center gap-2 text-[12.5px] text-muted-foreground">
           <Loader2 className="size-3.5 animate-spin" /> Loading…
         </div>
-      ) : rows.length === 0 ? (
-        <p className="text-[12.5px] text-muted-foreground">No sessions recorded yet.</p>
       ) : (
-        <ul className="divide-y divide-border rounded-sm border border-border">
-          {rows.map((s) => {
-            const label = `${s.browser ?? "Browser"} · ${s.device ?? "Device"}`;
-            const geo = [s.city, s.region, s.country].filter(Boolean).join(", ");
-            return (
-              <li key={s.id} className="flex flex-col items-stretch gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0">
-                  <div className="break-words text-[13px] font-semibold">
-                    {label}
-                    {s.revoked_at && (
-                      <span className="ml-2 rounded-sm border border-border bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground">
-                        Revoked
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-0.5 break-words text-[11.5px] font-medium text-muted-foreground">
-                    {s.os ?? "—"} · {s.ip ?? "—"}
-                    {geo && ` · ${geo}`} · last seen{" "}
-                    {new Date(s.last_seen_at).toLocaleString()}
-                  </div>
-                </div>
-                {!s.revoked_at && (
-                  <button
-                    onClick={() => onRevoke(s.id, label)}
-                    disabled={revoke.isPending}
-                    className="inline-flex h-8 w-full items-center justify-center gap-1 rounded-sm border border-rose-300 bg-rose-50 px-2 text-[11.5px] font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-60 sm:w-auto"
-                  >
-                    <LogOut className="size-3" />
-                    Sign out
-                  </button>
-                )}
-              </li>
-            );
-          })}
-        </ul>
+        <>
+          {active.length === 0 ? (
+            <p className="text-[12.5px] text-muted-foreground">No active sessions.</p>
+          ) : (
+            <ul className="divide-y divide-border rounded-sm border border-border">
+              {active.map((s) => {
+                const label = `${s.browser ?? "Browser"} · ${s.device ?? "Device"}`;
+                const geo = [s.city, s.region, s.country].filter(Boolean).join(", ");
+                return (
+                  <li key={s.id} className="flex flex-col items-stretch gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                      <div className="break-words text-[13px] font-semibold">{label}</div>
+                      <div className="mt-0.5 break-words text-[11.5px] font-medium text-muted-foreground">
+                        {s.os ?? "—"} · {s.ip ?? "—"}
+                        {geo && ` · ${geo}`} · last seen{" "}
+                        {new Date(s.last_seen_at).toLocaleString()}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => onRevoke(s.id, label)}
+                      disabled={revoke.isPending}
+                      className="inline-flex h-8 w-full items-center justify-center gap-1 rounded-sm border border-rose-300 bg-rose-50 px-2 text-[11.5px] font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-60 sm:w-auto"
+                    >
+                      <LogOut className="size-3" />
+                      Sign out
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          <SessionHistoryLog rows={rows.filter((r) => r.revoked_at).slice(0, 30)} />
+        </>
       )}
     </section>
   );

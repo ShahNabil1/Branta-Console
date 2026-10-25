@@ -47,6 +47,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { SESSION_KEY_STORAGE } from "@/hooks/use-session-watcher";
+import { SessionHistoryLog } from "@/components/profile/session-history-log";
 import { PASSWORD_LEN, stripToPassword } from "@/lib/branta-credentials";
 import { TelegramConnectCard } from "@/components/profile/telegram-connect-card";
 import { NotificationPreferencesCard } from "@/components/profile/notification-preferences-card";
@@ -630,7 +631,7 @@ function SessionsSection() {
             const label = `${s.browser ?? "Browser"} · ${s.os ?? "OS"}`;
             const location = [s.city, s.country].filter(Boolean).join(", ");
             return (
-              <li key={s.id} className="flex items-center justify-between gap-3 py-3">
+              <li key={s.id} className="flex min-w-0 items-center justify-between gap-3 py-3">
                 <div className="flex min-w-0 items-center gap-3">
                   <div
                     className={cn(
@@ -679,6 +680,7 @@ function SessionsSection() {
           })}
         </ul>
       )}
+      <SessionHistoryLog rows={q.data?.history ?? []} />
     </Section>
   );
 }

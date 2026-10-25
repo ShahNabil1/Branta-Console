@@ -49,7 +49,8 @@ const IDLE_MS = 30 * 60 * 1000;
 function AuthGate() {
   const navigate = useNavigate();
   useIdleTimeout(IDLE_MS, async () => {
-    await supabase.auth.signOut();
+    const { signOutWithLog } = await import("@/lib/sign-out");
+    await signOutWithLog("idle_timeout");
     navigate({ to: "/login", search: { reason: "idle" } });
   });
   useSessionWatcher();

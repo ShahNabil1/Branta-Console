@@ -767,6 +767,7 @@ export interface EmployeeSessionRow {
   created_at: string;
   last_seen_at: string;
   revoked_at: string | null;
+  logout_reason?: string | null;
 }
 
 export const listEmployeeSessions = createServerFn({ method: "GET" })
