@@ -11,7 +11,7 @@ export type ExpenseExportInput = {
   from: string; to: string; currency: "BDT" | "USD";
   categories: string[]; invoiceId: string | null; paymentMethod: string | null;
   vendor: string | null; department: string | null; createdBy: string | null;
-  minAmount: number | null; maxAmount: number | null; search: string;
+  minAmount: number | null; maxAmount: number | null; search: string; status: string | null;
   format: "pdf" | "xlsx" | "csv"; periodLabel: string; filterLabels: string[]; fileBase: string;
 };
 
@@ -122,6 +122,7 @@ export async function collectExpenses(sb: Sb, f: ExpenseExportInput): Promise<De
 
   const q = f.search.trim().toLowerCase();
   return out.filter((r) => {
+    if (f.status && (r.txnId ? "paid" : "recorded") !== f.status) return false;
     if (f.minAmount != null && Math.abs(r.amount) < f.minAmount) return false;
     if (f.maxAmount != null && Math.abs(r.amount) > f.maxAmount) return false;
     if (f.paymentMethod && r.method.toLowerCase() !== f.paymentMethod.toLowerCase()) return false;
