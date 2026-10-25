@@ -13,7 +13,6 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
-import { Route as XVoucherRouteImport } from './routes/x.$voucher'
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app.index'
 import { Route as AuthenticatedAppAnalyticsRouteImport } from './routes/_authenticated/app.analytics'
 import { Route as AuthenticatedAppCustomersRouteImport } from './routes/_authenticated/app.customers'
@@ -28,6 +27,7 @@ import { Route as AuthenticatedAppSettingsRouteImport } from './routes/_authenti
 import { Route as AuthenticatedAppTransfersRouteImport } from './routes/_authenticated/app.transfers'
 import { Route as AuthenticatedOnboardingPasswordRouteImport } from './routes/_authenticated/onboarding.password'
 import { Route as AuthenticatedOnboardingTelegramRouteImport } from './routes/_authenticated/onboarding.telegram'
+import { Route as AuthenticatedXVoucherRouteImport } from './routes/_authenticated/x.$voucher'
 import { Route as ApiPublicR2HealthRouteImport } from './routes/api/public/r2-health'
 import { Route as AuthenticatedAppCustomersIndexRouteImport } from './routes/_authenticated/app.customers.index'
 import { Route as AuthenticatedAppCustomersCodeRouteImport } from './routes/_authenticated/app.customers.$code'
@@ -98,11 +98,6 @@ const AuthenticatedAppRoute = AuthenticatedAppRouteImport.update({
   id: '/app',
   path: '/app',
   getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const XVoucherRoute = XVoucherRouteImport.update({
-  id: '/x/$voucher',
-  path: '/x/$voucher',
-  getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAppIndexRoute = AuthenticatedAppIndexRouteImport.update({
   id: '/',
@@ -183,6 +178,11 @@ const AuthenticatedOnboardingTelegramRoute =
     path: '/onboarding/telegram',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedXVoucherRoute = AuthenticatedXVoucherRouteImport.update({
+  id: '/x/$voucher',
+  path: '/x/$voucher',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const ApiPublicR2HealthRoute = ApiPublicR2HealthRouteImport.update({
   id: '/api/public/r2-health',
   path: '/api/public/r2-health',
@@ -491,7 +491,6 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/app': typeof AuthenticatedAppRouteWithChildren
-  '/x/$voucher': typeof XVoucherRoute
   '/app/analytics': typeof AuthenticatedAppAnalyticsRoute
   '/app/customers': typeof AuthenticatedAppCustomersRouteWithChildren
   '/app/finance': typeof AuthenticatedAppFinanceRouteWithChildren
@@ -505,6 +504,7 @@ export interface FileRoutesByFullPath {
   '/app/transfers': typeof AuthenticatedAppTransfersRoute
   '/onboarding/password': typeof AuthenticatedOnboardingPasswordRoute
   '/onboarding/telegram': typeof AuthenticatedOnboardingTelegramRoute
+  '/x/$voucher': typeof AuthenticatedXVoucherRoute
   '/api/public/r2-health': typeof ApiPublicR2HealthRoute
   '/app/': typeof AuthenticatedAppIndexRoute
   '/app/customers/$code': typeof AuthenticatedAppCustomersCodeRoute
@@ -561,7 +561,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/x/$voucher': typeof XVoucherRoute
   '/app/analytics': typeof AuthenticatedAppAnalyticsRoute
   '/app/inbox': typeof AuthenticatedAppInboxRoute
   '/app/mail-queue': typeof AuthenticatedAppMailQueueRoute
@@ -571,6 +570,7 @@ export interface FileRoutesByTo {
   '/app/transfers': typeof AuthenticatedAppTransfersRoute
   '/onboarding/password': typeof AuthenticatedOnboardingPasswordRoute
   '/onboarding/telegram': typeof AuthenticatedOnboardingTelegramRoute
+  '/x/$voucher': typeof AuthenticatedXVoucherRoute
   '/api/public/r2-health': typeof ApiPublicR2HealthRoute
   '/app': typeof AuthenticatedAppIndexRoute
   '/app/customers/$code': typeof AuthenticatedAppCustomersCodeRoute
@@ -630,7 +630,6 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/login': typeof LoginRoute
   '/_authenticated/app': typeof AuthenticatedAppRouteWithChildren
-  '/x/$voucher': typeof XVoucherRoute
   '/_authenticated/app/analytics': typeof AuthenticatedAppAnalyticsRoute
   '/_authenticated/app/customers': typeof AuthenticatedAppCustomersRouteWithChildren
   '/_authenticated/app/finance': typeof AuthenticatedAppFinanceRouteWithChildren
@@ -644,6 +643,7 @@ export interface FileRoutesById {
   '/_authenticated/app/transfers': typeof AuthenticatedAppTransfersRoute
   '/_authenticated/onboarding/password': typeof AuthenticatedOnboardingPasswordRoute
   '/_authenticated/onboarding/telegram': typeof AuthenticatedOnboardingTelegramRoute
+  '/_authenticated/x/$voucher': typeof AuthenticatedXVoucherRoute
   '/api/public/r2-health': typeof ApiPublicR2HealthRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
   '/_authenticated/app/customers/$code': typeof AuthenticatedAppCustomersCodeRoute
@@ -703,7 +703,6 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/app'
-    | '/x/$voucher'
     | '/app/analytics'
     | '/app/customers'
     | '/app/finance'
@@ -717,6 +716,7 @@ export interface FileRouteTypes {
     | '/app/transfers'
     | '/onboarding/password'
     | '/onboarding/telegram'
+    | '/x/$voucher'
     | '/api/public/r2-health'
     | '/app/'
     | '/app/customers/$code'
@@ -773,7 +773,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
-    | '/x/$voucher'
     | '/app/analytics'
     | '/app/inbox'
     | '/app/mail-queue'
@@ -783,6 +782,7 @@ export interface FileRouteTypes {
     | '/app/transfers'
     | '/onboarding/password'
     | '/onboarding/telegram'
+    | '/x/$voucher'
     | '/api/public/r2-health'
     | '/app'
     | '/app/customers/$code'
@@ -841,7 +841,6 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/login'
     | '/_authenticated/app'
-    | '/x/$voucher'
     | '/_authenticated/app/analytics'
     | '/_authenticated/app/customers'
     | '/_authenticated/app/finance'
@@ -855,6 +854,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/transfers'
     | '/_authenticated/onboarding/password'
     | '/_authenticated/onboarding/telegram'
+    | '/_authenticated/x/$voucher'
     | '/api/public/r2-health'
     | '/_authenticated/app/'
     | '/_authenticated/app/customers/$code'
@@ -913,7 +913,6 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   LoginRoute: typeof LoginRoute
-  XVoucherRoute: typeof XVoucherRoute
   ApiPublicR2HealthRoute: typeof ApiPublicR2HealthRoute
   ApiPublicBrevoWebhookRoute: typeof ApiPublicBrevoWebhookRoute
   ApiPublicExpensesVoucherDotpdfRoute: typeof ApiPublicExpensesVoucherDotpdfRoute
@@ -955,13 +954,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/app'
       preLoaderRoute: typeof AuthenticatedAppRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/x/$voucher': {
-      id: '/x/$voucher'
-      path: '/x/$voucher'
-      fullPath: '/x/$voucher'
-      preLoaderRoute: typeof XVoucherRouteImport
-      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/app/': {
       id: '/_authenticated/app/'
@@ -1059,6 +1051,13 @@ declare module '@tanstack/react-router' {
       path: '/onboarding/telegram'
       fullPath: '/onboarding/telegram'
       preLoaderRoute: typeof AuthenticatedOnboardingTelegramRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/x/$voucher': {
+      id: '/_authenticated/x/$voucher'
+      path: '/x/$voucher'
+      fullPath: '/x/$voucher'
+      preLoaderRoute: typeof AuthenticatedXVoucherRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/api/public/r2-health': {
@@ -1606,12 +1605,14 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAppRoute: typeof AuthenticatedAppRouteWithChildren
   AuthenticatedOnboardingPasswordRoute: typeof AuthenticatedOnboardingPasswordRoute
   AuthenticatedOnboardingTelegramRoute: typeof AuthenticatedOnboardingTelegramRoute
+  AuthenticatedXVoucherRoute: typeof AuthenticatedXVoucherRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAppRoute: AuthenticatedAppRouteWithChildren,
   AuthenticatedOnboardingPasswordRoute: AuthenticatedOnboardingPasswordRoute,
   AuthenticatedOnboardingTelegramRoute: AuthenticatedOnboardingTelegramRoute,
+  AuthenticatedXVoucherRoute: AuthenticatedXVoucherRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
@@ -1621,7 +1622,6 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   LoginRoute: LoginRoute,
-  XVoucherRoute: XVoucherRoute,
   ApiPublicR2HealthRoute: ApiPublicR2HealthRoute,
   ApiPublicBrevoWebhookRoute: ApiPublicBrevoWebhookRoute,
   ApiPublicExpensesVoucherDotpdfRoute: ApiPublicExpensesVoucherDotpdfRoute,

@@ -108,9 +108,7 @@ export async function collectExpenses(sb: Sb, f: ExpenseExportInput): Promise<De
       method: n(r.payment_method),
       txnId: n(r.txn_id),
       sealed,
-      publicUrl: r.share_enabled && r.share_token
-        ? `${PUBLIC_ORIGIN}/x/${encodeURIComponent(n(r.voucher_no) || r.id)}?t=${encodeURIComponent(r.share_token)}`
-        : null,
+      publicUrl: n(r.voucher_no) ? `${PUBLIC_ORIGIN}/x/${encodeURIComponent(n(r.voucher_no))}` : null,
       receiptUrl: /^https?:\/\//i.test(n(r.receipt_url)) ? n(r.receipt_url) : null,
       amount: Number(r.amount),
       notes: n(r.notes),
