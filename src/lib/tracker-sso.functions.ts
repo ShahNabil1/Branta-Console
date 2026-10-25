@@ -3,44 +3,15 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 /**
- * Branta Console → Tracker Extension single sign-on.
- *
- * The extension opens /sso/tracker via chrome.identity.launchWebAuthFlow with a
- * redirect_uri of https://<extension-id>.chromiumapp.org/... . After the
- * employee is signed in (password+2FA or passkey), this function issues a
- * short-lived HS256 token signed with TRACKER_SSO_SECRET. The tracker backend
- * verifies it with the same secret (iss=branta-console, aud=branta-tracker).
+ * Branta Console -> Tracker Extension single sign-on.
+ * Extension opens /sso/tracker via chrome.identity.launchWebAuthFlow (redirect to
+ * https://<id>.chromiumapp.org/). After Console sign-in, the server upserts the
+ * employee into the Tracker Supabase project (one user per email) and returns a
+ * regular Tracker Supabase session (access + refresh token) for the extension.
  */
 export const TRACKER_REDIRECT_RE = /^https:\/\/([a-p]{32})\.chromiumapp\.org\/[^\s#]*$/;
-const TOKEN_TTL_SECONDS = 12 * 60 * 60;
 
-function b64url(input: ArrayBuffer | Uint8Array | string): string {
-  const bytes =
-    typeof input === "string"
-      ? new TextEncoder().encode(input)
-      : input instanceof Uint8Array
-        ? input
-        : new Uint8Array(input);
-  let bin = "";
-  for (const b of bytes) bin += String.fromCharCode(b);
-  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
-
-async function signHs256(payload: Record<string, unknown>, secret: string) {
-  const header = b64url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
-  const body = b64url(JSON.stringify(payload));
-  const key = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(`${header}.${body}`));
-  return `${header}.${body}.${b64url(sig)}`;
-}
-
-export const issueTrackerToken = createServerFn({ method: "POST" })
+export const issueTrackerSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ redirect_uri: z.string().max(500) }).parse(d))
   .handler(async ({ data, context }) => {
@@ -53,8 +24,6 @@ export const issueTrackerToken = createServerFn({ method: "POST" })
     if (allowed.length && !allowed.includes(m[1])) {
       throw new Error("This extension is not approved for Branta sign-in.");
     }
-    const secret = process.env.TRACKER_SSO_SECRET;
-    if (!secret) throw new Error("Tracker sign-in is not configured yet.");
 
     const sb = context.supabase;
     const [{ data: prof }, { data: roles }, { data: userRes }] = await Promise.all([
@@ -67,24 +36,20 @@ export const issueTrackerToken = createServerFn({ method: "POST" })
       sb.auth.getUser(),
     ]);
     if (prof?.deactivated_at) throw new Error("Your account is deactivated.");
+    const email = userRes.user?.email;
+    if (!email) throw new Error("Your account has no email address.");
 
-    const now = Math.floor(Date.now() / 1000);
-    const token = await signHs256(
-      {
-        iss: "branta-console",
-        aud: "branta-tracker",
-        sub: context.userId,
-        email: userRes.user?.email ?? null,
-        name: prof?.full_name ?? null,
-        employee_code: prof?.employee_code ?? null,
-        job_role: prof?.job_role ?? null,
-        avatar_url: prof?.avatar_url ?? null,
-        roles: (roles ?? []).map((r) => r.role),
-        iat: now,
-        exp: now + TOKEN_TTL_SECONDS,
-      },
-      secret,
-    );
+    const { ensureTrackerUser, mintTrackerSession } = await import("./tracker.server");
+    const trackerUser = await ensureTrackerUser({
+      console_user_id: context.userId,
+      email,
+      name: prof?.full_name ?? null,
+      employee_code: prof?.employee_code ?? null,
+      job_role: prof?.job_role ?? null,
+      avatar_url: prof?.avatar_url ?? null,
+      roles: (roles ?? []).map((r) => r.role as string),
+    });
+    const session = await mintTrackerSession(email);
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     await supabaseAdmin.from("connected_apps").upsert(
@@ -97,7 +62,21 @@ export const issueTrackerToken = createServerFn({ method: "POST" })
       { onConflict: "user_id,app" },
     );
 
-    return { token, expires_in: TOKEN_TTL_SECONDS };
+    return {
+      access_token: session.access_token,
+      refresh_token: session.refresh_token,
+      expires_in: session.expires_in,
+      tracker_user_id: trackerUser.id,
+    };
+  });
+
+/** Admin-only health check of the Tracker project connection. */
+export const checkTrackerConnection = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async () => {
+    const { trackerAdmin } = await import("./tracker.server");
+    const { error } = await trackerAdmin().auth.admin.listUsers({ page: 1, perPage: 1 });
+    return { ok: !error, error: error?.message ?? null };
   });
 
 export const listMyConnectedApps = createServerFn({ method: "GET" })
