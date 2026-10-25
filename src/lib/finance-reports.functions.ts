@@ -362,6 +362,10 @@ export const exportReport = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await ensureFinance(context.supabase, context.userId);
+    if (data.kind === "expense") {
+      const { exportExpenseReport } = await import("@/lib/expense-report.server");
+      return exportExpenseReport(context.supabase, context.userId, data);
+    }
     const rows = await collect(context.supabase, data);
     const sum = summarize(rows);
     const cur = data.currency;
