@@ -26,6 +26,7 @@ export function ConnectedAppsCard() {
 
   return (
     <div className="space-y-2">
+      <div className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">Connected apps</div>
       {rows.map((r) => (
         <div key={r.app} className="flex flex-wrap items-center gap-3 rounded border border-border bg-card p-3">
           <MonitorSmartphone className="h-5 w-5 text-primary" />
