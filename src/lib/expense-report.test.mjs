@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { PDFDocument } from "pdf-lib";
+import { PDFDocument, PDFName } from "pdf-lib";
 import { formatCategory } from "./expense-categories.ts";
 import { buildExpenseReportPdf, groupByCategory } from "./expense-report-pdf.server.ts";
 
@@ -29,6 +29,8 @@ describe("expense report", () => {
     });
     const doc = await PDFDocument.load(bytes);
     expect(doc.getPageCount()).toBe(1);
-    expect(Buffer.from(bytes).toString("latin1")).toContain("console.brantatech.com/x/EXP-1");
+    const annots = doc.getPage(0).node.Annots();
+    const uris = (annots?.asArray() ?? []).map((ref) => String(doc.context.lookup(ref).get(PDFName.of("A")).get(PDFName.of("URI"))));
+    expect(uris.some((u) => u.includes("console.brantatech.com/x/EXP-1"))).toBe(true);
   });
 });
