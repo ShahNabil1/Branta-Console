@@ -2087,6 +2087,11 @@ export const listEmployeesForFinance = createServerFn({ method: "GET" })
       employee_code: string | null;
       job_role: string | null;
     }[];
+    // Emails are only returned to Finance/Admin users.
+    const { data: isFin } = await context.supabase.rpc("is_finance_admin", {
+      _user_id: context.userId,
+    });
+    if (!isFin) return rows.map((r) => ({ ...r, email: null as string | null }));
     // Enrich with email via admin API so finance search can match by email.
     try {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");

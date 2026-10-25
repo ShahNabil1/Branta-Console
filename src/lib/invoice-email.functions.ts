@@ -147,6 +147,10 @@ export const sendInvoiceEmail = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
+    // Caller must be able to see this invoice under their own access rules.
+    const { data: inv } = await context.supabase
+      .from("invoices").select("id").eq("slug", data.slug).maybeSingle();
+    if (!inv) throw new Error("Invoice not found");
     const trigger = data.trigger ?? "manual";
     return await internalSendInvoiceEmail({
       slug: data.slug,
@@ -437,10 +441,24 @@ export const getInvoiceTemplates = createServerFn({ method: "GET" })
     return { pdf, email };
   });
 
+// Settings fields callers may never set directly.
+const PROTECTED_SETTING_KEYS = new Set(["id", "created_at", "updated_at", "updated_by", "created_by"]);
+const settingsPatch = z
+  .record(z.string().regex(/^[a-z][a-z0-9_]{0,62}$/), z.union([z.string().max(20000), z.number(), z.boolean(), z.null()]))
+  .transform((r) => Object.fromEntries(Object.entries(r).filter(([k]) => !PROTECTED_SETTING_KEYS.has(k))));
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function assertFinanceAdmin(supabase: any, userId: string) {
+  const { data, error } = await supabase.rpc("is_finance_admin", { _user_id: userId });
+  if (error) throw dbError(error);
+  if (!data) throw new Error("Forbidden: Finance access required");
+}
+
 export const updateInvoicePdfSettings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: Record<string, unknown>) => d)
+  .inputValidator((d: Record<string, unknown>) => settingsPatch.parse(d))
   .handler(async ({ data, context }) => {
+    await assertFinanceAdmin(context.supabase, context.userId);
     const { error } = await context.supabase
       .from("invoice_pdf_settings")
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -452,8 +470,9 @@ export const updateInvoicePdfSettings = createServerFn({ method: "POST" })
 
 export const updateInvoiceEmailSettings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: Record<string, unknown>) => d)
+  .inputValidator((d: Record<string, unknown>) => settingsPatch.parse(d))
   .handler(async ({ data, context }) => {
+    await assertFinanceAdmin(context.supabase, context.userId);
     const { error } = await context.supabase
       .from("invoice_email_settings")
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

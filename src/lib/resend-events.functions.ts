@@ -17,7 +17,11 @@ export const listResendEventsForLead = createServerFn({ method: "POST" })
     z.object({ leadId: z.string().uuid() }).parse(d),
   )
   .handler(
-    async ({ data }): Promise<Record<string, ResendEvent[]>> => {
+    async ({ data, context }): Promise<Record<string, ResendEvent[]>> => {
+      // Only callers who can see the lead (RLS) may read its email history.
+      const { data: lead } = await context.supabase
+        .from("leads").select("id").eq("id", data.leadId).maybeSingle();
+      if (!lead) return {};
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { readAllEvents } = await import("@/lib/resend-events.server");
       let rows;
