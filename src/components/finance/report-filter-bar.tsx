@@ -14,10 +14,11 @@ import {
   type ReportCurrency,
 } from "@/lib/report-filters";
 import { Button } from "@/components/ui/button";
+import { EXPENSE_CATEGORY_KEYS, formatCategory } from "@/lib/expense-categories";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
-const EXPENSE_CATEGORIES = ["salary", "tools", "ads", "office", "misc", "tax", "refund"];
+const EXPENSE_CATEGORIES: string[] = [...EXPENSE_CATEGORY_KEYS];
 const INCOME_CATEGORIES = ["Invoice payment", "seed", "other income", "adjustment"];
 
 const selectCls =
@@ -210,7 +211,7 @@ export function ReportFilterBar({
               onChange={(e) => set({ categories: e.target.value ? [e.target.value] : [] })}>
               <option value="">All categories</option>
               {categories.map((c) => (
-                <option key={c} value={c}>{c}</option>
+                <option key={c} value={c}>{formatCategory(c)}</option>
               ))}
             </select>
           </label>
