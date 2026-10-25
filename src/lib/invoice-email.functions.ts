@@ -444,7 +444,7 @@ export const getInvoiceTemplates = createServerFn({ method: "GET" })
 // Settings fields callers may never set directly.
 const PROTECTED_SETTING_KEYS = new Set(["id", "created_at", "updated_at", "updated_by", "created_by"]);
 const settingsPatch = z
-  .record(z.string().regex(/^[a-z][a-z0-9_]{0,62}$/), z.union([z.string().max(20000), z.number(), z.boolean(), z.null()]))
+  .record(z.string().regex(/^[a-z][a-z0-9_]{0,62}$/), z.unknown())
   .transform((r) => Object.fromEntries(Object.entries(r).filter(([k]) => !PROTECTED_SETTING_KEYS.has(k))));
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
