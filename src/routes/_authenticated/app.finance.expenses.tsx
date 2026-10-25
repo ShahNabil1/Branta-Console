@@ -406,6 +406,8 @@ function ExpensesPage() {
     catch { toast.error("Could not copy link"); }
   };
 
+  const [shortfall, setShortfall] = useState<{ required: number; available: number; shortfall: number } | null>(null);
+  const fundOpts = useFundOptions();
   const selectedFund = (fundOpts.data ?? []).find((x) => x.id === form.paying_fund_id);
   const add = useMutation({
     mutationFn: async () => {
