@@ -1,3 +1,4 @@
+import { formatCategory } from "@/lib/expense-categories";
 // Finance reporting: server-side filtered income / expense / combined rows,
 // summary aggregation and PDF / XLSX / CSV export.
 // Every entry point re-checks the finance role, so exports can never leak data
@@ -419,7 +420,7 @@ export const exportReport = createServerFn({ method: "POST" })
           reference: r.reference,
           party: r.party,
           project: r.project,
-          category: r.category,
+          category: formatCategory(r.category),
           method: r.method,
           status: r.status,
           amount: r.amount,
@@ -449,7 +450,7 @@ export const exportReport = createServerFn({ method: "POST" })
 
     const body = rows.map((r, i) => [
       i + 1, r.date, r.type, r.reference, r.party, r.project,
-      r.category, r.method, r.status, r.currency,
+      formatCategory(r.category), r.method, r.status, r.currency,
       r.type === "expense" ? -Math.abs(r.amount) : Math.abs(r.amount),
       r.notes,
     ]);
