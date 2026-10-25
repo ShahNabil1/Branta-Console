@@ -1,3 +1,4 @@
+import { formatCategory } from "@/lib/expense-categories";
 import type { ReactNode } from "react";
 import { Loader2 } from "lucide-react";
 import { formatMoney, type ReportCurrency } from "@/lib/report-filters";
@@ -88,7 +89,7 @@ export function ReportTable({
                   <td className="whitespace-nowrap px-3 py-2 font-mono text-[11.5px]">{r.reference}</td>
                   <td className="max-w-[200px] truncate px-3 py-2" title={r.party}>{r.party}</td>
                   <td className="max-w-[220px] truncate px-3 py-2" title={r.project}>{r.project}</td>
-                  <td className="px-3 py-2 capitalize">{r.category}</td>
+                  <td className="px-3 py-2">{formatCategory(r.category)}</td>
                   <td className="px-3 py-2">{r.method}</td>
                   <td className="px-3 py-2 capitalize">{r.status}</td>
                   <td
@@ -140,7 +141,7 @@ export function ReportTable({
               fields={[
                 { label: "Date · তারিখ", value: r.date, primary: true },
                 { label: "Reference · রেফারেন্স", value: r.reference },
-                { label: "Category · খাত", value: <span className="capitalize">{r.category}</span> },
+                { label: "Category · খাত", value: formatCategory(r.category) },
                 { label: "Method · মাধ্যম", value: r.method },
                 { label: "Status · অবস্থা", value: <span className="capitalize">{r.status}</span> },
               ]}

@@ -29,6 +29,7 @@ import { ExpenseItemsEditor, sumItems, type ExpenseItem } from "@/components/fin
 import { ExpenseReceiptsEditor, type ReceiptDraft } from "@/components/finance/expense-receipts-editor";
 
 import { ExportMenu } from "@/components/finance/export-menu";
+import { formatCategory } from "@/lib/expense-categories";
 import { ReasonDialog } from "@/components/finance/reason-dialog";
 import { ExpenseLogsDialog } from "@/components/finance/expense-logs-dialog";
 import { logExpenseAction } from "@/lib/expense-logs.functions";
@@ -524,6 +525,22 @@ function ExpensesPage() {
 
       <ReportFilterBar filters={filters} onChange={setFilters} kind="expense" />
 
+      <div className="-mx-0.5 flex items-center gap-1.5 overflow-x-auto px-0.5 pb-0.5" role="group" aria-label="Filter by category">
+        {(["", ...CATEGORIES] as string[]).map((c) => {
+          const active = c ? filters.categories[0] === c : filters.categories.length === 0;
+          const n = (q.data ?? []).filter((r) => r.currency === filters.currency && (!c || r.category === c)
+            && (filters.preset === "all" || (r.spent_on >= filters.from && r.spent_on <= filters.to))).length;
+          return (
+            <button key={c || "all"} type="button" onClick={() => setFilters({ ...filters, categories: c ? [c] : [] })}
+              className={`shrink-0 rounded-sm px-2.5 py-1 text-[12px] font-medium transition-colors ${
+                active ? "bg-primary text-primary-foreground" : "border border-border bg-card text-muted-foreground hover:text-foreground"
+              }`}>
+              {c ? formatCategory(c) : "All categories"} <span className="ml-1 font-mono text-[10.5px] opacity-75">{n}</span>
+            </button>
+          );
+        })}
+      </div>
+
       <div className="hidden w-full max-w-full overflow-x-auto overscroll-x-contain rounded-md border border-border bg-card xl:block">
         <table className="w-full min-w-[1240px] table-auto text-[12.5px]">
 
@@ -554,7 +571,7 @@ function ExpensesPage() {
                   highlightId === r.id ? "bg-brand/10 shadow-[inset_0_0_0_2px_var(--color-brand)]" : ""
                 }`}>
                 <td className="px-3 py-2 font-mono text-[11.5px] text-muted-foreground">{r.spent_on}</td>
-                <td className="px-3 py-2 capitalize">{r.category}</td>
+                <td className="px-3 py-2">{formatCategory(r.category)}</td>
                 <td className="px-3 py-2">
                   <span className="block max-w-[130px] truncate">{r.department ?? "—"}</span>
                 </td>
@@ -700,7 +717,7 @@ function ExpensesPage() {
           >
           <RecordCard
             code={r.voucher_no}
-            title={r.vendor || r.category}
+            title={r.vendor || formatCategory(r.category)}
             subtitle={r.request_purpose || r.notes || ""}
             amount={fmt(r.amount, r.currency)}
             amountTone="expense"
@@ -711,7 +728,7 @@ function ExpensesPage() {
             }
             fields={[
               { label: "Date", value: r.spent_on, primary: true },
-              { label: "Category", value: <span className="capitalize">{r.category}</span>, primary: true },
+              { label: "Category", value: formatCategory(r.category), primary: true },
               { label: "Department", value: r.department ?? "—" },
               { label: "Requested by", value: r.requested_by_name ?? "—" },
               { label: "Method", value: r.payment_method ?? "—" },
@@ -796,7 +813,7 @@ function ExpensesPage() {
                   <label className="text-[11px] font-semibold uppercase text-muted-foreground">Category</label>
                   <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value as ExpenseCategory })}
                     className="mt-1 h-9 w-full rounded-sm border border-input bg-background px-2 text-[13px] capitalize">
-                    {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                    {CATEGORIES.map((c) => <option key={c} value={c}>{formatCategory(c)}</option>)}
                   </select>
                 </div>
                 <div>

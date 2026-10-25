@@ -1,3 +1,4 @@
+import { formatCategory } from "@/lib/expense-categories";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
@@ -87,9 +88,9 @@ function DeletedCard({
               {r.voucher_no}
             </span>
           )}
-          <h3 className="mt-1 truncate text-[15px] font-semibold">{r.vendor || r.category}</h3>
+          <h3 className="mt-1 truncate text-[15px] font-semibold">{r.vendor || formatCategory(r.category)}</h3>
           <p className="text-[12.5px] text-muted-foreground">
-            <span className="capitalize">{r.category}</span> · {r.spent_on}
+            <span>{formatCategory(r.category)}</span> · {r.spent_on}
             {r.department ? ` · ${r.department}` : ""}
           </p>
           {(r.request_purpose || r.notes) && (

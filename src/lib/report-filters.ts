@@ -1,3 +1,4 @@
+import { formatCategory } from "@/lib/expense-categories";
 // Shared filter model for the Finance report screens (dashboard, income, expense).
 // Client-safe: pure types + date helpers, no server imports.
 
@@ -132,7 +133,7 @@ export function activeFilterChips(
     });
   }
   if (f.type !== "all") chips.push({ key: "type", label: f.type === "income" ? "Income only" : "Expense only" });
-  if (f.categories.length) chips.push({ key: "categories", label: `Category: ${f.categories.join(", ")}` });
+  if (f.categories.length) chips.push({ key: "categories", label: `Category: ${f.categories.map(formatCategory).join(", ")}` });
   if (f.clientId) chips.push({ key: "clientId", label: `Client: ${labels.client ?? "selected"}` });
   if (f.invoiceId) chips.push({ key: "invoiceId", label: `Project: ${labels.invoice ?? "selected"}` });
   if (f.paymentMethod) chips.push({ key: "paymentMethod", label: `Method: ${f.paymentMethod}` });
