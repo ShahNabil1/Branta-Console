@@ -378,7 +378,7 @@ export const exportReport = createServerFn({ method: "POST" })
       .replace("T", " ")
       .slice(0, 16) + " (GMT+6)";
     const title =
-      data.kind === "income" ? "Income Report" : data.kind === "expense" ? "Expense Report" : "Finance Report";
+      data.kind === "income" ? "Income Report" : "Finance Report";
 
     const filename = `${data.fileBase}.${data.format}`;
 
