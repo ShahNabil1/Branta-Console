@@ -4261,6 +4261,7 @@ export type Database = {
           ip: string | null
           is_current: boolean
           last_seen_at: string
+          logout_reason: string | null
           os: string | null
           region: string | null
           revoked_at: string | null
@@ -4278,6 +4279,7 @@ export type Database = {
           ip?: string | null
           is_current?: boolean
           last_seen_at?: string
+          logout_reason?: string | null
           os?: string | null
           region?: string | null
           revoked_at?: string | null
@@ -4295,6 +4297,7 @@ export type Database = {
           ip?: string | null
           is_current?: boolean
           last_seen_at?: string
+          logout_reason?: string | null
           os?: string | null
           region?: string | null
           revoked_at?: string | null
