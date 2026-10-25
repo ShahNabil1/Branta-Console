@@ -61,7 +61,7 @@ describe("expense report", () => {
   test("PDF renders with a clickable public link", async () => {
     const bytes = await buildExpenseReportPdf({
       periodLabel: "Test", generatedAt: "now", currency: "BDT", filters: ["Category: Office"],
-      rows: [row({ publicUrl: "https://console.brantatech.com/x/EXP-1?t=abc", sealed: true })],
+      rows: [row({ publicUrl: "https://console.brantatech.com/x/EXP-1", sealed: true })],
     });
     const doc = await PDFDocument.load(bytes);
     expect(doc.getPageCount()).toBe(1);

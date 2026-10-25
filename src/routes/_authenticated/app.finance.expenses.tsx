@@ -400,24 +400,14 @@ function ExpensesPage() {
     } catch (e) { toast.error((e as Error).message); }
   };
 
-  const toggleShare = async (id: string, enabled: boolean) => {
-    try {
-      setBusyId(id + "share");
-      const res = await shareFn({ data: { id, enabled } });
-      if (enabled) {
-        const link = `${window.location.origin}/x/${res.voucher_no ?? id}?t=${res.token}`;
-        try { await navigator.clipboard.writeText(link); } catch { /* clipboard blocked */ }
-        toast.success("Public link on — copied to clipboard");
-      } else {
-        toast.success("Public link turned off");
-      }
-      void q.refetch();
-    } catch (e) { toast.error((e as Error).message); }
-    finally { setBusyId(null); }
+  // Private link: only signed-in Finance users can open it (checked server-side).
+  const copyLink = async (voucherNo: string | null) => {
+    if (!voucherNo) return;
+    const link = `${window.location.origin}/x/${encodeURIComponent(voucherNo)}`;
+    try { await navigator.clipboard.writeText(link); toast.success("Private link copied — Finance access required to open"); }
+    catch { toast.error("Could not copy link"); }
   };
 
-  const [shortfall, setShortfall] = useState<{ required: number; available: number; shortfall: number } | null>(null);
-  const fundOpts = useFundOptions();
   const selectedFund = (fundOpts.data ?? []).find((x) => x.id === form.paying_fund_id);
   const add = useMutation({
     mutationFn: async () => {
@@ -675,11 +665,10 @@ function ExpensesPage() {
                   )}
                 </td>
                 <td className="px-3 py-2 text-right">
-                  <Button size="sm" variant="ghost" onClick={() => toggleShare(r.id, !r.share_enabled)}
-                    className={`h-7 rounded-sm ${r.share_enabled ? "text-primary" : ""}`}
-                    disabled={busyId === r.id + "share"}
-                    title={r.share_enabled ? "Public link on — click to copy / turn off" : "Create public share link"}>
-                    {busyId === r.id + "share" ? <Loader2 className="size-3.5 animate-spin" /> : <Link2 className="size-3.5" />}
+                  <Button size="sm" variant="ghost" onClick={() => copyLink(r.voucher_no)}
+                    className="h-7 rounded-sm" disabled={!r.voucher_no}
+                    title="Copy private link (Finance only)">
+                    <Link2 className="size-3.5" />
                   </Button>
                   <Button size="sm" variant="ghost" onClick={() => setLogsFor({ id: r.id, voucher: r.voucher_no })}
                     className="h-7 rounded-sm" title="Activity log — who did what, when">
@@ -784,6 +773,10 @@ function ExpensesPage() {
                       }} />
                   </label>
                 )}
+                <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]"
+                  disabled={!r.voucher_no} onClick={() => copyLink(r.voucher_no)}>
+                  <Link2 className="mr-2 size-3.5" /> Copy private link
+                </Button>
                 <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]"
                   onClick={() => setLogsFor({ id: r.id, voucher: r.voucher_no })}>
                   <History className="mr-2 size-3.5" /> Activity log

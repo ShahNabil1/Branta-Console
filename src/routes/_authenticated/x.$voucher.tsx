@@ -1,19 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { z } from "zod";
-import { Loader2, FileText, ExternalLink } from "lucide-react";
-import { getPublicExpense } from "@/lib/expense-share.functions";
+import { Loader2, FileText, ExternalLink, ShieldX } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { getExpenseByLink } from "@/lib/expense-share.functions";
 
-export const Route = createFileRoute("/x/$voucher")({
-  validateSearch: (s: Record<string, unknown>) =>
-    z.object({ t: z.string().optional() }).parse(s),
+export const Route = createFileRoute("/_authenticated/x/$voucher")({
   head: ({ params }) => ({
     meta: [
       { title: `Voucher ${params.voucher} · Branta Tech` },
-      { name: "description", content: `Shared expense voucher ${params.voucher} from Branta Tech.` },
+      { name: "description", content: `Private expense voucher ${params.voucher} from Branta Tech.` },
       { property: "og:title", content: `Voucher ${params.voucher} · Branta Tech` },
-      { property: "og:description", content: `Shared expense voucher ${params.voucher} from Branta Tech.` },
+      { property: "og:description", content: `Private expense voucher ${params.voucher} from Branta Tech.` },
       { property: "og:type", content: "article" },
       { name: "twitter:card", content: "summary" },
       { name: "robots", content: "noindex" },
@@ -28,30 +26,33 @@ function money(n: number, cur: string) {
 
 function SharedVoucherPage() {
   const { voucher } = Route.useParams();
-  const { t } = Route.useSearch();
-  const fetchFn = useServerFn(getPublicExpense);
+  const fetchFn = useServerFn(getExpenseByLink);
   const q = useQuery({
-    queryKey: ["public-expense", voucher, t],
-    queryFn: () => fetchFn({ data: { voucher, token: t ?? "" } }),
-    enabled: !!t,
+    queryKey: ["expense-link", voucher],
+    queryFn: () => fetchFn({ data: { voucher } }),
     retry: false,
   });
 
-  if (!t || q.isError || (q.isFetched && !q.data)) {
+  if (q.isLoading) {
+    return <div className="grid h-72 place-items-center"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>;
+  }
+  if (q.isError || !q.data || q.data.status !== "ok") {
+    const forbidden = q.data?.status === "forbidden";
     return (
       <div className="mx-auto max-w-lg px-6 py-24 text-center">
-        <h1 className="text-[18px] font-semibold">Link not available</h1>
+        <ShieldX className="mx-auto size-8 text-muted-foreground" />
+        <h1 className="mt-3 text-[18px] font-semibold">{forbidden ? "You don't have access" : "Voucher not found"}</h1>
         <p className="mt-1 text-[13px] text-muted-foreground">
-          This voucher link is invalid or sharing has been turned off.
+          {forbidden
+            ? "This expense voucher is visible only to Finance team members. Ask a Finance admin if you need it."
+            : "This voucher doesn't exist or has been deleted."}
         </p>
+        <Link to="/app" className="mt-4 inline-block text-[13px] text-primary underline">Go to dashboard</Link>
       </div>
     );
   }
-  if (q.isLoading || !q.data) {
-    return <div className="grid h-72 place-items-center"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>;
-  }
 
-  const e = q.data;
+  const e = q.data.expense;
   const rows: Array<[string, string]> = [
     ["Date", e.spent_on],
     ["Category", e.category],
