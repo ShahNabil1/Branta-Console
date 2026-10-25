@@ -11,7 +11,6 @@ import {
   isFinanceAdminCheck,
   getSignedExpenseVoucherUrl,
   setExpenseSignedVoucher,
-  setExpenseShare,
   listEmployeesForFinance,
   listInvoices,
   type ExpenseCategory,
@@ -99,7 +98,6 @@ function ExpensesPage() {
   const check = useServerFn(isFinanceAdminCheck);
   const voucherUrlFn = useServerFn(getSignedExpenseVoucherUrl);
   const setSignedFn = useServerFn(setExpenseSignedVoucher);
-  const shareFn = useServerFn(setExpenseShare);
   const confirm = useConfirm();
   const { highlight } = Route.useSearch();
   const [highlightId, setHighlightId] = useState<string | null>(null);
