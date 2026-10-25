@@ -227,7 +227,7 @@ export function AppSidebar() {
           type="button"
           aria-label="Close navigation"
           onClick={() => setMobileOpen(false)}
-          className="fixed inset-0 z-30 bg-foreground/30 md:hidden"
+          className="fixed inset-0 z-30 touch-none overscroll-none bg-foreground/30 md:hidden"
         />
       )}
     <aside
@@ -258,7 +258,7 @@ export function AppSidebar() {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto p-2">
+      <nav className="flex-1 overflow-y-auto overscroll-contain p-2">
         {nav.map((group) => (
           <div key={group.label} className="mb-4">
             <div

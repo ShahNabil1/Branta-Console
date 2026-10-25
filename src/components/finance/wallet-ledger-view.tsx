@@ -179,7 +179,8 @@ export function WalletLedgerView({ userId, own, admin }: { userId?: string; own?
 
       <section className="rounded-md border border-border bg-card">
         <div className="border-b border-border px-4 py-2.5"><h3 className="text-[13px] font-semibold">Withdrawals</h3></div>
-        <table className="w-full text-[12px]">
+        <div className="overflow-x-auto overscroll-x-contain">
+        <table className="w-full min-w-[640px] text-[12px]">
           <thead className="text-left text-[10.5px] uppercase tracking-wider text-muted-foreground">
             <tr><th className="px-3 py-2">Requested</th><th className="px-3 py-2 text-right">Amount</th><th className="px-3 py-2">Method</th><th className="px-3 py-2">Status</th><th className="px-3 py-2">Ref</th><th className="px-3 py-2 text-right" /></tr>
           </thead>
@@ -204,6 +205,7 @@ export function WalletLedgerView({ userId, own, admin }: { userId?: string; own?
             ))}
           </tbody>
         </table>
+        </div>
       </section>
 
       <details className="rounded-md border border-border bg-card">

@@ -118,7 +118,7 @@ function FinanceTab() {
 
   if (q.isLoading) {
     return (
-      <div className="mx-auto max-w-5xl space-y-4 px-6 py-8">
+      <div className="mx-auto w-full min-w-0 max-w-5xl space-y-4 px-3 py-5 sm:px-6 sm:py-8">
         <div className="h-40 animate-pulse rounded-md bg-muted" />
         <div className="h-64 animate-pulse rounded-md bg-muted" />
       </div>
@@ -126,7 +126,7 @@ function FinanceTab() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4 px-6 py-8">
+    <div className="mx-auto w-full min-w-0 max-w-5xl space-y-4 px-3 py-5 sm:px-6 sm:py-8">
       {/* My Wallet — moved from the removed My Wallet tab */}
       <MyWalletPanel />
 

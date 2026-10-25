@@ -213,7 +213,7 @@ function TransfersPage() {
             </div>
           </div>
         ) : (
-          <table className="w-full text-[12.5px]">
+          <div className="overflow-x-auto"><table className="w-full min-w-[640px] text-[12.5px]">
             <thead className="border-b border-border bg-muted/30 text-left text-[11px] uppercase tracking-wide text-muted-foreground">
               <tr>
                 <th className="w-8 px-3 py-2">
@@ -304,7 +304,7 @@ function TransfersPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
     </div>

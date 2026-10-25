@@ -342,7 +342,7 @@ function Leaderboard({
   if (loading) return <LoadingBlock h={160} />;
   if (rows.length === 0) return <EmptyBlock msg="No activity in this window." />;
   return (
-    <div className="overflow-hidden rounded-sm border border-border">
+    <div className="overflow-x-auto rounded-sm border border-border">
       <table className="w-full text-[12px]">
         <thead className="border-b border-border bg-muted/40 text-left text-[10px] uppercase tracking-wider text-muted-foreground">
           <tr>
