@@ -1,8 +1,8 @@
 # Roadmap
 
 ## Monitoring fixes
-- [ ] Verify and correct project title references in wallet/earnings database reports; preserve accounting and access checks.
-- [ ] Apply payment-status filtering to expense exports and run regression tests.
+- [x] Verify and correct project title references in wallet/earnings database reports; preserve accounting and access checks.
+- [x] Apply payment-status filtering to expense exports and run regression tests.
 
 - [x] Salary slip v2: invoice-linked pay lines, barcode + dual signature blocks, sealed copy upload, bank/wallet field
 - [x] Re-link connectors in new workspace: Brevo, Gmail, Google Calendar, Google Docs, Google Sheets, Resend, Telegram

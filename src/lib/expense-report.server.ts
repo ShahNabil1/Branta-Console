@@ -122,7 +122,7 @@ export async function collectExpenses(sb: Sb, f: ExpenseExportInput): Promise<De
 
   const q = f.search.trim().toLowerCase();
   return out.filter((r) => {
-    if (f.status && (r.txnId ? "paid" : "recorded") !== f.status) return false;
+    if (f.status && (r.txnId ? "paid" : "recorded") !== f.status.toLowerCase()) return false;
     if (f.minAmount != null && Math.abs(r.amount) < f.minAmount) return false;
     if (f.maxAmount != null && Math.abs(r.amount) > f.maxAmount) return false;
     if (f.paymentMethod && r.method.toLowerCase() !== f.paymentMethod.toLowerCase()) return false;
