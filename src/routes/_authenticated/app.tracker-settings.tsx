@@ -70,7 +70,7 @@ function Page() {
       for (let i = 0; i < 15; i++) {
         await new Promise((r) => setTimeout(r, 2000));
         const latest = (await listShots({ data: { id: e.id } })).shots[0];
-        if (latest && Date.parse(latest.capturedAt) > Date.parse(before || 0) && Date.parse(latest.capturedAt) >= Date.parse(t0) - 5000) {
+        if (latest && Date.parse(latest.capturedAt) > (before ? Date.parse(before) : 0) && Date.parse(latest.capturedAt) >= Date.parse(t0) - 5000) {
           toast.success(`Screenshot captured for ${e.name}`, { action: { label: "View", onClick: () => setViewing(e) } });
           await q.refetch();
           return;
