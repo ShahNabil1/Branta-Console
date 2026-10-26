@@ -3,10 +3,11 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Camera, Clock, Loader2, MousePointerClick, Search } from "lucide-react";
+import { Camera, Clock, Eye, Loader2, MousePointerClick, PlugZap, Search, Unplug } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { getTrackerOverview, requestManualScreenshot, saveTrackerSettings, type TrackerSettingRow } from "@/lib/tracker-admin.functions";
+import { getEmployeeScreenshots, getTrackerOverview, requestManualScreenshot, saveTrackerSettings, type TrackerSettingRow, type TrackerShot } from "@/lib/tracker-admin.functions";
 
 export const Route = createFileRoute("/_authenticated/app/tracker-settings")({
   head: () => ({
@@ -40,11 +41,14 @@ function Page() {
   const fetch = useServerFn(getTrackerOverview);
   const save = useServerFn(saveTrackerSettings);
   const shoot = useServerFn(requestManualScreenshot);
-  const q = useQuery({ queryKey: ["tracker-settings"], queryFn: () => fetch() });
+  const listShots = useServerFn(getEmployeeScreenshots);
+  const q = useQuery({ queryKey: ["tracker-settings"], queryFn: () => fetch(), refetchInterval: 15_000 });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulk, setBulk] = useState({ interval: 3, idle: 5 });
   const [search, setSearch] = useState("");
   const [busy, setBusy] = useState(false);
+  const [viewing, setViewing] = useState<TrackerSettingRow | null>(null);
+  const [capturing, setCapturing] = useState<string | null>(null);
   const rows = useMemo(() => (q.data?.employees ?? []).filter((e) => (e.name + e.email).toLowerCase().includes(search.toLowerCase())), [q.data, search]);
 
   const apply = async (ids: string[] | "all", intervalMinutes: number, idleMinutes: number) => {
@@ -53,6 +57,31 @@ function Page() {
     catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
   };
   const toggle = (id: string) => setSelected((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+  // Request a capture, then watch for the new screenshot (the extension checks every ~30s).
+  const capture = async (e: TrackerSettingRow) => {
+    setCapturing(e.id);
+    try {
+      const before = (await listShots({ data: { id: e.id } })).shots[0]?.capturedAt ?? "";
+      const t0 = new Date().toISOString();
+      await shoot({ data: { id: e.id } });
+      toast.message(`Capture requested for ${e.name}`, { description: "Waiting for the extension (up to ~60 seconds)…" });
+      for (let i = 0; i < 18; i++) {
+        await new Promise((r) => setTimeout(r, 5000));
+        const latest = (await listShots({ data: { id: e.id } })).shots[0];
+        if (latest && latest.capturedAt > before && latest.capturedAt >= t0.slice(0, 19)) {
+          toast.success(`Screenshot captured for ${e.name}`, { action: { label: "View", onClick: () => setViewing(e) } });
+          await q.refetch();
+          return;
+        }
+      }
+      toast.error("No screenshot arrived", { description: "The employee's browser may be minimized or on a Chrome system page." });
+    } catch (x) { toast.error((x as Error).message); } finally { setCapturing(null); }
+  };
+  const counts = useMemo(() => {
+    const all = q.data?.employees ?? [];
+    return { active: all.filter((e) => e.status === "active").length, idle: all.filter((e) => e.status === "idle").length, setup: all.filter((e) => e.setup).length, total: all.length };
+  }, [q.data]);
 
   return (
     <div className="mx-auto max-w-6xl space-y-4 p-4 md:p-6">
