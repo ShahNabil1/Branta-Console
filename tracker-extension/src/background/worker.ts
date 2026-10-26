@@ -9,13 +9,17 @@ interface BreakRow {id:string;started_at:string;ended_at:string|null}
 interface Settings {screenshots_per_hour:number;is_screenshot_blur_enabled:boolean;break_limit_minutes:number}
 interface ScreenshotRow {id:string;shift_session_id:string;employee_id:string;storage_path:string;captured_at:string;file_size_kb:number;activity_percentage:number|null;blur_status:boolean}
 interface Intent {action:Command;requestId:string;shiftId:string|null}
-interface Local {queue:Interval[];screenshots:ScreenshotRow[];intent:Intent|null;seen:string[];epoch:string;warning:string|null;todayDate?:string;todayWork?:number;todayBreak?:number}
+interface Local {lastShotAt?:number|null;shotsToday?:number;shotsDate?:string;queue:Interval[];screenshots:ScreenshotRow[];intent:Intent|null;seen:string[];epoch:string;warning:string|null;todayDate?:string;todayWork?:number;todayBreak?:number}
 const fresh=():Local=>({queue:[],screenshots:[],intent:null,seen:[],epoch:crypto.randomUUID(),warning:null});
 let local=fresh(),employee:Employee|null=null,owner:string|null=null,shift:ShiftRow|null=null,openBreak:BreakRow|null=null;
 let settings:Settings={screenshots_per_hour:0,is_screenshot_blur_enabled:false,break_limit_minutes:60};
 let observation:Observation|null=null;let lastSynced:number|null=null;let connected=false;let initial:Promise<void>|null=null;
 let serial=Promise.resolve();
+let pendingTakeover=false;let signedOutNotice:string|null=null;let lastDeviceBeat=0;
+async function deviceId():Promise<string>{const v=await chrome.storage.local.get('tracker-device-id');if(typeof v['tracker-device-id']==='string')return v['tracker-device-id'];const id=crypto.randomUUID();await chrome.storage.local.set({'tracker-device-id':id});return id;}
+const DEVICE_FRESH_MS=5*60_000;
 function exclusive<T>(task:()=>Promise<T>):Promise<T>{const run=serial.then(task,task);serial=run.then(()=>{},()=>{});return run;}
+class TakenOver extends Error{}
 function check(error:unknown){if(error)throw Error('Tracker request failed');}
 async function persist(){if(owner)await chrome.storage.local.set({[`tracker-state:${owner}`]:local});}
 async function resetCounters(){local.epoch=crypto.randomUUID();local.seen=[];await persist();
@@ -48,9 +52,12 @@ async function initialize(){if(initial)return initial;initial=(async()=>{
 async function reconcile(){
   const session=await validSession();if(!session||session.user.id!==owner)throw Error('Sign-in required');
   const verified=await supabase.auth.getUser();check(verified.error);if(!verified.data.user||verified.data.user.id!==owner)throw Error('Session invalid');
-  const profile=await supabase.from('profiles').select('id,name,email,employee_code,job_role,is_active').eq('id',owner!).single();check(profile.error);
+  {const meta=(verified.data.user.user_metadata??{}) as Record<string,unknown>;const mine=await deviceId();
+   if(typeof meta.tracker_device==='string'&&meta.tracker_device!==mine){throw new TakenOver();}
+   if(Date.now()-lastDeviceBeat>120_000){lastDeviceBeat=Date.now();await supabase.auth.updateUser({data:{tracker_device:mine,tracker_seen_at:new Date().toISOString()}}).catch(()=>{});}}
+  const profile=await supabase.from('profiles').select('id,name,email,employee_code,job_role,avatar_url,is_active').eq('id',owner!).single();check(profile.error);
   if(!profile.data||!profile.data.is_active)throw Error('Employee is inactive');
-  employee={id:profile.data.id,name:profile.data.name??'Branta employee',email:profile.data.email,code:profile.data.employee_code??'',role:profile.data.job_role??'Team member'};
+  employee={id:profile.data.id,name:profile.data.name??'Branta employee',email:profile.data.email,code:profile.data.employee_code??'',role:profile.data.job_role??'Team member',avatar:typeof profile.data.avatar_url==='string'&&profile.data.avatar_url.startsWith('https://')?profile.data.avatar_url:null};
   const config=await supabase.from('employee_tracker_settings').select('screenshots_per_hour,is_screenshot_blur_enabled,break_limit_minutes').eq('employee_id',owner!).maybeSingle();check(config.error);
   settings=config.data?{screenshots_per_hour:Math.max(0,Math.min(60,Number(config.data.screenshots_per_hour??0))),is_screenshot_blur_enabled:config.data.is_screenshot_blur_enabled===true,break_limit_minutes:Math.max(0,Number(config.data.break_limit_minutes??60))}:{screenshots_per_hour:3,is_screenshot_blur_enabled:false,break_limit_minutes:60};
   const active=await supabase.from('shift_sessions').select('*').eq('employee_id',owner!).eq('status','active').is('check_out_at',null).maybeSingle();check(active.error);
@@ -64,6 +71,8 @@ async function flush(){
   if(!owner)return;await validSession();
   while(local.queue.length){const item=local.queue[0]!;
     const result=await supabase.rpc('tracker_record_interval',{p_id:item.id,p_shift_id:item.shift_id,p_start:item.interval_start,p_end:item.interval_end,p_work_ms:item.work_ms,p_idle_ms:item.idle_ms,p_clicks:item.mouse_clicks,p_keys:item.keystrokes_count});
+    // An interval already covered by another browser (session handover) or a closed shift is dropped, never retried forever.
+    if(result.error&&/Overlapping interval|Shift is closed|Invalid interval time/.test(result.error.message??'')){local.queue.shift();await persist();continue;}
     check(result.error);local.queue.shift();await persist();}
   while(local.screenshots.length){const item=local.screenshots[0]!;
     const result=await supabase.from('shift_screenshots').insert(item);
@@ -86,14 +95,14 @@ async function mode():Promise<ObservedMode>{
 }
 async function tick(){
   const next=await mode();if(next!==observation?.mode)await resetCounters();await observe(next);
-  try{await flush();await reconcile();}catch{connected=false;}
+  try{await flush();await reconcile();}catch(e){if(e instanceof TakenOver){await forcedLogout();return;}connected=false;}
   // A failed verification never extrapolates or captures a screenshot.
   if(!connected){observation=null;await chrome.storage.session.remove('tracker-observation');}
   await badge();
 }
 async function badge(){await chrome.action.setBadgeText({text:!employee?'':!connected?'!':openBreak?'Ⅱ':observation?.mode==='idle'?'IDLE':shift?'ON':''});await chrome.action.setBadgeBackgroundColor({color:connected?'#E56A17':'#6B7280'});}
 async function snapshot():Promise<Snapshot>{
-  if(!employee)return {...EMPTY};
+  if(!employee)return {...EMPTY,pendingTakeover,notice:signedOutNotice};
   const bounds=dayBounds(Date.now());
   let todayWorked=local.todayDate===dhakaDate(Date.now())?local.todayWork??0:0,todayBreak=local.todayDate===dhakaDate(Date.now())?local.todayBreak??0:0;
   if(connected){
@@ -106,7 +115,7 @@ async function snapshot():Promise<Snapshot>{
   const work=(shift?.total_worked_seconds??0)+Math.floor(pending.reduce((n,i)=>n+i.work_ms,0)/1000);
   const breakSeconds=(shift?.total_break_seconds??0)+(openBreak?Math.max(0,Math.floor((Date.now()-Date.parse(openBreak.started_at))/1000)):0);
   const status=!shift?'completed':openBreak?'break':!connected||observation?.mode!=='active'?'away':'active';
-  return {employee,shift:shift?{id:shift.id,name:'Regular shift',checkedInAt:Date.parse(shift.check_in_at),status,workedSeconds:work,breakSeconds,updatedAt:Date.now()}:null,todayWorkedSeconds:todayWorked+Math.floor(todayPending.reduce((n,i)=>n+i.work_ms,0)/1000),todayBreakSeconds:todayBreak,breakLimitSeconds:settings.break_limit_minutes*60,connection:connected?'connected':'offline',lastSyncedAt:lastSynced,notice:local.warning};
+  return {employee,shift:shift?{id:shift.id,name:'Regular shift',checkedInAt:Date.parse(shift.check_in_at),status,workedSeconds:work,breakSeconds,updatedAt:Date.now()}:null,todayWorkedSeconds:todayWorked+Math.floor(todayPending.reduce((n,i)=>n+i.work_ms,0)/1000),todayBreakSeconds:todayBreak,breakLimitSeconds:settings.break_limit_minutes*60,connection:connected?'connected':'offline',lastSyncedAt:lastSynced,notice:local.warning,lastScreenshotAt:local.lastShotAt??null,screenshotsToday:local.shotsDate===dhakaDate(Date.now())?local.shotsToday??0:0};
 }
 async function login(){
   if(owner&&employee)throw Error('Log out before changing accounts');
@@ -141,7 +150,7 @@ async function transition(command:Command){
 }
 async function scheduleScreenshot(){
   if(!shift||openBreak||!employee||!connected||await mode()!=='active'||!await chrome.permissions.contains({origins:['<all_urls>']})){await chrome.alarms.clear('tracker-screenshot');return;}
-  const delay=screenshotDelay(settings.screenshots_per_hour);if(delay===null){await chrome.alarms.clear('tracker-screenshot');return;}
+  let delay=screenshotDelay(settings.screenshots_per_hour);if(delay!==null&&!local.lastShotAt)delay=Math.min(delay,60_000+Math.random()*120_000);if(delay===null){await chrome.alarms.clear('tracker-screenshot');return;}
   if(!await chrome.alarms.get('tracker-screenshot'))await chrome.alarms.create('tracker-screenshot',{when:Date.now()+delay});
 }
 async function capture(){
@@ -167,7 +176,7 @@ async function capture(){
     if(await mode()!=='active')return;
     const bytes=Uint8Array.from(atob(image.data),c=>c.charCodeAt(0));if(bytes.length!==image.size)throw Error('Image size mismatch');
     const uploaded=await fetch(upload.toString(),{method:'PUT',headers:{'Content-Type':'image/webp'},body:bytes,signal:AbortSignal.timeout(15000)});if(!uploaded.ok)throw Error('R2 upload failed');
-    local.screenshots.push({id:crypto.randomUUID(),shift_session_id:activeShift,employee_id:owner!,storage_path:key,captured_at:capturedAt,file_size_kb:Math.ceil(bytes.length/1024),activity_percentage:null,blur_status:settings.is_screenshot_blur_enabled});await persist();await flush();local.warning=null;
+    local.screenshots.push({id:crypto.randomUUID(),shift_session_id:activeShift,employee_id:owner!,storage_path:key,captured_at:capturedAt,file_size_kb:Math.ceil(bytes.length/1024),activity_percentage:null,blur_status:settings.is_screenshot_blur_enabled});const today=dhakaDate(Date.now());local.shotsToday=(local.shotsDate===today?local.shotsToday??0:0)+1;local.shotsDate=today;local.lastShotAt=Date.now();await persist();await flush();local.warning=null;
   }catch{local.warning='A screenshot could not be uploaded. The tracker will retry on its next scheduled capture.';await persist();}
   finally{await chrome.alarms.clear('tracker-screenshot');await scheduleScreenshot();}
 }
