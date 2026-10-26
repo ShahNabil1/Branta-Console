@@ -45,7 +45,7 @@ export const runtimeAdapter:TrackerAdapter={async execute(command) {
 }};
 export function createDemoAdapter():TrackerAdapter {
   const now=Date.now();
-  let state:Snapshot={employee:{id:'demo',name:'Demo Employee',email:'demo@brantatech.com',code:'BTE-DEMO',role:'Creative team'},shift:{id:'demo-shift',name:'Regular shift',checkedInAt:now-11432000,status:'active',workedSeconds:10532,breakSeconds:900,updatedAt:now},todayWorkedSeconds:10532,todayBreakSeconds:900,breakLimitSeconds:3600,connection:'connected',lastSyncedAt:now};
+  let state:Snapshot={employee:{id:'demo',name:'Demo Employee',email:'demo@brantatech.com',code:'BTE-DEMO',role:'Creative Team'},shift:{id:'demo-shift',name:'Regular Shift',checkedInAt:now-11432000,status:'active',workedSeconds:10532,breakSeconds:900,updatedAt:now},todayWorkedSeconds:10532,todayBreakSeconds:900,breakLimitSeconds:3600,connection:'connected',lastSyncedAt:now};
   return {async execute(command) {
     const tick=Date.now(); const shift=state.shift;
     if(command==='LOG_OUT') state={...EMPTY};
