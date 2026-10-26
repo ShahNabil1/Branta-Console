@@ -10,7 +10,7 @@ interface BreakRow {id:string;started_at:string;ended_at:string|null}
 interface Settings {screenshots_per_hour:number;is_screenshot_blur_enabled:boolean;break_limit_minutes:number}
 interface ScreenshotRow {id:string;shift_session_id:string;employee_id:string;storage_path:string;captured_at:string;file_size_kb:number;activity_percentage:number|null;blur_status:boolean}
 interface Intent {action:Command;requestId:string;shiftId:string|null}
-interface Local {lastShotAt?:number|null;shotsToday?:number;shotsDate?:string;queue:Interval[];screenshots:ScreenshotRow[];intent:Intent|null;seen:string[];epoch:string;warning:string|null;todayDate?:string;todayWork?:number;todayBreak?:number}
+interface Local {lastShotAt?:number|null;shotsToday?:number;shotsDate?:string;queue:Interval[];screenshots:ScreenshotRow[];intent:Intent|null;seen:string[];epoch:string;warning:string|null;todayDate?:string;todayWork?:number;todayBreak?:number;manualReq?:string}
 const fresh=():Local=>({queue:[],screenshots:[],intent:null,seen:[],epoch:crypto.randomUUID(),warning:null});
 let local=fresh(),employee:Employee|null=null,owner:string|null=null,shift:ShiftRow|null=null,openBreak:BreakRow|null=null;
 let settings:Settings={screenshots_per_hour:0,is_screenshot_blur_enabled:false,break_limit_minutes:60};
@@ -195,10 +195,11 @@ async function scheduleScreenshot(){
 // Retry soon (instead of waiting a full random interval) when the moment simply wasn't capturable.
 let retrySoon=false;
 function skip(reason:string){shotStatus=reason;retrySoon=true;console.warn('[branta-tracker] screenshot skipped:',reason);}
+let forceShot=false;
 async function capture(){
   retrySoon=false;
   try{
-    await reconcile();if(!shift||openBreak||!employee||!connected||settings.screenshots_per_hour<=0||await mode()!=='active')return;
+    await reconcile();if(!shift||openBreak||!employee||!connected||settings.screenshots_per_hour<=0||(!forceShot&&await mode()!=='active'))return;
     // Use the most recently used normal Chrome window; it does not need OS focus (employee may be in another app).
     const windows=await chrome.windows.getAll({windowTypes:['normal']});
     const last=await chrome.windows.getLastFocused({windowTypes:['normal']}).catch(()=>null);
@@ -210,12 +211,12 @@ async function capture(){
     const activeShift=shift.id;const capturedAt=new Date().toISOString();
     let raw:string;
     try{raw=await chrome.tabs.captureVisibleTab(win.id,{format:'jpeg',quality:75});}catch(e){skip('Chrome blocked the capture');console.warn('[branta-tracker] capture',e);return;}
-    if(await mode()!=='active')return;
+    if((!forceShot&&await mode()!=='active'))return;
     if(!await chrome.offscreen.hasDocument())await chrome.offscreen.createDocument({url:'offscreen.html',reasons:[chrome.offscreen.Reason.BLOBS],justification:'Compress and optionally blur consented work screenshots before upload.'});
     let image:{ok:boolean;data:string;size:number};
     try{image=await chrome.runtime.sendMessage({target:'branta-offscreen',command:'COMPRESS',dataUrl:raw,blur:settings.is_screenshot_blur_enabled});}finally{await chrome.offscreen.closeDocument().catch(()=>{});}
     if(!image?.ok||typeof image.data!=='string'||image.size>100_000||image.size<=0)throw Error('Image encoding failed');
-    const session=await validSession();if(!session||session.user.id!==owner||await mode()!=='active')return;
+    const session=await validSession();if(!session||session.user.id!==owner||(!forceShot&&await mode()!=='active'))return;
     const auth=await fetch(`${SUPABASE_URL}/functions/v1/tracker-upload-auth`,{method:'POST',headers:{Authorization:`Bearer ${session.access_token}`,apikey:SUPABASE_PUBLISHABLE_KEY,'Content-Type':'application/json'},body:JSON.stringify({employee_id:owner,timestamp:capturedAt,content_type:'image/webp'}),signal:AbortSignal.timeout(15000)});
     if(!auth.ok)throw Error(`Upload authorization failed (${auth.status})`);const signed=await auth.json();const upload=new URL(signed.upload_url);
     const key=`tracker/screenshots/${owner}/${capturedAt.slice(0,10)}/${capturedAt}.webp`;
@@ -255,7 +256,7 @@ chrome.runtime.onMessage.addListener((message,sender,respond)=>{
     return {protocol:1,snapshot:await snapshot(),warning:local.warning};
   }).then(respond).catch(()=>respond({protocol:1,error:'Tracker action failed. Check your connection, session and Console SSO configuration.'}));return true;
 });
-chrome.alarms.onAlarm.addListener(alarm=>{void exclusive(async()=>{await initialize();if(alarm.name==='tracker-screenshot')await capture();else if(alarm.name==='tracker-heartbeat'){await tick();await chrome.idle.setDetectionInterval(idleSeconds);if(manualPending){manualPending=false;await chrome.alarms.clear('tracker-screenshot');await capture();}else await scheduleScreenshot();}}).catch(()=>{connected=false;});});
+chrome.alarms.onAlarm.addListener(alarm=>{void exclusive(async()=>{await initialize();if(alarm.name==='tracker-screenshot')await capture();else if(alarm.name==='tracker-heartbeat'){await tick();await chrome.idle.setDetectionInterval(idleSeconds);if(manualPending){manualPending=false;await chrome.alarms.clear('tracker-screenshot');forceShot=true;try{await capture();}finally{forceShot=false;}}else await scheduleScreenshot();}}).catch(()=>{connected=false;});});
 chrome.idle.onStateChanged.addListener(state=>{const at=Date.now();void exclusive(async()=>{await initialize();await observe(openBreak?'break':!shift?'stopped':state==='active'?'active':'idle',at);await resetCounters();await badge();if(state!=='active')await chrome.alarms.clear('tracker-screenshot');else await scheduleScreenshot();}).catch(()=>{observation=null;connected=false;});});
 chrome.runtime.onStartup.addListener(()=>{void exclusive(async()=>{observation=null;await chrome.storage.session.remove('tracker-observation');await initialize();}).catch(()=>{});});
 chrome.runtime.onInstalled.addListener(()=>{void exclusive(async()=>{await initialize();}).catch(()=>{});});

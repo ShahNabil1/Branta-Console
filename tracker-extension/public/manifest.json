@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Branta Tracker",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxdizmZH68rSZ3N9cC/jW36Sz6j6SlwvI4/IsawZ6NJy4qUijNZueJG6fIG2yrgxQuFN/qLu6J20SN+TnxntwYDM0X9RxyN8W3WzMkOE833+mv1xhOIRj5k8qTTEombjc3OH7doU2A5TLEX4W5HdAL7GBVcw/wP5Jgocq5qOzsdhm7wVtnQ1HInOojUG2uzbGv/PUdG1NcJ/5PIddd3gHXg2L0qkCJmUvOgtgzhF6Y5VEiZQ2tvs6t+XSmcd3JOMs4D3dvXs92YGzNMoISZe8hKIHF7hlSnoAqD/ASCdvRemIaqlXfVFiH2XJ0H77PERQoL/fj72UdWi4uuY9EBb6XQIDAQAB",
   "description": "Branta Tracker keeps your Shift honest and effortless — one-click Check In, breaks and Check Out, live work time, punctuality and overtime, and privacy-first activity tracking for the Branta Tech team.",
   "minimum_chrome_version": "120",
