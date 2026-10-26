@@ -24,6 +24,7 @@ import { Route as AuthenticatedAppNotificationsRouteImport } from './routes/_aut
 import { Route as AuthenticatedAppOperationsRouteImport } from './routes/_authenticated/app.operations'
 import { Route as AuthenticatedAppProfileRouteImport } from './routes/_authenticated/app.profile'
 import { Route as AuthenticatedAppSettingsRouteImport } from './routes/_authenticated/app.settings'
+import { Route as AuthenticatedAppTrackerSettingsRouteImport } from './routes/_authenticated/app.tracker-settings'
 import { Route as AuthenticatedAppTransfersRouteImport } from './routes/_authenticated/app.transfers'
 import { Route as AuthenticatedOnboardingPasswordRouteImport } from './routes/_authenticated/onboarding.password'
 import { Route as AuthenticatedOnboardingTelegramRouteImport } from './routes/_authenticated/onboarding.telegram'
@@ -159,6 +160,12 @@ const AuthenticatedAppSettingsRoute =
   AuthenticatedAppSettingsRouteImport.update({
     id: '/settings',
     path: '/settings',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppTrackerSettingsRoute =
+  AuthenticatedAppTrackerSettingsRouteImport.update({
+    id: '/tracker-settings',
+    path: '/tracker-settings',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
 const AuthenticatedAppTransfersRoute =
@@ -507,6 +514,7 @@ export interface FileRoutesByFullPath {
   '/app/operations': typeof AuthenticatedAppOperationsRoute
   '/app/profile': typeof AuthenticatedAppProfileRouteWithChildren
   '/app/settings': typeof AuthenticatedAppSettingsRoute
+  '/app/tracker-settings': typeof AuthenticatedAppTrackerSettingsRoute
   '/app/transfers': typeof AuthenticatedAppTransfersRoute
   '/onboarding/password': typeof AuthenticatedOnboardingPasswordRoute
   '/onboarding/telegram': typeof AuthenticatedOnboardingTelegramRoute
@@ -574,6 +582,7 @@ export interface FileRoutesByTo {
   '/app/notifications': typeof AuthenticatedAppNotificationsRoute
   '/app/operations': typeof AuthenticatedAppOperationsRoute
   '/app/settings': typeof AuthenticatedAppSettingsRoute
+  '/app/tracker-settings': typeof AuthenticatedAppTrackerSettingsRoute
   '/app/transfers': typeof AuthenticatedAppTransfersRoute
   '/onboarding/password': typeof AuthenticatedOnboardingPasswordRoute
   '/onboarding/telegram': typeof AuthenticatedOnboardingTelegramRoute
@@ -648,6 +657,7 @@ export interface FileRoutesById {
   '/_authenticated/app/operations': typeof AuthenticatedAppOperationsRoute
   '/_authenticated/app/profile': typeof AuthenticatedAppProfileRouteWithChildren
   '/_authenticated/app/settings': typeof AuthenticatedAppSettingsRoute
+  '/_authenticated/app/tracker-settings': typeof AuthenticatedAppTrackerSettingsRoute
   '/_authenticated/app/transfers': typeof AuthenticatedAppTransfersRoute
   '/_authenticated/onboarding/password': typeof AuthenticatedOnboardingPasswordRoute
   '/_authenticated/onboarding/telegram': typeof AuthenticatedOnboardingTelegramRoute
@@ -722,6 +732,7 @@ export interface FileRouteTypes {
     | '/app/operations'
     | '/app/profile'
     | '/app/settings'
+    | '/app/tracker-settings'
     | '/app/transfers'
     | '/onboarding/password'
     | '/onboarding/telegram'
@@ -789,6 +800,7 @@ export interface FileRouteTypes {
     | '/app/notifications'
     | '/app/operations'
     | '/app/settings'
+    | '/app/tracker-settings'
     | '/app/transfers'
     | '/onboarding/password'
     | '/onboarding/telegram'
@@ -862,6 +874,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/operations'
     | '/_authenticated/app/profile'
     | '/_authenticated/app/settings'
+    | '/_authenticated/app/tracker-settings'
     | '/_authenticated/app/transfers'
     | '/_authenticated/onboarding/password'
     | '/_authenticated/onboarding/telegram'
@@ -1042,6 +1055,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/app/settings'
       preLoaderRoute: typeof AuthenticatedAppSettingsRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/tracker-settings': {
+      id: '/_authenticated/app/tracker-settings'
+      path: '/tracker-settings'
+      fullPath: '/app/tracker-settings'
+      preLoaderRoute: typeof AuthenticatedAppTrackerSettingsRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
     '/_authenticated/app/transfers': {
@@ -1590,6 +1610,7 @@ interface AuthenticatedAppRouteChildren {
   AuthenticatedAppOperationsRoute: typeof AuthenticatedAppOperationsRoute
   AuthenticatedAppProfileRoute: typeof AuthenticatedAppProfileRouteWithChildren
   AuthenticatedAppSettingsRoute: typeof AuthenticatedAppSettingsRoute
+  AuthenticatedAppTrackerSettingsRoute: typeof AuthenticatedAppTrackerSettingsRoute
   AuthenticatedAppTransfersRoute: typeof AuthenticatedAppTransfersRoute
   AuthenticatedAppIndexRoute: typeof AuthenticatedAppIndexRoute
   AuthenticatedAppEmployeesUserIdRoute: typeof AuthenticatedAppEmployeesUserIdRoute
@@ -1609,6 +1630,7 @@ const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
   AuthenticatedAppOperationsRoute: AuthenticatedAppOperationsRoute,
   AuthenticatedAppProfileRoute: AuthenticatedAppProfileRouteWithChildren,
   AuthenticatedAppSettingsRoute: AuthenticatedAppSettingsRoute,
+  AuthenticatedAppTrackerSettingsRoute: AuthenticatedAppTrackerSettingsRoute,
   AuthenticatedAppTransfersRoute: AuthenticatedAppTransfersRoute,
   AuthenticatedAppIndexRoute: AuthenticatedAppIndexRoute,
   AuthenticatedAppEmployeesUserIdRoute: AuthenticatedAppEmployeesUserIdRoute,
