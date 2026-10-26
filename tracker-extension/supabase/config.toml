@@ -1,0 +1,4 @@
+project_id = "vvkzkmvsbmfczauiyaoh"
+
+[functions.tracker-upload-auth]
+verify_jwt = true

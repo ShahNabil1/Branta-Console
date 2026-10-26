@@ -1,0 +1,47 @@
+{
+  "manifest_version": 3,
+  "name": "Branta Tracker",
+  "version": "0.5.0",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxdizmZH68rSZ3N9cC/jW36Sz6j6SlwvI4/IsawZ6NJy4qUijNZueJG6fIG2yrgxQuFN/qLu6J20SN+TnxntwYDM0X9RxyN8W3WzMkOE833+mv1xhOIRj5k8qTTEombjc3OH7doU2A5TLEX4W5HdAL7GBVcw/wP5Jgocq5qOzsdhm7wVtnQ1HInOojUG2uzbGv/PUdG1NcJ/5PIddd3gHXg2L0qkCJmUvOgtgzhF6Y5VEiZQ2tvs6t+XSmcd3JOMs4D3dvXs92YGzNMoISZe8hKIHF7hlSnoAqD/ASCdvRemIaqlXfVFiH2XJ0H77PERQoL/fj72UdWi4uuY9EBb6XQIDAQAB",
+  "description": "Branta Tracker — shift, break and activity tracking for Branta Tech employees.",
+  "minimum_chrome_version": "120",
+  "permissions": [
+    "sidePanel",
+    "alarms",
+    "storage",
+    "idle",
+    "offscreen",
+    "identity",
+    "activeTab",
+    "scripting"
+  ],
+  "action": {
+    "default_title": "Branta Tracker",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "assets/icon-16.png",
+      "32": "assets/icon-32.png"
+    }
+  },
+  "icons": {
+    "16": "assets/icon-16.png",
+    "32": "assets/icon-32.png",
+    "48": "assets/icon-48.png",
+    "128": "assets/icon-128.png"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'; style-src 'self'; font-src 'self'; img-src 'self' data: blob: https://console-cdn.brantatech.com; connect-src 'self' data: blob: https://vvkzkmvsbmfczauiyaoh.supabase.co https://d3f7ab4cbf9f6fd72a34e3c6c455f15f.r2.cloudflarestorage.com; base-uri 'none'; form-action 'none'"
+  },
+  "host_permissions": [
+    "https://vvkzkmvsbmfczauiyaoh.supabase.co/*",
+    "https://d3f7ab4cbf9f6fd72a34e3c6c455f15f.r2.cloudflarestorage.com/*",
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  }
+}
