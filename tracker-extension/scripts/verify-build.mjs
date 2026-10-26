@@ -2,7 +2,7 @@ import { readFileSync,existsSync,readdirSync } from 'node:fs';
 import assert from 'node:assert/strict';
 const manifest=JSON.parse(readFileSync('dist/manifest.json','utf8'));
 assert.equal(manifest.manifest_version,3);
-assert.equal(manifest.version,'0.7.0');
+assert.equal(manifest.version,'0.7.1');
 for(const permission of ['sidePanel','alarms','storage','idle','offscreen','identity','activeTab','scripting'])assert(manifest.permissions.includes(permission));
 assert(existsSync('dist/background.js'));assert(existsSync('dist/counters.js'));assert(existsSync('dist/offscreen.html'));
 assert.equal(manifest.background.service_worker,'background.js');
