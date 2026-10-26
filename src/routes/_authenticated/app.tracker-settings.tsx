@@ -3,10 +3,11 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Camera, Clock, Loader2, MousePointerClick, Search } from "lucide-react";
+import { Camera, Clock, Eye, Loader2, MousePointerClick, PlugZap, Search, Unplug } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { getTrackerOverview, requestManualScreenshot, saveTrackerSettings, type TrackerSettingRow } from "@/lib/tracker-admin.functions";
+import { getEmployeeScreenshots, getTrackerOverview, requestManualScreenshot, saveTrackerSettings, type TrackerSettingRow, type TrackerShot } from "@/lib/tracker-admin.functions";
 
 export const Route = createFileRoute("/_authenticated/app/tracker-settings")({
   head: () => ({
@@ -40,11 +41,14 @@ function Page() {
   const fetch = useServerFn(getTrackerOverview);
   const save = useServerFn(saveTrackerSettings);
   const shoot = useServerFn(requestManualScreenshot);
-  const q = useQuery({ queryKey: ["tracker-settings"], queryFn: () => fetch() });
+  const listShots = useServerFn(getEmployeeScreenshots);
+  const q = useQuery({ queryKey: ["tracker-settings"], queryFn: () => fetch(), refetchInterval: 15_000 });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulk, setBulk] = useState({ interval: 3, idle: 5 });
   const [search, setSearch] = useState("");
   const [busy, setBusy] = useState(false);
+  const [viewing, setViewing] = useState<TrackerSettingRow | null>(null);
+  const [capturing, setCapturing] = useState<string | null>(null);
   const rows = useMemo(() => (q.data?.employees ?? []).filter((e) => (e.name + e.email).toLowerCase().includes(search.toLowerCase())), [q.data, search]);
 
   const apply = async (ids: string[] | "all", intervalMinutes: number, idleMinutes: number) => {
@@ -54,11 +58,36 @@ function Page() {
   };
   const toggle = (id: string) => setSelected((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
+  // Request a capture, then watch for the new screenshot (the extension checks every ~30s).
+  const capture = async (e: TrackerSettingRow) => {
+    setCapturing(e.id);
+    try {
+      const before = (await listShots({ data: { id: e.id } })).shots[0]?.capturedAt ?? "";
+      const t0 = new Date().toISOString();
+      await shoot({ data: { id: e.id } });
+      toast.message(`Capture requested for ${e.name}`, { description: "Waiting for the extension (up to ~60 seconds)…" });
+      for (let i = 0; i < 18; i++) {
+        await new Promise((r) => setTimeout(r, 5000));
+        const latest = (await listShots({ data: { id: e.id } })).shots[0];
+        if (latest && latest.capturedAt > before && latest.capturedAt >= t0.slice(0, 19)) {
+          toast.success(`Screenshot captured for ${e.name}`, { action: { label: "View", onClick: () => setViewing(e) } });
+          await q.refetch();
+          return;
+        }
+      }
+      toast.error("No screenshot arrived", { description: "The employee's browser may be minimized or on a Chrome system page." });
+    } catch (x) { toast.error((x as Error).message); } finally { setCapturing(null); }
+  };
+  const counts = useMemo(() => {
+    const all = q.data?.employees ?? [];
+    return { active: all.filter((e) => e.status === "active").length, idle: all.filter((e) => e.status === "idle").length, setup: all.filter((e) => e.setup).length, total: all.length };
+  }, [q.data]);
+
   return (
     <div className="mx-auto max-w-6xl space-y-4 p-4 md:p-6">
       <div>
         <h1 className="text-lg font-semibold tracking-tight">Extension Settings</h1>
-        <p className="text-xs text-muted-foreground">Branta Tracker rules per employee. New values apply at the employee's next Check In.</p>
+        <p className="text-xs text-muted-foreground">Branta Tracker rules per employee · <span className="font-mono">{counts.active}</span> Active Now · <span className="font-mono">{counts.idle}</span> Idle · <span className="font-mono">{counts.setup}/{counts.total}</span> Setup Done</p>
       </div>
 
       <section className="rounded border bg-card p-4">
@@ -86,37 +115,105 @@ function Page() {
         : <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{rows.map((e) => (
             <EmployeeCard key={e.id} e={e} checked={selected.has(e.id)} onCheck={() => toggle(e.id)}
               onSave={(i, d) => apply([e.id], i, d)}
-              onShot={async () => { try { await shoot({ data: { id: e.id } }); toast.success(`Capture requested for ${e.name}`, { description: "Taken within ~30 seconds if the extension is on and checked in." }); } catch (x) { toast.error((x as Error).message); } }} />
+              onView={() => setViewing(e)}
+              onShot={() => capture(e)} capturing={capturing === e.id} />
           ))}</div>}
+      <ShotsDialog employee={viewing} onClose={() => setViewing(null)} />
     </div>
   );
 }
 
-function EmployeeCard({ e, checked, onCheck, onSave, onShot }: { e: TrackerSettingRow; checked: boolean; onCheck: () => void; onSave: (i: number, d: number) => void; onShot: () => void }) {
+const STATUS = {
+  active: { label: "Active Now", dot: "bg-[hsl(142_70%_45%)]", text: "text-[hsl(142_70%_35%)]" },
+  idle: { label: "Idle", dot: "bg-[hsl(38_92%_50%)]", text: "text-[hsl(38_92%_40%)]" },
+  inactive: { label: "Inactive", dot: "bg-muted-foreground/50", text: "text-muted-foreground" },
+} as const;
+
+const dhaka = (iso: string) => new Date(iso).toLocaleString("en-GB", { timeZone: "Asia/Dhaka", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true });
+const ago = (iso: string | null) => {
+  if (!iso) return "Never";
+  const m = Math.floor((Date.now() - Date.parse(iso)) / 60000);
+  return m < 1 ? "just now" : m < 60 ? `${m}m ago` : m < 1440 ? `${Math.floor(m / 60)}h ago` : `${Math.floor(m / 1440)}d ago`;
+};
+
+function EmployeeCard({ e, checked, onCheck, onSave, onShot, onView, capturing }: { e: TrackerSettingRow; checked: boolean; onCheck: () => void; onSave: (i: number, d: number) => void; onShot: () => void; onView: () => void; capturing: boolean }) {
   const [interval, setInterval] = useState(e.intervalMinutes);
   const [idle, setIdle] = useState(e.idleMinutes);
   const dirty = interval !== e.intervalMinutes || idle !== e.idleMinutes;
+  const st = STATUS[e.status];
   return (
     <div className={cn("rounded border bg-card p-4 transition-colors", checked && "border-primary ring-1 ring-primary/30", !e.active && "opacity-60")}>
       <div className="flex items-start gap-3">
         <input type="checkbox" checked={checked} onChange={onCheck} className="mt-1 accent-primary" aria-label={`Select ${e.name}`} />
-        {e.avatar ? <img src={e.avatar} alt="" className="size-10 rounded-full object-cover" />
-          : <div className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">{initials(e.name)}</div>}
+        <div className="relative shrink-0">
+          {e.avatar ? <img src={e.avatar} alt="" className="size-10 rounded-full object-cover" />
+            : <div className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">{initials(e.name)}</div>}
+          <span className={cn("absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-card", st.dot, e.status === "active" && "animate-pulse")} />
+        </div>
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-semibold">{e.name}</div>
           <div className="truncate text-xs text-muted-foreground">{e.email}</div>
-          {e.role && <span className="mt-1 inline-block rounded border bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">{e.role}</span>}
+          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+            <span className={cn("inline-flex items-center gap-1 text-[11px] font-medium", st.text)}><span className={cn("size-1.5 rounded-full", st.dot)} />{st.label}</span>
+            <span className="text-[10px] text-muted-foreground">· {ago(e.lastSeenAt)}</span>
+          </div>
         </div>
-        {!e.active && <span className="rounded bg-destructive/10 px-1.5 py-0.5 text-[10px] font-medium text-destructive">Deactive</span>}
+        <div className="flex flex-col items-end gap-1">
+          {!e.active && <span className="rounded bg-destructive/10 px-1.5 py-0.5 text-[10px] font-medium text-destructive">Deactive</span>}
+          {e.setup
+            ? <span className="inline-flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-[hsl(142_70%_35%)]"><PlugZap className="size-3" />Setup Done</span>
+            : <span className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"><Unplug className="size-3" />Not Setup</span>}
+        </div>
       </div>
       <div className="mt-4 flex items-end gap-3">
         <NumField label="Screenshot" icon={<Camera className="size-3" />} value={interval} onChange={setInterval} />
         <NumField label="Idle after" icon={<Clock className="size-3" />} value={idle} onChange={setIdle} />
+        <Button size="sm" className="ml-auto" disabled={!dirty} onClick={() => onSave(interval, idle)}>Save</Button>
       </div>
       <div className="mt-4 flex gap-2 border-t pt-3">
-        <Button size="sm" variant="outline" className="flex-1" disabled={!e.active} onClick={onShot}><MousePointerClick className="size-3.5" />Capture Now</Button>
-        <Button size="sm" className="flex-1" disabled={!dirty} onClick={() => onSave(interval, idle)}>Save</Button>
+        <Button size="sm" variant="outline" className="flex-1" disabled={!e.connected || capturing} onClick={onShot}
+          title={e.connected ? "Capture the employee's screen now" : "Available only while the extension is connected and checked in"}>
+          {capturing ? <Loader2 className="size-3.5 animate-spin" /> : <MousePointerClick className="size-3.5" />}{capturing ? "Capturing…" : "Capture Now"}
+        </Button>
+        <Button size="sm" variant="outline" className="flex-1" disabled={!e.setup} onClick={onView}>
+          <Eye className="size-3.5" />View{e.shotsToday ? ` (${e.shotsToday})` : ""}
+        </Button>
       </div>
     </div>
+  );
+}
+
+function ShotsDialog({ employee, onClose }: { employee: TrackerSettingRow | null; onClose: () => void }) {
+  const list = useServerFn(getEmployeeScreenshots);
+  const [zoom, setZoom] = useState<TrackerShot | null>(null);
+  const q = useQuery({
+    queryKey: ["tracker-shots", employee?.id],
+    queryFn: () => list({ data: { id: employee!.id } }),
+    enabled: !!employee,
+    refetchInterval: 20_000,
+  });
+  const shots = q.data?.shots ?? [];
+  return (
+    <Dialog open={!!employee} onOpenChange={(o) => { if (!o) { setZoom(null); onClose(); } }}>
+      <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{employee?.name} · Screenshots</DialogTitle>
+        </DialogHeader>
+        {zoom ? (
+          <div className="space-y-2">
+            <Button size="sm" variant="ghost" onClick={() => setZoom(null)}>← Back to all</Button>
+            <img src={zoom.url} alt="" className="w-full rounded border" />
+            <div className="font-mono text-xs text-muted-foreground">{dhaka(zoom.capturedAt)} · {zoom.sizeKb} KB</div>
+          </div>
+        ) : q.isLoading ? <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" />Loading…</div>
+          : !shots.length ? <div className="py-10 text-center text-sm text-muted-foreground">No screenshots yet.</div>
+          : <div className="grid grid-cols-2 gap-3 md:grid-cols-3">{shots.map((s) => (
+              <button key={s.id} onClick={() => setZoom(s)} className="group overflow-hidden rounded border bg-muted text-left hover:border-primary">
+                <img src={s.url} alt="" loading="lazy" className="aspect-video w-full object-cover" />
+                <div className="flex justify-between px-2 py-1 font-mono text-[10px] text-muted-foreground"><span>{dhaka(s.capturedAt)}</span><span>{s.sizeKb} KB</span></div>
+              </button>
+            ))}</div>}
+      </DialogContent>
+    </Dialog>
   );
 }
