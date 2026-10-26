@@ -47,7 +47,7 @@ async function initialize(){if(initial)return initial;initial=(async()=>{
   const observed=await chrome.storage.session.get('tracker-observation');
   if(observed.owner===owner)observation=observed['tracker-observation'] as Observation|null??null;
   if(local.intent)observation=null;await reconcile();await flush();await reconcile();await setupScripts();await tick();await scheduleScreenshot();
-})().catch(async error=>{connected=false;observation=null;await chrome.storage.session.remove('tracker-observation');initial=null;throw error;});return initial;}
+})().catch(async error=>{if(error instanceof TakenOver){await forcedLogout();return;}connected=false;observation=null;await chrome.storage.session.remove('tracker-observation');initial=null;throw error;});return initial;}
 
 async function reconcile(){
   const session=await validSession();if(!session||session.user.id!==owner)throw Error('Sign-in required');
@@ -123,17 +123,49 @@ async function login(){
   await chrome.storage.session.set({'tracker-sso':{state,createdAt:Date.now()}});
   const url=new URL('https://console.brantatech.com/sso/tracker');url.searchParams.set('redirect_uri',redirect);url.searchParams.set('state',state);url.searchParams.set('tracker_project','vvkzkmvsbmfczauiyaoh');
   try{
-    const callback=await chrome.identity.launchWebAuthFlow({url:url.toString(),interactive:true});if(!callback)throw Error('SSO cancelled');
+    const callback=await signInWindow(url.toString(),redirect);
     const pending=await chrome.storage.session.get('tracker-sso');const flow=pending['tracker-sso'] as {state:string;createdAt:number}|undefined;if(flow?.state!==state||Date.now()-flow.createdAt>600000)throw Error('SSO expired');
     const tokens=parseAuthCallback(callback,redirect,state);const restored=await supabase.auth.setSession(tokens);check(restored.error);
     if(!restored.data.user)throw Error('Invalid Tracker session');
     const verified=await supabase.auth.getUser();check(verified.error);
     if(!verified.data.user)throw Error('Tracker user required');
-    initial=null;await initialize();
+    const meta=(verified.data.user.user_metadata??{}) as Record<string,unknown>;const mine=await deviceId();
+    const seen=typeof meta.tracker_seen_at==='string'?Date.parse(meta.tracker_seen_at):0;
+    if(typeof meta.tracker_device==='string'&&meta.tracker_device!==mine&&Date.now()-seen<DEVICE_FRESH_MS){pendingTakeover=true;signedOutNotice=null;return;}
+    await claimDevice();
   }catch{
     await supabase.auth.signOut({scope:'local'}).catch(()=>{});await chrome.storage.local.remove(AUTH_STORAGE_KEY);employee=null;owner=null;shift=null;initial=null;
     throw Error('Branta SSO did not return a valid Tracker session. Check the Console redirect integration.');
   }finally{await chrome.storage.session.remove('tracker-sso');}
+}
+async function claimDevice(){
+  const mine=await deviceId();const res=await supabase.auth.updateUser({data:{tracker_device:mine,tracker_seen_at:new Date().toISOString()}});check(res.error);
+  lastDeviceBeat=Date.now();pendingTakeover=false;signedOutNotice=null;initial=null;await initialize();
+}
+async function cancelTakeover(){pendingTakeover=false;await supabase.auth.signOut({scope:'local'}).catch(()=>{});await chrome.storage.local.remove(AUTH_STORAGE_KEY);initial=null;}
+// Another browser confirmed a takeover: end this copy locally. The shift stays open on the server and continues there.
+async function forcedLogout(){
+  await chrome.alarms.clear('tracker-screenshot');await resetCounters().catch(()=>{});
+  await supabase.auth.updateUser({data:{tracker_device:null,tracker_seen_at:null}}).catch(()=>{});
+  await supabase.auth.signOut({scope:'local'}).catch(()=>{});await chrome.storage.local.remove(AUTH_STORAGE_KEY);
+  await chrome.storage.session.remove(['tracker-observation','owner']);
+  employee=null;owner=null;shift=null;openBreak=null;observation=null;local=fresh();connected=false;initial=null;
+  signedOutNotice='You were signed out because your account was signed in on another browser.';await setupScripts().catch(()=>{});await badge();
+}
+// A compact, centered sign-in window (like Google's account chooser) instead of a full-size browser window.
+async function signInWindow(url:string,redirect:string):Promise<string>{
+  const base=await chrome.windows.getLastFocused().catch(()=>null);const width=460,height=680;
+  const left=base?.left!==undefined&&base.width?Math.max(0,Math.round(base.left+(base.width-width)/2)):undefined;
+  const top=base?.top!==undefined&&base.height?Math.max(0,Math.round(base.top+(base.height-height)/2)):undefined;
+  const win=await chrome.windows.create({url,type:'popup',width,height,left,top,focused:true});
+  const tabId=win.tabs?.[0]?.id;if(win.id===undefined||tabId===undefined)throw Error('Sign-in window unavailable');
+  return new Promise((resolve,reject)=>{
+    const done=(fn:()=>void)=>{chrome.tabs.onUpdated.removeListener(onUpdated);chrome.windows.onRemoved.removeListener(onRemoved);clearTimeout(timer);fn();};
+    const onUpdated=(id:number,info:chrome.tabs.OnUpdatedInfo,tab:chrome.tabs.Tab)=>{const next=info.url??tab.url??tab.pendingUrl;if(id===tabId&&next&&next.startsWith(redirect)){done(()=>resolve(next));void chrome.windows.remove(win.id!).catch(()=>{});}};
+    const onRemoved=(id:number)=>{if(id===win.id)done(()=>reject(Error('SSO cancelled')));};
+    const timer=setTimeout(()=>{done(()=>reject(Error('SSO expired')));void chrome.windows.remove(win.id!).catch(()=>{});},600_000);
+    chrome.tabs.onUpdated.addListener(onUpdated);chrome.windows.onRemoved.addListener(onRemoved);
+  });
 }
 async function logout(){
   try{await observe(await mode());await flush();}catch{/* retain owner-scoped aggregate queue for the same employee's next sign-in */}
@@ -202,9 +234,9 @@ chrome.runtime.onMessage.addListener((message,sender,respond)=>{
     void exclusive(async()=>{await initialize();return counts(message,sender);}).then(respond).catch(()=>respond({accepted:false,enabled:false}));return true;
   }
   if(!ui||message?.channel!=='branta-tracker'||message.protocol!==1)return;
-  const command=message.command as Command;if(!['GET_SNAPSHOT','LOGIN','CHECK_IN','TAKE_BREAK','RESUME','CHECK_OUT','LOG_OUT'].includes(command))return;
+  const command=message.command as Command;if(!['GET_SNAPSHOT','LOGIN','CHECK_IN','TAKE_BREAK','RESUME','CHECK_OUT','LOG_OUT','TAKEOVER_CONFIRM','TAKEOVER_CANCEL'].includes(command))return;
   void exclusive(async()=>{
-    if(command==='LOGIN')await login();else if(command==='LOG_OUT')await logout();else{await initialize();if(command==='GET_SNAPSHOT'){if(employee)await tick();}else await transition(command);}
+    if(command==='LOGIN')await login();else if(command==='TAKEOVER_CONFIRM'){await claimDevice();}else if(command==='TAKEOVER_CANCEL'){await cancelTakeover();}else if(pendingTakeover&&command==='GET_SNAPSHOT'){/* awaiting confirmation */}else if(command==='LOG_OUT')await logout();else{await initialize();if(command==='GET_SNAPSHOT'){if(employee)await tick();}else await transition(command);}
     return {protocol:1,snapshot:await snapshot(),warning:local.warning};
   }).then(respond).catch(()=>respond({protocol:1,error:'Tracker action failed. Check your connection, session and Console SSO configuration.'}));return true;
 });
