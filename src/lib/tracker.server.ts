@@ -47,7 +47,11 @@ export async function ensureTrackerUser(id: ConsoleIdentity): Promise<User> {
   };
   const existing = await findByEmail(sb, id.email);
   if (existing) {
-    const { data, error } = await sb.auth.admin.updateUserById(existing.id, { app_metadata, user_metadata });
+    // Keep Console-managed keys such as shift_schedule while refreshing identity fields.
+    const { data, error } = await sb.auth.admin.updateUserById(existing.id, {
+      app_metadata: { ...(existing.app_metadata ?? {}), ...app_metadata },
+      user_metadata: { ...(existing.user_metadata ?? {}), ...user_metadata },
+    });
     if (error) throw new Error(`Tracker update failed: ${error.message}`);
     return data.user;
   }
@@ -143,4 +147,10 @@ export async function syncTrackerEmployeeSafe(consoleUserId: string): Promise<vo
   } catch (e) {
     console.error("[tracker-sync]", consoleUserId, e);
   }
+}
+
+/** Resolve the Tracker auth user ID mirrored from a Console employee. */
+export async function trackerUserIdFor(consoleUserId: string): Promise<string | null> {
+  const { data } = await trackerAdmin().from("profiles").select("id").eq("console_user_id", consoleUserId).maybeSingle();
+  return (data?.id as string | undefined) ?? null;
 }
