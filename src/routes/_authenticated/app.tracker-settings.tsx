@@ -44,7 +44,9 @@ function Page() {
   const listShots = useServerFn(getEmployeeScreenshots);
   const q = useQuery({ queryKey: ["tracker-settings"], queryFn: () => fetch(), refetchInterval: 15_000 });
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [bulk, setBulk] = useState({ interval: 3, idle: 5 });
+  const [bulk, setBulkRaw] = useState({ interval: 3, idle: 5 });
+  const [bulkDirty, setBulkDirty] = useState(false);
+  const setBulk = (v: { interval: number; idle: number }) => { setBulkRaw(v); setBulkDirty(true); };
   const [search, setSearch] = useState("");
   const [busy, setBusy] = useState(false);
   const [viewing, setViewing] = useState<TrackerSettingRow | null>(null);
@@ -65,17 +67,16 @@ function Page() {
       const before = (await listShots({ data: { id: e.id } })).shots[0]?.capturedAt ?? "";
       const t0 = new Date().toISOString();
       await shoot({ data: { id: e.id } });
-      toast.message(`Capture requested for ${e.name}`, { description: "Waiting for the extension (up to ~60 seconds)…" });
-      for (let i = 0; i < 18; i++) {
-        await new Promise((r) => setTimeout(r, 5000));
+      for (let i = 0; i < 15; i++) {
+        await new Promise((r) => setTimeout(r, 2000));
         const latest = (await listShots({ data: { id: e.id } })).shots[0];
-        if (latest && latest.capturedAt > before && latest.capturedAt >= t0.slice(0, 19)) {
+        if (latest && Date.parse(latest.capturedAt) > Date.parse(before || 0) && Date.parse(latest.capturedAt) >= Date.parse(t0) - 5000) {
           toast.success(`Screenshot captured for ${e.name}`, { action: { label: "View", onClick: () => setViewing(e) } });
           await q.refetch();
           return;
         }
       }
-      toast.error("No screenshot arrived", { description: "The employee's browser may be minimized or on a Chrome system page." });
+      toast.error("No screenshot arrived", { description: "Extension v0.7.0 is needed, and Chrome must not be minimized or on a Chrome system page." });
     } catch (x) { toast.error((x as Error).message); } finally { setCapturing(null); }
   };
   const counts = useMemo(() => {
@@ -98,7 +99,7 @@ function Page() {
         <div className="flex flex-wrap items-end gap-3">
           <NumField label="Screenshot every" icon={<Camera className="size-3" />} value={bulk.interval} onChange={(v) => setBulk({ ...bulk, interval: v })} />
           <NumField label="Idle after" icon={<Clock className="size-3" />} value={bulk.idle} onChange={(v) => setBulk({ ...bulk, idle: v })} />
-          <Button size="sm" disabled={busy} onClick={() => apply(selected.size ? [...selected] : "all", bulk.interval, bulk.idle)}>
+          <Button size="sm" disabled={busy || !bulkDirty || bulk.interval < 1 || bulk.idle < 1} onClick={async () => { await apply(selected.size ? [...selected] : "all", bulk.interval, bulk.idle); setBulkDirty(false); }}>
             {busy && <Loader2 className="size-3 animate-spin" />}{selected.size ? `Apply to ${selected.size}` : "Apply to All"}
           </Button>
           {selected.size > 0 && <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>Clear selection</Button>}
@@ -113,7 +114,7 @@ function Page() {
       {q.isLoading ? <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" />Loading…</div>
         : q.error ? <div className="text-sm text-destructive">{(q.error as Error).message}</div>
         : <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{rows.map((e) => (
-            <EmployeeCard key={e.id} e={e} checked={selected.has(e.id)} onCheck={() => toggle(e.id)}
+            <EmployeeCard key={`${e.id}-${e.intervalMinutes}-${e.idleMinutes}`} e={e} checked={selected.has(e.id)} onCheck={() => toggle(e.id)}
               onSave={(i, d) => apply([e.id], i, d)}
               onView={() => setViewing(e)}
               onShot={() => capture(e)} capturing={capturing === e.id} />
@@ -172,7 +173,7 @@ function EmployeeCard({ e, checked, onCheck, onSave, onShot, onView, capturing }
       </div>
       <div className="mt-4 flex gap-2 border-t pt-3">
         <Button size="sm" variant="outline" className="flex-1" disabled={!e.connected || capturing} onClick={onShot}
-          title={e.connected ? "Capture the employee's screen now" : "Available only while the extension is connected and checked in"}>
+          title={e.connected ? "Capture the employee's screen now" : "Available only while the extension is connected"}>
           {capturing ? <Loader2 className="size-3.5 animate-spin" /> : <MousePointerClick className="size-3.5" />}{capturing ? "Capturing…" : "Capture Now"}
         </Button>
         <Button size="sm" variant="outline" className="flex-1" disabled={!e.setup} onClick={onView}>
