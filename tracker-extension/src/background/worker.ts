@@ -60,16 +60,19 @@ async function reconcile(){
   const profile=await supabase.from('profiles').select('id,name,email,employee_code,job_role,avatar_url,is_active').eq('id',owner!).single();check(profile.error);
   if(!profile.data||!profile.data.is_active)throw Error('Employee is inactive');
   schedule=parseSchedule((verified.data.user.app_metadata??{}).shift_schedule);
+  const req=(verified.data.user.app_metadata??{}).screenshot_request;if(typeof req==='string'&&req!==local.manualReq){const first=local.manualReq===undefined;local.manualReq=req;await persist();if(!first&&Date.now()-Date.parse(req)<600_000)manualPending=true;}
   employee={id:profile.data.id,name:profile.data.name??'Branta employee',email:profile.data.email,code:profile.data.employee_code??'',role:profile.data.job_role??'Team member',avatar:typeof profile.data.avatar_url==='string'&&profile.data.avatar_url.startsWith('https://')?profile.data.avatar_url:null};
-  const config=await supabase.from('employee_tracker_settings').select('screenshots_per_hour,is_screenshot_blur_enabled,break_limit_minutes').eq('employee_id',owner!).maybeSingle();check(config.error);
+  const config=await supabase.from('employee_tracker_settings').select('screenshots_per_hour,is_screenshot_blur_enabled,break_limit_minutes,idle_threshold_seconds').eq('employee_id',owner!).maybeSingle();check(config.error);
   settings=config.data?{screenshots_per_hour:Math.max(0,Math.min(60,Number(config.data.screenshots_per_hour??0))),is_screenshot_blur_enabled:config.data.is_screenshot_blur_enabled===true,break_limit_minutes:Math.max(0,Number(config.data.break_limit_minutes??60))}:{screenshots_per_hour:3,is_screenshot_blur_enabled:false,break_limit_minutes:60};
   const active=await supabase.from('shift_sessions').select('*').eq('employee_id',owner!).eq('status','active').is('check_out_at',null).maybeSingle();check(active.error);
   const next=active.data as ShiftRow|null;
   if(shift?.id!==next?.id&&observation?.shiftId!==next?.id){observation=null;local.epoch=crypto.randomUUID();}
   shift=next;openBreak=null;
   if(shift){const breaks=await supabase.from('shift_breaks').select('id,started_at,ended_at').eq('shift_id',shift.id).is('ended_at',null).maybeSingle();check(breaks.error);openBreak=breaks.data as BreakRow|null;}
+  idleSeconds=Math.max(60,Math.min(3600,Number(config.data?.idle_threshold_seconds??300)));
   connected=true;lastSynced=Date.now();
 }
+let idleSeconds=300,manualPending=false;
 async function flush(){
   if(!owner)return;await validSession();
   while(local.queue.length){const item=local.queue[0]!;
@@ -94,7 +97,7 @@ async function observe(mode:ObservedMode,at=Date.now()){
 }
 async function mode():Promise<ObservedMode>{
   if(!employee||!shift||shift.check_out_at)return 'stopped';if(openBreak)return 'break';
-  const idle=await chrome.idle.queryState(300);return idle==='active'?'active':'idle';
+  const idle=await chrome.idle.queryState(idleSeconds);return idle==='active'?'active':'idle';
 }
 async function tick(){
   const next=await mode();if(next!==observation?.mode)await resetCounters();await observe(next);
@@ -252,7 +255,7 @@ chrome.runtime.onMessage.addListener((message,sender,respond)=>{
     return {protocol:1,snapshot:await snapshot(),warning:local.warning};
   }).then(respond).catch(()=>respond({protocol:1,error:'Tracker action failed. Check your connection, session and Console SSO configuration.'}));return true;
 });
-chrome.alarms.onAlarm.addListener(alarm=>{void exclusive(async()=>{await initialize();if(alarm.name==='tracker-screenshot')await capture();else if(alarm.name==='tracker-heartbeat'){await tick();await scheduleScreenshot();}}).catch(()=>{connected=false;});});
+chrome.alarms.onAlarm.addListener(alarm=>{void exclusive(async()=>{await initialize();if(alarm.name==='tracker-screenshot')await capture();else if(alarm.name==='tracker-heartbeat'){await tick();await chrome.idle.setDetectionInterval(idleSeconds);if(manualPending){manualPending=false;await chrome.alarms.clear('tracker-screenshot');await capture();}else await scheduleScreenshot();}}).catch(()=>{connected=false;});});
 chrome.idle.onStateChanged.addListener(state=>{const at=Date.now();void exclusive(async()=>{await initialize();await observe(openBreak?'break':!shift?'stopped':state==='active'?'active':'idle',at);await resetCounters();await badge();if(state!=='active')await chrome.alarms.clear('tracker-screenshot');else await scheduleScreenshot();}).catch(()=>{observation=null;connected=false;});});
 chrome.runtime.onStartup.addListener(()=>{void exclusive(async()=>{observation=null;await chrome.storage.session.remove('tracker-observation');await initialize();}).catch(()=>{});});
 chrome.runtime.onInstalled.addListener(()=>{void exclusive(async()=>{await initialize();}).catch(()=>{});});
