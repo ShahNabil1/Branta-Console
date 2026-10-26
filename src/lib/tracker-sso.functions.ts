@@ -17,10 +17,11 @@ export const issueTrackerSession = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const m = TRACKER_REDIRECT_RE.exec(data.redirect_uri);
     if (!m) throw new Error("This sign-in link is not from the Branta Tracker extension.");
-    const allowed = (process.env.TRACKER_EXTENSION_IDS ?? "")
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
+    // Fixed ID from the manifest "key" (same on every employee install) + optional extras.
+    const allowed = [
+      "depkbpehdbgckceobdmiacgjokaihklp",
+      ...(process.env.TRACKER_EXTENSION_IDS ?? "").split(",").map((s) => s.trim()).filter(Boolean),
+    ];
     if (allowed.length && !allowed.includes(m[1])) {
       throw new Error("This extension is not approved for Branta sign-in.");
     }
