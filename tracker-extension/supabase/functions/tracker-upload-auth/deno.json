@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "strict": true
+  },
+  "nodeModulesDir": "auto",
+  "tasks": {
+    "test": "deno test --node-modules-dir=manual --allow-env --allow-sys index_test.ts",
+    "check": "deno check --node-modules-dir=manual index.ts index_test.ts"
+  }
+}

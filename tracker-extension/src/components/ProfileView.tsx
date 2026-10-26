@@ -1,0 +1,4 @@
+import type { Employee } from '../lib/tracker';
+export function ProfileView({employee,onLogout,busy}:{employee:Employee;onLogout:()=>void;busy:boolean}) {
+  return <><div className="section-heading"><div><span className="eyebrow">WORKSPACE / ACCOUNT</span><h1>Profile & settings</h1></div></div><section className="panel profile"><div className="avatar">{employee.name.split(' ').map(v=>v[0]).slice(0,2).join('')}</div><h2>{employee.name}</h2><p>{employee.role}</p><dl><div><dt>Branta email</dt><dd>{employee.email}</dd></div><div><dt>Employee code</dt><dd className="mono">{employee.code}</dd></div><div><dt>Workspace</dt><dd>Branta Tech</dd></div><div><dt>Extension version</dt><dd className="mono">0.4.0</dd></div></dl></section><p className="hint">Your tracking preferences are managed in Branta Console.</p><button className="full danger-outline" disabled={busy} onClick={onLogout}>Disconnect / Log Out</button></>;
+}
