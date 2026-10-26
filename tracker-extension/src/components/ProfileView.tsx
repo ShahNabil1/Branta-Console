@@ -17,7 +17,6 @@ export function ProfileView({ employee, connected, lastSyncedAt, onLogout, busy 
         <div><dt>Version</dt><dd className="mono">0.6.0</dd></div>
       </dl>
     </section>
-    <p className="hint strong">Your Shift timing, breaks and tracking Settings are managed by Branta Console.</p>
-    <button className="full btn-danger" disabled={busy} onClick={onLogout}>Log Out</button>
+    <button className="full btn-danger" style={{ marginTop: 12 }} disabled={busy} onClick={onLogout}>Log Out</button>
   </>;
 }

@@ -46,10 +46,6 @@ main{padding:14px 16px 16px}
 .controls{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
 .controls button,.checkin{height:44px;font-size:13px;border:0;color:#fff;border-radius:10px}
 .ico{font-size:11px;display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:#ffffff2e}
-.btn-break{background:linear-gradient(135deg,#f59e0b,#f97316);box-shadow:0 6px 16px #f9731640}
-.btn-resume{background:linear-gradient(135deg,#22c55e,#16a34a);box-shadow:0 6px 16px #16a34a40}
-.btn-checkout{background:linear-gradient(135deg,#ef4444,#be123c);box-shadow:0 6px 16px #be123c40}
-.btn-break:hover:not(:disabled),.btn-resume:hover:not(:disabled),.btn-checkout:hover:not(:disabled),.btn-brand:hover:not(:disabled),.btn-danger:hover:not(:disabled){filter:brightness(1.07);box-shadow:0 10px 22px #0f172a2e}
 .btn-brand{background:linear-gradient(135deg,var(--brand2),var(--brand));color:#fff;border:0;border-radius:10px;box-shadow:0 6px 18px #e56a1752;position:relative;overflow:hidden}
 .btn-brand::after{content:'';position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,#ffffff55 50%,transparent 70%);transform:translateX(-100%);animation:shine 2.8s ease-in-out infinite}
 @keyframes shine{60%,100%{transform:translateX(100%)}}
@@ -109,3 +105,20 @@ dialog p{font-size:12.5px;color:var(--muted);line-height:1.65;margin:10px 0 18px
 @media(min-width:500px){body{margin:28px auto}.app-shell{border:1px solid var(--border);border-radius:10px;overflow:hidden}}
 @media(max-width:350px){main{padding:12px}.timer{font-size:34px}.stat strong{font-size:13px}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* Tactile, restrained Shift controls (console style, no candy gradients) */
+.controls button{color:var(--ink);background:#fff;border:1px solid var(--border);box-shadow:0 1px 0 #0f172a0a,inset 0 -1px 0 #0f172a0d;font-weight:600;letter-spacing:-.1px}
+.controls button:hover:not(:disabled){border-color:#cbd5e1;background:#f8fafc;transform:translateY(-1px)}
+.controls button:active:not(:disabled){transform:translateY(0);box-shadow:inset 0 1px 2px #0f172a1a}
+.controls .ico{width:20px;height:20px;border-radius:5px;display:grid;place-items:center;font-size:9px}
+.btn-break .ico{background:#fff4ec;color:var(--brand)}
+.btn-resume .ico{background:#ecfdf3;color:var(--ok)}
+.btn-checkout{color:#b91c1c!important}.btn-checkout .ico{background:#fef2f2;color:var(--bad)}
+.btn-checkout:hover:not(:disabled){border-color:#fecaca!important;background:#fffafa!important}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;position:relative}
+.chip{font:600 10.5px Inter,sans-serif;padding:3px 8px;border-radius:999px;background:#ffffff14;color:#e2e8f0;border:1px solid #ffffff1f}
+.chip.late{background:#ef444426;color:#fecaca;border-color:#ef444455}
+.chip.early{background:#22c55e22;color:#bbf7d0;border-color:#22c55e55}
+.chip.ontime{background:#38bdf822;color:#bae6fd;border-color:#38bdf855}
+.chip.ot{background:#e56a1730;color:#ffcfa8;border-color:#e56a1766}
+.signin-card .btn-brand{margin-top:2px}
