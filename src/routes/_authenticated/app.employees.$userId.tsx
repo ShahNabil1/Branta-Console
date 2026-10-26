@@ -1,3 +1,4 @@
+import { TrackerScheduleTab } from "@/components/employee/tracker-schedule-tab";
 import { WalletLedgerView } from "@/components/finance/wallet-ledger-view";
 import { SessionHistoryLog } from "@/components/profile/session-history-log";
 // Employee detail page: full profile, RBAC, lead assignment, ban / delete,
@@ -275,7 +276,7 @@ function EmployeeDetailPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
 
-  const [tab, setTab] = useState<"profile" | "wallet" | "permissions">("profile");
+  const [tab, setTab] = useState<"profile" | "wallet" | "permissions" | "schedule">("profile");
   const [avatarOpen, setAvatarOpen] = useState(false);
 
   if (admin.isLoading || detail.isLoading) {
@@ -759,6 +760,9 @@ function EmployeeDetailPage() {
         <TabBtn active={tab === "wallet"} onClick={() => setTab("wallet")} icon={Wallet}>
           Wallet &amp; Earnings
         </TabBtn>
+        <TabBtn active={tab === "schedule"} onClick={() => setTab("schedule")} icon={UserCog}>
+          Shift Schedule
+        </TabBtn>
         {canSuperAdmin && (
           <TabBtn
             active={tab === "permissions"}
@@ -774,6 +778,8 @@ function EmployeeDetailPage() {
         <ProfileTab e={e} />
       ) : tab === "wallet" ? (
         <WalletTab userId={userId} walletFn={walletFn} />
+      ) : tab === "schedule" ? (
+        <TrackerScheduleTab userId={userId} />
       ) : (
         <PermissionsTab userId={userId} />
       )}
