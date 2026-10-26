@@ -71,12 +71,12 @@ export const getTrackerOverview = createServerFn({ method: "GET" })
       const setup = !!u?.last_sign_in_at || typeof meta.tracker_device === "string";
       const shiftId = shiftByEmp.get(p.id);
       const log = shiftId ? lastLog.get(shiftId) : undefined;
-      const fresh = !!log && Date.now() - Date.parse(log.at) < 3 * 60_000;
-      const status: TrackerLiveStatus = fresh ? (log!.status === "active" ? "active" : "idle") : "inactive";
-      const seen = [log?.at, typeof meta.tracker_seen_at === "string" ? meta.tracker_seen_at : undefined]
-        .filter(Boolean)
-        .sort()
-        .pop() as string | undefined;
+      // Live presence comes from the extension heartbeat (~25s); stale after 90s = not connected.
+      const seenAt = typeof meta.tracker_seen_at === "string" ? meta.tracker_seen_at : null;
+      const online = !!seenAt && Date.now() - Date.parse(seenAt) < 90_000;
+      const presence = meta.tracker_presence;
+      const status: TrackerLiveStatus = online ? (presence === "idle" || presence === "break" ? "idle" : "active") : "inactive";
+      const seen = [log?.at, seenAt ?? undefined].filter(Boolean).sort().pop() as string | undefined;
       return {
         id: p.id,
         name: p.name || p.email || "Employee",
@@ -88,7 +88,7 @@ export const getTrackerOverview = createServerFn({ method: "GET" })
         idleMinutes: Math.max(1, Math.round((s?.idle_threshold_seconds ?? 300) / 60)),
         setup,
         status,
-        connected: fresh && p.is_active !== false,
+        connected: online && p.is_active !== false,
         lastSeenAt: seen ?? null,
         shotsToday: shotCount.get(p.id) ?? 0,
       };
@@ -120,7 +120,12 @@ export const getEmployeeScreenshots = createServerFn({ method: "GET" })
       capturedAt: r.captured_at,
       sizeKb: r.file_size_kb ?? 0,
     }));
-    return { shots };
+    const { data: u } = await trackerAdmin().auth.admin.getUserById(data.id);
+    const manual = Array.isArray(u.user?.user_metadata?.manual_shots) ? (u.user!.user_metadata.manual_shots as { path: string; at: string; kb: number }[]) : [];
+    for (const m of manual) if (typeof m?.path === "string" && m.path.startsWith(`tracker/screenshots/${data.id}/`))
+      shots.push({ id: m.path, url: `${base}/${m.path.split("/").map(encodeURIComponent).join("/")}`, capturedAt: m.at, sizeKb: m.kb ?? 0 });
+    shots.sort((a, b) => Date.parse(b.capturedAt) - Date.parse(a.capturedAt));
+    return { shots: shots.slice(0, 60) };
   });
 
 export const saveTrackerSettings = createServerFn({ method: "POST" })
@@ -162,5 +167,11 @@ export const requestManualScreenshot = createServerFn({ method: "POST" })
       app_metadata: { ...(u.user.app_metadata ?? {}), screenshot_request: new Date().toISOString() },
     });
     if (res.error) throw new Error("Could not send the capture request.");
+    // Instant wake-up for the extension (Realtime broadcast); the signed stamp above is what authorizes it.
+    await fetch(`${process.env.TRACKER_SUPABASE_URL!.replace(/\/$/, "")}/realtime/v1/api/broadcast`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: process.env.TRACKER_SUPABASE_SERVICE_ROLE_KEY!, Authorization: `Bearer ${process.env.TRACKER_SUPABASE_SERVICE_ROLE_KEY}` },
+      body: JSON.stringify({ messages: [{ topic: `tracker-capture-${data.id}`, event: "capture", payload: {} }] }),
+    }).catch(() => null);
     return { ok: true };
   });
