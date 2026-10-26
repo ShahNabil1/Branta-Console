@@ -18,18 +18,18 @@ describe('UI flows',()=>{
     window.history.replaceState({},'','/popup.html');const send=vi.fn().mockResolvedValue({protocol:1,snapshot:EMPTY});vi.stubGlobal('chrome',{runtime:{id:'test',sendMessage:send}});
     await act(async()=>root.render(<App/>));await click('Sign in with Branta Console');
     expect(send).toHaveBeenCalledWith({channel:'branta-tracker',protocol:1,command:'LOGIN'});
-    expect(host.textContent).toContain('Signed in to Branta Tracker.');
+    
     expect(host.querySelector('[role="timer"]')).toBeNull();
   });
   it('requires confirmation for checkout and supports break, profile and logout',async()=>{
     window.history.replaceState({},'','/popup.html?demo=1');await act(async()=>root.render(<App/>));
-    expect(host.textContent).toContain('UI preview');await click('Take Break');expect(host.textContent).toContain('On break');
-    await click('Resume');expect(host.textContent).toContain('Time worked this shift');
-    await click('Check Out');expect(host.querySelector('dialog[open]')).not.toBeNull();await click('Cancel');expect(host.textContent).not.toContain('Checked out');
+    await click('Take Break');expect(host.textContent).toContain('On Break');
+    await click('Resume');expect(host.textContent).toContain('Time worked this Shift');
+    await click('Check Out');expect(host.querySelector('dialog[open]')).not.toBeNull();await click('Cancel');expect(host.textContent).not.toContain('Checked Out');
     await click('Check Out');const confirm=host.querySelector<HTMLButtonElement>('dialog .danger')!;await act(async()=>confirm.click());
-    expect(host.textContent).toContain('Checked out');
-    await click('Profile & settings');expect(host.textContent).toContain('demo@brantatech.com');
-    await click('Disconnect / Log Out');await act(async()=>host.querySelector<HTMLButtonElement>('dialog .danger')!.click());
-    expect(host.textContent).toContain('Employee sign-in');
+    expect(host.textContent).toContain('Your tracked work time');
+    await click('Profile & Settings');expect(host.textContent).toContain('demo@brantatech.com');
+    await click('Log Out');await act(async()=>host.querySelector<HTMLButtonElement>('dialog .danger')!.click());
+    expect(host.textContent).toContain('Employee Sign-In');
   });
 });

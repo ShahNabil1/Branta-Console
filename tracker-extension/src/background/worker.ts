@@ -152,18 +152,18 @@ async function forcedLogout(){
   employee=null;owner=null;shift=null;openBreak=null;observation=null;local=fresh();connected=false;initial=null;
   signedOutNotice='You were signed out because your account was signed in on another browser.';await setupScripts().catch(()=>{});await badge();
 }
-// A compact, centered sign-in window (like Google's account chooser) instead of a full-size browser window.
+// A compact, centered sign-in window (like Google's account chooser) instead of a full-size browser tab.
 async function signInWindow(url:string,redirect:string):Promise<string>{
   const base=await chrome.windows.getLastFocused().catch(()=>null);const width=460,height=680;
   const left=base?.left!==undefined&&base.width?Math.max(0,Math.round(base.left+(base.width-width)/2)):undefined;
   const top=base?.top!==undefined&&base.height?Math.max(0,Math.round(base.top+(base.height-height)/2)):undefined;
   const win=await chrome.windows.create({url,type:'popup',width,height,left,top,focused:true});
-  const tabId=win.tabs?.[0]?.id;if(win.id===undefined||tabId===undefined)throw Error('Sign-in window unavailable');
+  const tabId=win?.tabs?.[0]?.id;const winId=win?.id;if(winId===undefined||tabId===undefined)throw Error('Sign-in window unavailable');
   return new Promise((resolve,reject)=>{
     const done=(fn:()=>void)=>{chrome.tabs.onUpdated.removeListener(onUpdated);chrome.windows.onRemoved.removeListener(onRemoved);clearTimeout(timer);fn();};
-    const onUpdated=(id:number,info:chrome.tabs.OnUpdatedInfo,tab:chrome.tabs.Tab)=>{const next=info.url??tab.url??tab.pendingUrl;if(id===tabId&&next&&next.startsWith(redirect)){done(()=>resolve(next));void chrome.windows.remove(win.id!).catch(()=>{});}};
-    const onRemoved=(id:number)=>{if(id===win.id)done(()=>reject(Error('SSO cancelled')));};
-    const timer=setTimeout(()=>{done(()=>reject(Error('SSO expired')));void chrome.windows.remove(win.id!).catch(()=>{});},600_000);
+    const onUpdated=(id:number,info:chrome.tabs.OnUpdatedInfo,tab:chrome.tabs.Tab)=>{const next=info.url??tab.url??tab.pendingUrl;if(id===tabId&&next&&next.startsWith(redirect)){done(()=>resolve(next));void chrome.windows.remove(winId).catch(()=>{});}};
+    const onRemoved=(id:number)=>{if(id===winId)done(()=>reject(Error('SSO cancelled')));};
+    const timer=setTimeout(()=>{done(()=>reject(Error('SSO expired')));void chrome.windows.remove(winId).catch(()=>{});},600_000);
     chrome.tabs.onUpdated.addListener(onUpdated);chrome.windows.onRemoved.addListener(onRemoved);
   });
 }
