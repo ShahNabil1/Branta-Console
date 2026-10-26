@@ -14,7 +14,7 @@ export function ProfileView({ employee, connected, lastSyncedAt, onLogout, busy 
         <div><dt>Employee Code</dt><dd className="mono">{employee.code}</dd></div>
         <div><dt>Workspace</dt><dd>Branta Tech</dd></div>
         <div><dt>Console</dt><dd className={connected ? 'ok-text' : 'bad-text'}>{connected ? `Connected · ${synced}` : 'Not Connected'}</dd></div>
-        <div><dt>Version</dt><dd className="mono">{chrome.runtime.getManifest().version}</dd></div>
+        <div><dt>Version</dt><dd className="mono">{globalThis.chrome?.runtime?.getManifest?.().version ?? "—"}</dd></div>
       </dl>
     </section>
     <button className="full btn-danger" style={{ marginTop: 12 }} disabled={busy} onClick={onLogout}>Log Out</button>
