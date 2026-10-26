@@ -73,6 +73,7 @@ const NAV: NavGroup[] = [
       { label: "Transfers", to: "/app/transfers", icon: ArrowLeftRight },
       { label: "Mail queue", to: "/app/mail-queue", icon: Send },
       { label: "Notifications", to: "/app/notifications", icon: Bell },
+      { label: "Extension Settings", to: "/app/tracker-settings", icon: RadioTower },
     ],
   },
 ];
