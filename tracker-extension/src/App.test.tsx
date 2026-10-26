@@ -30,6 +30,6 @@ describe('UI flows',()=>{
     expect(host.textContent).toContain('Your tracked work time');
     await click('Profile & Settings');expect(host.textContent).toContain('demo@brantatech.com');
     await click('Log Out');await act(async()=>host.querySelector<HTMLButtonElement>('dialog .danger')!.click());
-    expect(host.textContent).toContain('Employee Sign-In');
+    expect(host.textContent).toContain('Sign in with Branta Console');
   });
 });
