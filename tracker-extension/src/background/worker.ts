@@ -8,7 +8,7 @@ import { EMPTY,type Snapshot,type Employee,type Command } from '../lib/tracker';
 interface ShiftRow {id:string;employee_id:string;date:string;check_in_at:string;check_out_at:string|null;status:string;total_worked_seconds:number;total_idle_seconds:number;total_break_seconds:number}
 interface BreakRow {id:string;started_at:string;ended_at:string|null}
 interface Settings {screenshots_per_hour:number;is_screenshot_blur_enabled:boolean;break_limit_minutes:number}
-interface ScreenshotRow {id:string;shift_session_id:string;employee_id:string;storage_path:string;captured_at:string;file_size_kb:number;activity_percentage:number|null;blur_status:boolean}
+interface ScreenshotRow {id:string;shift_session_id:string|null;employee_id:string;storage_path:string;captured_at:string;file_size_kb:number;activity_percentage:number|null;blur_status:boolean}
 interface Intent {action:Command;requestId:string;shiftId:string|null}
 interface Local {lastShotAt?:number|null;shotsToday?:number;shotsDate?:string;queue:Interval[];screenshots:ScreenshotRow[];intent:Intent|null;seen:string[];epoch:string;warning:string|null;todayDate?:string;todayWork?:number;todayBreak?:number;manualReq?:string}
 const fresh=():Local=>({queue:[],screenshots:[],intent:null,seen:[],epoch:crypto.randomUUID(),warning:null});
@@ -56,7 +56,7 @@ async function reconcile(){
   const verified=await supabase.auth.getUser();check(verified.error);if(!verified.data.user||verified.data.user.id!==owner)throw Error('Session invalid');
   {const meta=(verified.data.user.user_metadata??{}) as Record<string,unknown>;const mine=await deviceId();
    if(typeof meta.tracker_device==='string'&&meta.tracker_device!==mine){throw new TakenOver();}
-   if(Date.now()-lastDeviceBeat>120_000){lastDeviceBeat=Date.now();await supabase.auth.updateUser({data:{tracker_device:mine,tracker_seen_at:new Date().toISOString()}}).catch(()=>{});}}
+   if(Date.now()-lastDeviceBeat>25_000){lastDeviceBeat=Date.now();await beat(mine);}}
   const profile=await supabase.from('profiles').select('id,name,email,employee_code,job_role,avatar_url,is_active').eq('id',owner!).single();check(profile.error);
   if(!profile.data||!profile.data.is_active)throw Error('Employee is inactive');
   schedule=parseSchedule((verified.data.user.app_metadata??{}).shift_schedule);
@@ -69,10 +69,25 @@ async function reconcile(){
   if(shift?.id!==next?.id&&observation?.shiftId!==next?.id){observation=null;local.epoch=crypto.randomUUID();}
   shift=next;openBreak=null;
   if(shift){const breaks=await supabase.from('shift_breaks').select('id,started_at,ended_at').eq('shift_id',shift.id).is('ended_at',null).maybeSingle();check(breaks.error);openBreak=breaks.data as BreakRow|null;}
-  idleSeconds=Math.max(60,Math.min(3600,Number(config.data?.idle_threshold_seconds??300)));
+  const nextIdle=Math.max(60,Math.min(3600,Number(config.data?.idle_threshold_seconds??300)));
+  if(nextIdle!==idleSeconds){idleSeconds=nextIdle;chrome.idle.setDetectionInterval(idleSeconds);}
+  if(lastRate!==null&&lastRate!==settings.screenshots_per_hour)await chrome.alarms.clear('tracker-screenshot');lastRate=settings.screenshots_per_hour;
+  listen();
   connected=true;lastSynced=Date.now();
 }
-let idleSeconds=300,manualPending=false;
+let idleSeconds=300,manualPending=false,lastRate:number|null=null;
+// Live presence for Console: written to the employee's own user_metadata every ~25s and on idle changes.
+async function beat(mine?:string){
+  const state=await chrome.idle.queryState(idleSeconds);
+  const presence=openBreak?'break':state==='active'?'active':'idle';
+  await supabase.auth.updateUser({data:{tracker_device:mine??await deviceId(),tracker_seen_at:new Date().toISOString(),tracker_presence:presence,tracker_shift:!!shift}}).catch(()=>{});
+}
+// Instant Capture Now: Console broadcasts a wake-up; the signed app_metadata stamp is still verified in reconcile().
+let channel:ReturnType<typeof supabase.channel>|null=null;
+function listen(){
+  if(channel||!owner)return;
+  channel=supabase.channel(`tracker-capture-${owner}`).on('broadcast',{event:'capture'},()=>{void exclusive(async()=>{await reconcile();if(manualPending){manualPending=false;await chrome.alarms.clear('tracker-screenshot');forceShot=true;try{await capture();}finally{forceShot=false;}}}).catch(()=>{});}).subscribe();
+}
 async function flush(){
   if(!owner)return;await validSession();
   while(local.queue.length){const item=local.queue[0]!;
@@ -199,7 +214,7 @@ let forceShot=false;
 async function capture(){
   retrySoon=false;
   try{
-    await reconcile();if(!shift||openBreak||!employee||!connected||settings.screenshots_per_hour<=0||(!forceShot&&await mode()!=='active'))return;
+    await reconcile();if(!employee||!connected)return;if(!forceShot&&(!shift||openBreak||settings.screenshots_per_hour<=0||await mode()!=='active'))return;
     // Use the most recently used normal Chrome window; it does not need OS focus (employee may be in another app).
     const windows=await chrome.windows.getAll({windowTypes:['normal']});
     const last=await chrome.windows.getLastFocused({windowTypes:['normal']}).catch(()=>null);
@@ -208,7 +223,7 @@ async function capture(){
     const tabs=await chrome.tabs.query({active:true,windowId:win.id});const tab=tabs[0];
     // Inspect the URL only for a capture-eligibility check, never persist or transmit it.
     if(!tab?.id||tab.incognito||!tab.url||!/^https?:\/\//.test(tab.url)){skip('Active tab is a browser page');return;}
-    const activeShift=shift.id;const capturedAt=new Date().toISOString();
+    const activeShift=shift?.id??null;const capturedAt=new Date().toISOString();
     let raw:string;
     try{raw=await chrome.tabs.captureVisibleTab(win.id,{format:'jpeg',quality:75});}catch(e){skip('Chrome blocked the capture');console.warn('[branta-tracker] capture',e);return;}
     if((!forceShot&&await mode()!=='active'))return;
@@ -223,6 +238,7 @@ async function capture(){
     if(upload.protocol!=='https:'||upload.hostname!==R2_HOST||signed.storage_path!==key||!decodeURIComponent(upload.pathname).endsWith(`/brantaconsole/${key}`))throw Error('Invalid upload destination');
     const bytes=Uint8Array.from(atob(image.data),c=>c.charCodeAt(0));if(bytes.length!==image.size)throw Error('Image size mismatch');
     const uploaded=await fetch(upload.toString(),{method:'PUT',headers:{'Content-Type':'image/webp'},body:bytes,signal:AbortSignal.timeout(15000)});if(!uploaded.ok)throw Error(`R2 upload failed (${uploaded.status})`);
+    if(!activeShift){const meta=((await supabase.auth.getUser()).data.user?.user_metadata??{}) as Record<string,unknown>;const list=Array.isArray(meta.manual_shots)?meta.manual_shots.slice(-29):[];await supabase.auth.updateUser({data:{manual_shots:[...list,{path:key,at:capturedAt,kb:Math.ceil(bytes.length/1024)}]}});shotStatus=null;local.lastShotAt=Date.now();await persist();return;}
     local.screenshots.push({id:crypto.randomUUID(),shift_session_id:activeShift,employee_id:owner!,storage_path:key,captured_at:capturedAt,file_size_kb:Math.ceil(bytes.length/1024),activity_percentage:null,blur_status:settings.is_screenshot_blur_enabled});const today=dhakaDate(Date.now());local.shotsToday=(local.shotsDate===today?local.shotsToday??0:0)+1;local.shotsDate=today;local.lastShotAt=Date.now();local.warning=null;shotStatus=null;await persist();await flush();
   }catch(e){console.warn('[branta-tracker] screenshot failed',e);shotStatus='Upload failed, retrying';retrySoon=true;await persist();}
   finally{await chrome.alarms.clear('tracker-screenshot');
@@ -257,7 +273,7 @@ chrome.runtime.onMessage.addListener((message,sender,respond)=>{
   }).then(respond).catch(()=>respond({protocol:1,error:'Tracker action failed. Check your connection, session and Console SSO configuration.'}));return true;
 });
 chrome.alarms.onAlarm.addListener(alarm=>{void exclusive(async()=>{await initialize();if(alarm.name==='tracker-screenshot')await capture();else if(alarm.name==='tracker-heartbeat'){await tick();await chrome.idle.setDetectionInterval(idleSeconds);if(manualPending){manualPending=false;await chrome.alarms.clear('tracker-screenshot');forceShot=true;try{await capture();}finally{forceShot=false;}}else await scheduleScreenshot();}}).catch(()=>{connected=false;});});
-chrome.idle.onStateChanged.addListener(state=>{const at=Date.now();void exclusive(async()=>{await initialize();await observe(openBreak?'break':!shift?'stopped':state==='active'?'active':'idle',at);await resetCounters();await badge();if(state!=='active')await chrome.alarms.clear('tracker-screenshot');else await scheduleScreenshot();}).catch(()=>{observation=null;connected=false;});});
+chrome.idle.onStateChanged.addListener(state=>{const at=Date.now();void exclusive(async()=>{await initialize();await observe(openBreak?'break':!shift?'stopped':state==='active'?'active':'idle',at);await resetCounters();await badge();await beat();if(state!=='active')await chrome.alarms.clear('tracker-screenshot');else await scheduleScreenshot();}).catch(()=>{observation=null;connected=false;});});
 chrome.runtime.onStartup.addListener(()=>{void exclusive(async()=>{observation=null;await chrome.storage.session.remove('tracker-observation');await initialize();}).catch(()=>{});});
 chrome.runtime.onInstalled.addListener(()=>{void exclusive(async()=>{await initialize();}).catch(()=>{});});
 
