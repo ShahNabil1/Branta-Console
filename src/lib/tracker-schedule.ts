@@ -6,7 +6,7 @@ export const shiftSlotSchema = z
   .object({ start: hhmm, end: hhmm })
   .refine((s) => s.start < s.end, "Shift end must be after start");
 export const shiftScheduleSchema = z.object({
-  days: z.record(z.enum(["0", "1", "2", "3", "4", "5", "6"]), z.array(shiftSlotSchema).max(4)),
+  days: z.record(z.string().regex(/^[0-6]$/), z.array(shiftSlotSchema).max(4)),
   break_minutes: z.number().int().min(0).max(240),
   grace_minutes: z.number().int().min(0).max(60),
 });

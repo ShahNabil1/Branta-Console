@@ -191,7 +191,7 @@ async function scheduleScreenshot(){
 }
 // Retry soon (instead of waiting a full random interval) when the moment simply wasn't capturable.
 let retrySoon=false;
-function skip(reason:string){shotStatus=reason;retrySoon=true;console.info('[branta-tracker] screenshot skipped:',reason);}
+function skip(reason:string){shotStatus=reason;retrySoon=true;console.warn('[branta-tracker] screenshot skipped:',reason);}
 async function capture(){
   retrySoon=false;
   try{
