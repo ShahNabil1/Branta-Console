@@ -14,7 +14,7 @@ export function ProfileView({ employee, connected, lastSyncedAt, onLogout, busy 
         <div><dt>Employee Code</dt><dd className="mono">{employee.code}</dd></div>
         <div><dt>Workspace</dt><dd>Branta Tech</dd></div>
         <div><dt>Console</dt><dd className={connected ? 'ok-text' : 'bad-text'}>{connected ? `Connected · ${synced}` : 'Not Connected'}</dd></div>
-        <div><dt>Version</dt><dd className="mono">0.5.0</dd></div>
+        <div><dt>Version</dt><dd className="mono">0.6.0</dd></div>
       </dl>
     </section>
     <p className="hint strong">Your Shift timing, breaks and tracking Settings are managed by Branta Console.</p>

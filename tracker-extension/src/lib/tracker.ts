@@ -1,8 +1,9 @@
+import type { Plan } from './schedule';
 export type Status = 'active' | 'away' | 'break' | 'completed';
 export type Connection = 'connected' | 'offline' | 'unavailable';
 export interface Employee { id:string; name:string; email:string; code:string; role:string; avatar?:string|null }
 export interface Shift { id:string; name:string; checkedInAt:number; status:Status; workedSeconds:number; breakSeconds:number; updatedAt:number }
-export interface Snapshot { employee:Employee|null; shift:Shift|null; todayWorkedSeconds:number; todayBreakSeconds:number; breakLimitSeconds:number; connection:Connection; lastSyncedAt:number|null;notice?:string|null;pendingTakeover?:boolean;lastScreenshotAt?:number|null;screenshotsToday?:number }
+export interface Snapshot { employee:Employee|null; shift:Shift|null; todayWorkedSeconds:number; todayBreakSeconds:number; breakLimitSeconds:number; connection:Connection; lastSyncedAt:number|null;notice?:string|null;pendingTakeover?:boolean;lastScreenshotAt?:number|null;screenshotsToday?:number;plan?:Plan|null;screenshotStatus?:string|null }
 export type Command = 'GET_SNAPSHOT'|'LOGIN'|'CHECK_IN'|'TAKE_BREAK'|'RESUME'|'CHECK_OUT'|'LOG_OUT'|'TAKEOVER_CONFIRM'|'TAKEOVER_CANCEL';
 export interface TrackerAdapter { execute(command:Command):Promise<Snapshot> }
 export const EMPTY:Snapshot={employee:null,shift:null,todayWorkedSeconds:0,todayBreakSeconds:0,breakLimitSeconds:3600,connection:'unavailable',lastSyncedAt:null};
@@ -45,7 +46,7 @@ export const runtimeAdapter:TrackerAdapter={async execute(command) {
 }};
 export function createDemoAdapter():TrackerAdapter {
   const now=Date.now();
-  let state:Snapshot={employee:{id:'demo',name:'Demo Employee',email:'demo@brantatech.com',code:'BTE-DEMO',role:'Creative Team'},shift:{id:'demo-shift',name:'Regular Shift',checkedInAt:now-11432000,status:'active',workedSeconds:10532,breakSeconds:900,updatedAt:now},todayWorkedSeconds:10532,todayBreakSeconds:900,breakLimitSeconds:3600,connection:'connected',lastSyncedAt:now};
+  let state:Snapshot={employee:{id:'demo',name:'Demo Employee',email:'demo@brantatech.com',code:'BTE-DEMO',role:'Creative Team'},shift:{id:'demo-shift',name:'Shift 1',checkedInAt:now-11432000,status:'active',workedSeconds:10532,breakSeconds:900,updatedAt:now},todayWorkedSeconds:10532,todayBreakSeconds:900,breakLimitSeconds:3600,connection:'connected',lastSyncedAt:now};
   return {async execute(command) {
     const tick=Date.now(); const shift=state.shift;
     if(command==='LOG_OUT') state={...EMPTY};
