@@ -1,4 +1,4 @@
-# Branta Time Tracker
+# Branta Tracker
 
 Manifest V3 employee tracker for Branta Console, version `0.4.0`. Requires Chrome 120+ (30-second alarms), Node 22.12+ or Node 24, and npm.
 

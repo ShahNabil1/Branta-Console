@@ -115,7 +115,7 @@ async function snapshot():Promise<Snapshot>{
   const work=(shift?.total_worked_seconds??0)+Math.floor(pending.reduce((n,i)=>n+i.work_ms,0)/1000);
   const breakSeconds=(shift?.total_break_seconds??0)+(openBreak?Math.max(0,Math.floor((Date.now()-Date.parse(openBreak.started_at))/1000)):0);
   const status=!shift?'completed':openBreak?'break':!connected||observation?.mode!=='active'?'away':'active';
-  return {employee,shift:shift?{id:shift.id,name:'Regular shift',checkedInAt:Date.parse(shift.check_in_at),status,workedSeconds:work,breakSeconds,updatedAt:Date.now()}:null,todayWorkedSeconds:todayWorked+Math.floor(todayPending.reduce((n,i)=>n+i.work_ms,0)/1000),todayBreakSeconds:todayBreak,breakLimitSeconds:settings.break_limit_minutes*60,connection:connected?'connected':'offline',lastSyncedAt:lastSynced,notice:local.warning,lastScreenshotAt:local.lastShotAt??null,screenshotsToday:local.shotsDate===dhakaDate(Date.now())?local.shotsToday??0:0};
+  return {employee,shift:shift?{id:shift.id,name:'Regular Shift',checkedInAt:Date.parse(shift.check_in_at),status,workedSeconds:work,breakSeconds,updatedAt:Date.now()}:null,todayWorkedSeconds:todayWorked+Math.floor(todayPending.reduce((n,i)=>n+i.work_ms,0)/1000),todayBreakSeconds:todayBreak,breakLimitSeconds:settings.break_limit_minutes*60,connection:connected?'connected':'offline',lastSyncedAt:lastSynced,notice:local.warning,lastScreenshotAt:local.lastShotAt??null,screenshotsToday:local.shotsDate===dhakaDate(Date.now())?local.shotsToday??0:0};
 }
 async function login(){
   if(owner&&employee)throw Error('Log out before changing accounts');
