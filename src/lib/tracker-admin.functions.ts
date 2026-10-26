@@ -1,4 +1,4 @@
-// Admin-only Extension Settings: screenshot interval + live Tracker monitoring (read from Tracker Supabase).
+// Admin-only Extension Settings: per-employee screenshot interval, idle threshold and manual capture (Tracker Supabase).
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -9,19 +9,19 @@ async function assertAdmin(supabase: any, userId: string) {
     supabase.rpc("has_role", { _user_id: userId, _role: "super_admin" }),
     supabase.rpc("has_role", { _user_id: userId, _role: "admin" }),
   ]);
-  if (!su.data && !ad.data) throw new Error("Only admins can view Extension Settings.");
+  if (!su.data && !ad.data) throw new Error("Only admins can manage Extension Settings.");
 }
 
-export type TrackerEmployeeRow = {
+export type TrackerSettingRow = {
   id: string;
   name: string;
-  status: "active" | "idle" | "break" | "offline" | "deactive";
-  workedSeconds: number;
-  clicks: number;
-  keys: number;
-  lastSeen: string | null;
+  email: string;
+  role: string;
+  avatar: string | null;
+  active: boolean;
+  intervalMinutes: number;
+  idleMinutes: number;
 };
-export type TrackerShot = { id: string; employee: string; capturedAt: string; sizeKb: number; url: string };
 
 export const getTrackerOverview = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -29,62 +29,69 @@ export const getTrackerOverview = createServerFn({ method: "GET" })
     await assertAdmin(context.supabase, context.userId);
     const { trackerAdmin } = await import("@/lib/tracker.server");
     const sb = trackerAdmin();
-    const today = new Date(Date.now() + 6 * 3600_000).toISOString().slice(0, 10);
-    const [profiles, settings, shifts, shots] = await Promise.all([
-      sb.from("profiles").select("*"),
-      sb.from("employee_tracker_settings").select("screenshots_per_hour").limit(1),
-      sb.from("shifts").select("id,employee_id,status,total_worked_seconds,check_out_at,updated_at").eq("date", today),
-      sb.from("screenshots").select("id,employee_id,storage_path,file_size_kb,captured_at").order("captured_at", { ascending: false }).limit(24),
+    const [profiles, settings] = await Promise.all([
+      sb.from("profiles").select("id,name,email,job_role,avatar_url,is_active"),
+      sb.from("employee_tracker_settings").select("employee_id,screenshots_per_hour,idle_threshold_seconds"),
     ]);
-    const shiftRows = shifts.data ?? [];
-    const ids = shiftRows.map((s) => s.id);
-    const logs = ids.length
-      ? await sb.from("activity_logs").select("shift_id,mouse_clicks,keystrokes_count,status,interval_end").in("shift_id", ids).order("interval_end", { ascending: false }).limit(5000)
-      : { data: [] as { shift_id: string; mouse_clicks: number; keystrokes_count: number; status: string; interval_end: string }[] };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const nameOf = new Map<string, string>((profiles.data ?? []).map((p: any) => [p.id, p.full_name || p.email || "Employee"]));
-    const now = Date.now();
+    const byId = new Map((settings.data ?? []).map((s: any) => [s.employee_id, s]));
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const employees: TrackerEmployeeRow[] = (profiles.data ?? []).map((p: any) => {
-      const s = shiftRows.find((x) => x.employee_id === p.id && !x.check_out_at) ?? shiftRows.find((x) => x.employee_id === p.id);
-      const l = (logs.data ?? []).filter((x) => s && x.shift_id === s.id);
-      const last = l[0];
-      let status: TrackerEmployeeRow["status"] = "offline";
-      if (p.is_active === false) status = "deactive";
-      else if (s && !s.check_out_at && last && now - new Date(last.interval_end).getTime() < 3 * 60_000)
-        status = s.status === "on_break" || s.status === "break" ? "break" : last.status === "idle" ? "idle" : "active";
+    const employees: TrackerSettingRow[] = (profiles.data ?? []).map((p: any) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const s: any = byId.get(p.id);
       return {
         id: p.id,
-        name: nameOf.get(p.id) ?? "Employee",
-        status,
-        workedSeconds: s?.total_worked_seconds ?? 0,
-        clicks: l.reduce((a, x) => a + (x.mouse_clicks ?? 0), 0),
-        keys: l.reduce((a, x) => a + (x.keystrokes_count ?? 0), 0),
-        lastSeen: last?.interval_end ?? s?.updated_at ?? null,
+        name: p.name || p.email || "Employee",
+        email: p.email ?? "",
+        role: p.job_role ?? "",
+        avatar: typeof p.avatar_url === "string" && p.avatar_url.startsWith("https://") ? p.avatar_url : null,
+        active: p.is_active !== false,
+        intervalMinutes: Math.round(60 / Math.max(1, s?.screenshots_per_hour ?? 20)),
+        idleMinutes: Math.max(1, Math.round((s?.idle_threshold_seconds ?? 300) / 60)),
       };
     });
-    const { createPresignedGetUrl } = await import("@/lib/r2.server");
-    const screenshots: TrackerShot[] = await Promise.all(
-      (shots.data ?? []).map(async (x) => ({
-        id: x.id,
-        employee: nameOf.get(x.employee_id) ?? "Employee",
-        capturedAt: x.captured_at,
-        sizeKb: x.file_size_kb,
-        url: await createPresignedGetUrl({ key: x.storage_path, expiresInSeconds: 1800 }).catch(() => ""),
-      })),
-    );
-    const perHour = settings.data?.[0]?.screenshots_per_hour ?? 3;
-    return { intervalMinutes: Math.round(60 / Math.max(1, perHour)), employees, screenshots };
+    employees.sort((a, b) => Number(b.active) - Number(a.active) || a.name.localeCompare(b.name));
+    return { employees };
   });
 
-export const saveScreenshotInterval = createServerFn({ method: "POST" })
+export const saveTrackerSettings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { minutes: number }) => z.object({ minutes: z.number().int().min(1).max(60) }).parse(d))
+  .inputValidator((d: { ids: string[] | "all"; intervalMinutes?: number; idleMinutes?: number }) =>
+    z
+      .object({
+        ids: z.union([z.literal("all"), z.array(z.string().uuid()).min(1).max(500)]),
+        intervalMinutes: z.number().int().min(1).max(60).optional(),
+        idleMinutes: z.number().int().min(1).max(60).optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const patch: Record<string, number> = {};
+    if (data.intervalMinutes) patch.screenshots_per_hour = Math.max(1, Math.round(60 / data.intervalMinutes));
+    if (data.idleMinutes) patch.idle_threshold_seconds = data.idleMinutes * 60;
+    if (!Object.keys(patch).length) throw new Error("Nothing to save.");
+    const { trackerAdmin } = await import("@/lib/tracker.server");
+    let q = trackerAdmin().from("employee_tracker_settings").update(patch);
+    q = data.ids === "all" ? q.not("id", "is", null) : q.in("employee_id", data.ids);
+    const { error } = await q;
+    if (error) throw new Error("Could not save the settings.");
+    return { ok: true };
+  });
+
+// Manual capture: stamps a request on the Tracker auth user; the extension picks it up on its next 30-second heartbeat.
+export const requestManualScreenshot = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string }) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
     const { trackerAdmin } = await import("@/lib/tracker.server");
-    const perHour = Math.max(1, Math.round(60 / data.minutes));
-    const { error } = await trackerAdmin().from("employee_tracker_settings").update({ screenshots_per_hour: perHour }).not("id", "is", null);
-    if (error) throw new Error("Could not save the screenshot interval.");
-    return { ok: true, perHour };
+    const sb = trackerAdmin();
+    const { data: u, error } = await sb.auth.admin.getUserById(data.id);
+    if (error || !u.user) throw new Error("Employee not found in Tracker.");
+    const res = await sb.auth.admin.updateUserById(data.id, {
+      app_metadata: { ...(u.user.app_metadata ?? {}), screenshot_request: new Date().toISOString() },
+    });
+    if (res.error) throw new Error("Could not send the capture request.");
+    return { ok: true };
   });
