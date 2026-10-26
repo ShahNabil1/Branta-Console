@@ -152,7 +152,7 @@ async function forcedLogout(){
   employee=null;owner=null;shift=null;openBreak=null;observation=null;local=fresh();connected=false;initial=null;
   signedOutNotice='You were signed out because your account was signed in on another browser.';await setupScripts().catch(()=>{});await badge();
 }
-// A compact, centered sign-in window (like Google's account chooser) instead of a full-size browser window.
+// A compact, centered sign-in window (like Google's account chooser) instead of a full-size browser tab.
 async function signInWindow(url:string,redirect:string):Promise<string>{
   const base=await chrome.windows.getLastFocused().catch(()=>null);const width=460,height=680;
   const left=base?.left!==undefined&&base.width?Math.max(0,Math.round(base.left+(base.width-width)/2)):undefined;
