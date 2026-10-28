@@ -85,7 +85,7 @@ function Page() {
   }, [q.data]);
 
   return (
-    <div className="mx-auto w-full min-w-0 max-w-6xl space-y-4 p-4 pt-14 md:p-6">
+    <div className="mx-auto w-full min-w-0 max-w-6xl space-y-4 p-4 md:p-6">
       <div>
         <h1 className="text-lg font-semibold tracking-tight">Extension Settings</h1>
         <p className="text-xs text-muted-foreground">Branta Tracker rules per employee · <span className="font-mono">{counts.active}</span> Active Now · <span className="font-mono">{counts.idle}</span> Idle · <span className="font-mono">{counts.setup}/{counts.total}</span> Setup Done</p>
