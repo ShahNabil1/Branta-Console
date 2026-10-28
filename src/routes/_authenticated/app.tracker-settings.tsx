@@ -85,7 +85,7 @@ function Page() {
   }, [q.data]);
 
   return (
-    <div className="mx-auto max-w-6xl space-y-4 p-4 md:p-6">
+    <div className="mx-auto w-full min-w-0 max-w-6xl space-y-4 p-4 md:p-6">
       <div>
         <h1 className="text-lg font-semibold tracking-tight">Extension Settings</h1>
         <p className="text-xs text-muted-foreground">Branta Tracker rules per employee · <span className="font-mono">{counts.active}</span> Active Now · <span className="font-mono">{counts.idle}</span> Idle · <span className="font-mono">{counts.setup}/{counts.total}</span> Setup Done</p>
@@ -113,7 +113,7 @@ function Page() {
 
       {q.isLoading ? <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" />Loading…</div>
         : q.error ? <div className="text-sm text-destructive">{(q.error as Error).message}</div>
-        : <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{rows.map((e) => (
+        : <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,19rem),1fr))] gap-3">{rows.map((e) => (
             <EmployeeCard key={`${e.id}-${e.intervalMinutes}-${e.idleMinutes}`} e={e} checked={selected.has(e.id)} onCheck={() => toggle(e.id)}
               onSave={(i, d) => apply([e.id], i, d)}
               onView={() => setViewing(e)}
@@ -159,17 +159,17 @@ function EmployeeCard({ e, checked, onCheck, onSave, onShot, onView, capturing }
             <span className="text-[10px] text-muted-foreground">· {ago(e.lastSeenAt)}</span>
           </div>
         </div>
-        <div className="flex flex-col items-end gap-1">
+        <div className="flex shrink-0 flex-col items-end gap-1">
           {!e.active && <span className="rounded bg-destructive/10 px-1.5 py-0.5 text-[10px] font-medium text-destructive">Deactive</span>}
           {e.setup
             ? <span className="inline-flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-[hsl(142_70%_35%)]"><PlugZap className="size-3" />Setup Done</span>
             : <span className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"><Unplug className="size-3" />Not Setup</span>}
         </div>
       </div>
-      <div className="mt-4 flex items-end gap-3">
+      <div className="mt-4 flex flex-wrap items-end gap-3">
         <NumField label="Screenshot" icon={<Camera className="size-3" />} value={interval} onChange={setInterval} />
         <NumField label="Idle after" icon={<Clock className="size-3" />} value={idle} onChange={setIdle} />
-        <Button size="sm" className="ml-auto" disabled={!dirty} onClick={() => onSave(interval, idle)}>Save</Button>
+        <Button size="sm" className="ml-auto shrink-0" disabled={!dirty} onClick={() => onSave(interval, idle)}>Save</Button>
       </div>
       <div className="mt-4 flex gap-2 border-t pt-3">
         <Button size="sm" variant="outline" className="flex-1" disabled={!e.connected || capturing} onClick={onShot}
