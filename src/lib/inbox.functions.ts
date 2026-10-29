@@ -621,7 +621,16 @@ export const getInboxThread = createServerFn({ method: "GET" })
 export const markThreadRead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ threadId: z.string().min(1) }).parse(d))
-  .handler(async ({ data }): Promise<{ ok: true }> => {
+  .handler(async ({ data, context }): Promise<{ ok: true }> => {
+    // Only threads that exist in the shared inbox may be modified.
+    const { data: known } = await context.supabase
+      .from("inbox_messages")
+      .select("id")
+      .eq("gmail_thread_id", data.threadId)
+      .limit(1);
+    if (!known || known.length === 0)
+      throw new Error("Thread not found in the shared inbox");
+
     // Fetch message IDs for the thread from Gmail.
     const thread = await callGateway<{ messages?: Array<{ id: string }> }>({
       connector: "google_mail",
