@@ -38,6 +38,27 @@ export const sendInboxReply = createServerFn({ method: "POST" })
       data,
       context,
     }): Promise<{ ok: true; messageId: string; provider: string }> => {
+      // The thread must exist in the shared inbox, and every recipient must
+      // be a participant of that thread — no arbitrary outbound addresses.
+      const { data: threadMsgs } = await context.supabase
+        .from("inbox_messages")
+        .select("from_email")
+        .eq("gmail_thread_id", data.threadId)
+        .limit(100);
+      if (!threadMsgs || threadMsgs.length === 0)
+        throw new Error("Thread not found in the shared inbox");
+      const participants = new Set<string>(
+        (threadMsgs as Array<{ from_email: string }>).map((m) =>
+          m.from_email.trim().toLowerCase(),
+        ),
+      );
+      participants.add(FROM_EMAIL);
+      const outsider = [...data.to, ...data.cc].find(
+        (e) => !participants.has(e.trim().toLowerCase()),
+      );
+      if (outsider)
+        throw new Error(`${outsider} is not a participant of this thread`);
+
       const html =
         data.contentType === "html" ? data.body : textToHtml(data.body);
       const text = data.contentType === "text" ? data.body : undefined;
