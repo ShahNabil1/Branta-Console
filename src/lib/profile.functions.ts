@@ -187,7 +187,7 @@ export const updateMyProfile = createServerFn({ method: "POST" })
       .update(payload as any)
       .eq("user_id", context.userId);
     if (error) throw dbError(error);
-    { const { syncTrackerEmployeeSafe } = await import("@/lib/tracker.server"); await syncTrackerEmployeeSafe(context.userId); }
+    { const { syncEmployeeAppsSafe } = await import("@/lib/employee-app-sync.server"); await syncEmployeeAppsSafe(context.userId); }
     return { ok: true as const };
   });
 

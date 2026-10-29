@@ -217,7 +217,7 @@ export const setEmployeeJobRole = createServerFn({ method: "POST" })
       .update({ job_role: value } as any)
       .eq("user_id", data.userId);
     if (error) throw dbError(error);
-    { const { syncTrackerEmployeeSafe } = await import("@/lib/tracker.server"); await syncTrackerEmployeeSafe(data.userId); }
+    { const { syncEmployeeAppsSafe } = await import("@/lib/employee-app-sync.server"); await syncEmployeeAppsSafe(data.userId); }
     return { ok: true as const, jobRole: value };
   });
 
@@ -278,7 +278,7 @@ export const updateEmployeeRoles = createServerFn({ method: "POST" })
       console.error("[updateEmployeeRoles] notify failed:", e);
     }
 
-    { const { syncTrackerEmployeeSafe } = await import("@/lib/tracker.server"); await syncTrackerEmployeeSafe(data.userId); }
+    { const { syncEmployeeAppsSafe } = await import("@/lib/employee-app-sync.server"); await syncEmployeeAppsSafe(data.userId); }
     return { ok: true as const, roles: rows.map((r) => r.role) };
   });
 
@@ -302,7 +302,7 @@ export const setEmployeeBan = createServerFn({ method: "POST" })
       ban_duration: (data.ban ? "876000h" : "none") as any,
     });
     if (error) throw dbError(error);
-    { const { syncTrackerEmployeeSafe } = await import("@/lib/tracker.server"); await syncTrackerEmployeeSafe(data.userId); }
+    { const { syncEmployeeAppsSafe } = await import("@/lib/employee-app-sync.server"); await syncEmployeeAppsSafe(data.userId); }
     return { ok: true as const, banned: data.ban };
   });
 
