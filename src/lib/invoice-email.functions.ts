@@ -109,6 +109,16 @@ async function collectInvoiceRecipients(
       }
     }
     return out;
+}
+
+export const listInvoiceRecipients = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { slug: string }) => z.object({ slug: z.string().min(1) }).parse(d))
+  .handler(async ({ data, context }): Promise<InvoiceRecipient[]> => {
+    const { data: inv } = await context.supabase
+      .from("invoices").select("id, customer_id").eq("slug", data.slug).maybeSingle();
+    if (!inv) return [];
+    return collectInvoiceRecipients(context.supabase, inv as { id: string; customer_id: string });
   });
 
 export const listInvoiceEmailEvents = createServerFn({ method: "GET" })
