@@ -255,6 +255,46 @@ export const sendLeadEmail = createServerFn({ method: "POST" })
         .maybeSingle();
       if (!lead) throw new Error("Lead not found");
 
+      // Only the lead owner or a privileged role may send mail from a lead.
+      if (lead.owner_id !== context.userId) {
+        const { data: privileged } = await context.supabase.rpc("has_role", {
+          _user_id: context.userId,
+          _role: "admin",
+        });
+        const { data: mgr } = privileged
+          ? { data: true }
+          : await context.supabase.rpc("has_role", {
+              _user_id: context.userId,
+              _role: "manager",
+            });
+        const { data: sa } = privileged || mgr
+          ? { data: true }
+          : await context.supabase.rpc("has_role", {
+              _user_id: context.userId,
+              _role: "super_admin",
+            });
+        if (!privileged && !mgr && !sa)
+          throw new Error("Only the lead owner or an admin/manager can email from this lead");
+      }
+
+      // Recipients must be contacts of this lead — no arbitrary addresses.
+      const { data: contacts } = await context.supabase
+        .from("lead_contacts")
+        .select("email, alt_email")
+        .eq("lead_id", data.leadId);
+      const allowed = new Set<string>();
+      for (const c of (contacts ?? []) as Array<{ email: string | null; alt_email: string | null }>) {
+        if (c.email) allowed.add(c.email.trim().toLowerCase());
+        if (c.alt_email) allowed.add(c.alt_email.trim().toLowerCase());
+      }
+      const requested = [
+        ...data.to.map((r) => (typeof r === "string" ? r : r.email)),
+        ...data.cc,
+      ].map((e) => e.trim().toLowerCase());
+      const outsider = requested.find((e) => !allowed.has(e));
+      if (outsider)
+        throw new Error(`${outsider} is not a contact of this lead. Add them as a lead contact first.`);
+
       let ownerName: string | null = null;
       if (lead.owner_id) {
         const { data: p } = await context.supabase

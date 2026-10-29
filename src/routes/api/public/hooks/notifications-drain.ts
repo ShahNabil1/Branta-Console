@@ -8,8 +8,8 @@ import { createFileRoute } from "@tanstack/react-router";
 export const Route = createFileRoute("/api/public/hooks/notifications-drain")({
   server: {
     handlers: {
-      POST: async () => wrap(),
-      GET: async () => wrap(),
+      POST: async ({ request }) => wrap(request),
+      GET: async ({ request }) => wrap(request),
     },
   },
 });
@@ -38,7 +38,19 @@ async function queueFollowUpReminders() {
   }
 }
 
-async function wrap(): Promise<Response> {
+async function wrap(request: Request): Promise<Response> {
+  // Only the scheduler holding the dedicated cron secret may trigger the drain.
+  const providedKey =
+    request.headers.get("x-cron-secret") ??
+    request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ??
+    "";
+  const expected = process.env.NOTIFICATIONS_DRAIN_CRON_SECRET ?? "";
+  if (!expected || providedKey !== expected) {
+    return new Response(JSON.stringify({ error: "unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
   try {
     await queueFollowUpReminders().catch((e) => console.warn("[drain] follow-ups", e));
     const result = await drain();

@@ -1839,7 +1839,9 @@ export const setExpenseShare = createServerFn({ method: "POST" })
     const current = row as { share_token: string | null; voucher_no: string | null } | null;
     const token =
       current?.share_token ??
-      `${Math.random().toString(36).slice(2, 10)}${Math.random().toString(36).slice(2, 10)}`;
+      Array.from(crypto.getRandomValues(new Uint8Array(24)))
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
     const { error } = await context.supabase
       .from("expenses")
       .update({ share_enabled: data.enabled, share_token: token } as never)

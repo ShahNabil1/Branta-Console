@@ -92,6 +92,42 @@ export const scheduleLeadMeeting = createServerFn({ method: "POST" })
       new Map(data.attendees.map((e) => [e.toLowerCase(), e])).values(),
     );
 
+    // Only the lead owner or a privileged role may schedule meetings for a lead.
+    const { data: leadRow } = await context.supabase
+      .from("leads")
+      .select("owner_id")
+      .eq("id", data.leadId)
+      .maybeSingle();
+    if (!leadRow) throw new Error("Lead not found");
+    if ((leadRow as { owner_id: string | null }).owner_id !== context.userId) {
+      let allowed = false;
+      for (const role of ["admin", "manager", "super_admin"] as const) {
+        const { data: has } = await context.supabase.rpc("has_role", {
+          _user_id: context.userId,
+          _role: role,
+        });
+        if (has) { allowed = true; break; }
+      }
+      if (!allowed)
+        throw new Error("Only the lead owner or an admin/manager can schedule meetings for this lead");
+    }
+
+    // Attendees must be lead contacts or @brantatech.com teammates — no arbitrary invitees.
+    const { data: contacts } = await context.supabase
+      .from("lead_contacts")
+      .select("email, alt_email")
+      .eq("lead_id", data.leadId);
+    const known = new Set<string>();
+    for (const c of (contacts ?? []) as Array<{ email: string | null; alt_email: string | null }>) {
+      if (c.email) known.add(c.email.trim().toLowerCase());
+      if (c.alt_email) known.add(c.alt_email.trim().toLowerCase());
+    }
+    const outsider = uniqAttendees.find(
+      (e) => !known.has(e) && !e.endsWith("@brantatech.com"),
+    );
+    if (outsider)
+      throw new Error(`${outsider} is not a contact of this lead. Add them as a lead contact first.`);
+
     const { callGateway } = await import("@/lib/connector-gateway.server");
     const requestId = crypto.randomUUID();
     const ev = await callGateway<GCalEvent>({

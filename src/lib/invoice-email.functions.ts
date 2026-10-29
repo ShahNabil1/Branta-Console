@@ -47,16 +47,16 @@ function money(n: number, cur: string): string {
   return sym + Number(n ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-export const listInvoiceRecipients = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d: { slug: string }) => z.object({ slug: z.string().min(1) }).parse(d))
-  .handler(async ({ data, context }): Promise<InvoiceRecipient[]> => {
-    const { data: inv } = await context.supabase
-      .from("invoices").select("id, customer_id").eq("slug", data.slug).maybeSingle();
-    if (!inv) return [];
-    const invoice = inv as { id: string; customer_id: string };
+/** All addresses an invoice may legitimately be emailed to: the customer, the
+ * converted lead's contacts, and employee stakeholders. Used both to list
+ * recipients in the UI and to validate sends. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function collectInvoiceRecipients(
+  supabase: any,
+  invoice: { id: string; customer_id: string },
+): Promise<InvoiceRecipient[]> {
     const customerId = invoice.customer_id;
-    const { data: cust } = await context.supabase
+    const { data: cust } = await supabase
       .from("customers").select("name, email, converted_from_lead_id")
       .eq("id", customerId).maybeSingle();
     const c = cust as { name: string; email: string | null; converted_from_lead_id: string | null } | null;
@@ -69,13 +69,13 @@ export const listInvoiceRecipients = createServerFn({ method: "GET" })
     };
     if (c?.email) push({ email: c.email, name: c.name ?? null, role: "Customer", is_primary: true, source: "customer", label: "primary" });
     if (c?.converted_from_lead_id) {
-      const { data: lead } = await context.supabase
+      const { data: lead } = await supabase
         .from("leads").select("name, email, email_label, alt_email, alt_email_label")
         .eq("id", c.converted_from_lead_id).maybeSingle();
       const l = lead as { name: string | null; email: string | null; email_label: string | null; alt_email: string | null; alt_email_label: string | null } | null;
       if (l?.email) push({ email: l.email, name: l.name ?? c.name ?? null, role: "Lead", is_primary: false, source: "lead", label: l.email_label ?? "lead" });
       if (l?.alt_email) push({ email: l.alt_email, name: l.name ?? c.name ?? null, role: "Lead", is_primary: false, source: "lead", label: l.alt_email_label ?? "alt" });
-      const { data: contacts } = await context.supabase
+      const { data: contacts } = await supabase
         .from("lead_contacts").select("name, email, email_label, alt_email, alt_email_label, role, is_primary")
         .eq("lead_id", c.converted_from_lead_id);
       for (const row of (contacts ?? []) as Array<{ name: string | null; email: string | null; email_label: string | null; alt_email: string | null; alt_email_label: string | null; role: string | null; is_primary: boolean }>) {
@@ -83,13 +83,13 @@ export const listInvoiceRecipients = createServerFn({ method: "GET" })
         if (row.alt_email) push({ email: row.alt_email, name: row.name, role: row.role, is_primary: false, source: "contact", label: row.alt_email_label ?? "alt" });
       }
     }
-    const { data: stakeholders } = await context.supabase
+    const { data: stakeholders } = await supabase
       .from("invoice_stakeholders")
       .select("user_id, role")
       .eq("invoice_id", invoice.id);
     const userIds = Array.from(new Set(((stakeholders ?? []) as Array<{ user_id: string }>).map((s) => s.user_id)));
     if (userIds.length) {
-      const { data: profs } = await context.supabase
+      const { data: profs } = await supabase
         .from("profiles")
         .select("user_id, full_name")
         .in("user_id", userIds);
@@ -109,6 +109,16 @@ export const listInvoiceRecipients = createServerFn({ method: "GET" })
       }
     }
     return out;
+}
+
+export const listInvoiceRecipients = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { slug: string }) => z.object({ slug: z.string().min(1) }).parse(d))
+  .handler(async ({ data, context }): Promise<InvoiceRecipient[]> => {
+    const { data: inv } = await context.supabase
+      .from("invoices").select("id, customer_id").eq("slug", data.slug).maybeSingle();
+    if (!inv) return [];
+    return collectInvoiceRecipients(context.supabase, inv as { id: string; customer_id: string });
   });
 
 export const listInvoiceEmailEvents = createServerFn({ method: "GET" })
@@ -147,10 +157,29 @@ export const sendInvoiceEmail = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
+    // Sending invoices is a Finance/Admin action.
+    const { data: isFin } = await context.supabase.rpc("is_finance_admin", {
+      _user_id: context.userId,
+    });
+    if (!isFin) throw new Error("Only Finance or Admin can send invoice emails");
+
     // Caller must be able to see this invoice under their own access rules.
     const { data: inv } = await context.supabase
-      .from("invoices").select("id").eq("slug", data.slug).maybeSingle();
+      .from("invoices").select("id, customer_id").eq("slug", data.slug).maybeSingle();
     if (!inv) throw new Error("Invoice not found");
+
+    // Recipients must be known contacts of this invoice — no arbitrary addresses.
+    const allowed = await collectInvoiceRecipients(
+      context.supabase,
+      inv as { id: string; customer_id: string },
+    );
+    const allowedSet = new Set(allowed.map((r) => r.email.toLowerCase()));
+    const outsider = data.recipients.find(
+      (r) => !allowedSet.has(r.email.trim().toLowerCase()),
+    );
+    if (outsider)
+      throw new Error(`${outsider.email} is not a known recipient for this invoice`);
+
     const trigger = data.trigger ?? "manual";
     return await internalSendInvoiceEmail({
       slug: data.slug,
