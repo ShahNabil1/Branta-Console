@@ -83,13 +83,13 @@ async function collectInvoiceRecipients(
         if (row.alt_email) push({ email: row.alt_email, name: row.name, role: row.role, is_primary: false, source: "contact", label: row.alt_email_label ?? "alt" });
       }
     }
-    const { data: stakeholders } = await context.supabase
+    const { data: stakeholders } = await supabase
       .from("invoice_stakeholders")
       .select("user_id, role")
       .eq("invoice_id", invoice.id);
     const userIds = Array.from(new Set(((stakeholders ?? []) as Array<{ user_id: string }>).map((s) => s.user_id)));
     if (userIds.length) {
-      const { data: profs } = await context.supabase
+      const { data: profs } = await supabase
         .from("profiles")
         .select("user_id, full_name")
         .in("user_id", userIds);
