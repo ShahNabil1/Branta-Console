@@ -1,5 +1,7 @@
-import { describe, expect, test } from "bun:test";
-import { canAccessAdmakai, isAdmakaiCallback, mapAdmakaiRole } from "./admakai-policy";
+import { describe, test } from "node:test";
+import assert from "node:assert/strict";
+const expect = (actual) => ({ toBe: (expected) => assert.equal(actual, expected) });
+import { canAccessAdmakai, isAdmakaiCallback, mapAdmakaiRole } from "./admakai-policy.ts";
 
 describe("Admakai callback restrictions", () => {
   for (const host of ["admakai.com", "www.admakai.com", "admakai.lovable.app", "id-preview--501d0449-9e53-4830-89e1-c51ec60b3911.lovable.app"]) {
