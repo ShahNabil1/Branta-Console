@@ -47,16 +47,16 @@ function money(n: number, cur: string): string {
   return sym + Number(n ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-export const listInvoiceRecipients = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d: { slug: string }) => z.object({ slug: z.string().min(1) }).parse(d))
-  .handler(async ({ data, context }): Promise<InvoiceRecipient[]> => {
-    const { data: inv } = await context.supabase
-      .from("invoices").select("id, customer_id").eq("slug", data.slug).maybeSingle();
-    if (!inv) return [];
-    const invoice = inv as { id: string; customer_id: string };
+/** All addresses an invoice may legitimately be emailed to: the customer, the
+ * converted lead's contacts, and employee stakeholders. Used both to list
+ * recipients in the UI and to validate sends. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function collectInvoiceRecipients(
+  supabase: any,
+  invoice: { id: string; customer_id: string },
+): Promise<InvoiceRecipient[]> {
     const customerId = invoice.customer_id;
-    const { data: cust } = await context.supabase
+    const { data: cust } = await supabase
       .from("customers").select("name, email, converted_from_lead_id")
       .eq("id", customerId).maybeSingle();
     const c = cust as { name: string; email: string | null; converted_from_lead_id: string | null } | null;
