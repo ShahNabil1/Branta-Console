@@ -69,13 +69,13 @@ async function collectInvoiceRecipients(
     };
     if (c?.email) push({ email: c.email, name: c.name ?? null, role: "Customer", is_primary: true, source: "customer", label: "primary" });
     if (c?.converted_from_lead_id) {
-      const { data: lead } = await context.supabase
+      const { data: lead } = await supabase
         .from("leads").select("name, email, email_label, alt_email, alt_email_label")
         .eq("id", c.converted_from_lead_id).maybeSingle();
       const l = lead as { name: string | null; email: string | null; email_label: string | null; alt_email: string | null; alt_email_label: string | null } | null;
       if (l?.email) push({ email: l.email, name: l.name ?? c.name ?? null, role: "Lead", is_primary: false, source: "lead", label: l.email_label ?? "lead" });
       if (l?.alt_email) push({ email: l.alt_email, name: l.name ?? c.name ?? null, role: "Lead", is_primary: false, source: "lead", label: l.alt_email_label ?? "alt" });
-      const { data: contacts } = await context.supabase
+      const { data: contacts } = await supabase
         .from("lead_contacts").select("name, email, email_label, alt_email, alt_email_label, role, is_primary")
         .eq("lead_id", c.converted_from_lead_id);
       for (const row of (contacts ?? []) as Array<{ name: string | null; email: string | null; email_label: string | null; alt_email: string | null; alt_email_label: string | null; role: string | null; is_primary: boolean }>) {
