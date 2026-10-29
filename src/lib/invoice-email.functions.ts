@@ -157,10 +157,29 @@ export const sendInvoiceEmail = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
+    // Sending invoices is a Finance/Admin action.
+    const { data: isFin } = await context.supabase.rpc("is_finance_admin", {
+      _user_id: context.userId,
+    });
+    if (!isFin) throw new Error("Only Finance or Admin can send invoice emails");
+
     // Caller must be able to see this invoice under their own access rules.
     const { data: inv } = await context.supabase
-      .from("invoices").select("id").eq("slug", data.slug).maybeSingle();
+      .from("invoices").select("id, customer_id").eq("slug", data.slug).maybeSingle();
     if (!inv) throw new Error("Invoice not found");
+
+    // Recipients must be known contacts of this invoice — no arbitrary addresses.
+    const allowed = await collectInvoiceRecipients(
+      context.supabase,
+      inv as { id: string; customer_id: string },
+    );
+    const allowedSet = new Set(allowed.map((r) => r.email.toLowerCase()));
+    const outsider = data.recipients.find(
+      (r) => !allowedSet.has(r.email.trim().toLowerCase()),
+    );
+    if (outsider)
+      throw new Error(`${outsider.email} is not a known recipient for this invoice`);
+
     const trigger = data.trigger ?? "manual";
     return await internalSendInvoiceEmail({
       slug: data.slug,
