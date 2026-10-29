@@ -96,7 +96,7 @@ export const listMyConnectedApps = createServerFn({ method: "GET" })
 
 export const disconnectMyApp = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ app: z.literal("tracker_extension") }).parse(d))
+  .inputValidator((d) => z.object({ app: z.enum(["tracker_extension", "admakai"]) }).parse(d))
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase
       .from("connected_apps")

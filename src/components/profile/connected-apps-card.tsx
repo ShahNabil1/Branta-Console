@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { disconnectMyApp, listMyConnectedApps } from "@/lib/tracker-sso.functions";
 
-const LABELS: Record<string, string> = { tracker_extension: "Branta Tracker Extension" };
+const LABELS: Record<string, string> = { tracker_extension: "Branta Tracker Extension", admakai: "Admakai" };
 
 export function ConnectedAppsCard() {
   const list = useServerFn(listMyConnectedApps);
@@ -13,7 +13,7 @@ export function ConnectedAppsCard() {
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ["connected-apps"], queryFn: () => list() });
   const m = useMutation({
-    mutationFn: (app: "tracker_extension") => disconnect({ data: { app } }),
+    mutationFn: (app: "tracker_extension" | "admakai") => disconnect({ data: { app } }),
     onSuccess: () => {
       toast.success("Disconnected");
       qc.invalidateQueries({ queryKey: ["connected-apps"] });
@@ -37,7 +37,7 @@ export function ConnectedAppsCard() {
               {new Date(r.last_authorized_at).toLocaleString()}
             </div>
           </div>
-          <Button size="sm" variant="outline" disabled={m.isPending} onClick={() => m.mutate("tracker_extension")}>
+          <Button size="sm" variant="outline" disabled={m.isPending || (r.app !== "tracker_extension" && r.app !== "admakai")} onClick={() => { if (r.app === "tracker_extension" || r.app === "admakai") m.mutate(r.app); }}>
             Disconnect
           </Button>
         </div>

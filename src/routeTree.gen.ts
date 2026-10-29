@@ -28,6 +28,7 @@ import { Route as AuthenticatedAppTrackerSettingsRouteImport } from './routes/_a
 import { Route as AuthenticatedAppTransfersRouteImport } from './routes/_authenticated/app.transfers'
 import { Route as AuthenticatedOnboardingPasswordRouteImport } from './routes/_authenticated/onboarding.password'
 import { Route as AuthenticatedOnboardingTelegramRouteImport } from './routes/_authenticated/onboarding.telegram'
+import { Route as AuthenticatedSsoAdmakaiRouteImport } from './routes/_authenticated/sso.admakai'
 import { Route as AuthenticatedSsoTrackerRouteImport } from './routes/_authenticated/sso.tracker'
 import { Route as AuthenticatedXVoucherRouteImport } from './routes/_authenticated/x.$voucher'
 import { Route as ApiPublicR2HealthRouteImport } from './routes/api/public/r2-health'
@@ -186,6 +187,11 @@ const AuthenticatedOnboardingTelegramRoute =
     path: '/onboarding/telegram',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedSsoAdmakaiRoute = AuthenticatedSsoAdmakaiRouteImport.update({
+  id: '/sso/admakai',
+  path: '/sso/admakai',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedSsoTrackerRoute = AuthenticatedSsoTrackerRouteImport.update({
   id: '/sso/tracker',
   path: '/sso/tracker',
@@ -518,6 +524,7 @@ export interface FileRoutesByFullPath {
   '/app/transfers': typeof AuthenticatedAppTransfersRoute
   '/onboarding/password': typeof AuthenticatedOnboardingPasswordRoute
   '/onboarding/telegram': typeof AuthenticatedOnboardingTelegramRoute
+  '/sso/admakai': typeof AuthenticatedSsoAdmakaiRoute
   '/sso/tracker': typeof AuthenticatedSsoTrackerRoute
   '/x/$voucher': typeof AuthenticatedXVoucherRoute
   '/api/public/r2-health': typeof ApiPublicR2HealthRoute
@@ -586,6 +593,7 @@ export interface FileRoutesByTo {
   '/app/transfers': typeof AuthenticatedAppTransfersRoute
   '/onboarding/password': typeof AuthenticatedOnboardingPasswordRoute
   '/onboarding/telegram': typeof AuthenticatedOnboardingTelegramRoute
+  '/sso/admakai': typeof AuthenticatedSsoAdmakaiRoute
   '/sso/tracker': typeof AuthenticatedSsoTrackerRoute
   '/x/$voucher': typeof AuthenticatedXVoucherRoute
   '/api/public/r2-health': typeof ApiPublicR2HealthRoute
@@ -661,6 +669,7 @@ export interface FileRoutesById {
   '/_authenticated/app/transfers': typeof AuthenticatedAppTransfersRoute
   '/_authenticated/onboarding/password': typeof AuthenticatedOnboardingPasswordRoute
   '/_authenticated/onboarding/telegram': typeof AuthenticatedOnboardingTelegramRoute
+  '/_authenticated/sso/admakai': typeof AuthenticatedSsoAdmakaiRoute
   '/_authenticated/sso/tracker': typeof AuthenticatedSsoTrackerRoute
   '/_authenticated/x/$voucher': typeof AuthenticatedXVoucherRoute
   '/api/public/r2-health': typeof ApiPublicR2HealthRoute
@@ -736,6 +745,7 @@ export interface FileRouteTypes {
     | '/app/transfers'
     | '/onboarding/password'
     | '/onboarding/telegram'
+    | '/sso/admakai'
     | '/sso/tracker'
     | '/x/$voucher'
     | '/api/public/r2-health'
@@ -804,6 +814,7 @@ export interface FileRouteTypes {
     | '/app/transfers'
     | '/onboarding/password'
     | '/onboarding/telegram'
+    | '/sso/admakai'
     | '/sso/tracker'
     | '/x/$voucher'
     | '/api/public/r2-health'
@@ -878,6 +889,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/transfers'
     | '/_authenticated/onboarding/password'
     | '/_authenticated/onboarding/telegram'
+    | '/_authenticated/sso/admakai'
     | '/_authenticated/sso/tracker'
     | '/_authenticated/x/$voucher'
     | '/api/public/r2-health'
@@ -1083,6 +1095,13 @@ declare module '@tanstack/react-router' {
       path: '/onboarding/telegram'
       fullPath: '/onboarding/telegram'
       preLoaderRoute: typeof AuthenticatedOnboardingTelegramRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/sso/admakai': {
+      id: '/_authenticated/sso/admakai'
+      path: '/sso/admakai'
+      fullPath: '/sso/admakai'
+      preLoaderRoute: typeof AuthenticatedSsoAdmakaiRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/sso/tracker': {
@@ -1646,6 +1665,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAppRoute: typeof AuthenticatedAppRouteWithChildren
   AuthenticatedOnboardingPasswordRoute: typeof AuthenticatedOnboardingPasswordRoute
   AuthenticatedOnboardingTelegramRoute: typeof AuthenticatedOnboardingTelegramRoute
+  AuthenticatedSsoAdmakaiRoute: typeof AuthenticatedSsoAdmakaiRoute
   AuthenticatedSsoTrackerRoute: typeof AuthenticatedSsoTrackerRoute
   AuthenticatedXVoucherRoute: typeof AuthenticatedXVoucherRoute
 }
@@ -1654,6 +1674,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAppRoute: AuthenticatedAppRouteWithChildren,
   AuthenticatedOnboardingPasswordRoute: AuthenticatedOnboardingPasswordRoute,
   AuthenticatedOnboardingTelegramRoute: AuthenticatedOnboardingTelegramRoute,
+  AuthenticatedSsoAdmakaiRoute: AuthenticatedSsoAdmakaiRoute,
   AuthenticatedSsoTrackerRoute: AuthenticatedSsoTrackerRoute,
   AuthenticatedXVoucherRoute: AuthenticatedXVoucherRoute,
 }
