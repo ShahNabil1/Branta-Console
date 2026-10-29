@@ -1,9 +1,10 @@
 # Roadmap
 
 ## Admakai SSO
-- [ ] Add authenticated Admakai SSO with exact callback allowlist and role mapping.
-- [ ] Mirror employee changes and revoke inactive Admakai access.
-- [ ] Configure secrets, confirm target schema, and verify session flow.
+- [x] Add authenticated Admakai SSO with exact callback allowlist and role mapping (20 policy tests pass).
+- [x] Implement employee-change mirrors and inactive-access revocation; live removal/session revocation remains unverified.
+- [x] Configure secrets and confirm Admakai auth connection and target schema.
+- [ ] Verify authenticated callback and removal end-to-end after publishing; blocked by external unmanaged Hub auth (no test session available). Admakai must enforce inactive profiles in its own access rules.
 
 ## Monitoring fixes
 - [x] Verify and correct project title references in wallet/earnings database reports; preserve accounting and access checks.
