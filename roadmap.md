@@ -1,5 +1,10 @@
 # Roadmap
 
+## Admakai SSO
+- [ ] Add authenticated Admakai SSO with exact callback allowlist and role mapping.
+- [ ] Mirror employee changes and revoke inactive Admakai access.
+- [ ] Configure secrets, confirm target schema, and verify session flow.
+
 ## Monitoring fixes
 - [x] Verify and correct project title references in wallet/earnings database reports; preserve accounting and access checks.
 - [x] Apply payment-status filtering to expense exports and run regression tests.
