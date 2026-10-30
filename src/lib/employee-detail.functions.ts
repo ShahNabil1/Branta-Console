@@ -841,3 +841,28 @@ export const revokeEmployeeSession = createServerFn({ method: "POST" })
     }
     return { ok: true as const };
   });
+
+/** Resolve a friendly employee URL segment (Branta ID, e.g. "md-shahi") or a legacy UUID to the user id. */
+export const resolveEmployeeSlug = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ slug: z.string().trim().min(1).max(120) }).parse(input),
+  )
+  .handler(async ({ data, context }): Promise<{ userId: string; slug: string }> => {
+    await assertAdmin(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const slug = data.slug.toLowerCase();
+    if (/^[0-9a-f-]{36}$/.test(slug)) {
+      const { data: u } = await supabaseAdmin.auth.admin.getUserById(slug);
+      if (!u.user) throw new Error("Employee not found");
+      return { userId: u.user.id, slug: (u.user.email ?? "").toLowerCase().split("@")[0] || u.user.id };
+    }
+    for (let page = 1; page <= 20; page++) {
+      const { data: res, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 200 });
+      if (error) throw new Error(error.message);
+      const hit = res.users.find((u) => (u.email ?? "").toLowerCase().split("@")[0] === slug);
+      if (hit) return { userId: hit.id, slug };
+      if (res.users.length < 200) break;
+    }
+    throw new Error("Employee not found");
+  });
