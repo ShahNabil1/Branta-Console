@@ -45,8 +45,8 @@ const APPS: Record<
       "Disconnecting removes this link; you can reconnect any time.",
     ],
     connectLabel: "Connect",
-    connectUrl: "https://admakai.com/auth",
-    connectHint: "Opens Admakai — choose “Continue with Branta Console” to connect.",
+    connectUrl: "https://admakai.com",
+    connectHint: "Opens Admakai — sign in with Branta Console to connect.",
   },
 };
 

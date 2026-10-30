@@ -34,6 +34,8 @@ export type PasskeyRow = {
   credential_id: string;
   friendly_name: string | null;
   device_type: string | null;
+  aaguid: string | null;
+  transports: string[] | null;
   backed_up: boolean;
   last_used_at: string | null;
   created_at: string;
@@ -48,7 +50,7 @@ export const listMyPasskeys = createServerFn({ method: "GET" })
     const { data, error } = await supabaseAdmin
       .from("user_passkeys")
       .select(
-        "id,credential_id,friendly_name,device_type,backed_up,last_used_at,created_at",
+        "id,credential_id,friendly_name,device_type,backed_up,last_used_at,created_at,aaguid,transports",
       )
       .eq("user_id", context.userId)
       .order("created_at", { ascending: false });
