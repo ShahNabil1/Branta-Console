@@ -88,10 +88,13 @@ export const listMyConnectedApps = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("connected_apps")
       .select("app, connected_at, last_authorized_at")
+      .eq("user_id", context.userId)
       .is("revoked_at", null)
       .order("connected_at");
     if (error) throw new Error("Could not load connected apps.");
-    return data ?? [];
+    // One row per app (defensive de-dupe).
+    const seen = new Set<string>();
+    return (data ?? []).filter((r) => (seen.has(r.app) ? false : (seen.add(r.app), true)));
   });
 
 export const disconnectMyApp = createServerFn({ method: "POST" })
