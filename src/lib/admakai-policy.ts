@@ -4,6 +4,7 @@ export const ADMAKAI_CALLBACKS = [
   "https://admakai.lovable.app/auth/sso/callback",
   "https://id-preview--501d0449-9e53-4830-89e1-c51ec60b3911.lovable.app/auth/sso/callback",
   "https://501d0449-9e53-4830-89e1-c51ec60b3911.lovableproject.com/auth/sso/callback",
+  "https://project--501d0449-9e53-4830-89e1-c51ec60b3911-dev.lovable.app/auth/sso/callback",
 ] as const;
 export function isAdmakaiCallback(uri: string): boolean {
   return ADMAKAI_CALLBACKS.some((callback) => callback === uri);
