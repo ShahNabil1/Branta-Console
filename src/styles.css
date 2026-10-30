@@ -169,6 +169,21 @@
     font-family: inherit;
   }
 
+  /* Phones: 16px form text stops iOS/Android auto-zoom on focus. */
+  @media (max-width: 767px), (pointer: coarse) {
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+    textarea,
+    select {
+      font-size: 16px !important;
+    }
+  }
+
+  html,
+  body {
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
   ::selection {
     background: color-mix(in oklab, var(--brand-600) 22%, transparent);
     color: var(--text);

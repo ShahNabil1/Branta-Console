@@ -34,6 +34,9 @@ import {
   revokeAllOtherSessions,
 } from "@/lib/user-sessions.functions";
 import { changeMyPassword } from "@/lib/change-password.functions";
+import { beginPasswordResetPasskey, resetMyPassword } from "@/lib/reset-password.functions";
+import { getPasskeyProvider } from "@/lib/passkey-providers";
+import { PasskeyProviderIcon } from "@/components/profile/passkey-provider-icon";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -72,13 +75,13 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-md border border-border bg-card">
-      <header className="flex items-start justify-between gap-4 border-b border-border px-5 py-3">
-        <div className="flex items-start gap-3">
+    <section className="min-w-0 overflow-hidden rounded-md border border-border bg-card">
+      <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-5">
+        <div className="flex min-w-0 items-start gap-3">
           <div className="grid size-8 shrink-0 place-items-center rounded-sm bg-brand/10 text-brand">
             <Icon className="size-4" />
           </div>
-          <div>
+          <div className="min-w-0">
             <h2 className="text-[13px] font-semibold text-foreground">{title}</h2>
             {description && (
               <p className="mt-0.5 text-[12px] text-muted-foreground">
@@ -87,16 +90,16 @@ function Section({
             )}
           </div>
         </div>
-        {right}
+        {right ? <div className="flex shrink-0 flex-wrap gap-2">{right}</div> : null}
       </header>
-      <div className="p-5">{children}</div>
+      <div className="min-w-0 p-4 sm:p-5">{children}</div>
     </section>
   );
 }
 
 function SecurityTab() {
   return (
-    <div className="mx-auto max-w-5xl space-y-4 px-6 py-8">
+    <div className="mx-auto w-full min-w-0 max-w-5xl space-y-4 px-3 py-4 sm:px-6 sm:py-8">
       <TwoFactorSection />
       <PasskeysSection />
       <ChangePasswordSection />
@@ -173,7 +176,7 @@ function TwoFactorSection() {
       {loading ? (
         <div className="text-[12px] text-muted-foreground">Loading…</div>
       ) : (
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-[13px] text-muted-foreground">
             {verified
               ? "TOTP is enabled on this account. Reset it if you lost your authenticator."
@@ -298,15 +301,15 @@ function PasskeysSection() {
           {passkeys.map((p) => (
             <li key={p.id} className="flex items-center justify-between gap-3 py-2.5">
               <div className="flex min-w-0 items-center gap-3">
-                <div className="grid size-9 shrink-0 place-items-center rounded-sm bg-muted">
-                  <Fingerprint className="size-4 text-muted-foreground" />
+                <div className="grid size-9 shrink-0 place-items-center rounded-sm border border-border bg-card text-foreground">
+                  <PasskeyProviderIcon kind={getPasskeyProvider(p).kind} className="size-5" />
                 </div>
                 <div className="min-w-0">
                   <div className="truncate text-[13px] font-medium text-foreground">
                     {p.friendly_name ?? "Untitled passkey"}
                   </div>
                   <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11.5px] text-muted-foreground">
-                    <span>{p.device_type ?? "Device"}</span>
+                    <span className="font-medium text-foreground/80">{getPasskeyProvider(p).name}</span>
                     {p.backed_up && (
                       <span className="inline-flex items-center gap-0.5 rounded-sm bg-emerald-50 px-1 py-0.5 text-[10px] font-semibold text-emerald-700">
                         Synced
@@ -401,24 +404,132 @@ function PasskeysSection() {
   );
 }
 
-// ---------- Change password ----------
+// ---------- Password ----------
+
+const PW_RULES: { label: string; test: (v: string) => boolean }[] = [
+  { label: `Exactly ${PASSWORD_LEN} characters`, test: (v) => v.length === PASSWORD_LEN },
+  { label: "One lowercase letter", test: (v) => /[a-z]/.test(v) },
+  { label: "One uppercase letter", test: (v) => /[A-Z]/.test(v) },
+  { label: "One digit", test: (v) => /[0-9]/.test(v) },
+  { label: "One symbol (! @ # $ % ^ & * - _ = + ?)", test: (v) => /[!@#$%^&*\-_=+?]/.test(v) },
+];
+const pwValid = (v: string) => PW_RULES.every((r) => r.test(v));
+
+function PasswordField({
+  label,
+  value,
+  onChange,
+  autoComplete,
+  invalid,
+  autoFocus,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  autoComplete: string;
+  invalid?: boolean;
+  autoFocus?: boolean;
+}) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{label}</Label>
+      <div className="relative">
+        <Input
+          type={visible ? "text" : "password"}
+          className={cn("h-10 rounded-sm pr-9 font-mono text-[13px]", invalid && "border-red-500")}
+          value={value}
+          autoFocus={autoFocus}
+          onChange={(e) => onChange(stripToPassword(e.target.value))}
+          autoComplete={autoComplete}
+          maxLength={PASSWORD_LEN}
+        />
+        <button
+          type="button"
+          onClick={() => setVisible(!visible)}
+          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-sm p-1 text-muted-foreground hover:text-foreground"
+          tabIndex={-1}
+          aria-label={visible ? "Hide password" : "Show password"}
+        >
+          {visible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function NewPasswordFields({
+  next,
+  setNext,
+  confirmPw,
+  setConfirmPw,
+}: {
+  next: string;
+  setNext: (v: string) => void;
+  confirmPw: string;
+  setConfirmPw: (v: string) => void;
+}) {
+  const mismatch = confirmPw.length > 0 && next !== confirmPw;
+  return (
+    <>
+      <PasswordField label="New password" value={next} onChange={setNext} autoComplete="new-password" />
+      <ul className="grid grid-cols-1 gap-1 text-[11.5px] sm:grid-cols-2">
+        {PW_RULES.map((r) => {
+          const ok = r.test(next);
+          return (
+            <li key={r.label} className={cn("flex items-center gap-1.5", ok ? "text-emerald-700" : "text-muted-foreground")}>
+              {ok ? <Check className="size-3.5 shrink-0" /> : <span className="size-1.5 shrink-0 rounded-full bg-muted-foreground/50" />}
+              {r.label}
+            </li>
+          );
+        })}
+      </ul>
+      <PasswordField label="Confirm new password" value={confirmPw} onChange={setConfirmPw} autoComplete="new-password" invalid={mismatch} />
+      {mismatch && <p className="text-[11.5px] text-red-600">Passwords don't match.</p>}
+    </>
+  );
+}
 
 function ChangePasswordSection() {
+  const [mode, setMode] = useState<null | "change" | "reset">(null);
+  return (
+    <Section
+      title="Password"
+      description={`Exactly ${PASSWORD_LEN} characters with lowercase, uppercase, a digit and a symbol.`}
+      icon={Lock}
+    >
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-[13px] text-muted-foreground">
+          Change it with your current password, or reset it after verifying with your authenticator or a passkey.
+        </p>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <Button variant="outline" className="h-9 rounded-sm" onClick={() => setMode("reset")}>
+            Reset Password
+          </Button>
+          <Button className="h-9 rounded-sm" onClick={() => setMode("change")}>
+            Change Password
+          </Button>
+        </div>
+      </div>
+      <ChangePasswordDialog open={mode === "change"} onClose={() => setMode(null)} />
+      <ResetPasswordDialog open={mode === "reset"} onClose={() => setMode(null)} />
+    </Section>
+  );
+}
+
+function ChangePasswordDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const change = useServerFn(changeMyPassword);
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
-  const [confirm, setConfirm] = useState("");
+  const [confirmPw, setConfirmPw] = useState("");
   const [busy, setBusy] = useState(false);
-  const [showCurrent, setShowCurrent] = useState(false);
-  const [showNext, setShowNext] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
 
-  const mismatch = confirm.length > 0 && next !== confirm;
-  const canSubmit =
-    current.length > 0 &&
-    next.length === PASSWORD_LEN &&
-    !mismatch &&
-    next !== current;
+  useEffect(() => {
+    if (!open) { setCurrent(""); setNext(""); setConfirmPw(""); }
+  }, [open]);
+
+  const sameAsCurrent = next.length > 0 && next === current;
+  const canSubmit = current.length > 0 && pwValid(next) && next === confirmPw && !sameAsCurrent;
 
   const submit = async () => {
     if (!canSubmit) return;
@@ -426,7 +537,7 @@ function ChangePasswordSection() {
     try {
       await change({ data: { current_password: current, new_password: next } });
       toast.success("Password updated");
-      setCurrent(""); setNext(""); setConfirm("");
+      onClose();
     } catch (err) {
       toast.error((err as Error).message);
     } finally {
@@ -434,90 +545,143 @@ function ChangePasswordSection() {
     }
   };
 
-  const renderToggle = (visible: boolean, setVisible: (v: boolean) => void) => (
-    <button
-      type="button"
-      onClick={() => setVisible(!visible)}
-      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-sm p-1 text-muted-foreground hover:text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-      tabIndex={-1}
-      aria-label={visible ? "Hide password" : "Show password"}
-    >
-      {visible ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-    </button>
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && !busy && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Change Password</DialogTitle>
+        </DialogHeader>
+        <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
+          <PasswordField label="Current password" value={current} onChange={setCurrent} autoComplete="current-password" autoFocus />
+          <NewPasswordFields next={next} setNext={setNext} confirmPw={confirmPw} setConfirmPw={setConfirmPw} />
+          {sameAsCurrent && <p className="text-[11.5px] text-red-600">New password must be different from your current password.</p>}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose} disabled={busy}>Cancel</Button>
+            <Button type="submit" disabled={!canSubmit || busy}>
+              {busy ? <><Loader2 className="mr-1.5 size-3.5 animate-spin" />Updating…</> : "Update password"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
+}
+
+function ResetPasswordDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const reset = useServerFn(resetMyPassword);
+  const beginPk = useServerFn(beginPasswordResetPasskey);
+  const [step, setStep] = useState<"verify" | "password">("verify");
+  const [method, setMethod] = useState<"totp" | "passkey">("totp");
+  const [code, setCode] = useState("");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [assertion, setAssertion] = useState<any>(null);
+  const [next, setNext] = useState("");
+  const [confirmPw, setConfirmPw] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!open) {
+      setStep("verify"); setMethod("totp"); setCode(""); setAssertion(null);
+      setNext(""); setConfirmPw("");
+    }
+  }, [open]);
+
+  const verifyPasskey = async () => {
+    setBusy(true);
+    try {
+      const { startAuthentication } = await import("@simplewebauthn/browser");
+      const options = await beginPk();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const a = await startAuthentication({ optionsJSON: options as any });
+      setAssertion(a);
+      setMethod("passkey");
+      setStep("password");
+    } catch (err) {
+      const msg = (err as Error).message || "Passkey verification failed.";
+      toast.error(msg.includes("NotAllowed") ? "Passkey verification cancelled." : msg);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const canSubmit = pwValid(next) && next === confirmPw;
+  const submit = async () => {
+    if (!canSubmit) return;
+    setBusy(true);
+    try {
+      await reset({
+        data: method === "totp"
+          ? { method: "totp", code, new_password: next }
+          : { method: "passkey", assertion_response: assertion, new_password: next },
+      });
+      toast.success("Password reset");
+      onClose();
+    } catch (err) {
+      const msg = (err as Error).message;
+      toast.error(msg);
+      // A used passkey/TOTP proof can't be replayed — verify again.
+      if (/passkey|code|challenge|verif/i.test(msg)) { setStep("verify"); setAssertion(null); setCode(""); }
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
-    <Section
-      title="Change Password"
-      description={`Passwords are exactly ${PASSWORD_LEN} characters — one lowercase, one uppercase, one digit, one symbol.`}
-      icon={Lock}
-    >
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <div className="space-y-1.5">
-          <Label className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Current password
-          </Label>
-          <div className="relative">
-            <Input
-              type={showCurrent ? "text" : "password"}
-              className="h-9 rounded-sm pr-8 font-mono text-[12px]"
-              value={current}
-              onChange={(e) => setCurrent(stripToPassword(e.target.value))}
-              autoComplete="current-password"
-            />
-            {renderToggle(showCurrent, setShowCurrent)}
+    <Dialog open={open} onOpenChange={(o) => !o && !busy && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Reset Password</DialogTitle>
+        </DialogHeader>
+        {step === "verify" ? (
+          <div className="space-y-4">
+            <p className="text-[12.5px] text-muted-foreground">
+              Verify it's you first — no current password needed.
+            </p>
+            <div className="space-y-1.5">
+              <Label className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                Authenticator code
+              </Label>
+              <Input
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                placeholder="000000"
+                className="h-10 rounded-sm font-mono tracking-[0.35em]"
+              />
+              <Button
+                className="w-full"
+                disabled={!/^\d{6}$/.test(code) || busy}
+                onClick={() => { setMethod("totp"); setStep("password"); }}
+              >
+                Continue with code
+              </Button>
+            </div>
+            <div className="flex items-center gap-3 text-[11px] uppercase tracking-wide text-muted-foreground">
+              <span className="h-px flex-1 bg-border" /> or <span className="h-px flex-1 bg-border" />
+            </div>
+            <Button variant="outline" className="w-full" onClick={verifyPasskey} disabled={busy}>
+              {busy ? <Loader2 className="mr-1.5 size-4 animate-spin" /> : <Fingerprint className="mr-1.5 size-4" />}
+              Verify with a passkey
+            </Button>
           </div>
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            New password
-          </Label>
-          <div className="relative">
-            <Input
-              type={showNext ? "text" : "password"}
-              className="h-9 rounded-sm pr-8 font-mono text-[12px]"
-              value={next}
-              onChange={(e) => setNext(stripToPassword(e.target.value))}
-              autoComplete="new-password"
-              maxLength={PASSWORD_LEN}
-            />
-            {renderToggle(showNext, setShowNext)}
-          </div>
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Confirm new password
-          </Label>
-          <div className="relative">
-            <Input
-              type={showConfirm ? "text" : "password"}
-              className={cn(
-                "h-9 rounded-sm pr-8 font-mono text-[12px]",
-                mismatch && "border-red-500",
-              )}
-              value={confirm}
-              onChange={(e) => setConfirm(stripToPassword(e.target.value))}
-              autoComplete="new-password"
-              maxLength={PASSWORD_LEN}
-            />
-            {renderToggle(showConfirm, setShowConfirm)}
-          </div>
-          {mismatch && (
-            <p className="text-[11px] text-red-600">Passwords don't match.</p>
-          )}
-        </div>
-      </div>
-
-      <div className="mt-4 flex justify-end">
-        <Button
-          onClick={submit}
-          disabled={!canSubmit || busy}
-          className="h-9 rounded-sm bg-primary text-primary-foreground hover:bg-brand-700"
-        >
-          {busy ? <><Loader2 className="mr-1.5 size-3.5 animate-spin" />Updating…</> : "Update password"}
-        </Button>
-      </div>
-    </Section>
+        ) : (
+          <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
+            <div className="flex items-center gap-1.5 rounded-sm border border-emerald-200 bg-emerald-50 px-2.5 py-2 text-[12px] text-emerald-800">
+              <Check className="size-3.5" />
+              {method === "passkey" ? "Passkey verified." : "Code ready — it is checked when you save."}
+            </div>
+            <NewPasswordFields next={next} setNext={setNext} confirmPw={confirmPw} setConfirmPw={setConfirmPw} />
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={onClose} disabled={busy}>Cancel</Button>
+              <Button type="submit" disabled={!canSubmit || busy}>
+                {busy ? <><Loader2 className="mr-1.5 size-3.5 animate-spin" />Saving…</> : "Reset password"}
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -632,7 +796,7 @@ function SessionsSection() {
             const label = `${s.browser ?? "Browser"} · ${s.os ?? "OS"}`;
             const location = [s.city, s.country].filter(Boolean).join(", ");
             return (
-              <li key={s.id} className="flex min-w-0 items-center justify-between gap-3 py-3">
+              <li key={s.id} className="flex min-w-0 items-center justify-between gap-2 py-3">
                 <div className="flex min-w-0 items-center gap-3">
                   <div
                     className={cn(
@@ -643,8 +807,8 @@ function SessionsSection() {
                     <Icon className="size-4" />
                   </div>
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="truncate text-[13px] font-medium text-foreground">
+                    <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                      <span className="min-w-0 truncate text-[13px] font-medium text-foreground">
                         {label}
                       </span>
                       {s.is_current && (
@@ -659,7 +823,7 @@ function SessionsSection() {
                           <MapPin className="size-3" /> {location}
                         </span>
                       )}
-                      {s.ip && <><span>·</span><span className="font-mono">{s.ip}</span></>}
+                      {s.ip && <><span>·</span><span className="break-all font-mono">{s.ip}</span></>}
                       <span>·</span>
                       <span>
                         Active {new Date(s.last_seen_at).toLocaleString()}

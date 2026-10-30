@@ -61,9 +61,8 @@ export const changeMyPassword = createServerFn({ method: "POST" })
       .select("password_hash,created_at")
       .eq("user_id", context.userId)
       .order("created_at", { ascending: false })
-      .limit(1);
-    const lastHash = history?.[0]?.password_hash ?? null;
-    if (lastHash && lastHash === newHash) {
+      .limit(5);
+    if ((history ?? []).some((h) => h.password_hash === newHash)) {
       throw new Error(
         "You cannot reuse your previous password. Choose a different one.",
       );
