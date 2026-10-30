@@ -189,7 +189,7 @@ export function TelegramConnectCard() {
         </div>
       </div>
       {admin.data?.isAdmin && (
-        <div className="mt-3 flex items-center justify-between gap-2 rounded-sm border border-dashed border-border bg-muted/30 px-2.5 py-2 text-[11.5px] text-muted-foreground">
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-sm border border-dashed border-border bg-muted/30 px-2.5 py-2 text-[11.5px] text-muted-foreground">
           <span className="inline-flex items-center gap-1.5">
             <Webhook className="size-3.5" /> Admin: register the Telegram bot
             webhook (one-time, or after changing the public URL).
