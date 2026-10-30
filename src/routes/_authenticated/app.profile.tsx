@@ -17,7 +17,7 @@ const TABS = [
 function ProfileLayout() {
   const { pathname } = useLocation();
   return (
-    <div className="flex min-h-full flex-col">
+    <div className="flex min-h-full min-w-0 flex-col">
       <div className="border-b border-border bg-background">
         <div className="mx-auto flex max-w-5xl items-end justify-between gap-4 px-3 pt-5 sm:gap-6 sm:px-6 sm:pt-6">
           <div>
