@@ -58,6 +58,7 @@ import {
   setEmployeeJobRole,
   startImpersonation,
   updateEmployeeRoles,
+  resolveEmployeeSlug,
   type EmployeeDetail,
   type EmployeeRole,
   type PaymentMethodLite,
@@ -111,7 +112,27 @@ const ROLE_OPTIONS: { value: EmployeeRole; label: string; note: string }[] = [
 
 
 function EmployeeDetailPage() {
-  const { userId } = Route.useParams();
+  const { userId: segment } = Route.useParams();
+  const resolveFn = useServerFn(resolveEmployeeSlug);
+  const resolved = useQuery({
+    queryKey: ["employee.slug", segment],
+    queryFn: () => resolveFn({ data: { slug: segment } }),
+    staleTime: Infinity,
+    retry: false,
+  });
+  // Legacy UUID links keep working; the address bar switches to the friendly Branta ID.
+  useEffect(() => {
+    const s = resolved.data?.slug;
+    if (s && s !== segment && typeof window !== "undefined") {
+      window.history.replaceState(window.history.state, "", window.location.pathname.replace(segment, encodeURIComponent(s)) + window.location.search + window.location.hash);
+    }
+  }, [resolved.data?.slug, segment]);
+  if (resolved.isError) return <div className="p-8 text-sm text-muted-foreground">Employee not found.</div>;
+  if (!resolved.data) return <div className="flex items-center gap-2 p-8 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>;
+  return <EmployeeDetailInner userId={resolved.data.userId} />;
+}
+
+function EmployeeDetailInner({ userId }: { userId: string }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const confirm = useConfirm();
