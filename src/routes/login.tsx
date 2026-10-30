@@ -568,7 +568,7 @@ function LoginPage() {
       </aside>
 
       {/* Form */}
-      <main className="flex flex-1 flex-col justify-center bg-muted px-6 py-12 sm:px-16 lg:px-24">
+      <main className="flex min-w-0 flex-1 flex-col justify-center bg-muted px-6 py-12 sm:px-16 lg:px-24">
         <div className="mx-auto w-full max-w-[400px]">
           <div className="mb-8 flex lg:hidden">
             <img src={brandLogo.url} alt="Branta" className="h-8 w-auto" />
@@ -671,13 +671,13 @@ function LoginPage() {
                       aria-invalid={!!localError}
                       aria-describedby="local-help"
                       className={cn(
-                        "flex-1 bg-transparent px-3 font-mono text-[13px] outline-none transition-shadow focus:ring-1 focus:ring-inset",
+                        "min-w-0 flex-1 bg-transparent px-3 font-mono text-[13px] outline-none transition-shadow focus:ring-1 focus:ring-inset",
                         localError ? "focus:ring-rose-500" : "focus:ring-brand",
                       )}
                     />
                     <div
                       aria-hidden="true"
-                      className="grid select-none place-items-center border-l border-border bg-muted px-3 font-mono text-[13px] font-semibold text-brand"
+                      className="grid shrink-0 select-none place-items-center border-l border-border bg-muted px-3 font-mono text-[13px] font-semibold text-brand"
                     >
                       {DOMAIN}
                     </div>
