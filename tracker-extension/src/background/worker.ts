@@ -80,7 +80,7 @@ let idleSeconds=300,manualPending=false,lastRate:number|null=null;
 async function beat(mine?:string){
   const state=await chrome.idle.queryState(idleSeconds);
   const presence=openBreak?'break':state==='active'?'active':'idle';
-  await supabase.auth.updateUser({data:{tracker_device:mine??await deviceId(),tracker_seen_at:new Date().toISOString(),tracker_presence:presence,tracker_shift:!!shift}}).catch(()=>{});
+  await supabase.auth.updateUser({data:{tracker_device:mine??await deviceId(),tracker_seen_at:new Date().toISOString(),tracker_presence:presence,tracker_shift:!!shift,tracker_version:chrome.runtime.getManifest().version}}).catch(()=>{});
 }
 // Instant Capture Now: Console broadcasts a wake-up; the signed app_metadata stamp is still verified in reconcile().
 let channel:ReturnType<typeof supabase.channel>|null=null;
@@ -161,7 +161,7 @@ async function login(){
   }finally{await chrome.storage.session.remove('tracker-sso');}
 }
 async function claimDevice(){
-  const mine=await deviceId();const res=await supabase.auth.updateUser({data:{tracker_device:mine,tracker_seen_at:new Date().toISOString()}});check(res.error);
+  const mine=await deviceId();const res=await supabase.auth.updateUser({data:{tracker_device:mine,tracker_seen_at:new Date().toISOString(),tracker_version:chrome.runtime.getManifest().version}});check(res.error);
   lastDeviceBeat=Date.now();pendingTakeover=false;signedOutNotice=null;initial=null;await initialize();
 }
 async function cancelTakeover(){pendingTakeover=false;await supabase.auth.signOut({scope:'local'}).catch(()=>{});await chrome.storage.local.remove(AUTH_STORAGE_KEY);initial=null;}
