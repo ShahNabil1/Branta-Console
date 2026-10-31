@@ -268,17 +268,19 @@ html:has(body .fixed.inset-0) {
 }
 
 /* Global modals: no layout shift, smooth silent open/close. */
-html { scrollbar-gutter: stable; }
+html { scrollbar-gutter: stable; overflow-y: scroll; }
+html:has(body .fixed.inset-0) { overflow-y: scroll !important; }
+html body[data-scroll-locked] { overflow: hidden !important; }
 html body[data-scroll-locked] { margin-right: 0 !important; padding-right: 0 !important; }
 .branta-overlay[data-state="open"] { animation: branta-fade-in 180ms ease-out both; }
 .branta-overlay[data-state="closed"] { animation: branta-fade-out 160ms ease-in both; }
 .branta-modal { transform: translate(-50%, -50%); will-change: transform, opacity; backface-visibility: hidden; }
 .branta-modal[data-state="open"] { animation: branta-modal-in 200ms cubic-bezier(0.16, 1, 0.3, 1) both; }
-.branta-modal[data-state="closed"] { animation: branta-modal-out 150ms ease-in both; pointer-events: none; }
+.branta-modal[data-state="closed"] { animation: branta-modal-out 140ms ease-out both; pointer-events: none; }
 @keyframes branta-fade-in { from { opacity: 0 } to { opacity: 1 } }
 @keyframes branta-fade-out { from { opacity: 1 } to { opacity: 0 } }
 @keyframes branta-modal-in { from { opacity: 0; transform: translate(-50%, -48%) scale(0.97) } to { opacity: 1; transform: translate(-50%, -50%) scale(1) } }
-@keyframes branta-modal-out { from { opacity: 1; transform: translate(-50%, -50%) scale(1) } to { opacity: 0; transform: translate(-50%, -49%) scale(0.98) } }
+@keyframes branta-modal-out { from { opacity: 1; transform: translate(-50%, -50%) scale(1) } to { opacity: 0; transform: translate(-50%, -50%) scale(0.98) } }
 .branta-close { transition: background-color 150ms, color 150ms, transform 150ms, box-shadow 150ms; }
 .branta-close svg { transition: transform 200ms ease; }
 .branta-close:hover { background-color: #dc2626; color: #fff; box-shadow: 0 0 0 4px rgb(220 38 38 / 0.15); }

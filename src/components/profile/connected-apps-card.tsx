@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, ExternalLink, Info, Loader2, Unlink } from "lucide-react";
+import { CheckCircle2, Download, ExternalLink, Info, Loader2, Unlink } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm-dialog";
@@ -17,6 +17,19 @@ import trackerLogo from "@/assets/apps/tracker.png";
 import admakaiLogo from "@/assets/apps/admakai.png";
 
 type AppKey = "tracker_extension" | "admakai";
+
+/** Single source of truth for the current Branta Tracker release. Bump with each new ZIP in public/downloads. */
+export const TRACKER_VERSION = "0.7.1";
+const TRACKER_ZIP = `/downloads/branta-tracker-extension-v${TRACKER_VERSION}.zip`;
+const TRACKER_STEPS = [
+  "Click “Download Extension” to save the ZIP file.",
+  "Unzip it — you get one folder named “branta-tracker-extension”. Keep this folder; don’t delete or move it later.",
+  "Open Chrome and go to chrome://extensions",
+  "Turn on “Developer mode” (top-right corner).",
+  "Click “Load unpacked” and select the “branta-tracker-extension” folder.",
+  "Pin Branta Tracker from the puzzle icon, open it and choose “Sign in with Branta Console”.",
+  "Updating: download the new ZIP, replace the old folder’s contents, then press Reload on the Branta Tracker card in chrome://extensions.",
+];
 
 const APPS: Record<
   AppKey,
@@ -100,6 +113,9 @@ export function ConnectedAppsCard() {
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="text-[13px] font-semibold text-foreground">{a.name}</div>
+                  {key === "tracker_extension" && (
+                    <span className="rounded-full border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">v{TRACKER_VERSION}</span>
+                  )}
                   {connected ? (
                     <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
                       <CheckCircle2 className="size-3" /> Connected
@@ -145,13 +161,24 @@ export function ConnectedAppsCard() {
                       )}
                       Disconnect
                     </Button>
+                    {key === "tracker_extension" && (
+                      <Button asChild type="button" variant="outline" size="sm" className="ml-2">
+                        <a href={TRACKER_ZIP} download><Download className="mr-1.5 size-3.5" /> Download Extension</a>
+                      </Button>
+                    )}
                   </div>
                 ) : (
                   <div className="mt-3">
-                    <Button type="button" size="sm" onClick={() => onConnect(key)}>
-                      {a.connectLabel}
-                      {a.connectUrl ? <ExternalLink className="ml-1.5 size-3.5 opacity-80" /> : null}
-                    </Button>
+                    {key === "tracker_extension" ? (
+                      <Button asChild type="button" size="sm">
+                        <a href={TRACKER_ZIP} download><Download className="mr-1.5 size-3.5" /> Download Extension</a>
+                      </Button>
+                    ) : (
+                      <Button type="button" size="sm" onClick={() => onConnect(key)}>
+                        {a.connectLabel}
+                        {a.connectUrl ? <ExternalLink className="ml-1.5 size-3.5 opacity-80" /> : null}
+                      </Button>
+                    )}
                   </div>
                 )}
               </div>
@@ -176,9 +203,21 @@ export function ConnectedAppsCard() {
                   <li key={t}>{t}</li>
                 ))}
               </ul>
-              <p className="rounded-sm border border-border bg-muted/40 p-2.5 text-[12px] text-muted-foreground">
-                <b className="text-foreground">How to connect:</b> {APPS[info].connectHint}
-              </p>
+              {info === "tracker_extension" ? (
+                <div className="rounded-sm border border-border bg-muted/40 p-3">
+                  <div className="mb-2 text-[12px] font-semibold text-foreground">How to install (v{TRACKER_VERSION})</div>
+                  <ol className="list-decimal space-y-1.5 pl-5 text-[12px] text-muted-foreground">
+                    {TRACKER_STEPS.map((t) => <li key={t}>{t}</li>)}
+                  </ol>
+                  <Button asChild size="sm" className="mt-3 w-full">
+                    <a href={TRACKER_ZIP} download><Download className="mr-1.5 size-3.5" /> Download Extension</a>
+                  </Button>
+                </div>
+              ) : (
+                <p className="rounded-sm border border-border bg-muted/40 p-2.5 text-[12px] text-muted-foreground">
+                  <b className="text-foreground">How to connect:</b> {APPS[info].connectHint}
+                </p>
+              )}
             </>
           )}
         </DialogContent>
