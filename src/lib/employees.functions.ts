@@ -270,6 +270,7 @@ export const createEmployee = createServerFn({ method: "POST" })
     } catch (err) {
       // Roll back the auth user if role assignment or email send failed —
       // otherwise the admin has to hunt down orphaned accounts by hand.
+      if (ruleId) { const { deleteRule } = await import("@/lib/cloudflare-email.server"); await deleteRule(ruleId); }
       await supabaseAdmin.auth.admin.deleteUser(newUserId).catch(() => {});
       throw err instanceof Error ? err : new Error(String(err));
     }

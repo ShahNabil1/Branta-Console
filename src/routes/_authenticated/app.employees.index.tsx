@@ -305,6 +305,25 @@ function CreateEmployeeModal({
   const [localError, setLocalError] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [gmail, setGmail] = useState("");
+  const [gmailStatus, setGmailStatus] = useState<"idle" | "checking" | "verified" | "pending" | "unconfigured" | "error">("idle");
+  const [gmailMsg, setGmailMsg] = useState<string | null>(null);
+  const [manualRouting, setManualRouting] = useState(false);
+  const [grantAdmakai, setGrantAdmakai] = useState(false);
+  const checkFn = useServerFn(checkEmailDestination);
+  const gmailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(gmail.trim());
+  const onCheckGmail = async () => {
+    if (!gmailOk) return;
+    setGmailStatus("checking");
+    setGmailMsg(null);
+    try {
+      const r = await checkFn({ data: { gmail: gmail.trim().toLowerCase() } });
+      setGmailStatus(r.status);
+    } catch (e) {
+      setGmailStatus("error");
+      setGmailMsg(e instanceof Error ? e.message : "Check failed.");
+    }
+  };
   const localTimer = useRef<number | null>(null);
   const passwordTimer = useRef<number | null>(null);
 
@@ -335,6 +354,9 @@ function CreateEmployeeModal({
           password,
           role,
           fullName: fullName.trim() || undefined,
+          personalGmail: gmailOk ? gmail.trim().toLowerCase() : undefined,
+          skipRouting: manualRouting,
+          grantAdmakai: role === "super_admin" ? false : grantAdmakai,
         },
       }),
     onSuccess: () => {
