@@ -126,12 +126,8 @@ function LoginPage() {
       if (error) throw error;
       await finalizeAndGo({ viaPasskey: true });
     } catch (err) {
-      const msg = (err as Error).message || "Passkey sign-in failed.";
-      setPasskeyError(
-        msg.includes("NotAllowed") || msg.includes("cancel")
-          ? "Cancelled."
-          : msg,
-      );
+      const { passkeyErrorMessage } = await import("@/lib/passkey-errors");
+      setPasskeyError(passkeyErrorMessage(err, "signin"));
     } finally {
       setPasskeyBusy(false);
     }

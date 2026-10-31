@@ -25,6 +25,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   listMyPasskeys,
   beginPasskeyRegistration,
+  // (passkeyErrorMessage imported below)
   finishPasskeyRegistration,
   deleteMyPasskey,
 } from "@/lib/passkeys.functions";
@@ -247,7 +248,7 @@ function PasskeysSection() {
       setMfaCode("");
       await qc.invalidateQueries({ queryKey: ["me", "passkeys"] });
     } catch (err) {
-      toast.error("Could not add passkey", { description: (err as Error).message });
+      toast.error("Could not add passkey", { description: passkeyErrorMessage(err, "add") });
     } finally {
       setBusy(false);
     }
@@ -597,8 +598,7 @@ function ResetPasswordDialog({ open, onClose }: { open: boolean; onClose: () => 
       setMethod("passkey");
       setStep("password");
     } catch (err) {
-      const msg = (err as Error).message || "Passkey verification failed.";
-      toast.error(msg.includes("NotAllowed") ? "Passkey verification cancelled." : msg);
+      toast.error(passkeyErrorMessage(err, "verify"));
     } finally {
       setBusy(false);
     }
