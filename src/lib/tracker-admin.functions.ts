@@ -28,6 +28,7 @@ export type TrackerSettingRow = {
   connected: boolean;
   lastSeenAt: string | null;
   shotsToday: number;
+  version: string | null;
 };
 
 export const getTrackerOverview = createServerFn({ method: "GET" })
@@ -91,6 +92,7 @@ export const getTrackerOverview = createServerFn({ method: "GET" })
         connected: online && p.is_active !== false,
         lastSeenAt: seen ?? null,
         shotsToday: shotCount.get(p.id) ?? 0,
+        version: typeof meta.tracker_version === "string" ? meta.tracker_version : null,
       };
     });
     const rank = { active: 0, idle: 1, inactive: 2 };

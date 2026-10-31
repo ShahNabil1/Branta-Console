@@ -7,6 +7,7 @@ import { Camera, Clock, Eye, Loader2, MousePointerClick, PlugZap, Search, Unplug
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { TRACKER_VERSION } from "@/components/profile/connected-apps-card";
 import { getEmployeeScreenshots, getTrackerOverview, requestManualScreenshot, saveTrackerSettings, type TrackerSettingRow, type TrackerShot } from "@/lib/tracker-admin.functions";
 
 export const Route = createFileRoute("/_authenticated/app/tracker-settings")({
@@ -157,6 +158,9 @@ function EmployeeCard({ e, checked, onCheck, onSave, onShot, onView, capturing }
           <div className="mt-1 flex flex-wrap items-center gap-1.5">
             <span className={cn("inline-flex items-center gap-1 text-[11px] font-medium", st.text)}><span className={cn("size-1.5 rounded-full", st.dot)} />{st.label}</span>
             <span className="text-[10px] text-muted-foreground">· {ago(e.lastSeenAt)}</span>
+            {e.setup && (e.version === TRACKER_VERSION
+              ? <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">v{e.version}</span>
+              : <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">{e.version ? `v${e.version} · ` : ""}Update available</span>)}
           </div>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">

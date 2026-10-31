@@ -19,7 +19,7 @@ import admakaiLogo from "@/assets/apps/admakai.png";
 type AppKey = "tracker_extension" | "admakai";
 
 /** Single source of truth for the current Branta Tracker release. Bump with each new ZIP in public/downloads. */
-export const TRACKER_VERSION = "0.7.1";
+export const TRACKER_VERSION = "0.7.2";
 const TRACKER_ZIP = `/downloads/branta-tracker-extension-v${TRACKER_VERSION}.zip`;
 const TRACKER_STEPS = [
   "Click “Download Extension” to save the ZIP file.",
