@@ -33,6 +33,7 @@ import {
 import {
   checkIsAdmin,
   createEmployee,
+  checkEmailDestination,
   deleteEmployee,
   listEmployees,
   syncRecentEmailEvents,
@@ -409,8 +410,9 @@ function CreateEmployeeModal({
       !localError &&
       !passwordError &&
       local.length >= LOCAL_MIN &&
-      password.length === PASSWORD_LEN,
-    [create.isPending, localError, passwordError, local, password],
+      password.length === PASSWORD_LEN &&
+      (manualRouting || gmailStatus === "verified"),
+    [create.isPending, localError, passwordError, local, password, manualRouting, gmailStatus],
   );
 
   const roleOptions = canCreateSuperAdmin
@@ -556,6 +558,54 @@ function CreateEmployeeModal({
             />
           </div>
 
+          {/* Personal Gmail + Cloudflare routing */}
+          <div>
+            <label htmlFor="emp-gmail" className="mb-1.5 block text-[12px] font-medium text-muted-foreground">
+              Personal Gmail <span className="text-muted-foreground/70">(mail forwarding)</span>
+            </label>
+            <div className="flex gap-1.5">
+              <input
+                id="emp-gmail"
+                type="email"
+                autoComplete="off"
+                maxLength={200}
+                value={gmail}
+                disabled={manualRouting}
+                onChange={(e) => { setGmail(e.target.value); setGmailStatus("idle"); setGmailMsg(null); }}
+                className="h-9 min-w-0 flex-1 rounded-sm border border-border bg-card px-3 text-[13px] outline-none focus:border-brand focus:ring-1 focus:ring-brand disabled:opacity-50"
+                placeholder="e.g. sabrina@gmail.com"
+              />
+              <button
+                type="button"
+                onClick={onCheckGmail}
+                disabled={manualRouting || !gmailOk || gmailStatus === "checking"}
+                className="inline-flex h-9 shrink-0 items-center gap-1 rounded-sm border border-border bg-card px-3 text-[12px] font-semibold text-foreground hover:bg-muted disabled:opacity-50"
+              >
+                {gmailStatus === "checking" ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
+                {gmailStatus === "pending" ? "Check again" : "Verify"}
+              </button>
+            </div>
+            <div className="mt-1.5 flex min-h-[14px] items-center gap-1 text-[11px]">
+              {manualRouting ? (
+                <span className="text-muted-foreground">Routing skipped — set it up in Cloudflare yourself.</span>
+              ) : gmailStatus === "verified" ? (
+                <><Check className="size-3 text-emerald-600" strokeWidth={2.25} /><span className="text-emerald-700">Verified — forwarding will be created automatically.</span></>
+              ) : gmailStatus === "pending" ? (
+                <><AlertCircle className="size-3 text-amber-700" strokeWidth={2} /><span className="text-amber-700">Verification email sent by Cloudflare. Ask the employee to click it, then Check again.</span></>
+              ) : gmailStatus === "unconfigured" ? (
+                <span className="text-rose-600">Cloudflare is not configured — use manual routing.</span>
+              ) : gmailStatus === "error" ? (
+                <span className="text-rose-600">{gmailMsg}</span>
+              ) : gmailOk ? (
+                <span className="text-muted-foreground">Press Verify to check this Gmail in Cloudflare.</span>
+              ) : null}
+            </div>
+            <label className="mt-1 flex cursor-pointer items-center gap-2 text-[11.5px] text-muted-foreground">
+              <input type="checkbox" checked={manualRouting} onChange={(e) => setManualRouting(e.target.checked)} className="accent-[var(--brand)]" />
+              Set up email routing manually
+            </label>
+          </div>
+
           {/* Password */}
           <div>
             <div className="mb-1.5 flex items-center justify-between gap-2">
@@ -677,6 +727,23 @@ function CreateEmployeeModal({
                 );
               })}
             </div>
+          </div>
+
+          {/* Admakai access */}
+          <div className="flex items-center gap-3 rounded-sm border border-border px-3 py-2.5">
+            <img src={admakaiLogo} alt="" className="size-8 shrink-0 rounded-sm border border-border bg-card object-contain p-1" />
+            <div className="min-w-0 flex-1">
+              <div className="text-[12.5px] font-semibold text-foreground">Admakai Creative Studio</div>
+              <div className="text-[10.5px] text-muted-foreground">
+                {role === "super_admin" ? "Super Admins always have access." : grantAdmakai ? "Access will be granted on creation." : "No access unless switched on."}
+              </div>
+            </div>
+            <Switch
+              checked={role === "super_admin" ? true : grantAdmakai}
+              disabled={role === "super_admin"}
+              onCheckedChange={setGrantAdmakai}
+              aria-label="Grant Admakai access"
+            />
           </div>
 
           {formError && (
