@@ -54,7 +54,8 @@ export async function sendTelegramToUser(
 // persist a separate secret.
 import { createHash } from "node:crypto";
 export function deriveTelegramWebhookSecret(): string {
-  const key = process.env.TELEGRAM_API_KEY;
-  if (!key) throw new Error("TELEGRAM_API_KEY is not configured");
+  // Prefer the stable bot token (direct mode) so the secret survives workspace moves.
+  const key = process.env.TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_API_KEY;
+  if (!key) throw new Error("TELEGRAM_BOT_TOKEN is not configured");
   return createHash("sha256").update(`telegram-webhook:${key}`).digest("base64url");
 }

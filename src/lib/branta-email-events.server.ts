@@ -1,7 +1,6 @@
 // Server-only Brevo activity sync for the Employees mail-status column.
 // This reads Brevo's own transactional event log through the linked connector,
 // then mirrors recent activity into public.email_events for the console UI.
-const GATEWAY_URL = "https://connector-gateway.lovable.dev/brevo";
 
 const CANON: Record<string, string> = {
   request: "sent",
@@ -117,29 +116,13 @@ const toInsert = (event: BrevoStatsEvent): EmailEventInsert | null => {
 };
 
 export async function syncRecentBrevoEmailEvents({ limit = 100 } = {}) {
-  const LOVABLE_API_KEY = process.env.LOVABLE_API_KEY;
-  const BREVO_KEY = process.env.BREVO_API_KEY;
-  if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
-  if (!BREVO_KEY) throw new Error("BREVO_API_KEY connector is not linked");
-
-  const url = new URL(`${GATEWAY_URL}/smtp/statistics/events`);
-  url.searchParams.set("limit", String(Math.min(Math.max(limit, 1), 500)));
-  url.searchParams.set("offset", "0");
-  url.searchParams.set("sort", "desc");
-
-  const response = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${LOVABLE_API_KEY}`,
-      "X-Connection-Api-Key": BREVO_KEY,
-    },
+  const { callGateway } = await import("@/lib/connector-gateway.server");
+  const body = await callGateway<{ events?: BrevoStatsEvent[] }>({
+    connector: "brevo",
+    path: "/smtp/statistics/events",
+    query: { limit: Math.min(Math.max(limit, 1), 500), offset: 0, sort: "desc" },
   });
-
-  if (!response.ok) {
-    const body = await response.text();
-    throw new Error(`Brevo event sync failed [${response.status}]: ${body}`);
-  }
-
-  const body = (await response.json()) as { events?: BrevoStatsEvent[] };
+  body.events ??= [];
   const incoming = (body.events ?? []).map(toInsert).filter(Boolean) as EmailEventInsert[];
   if (incoming.length === 0) return { fetched: 0, inserted: 0 };
 
