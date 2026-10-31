@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { CheckCircle2, ExternalLink, Loader2, Unlink, Webhook } from "lucide-react";
+import { CheckCircle2, ExternalLink, Info, Loader2, Unlink, Webhook } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   getMyTelegramStatus,
   registerTelegramWebhook,
@@ -25,6 +26,7 @@ export function TelegramConnectCard() {
   const registerFn = useServerFn(registerTelegramWebhook);
   const isAdminFn = useServerFn(checkIsAdmin);
   const [polling, setPolling] = useState(false);
+  const [infoOpen, setInfoOpen] = useState(false);
   const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const admin = useQuery({ queryKey: ["is-admin"], queryFn: () => isAdminFn() });
@@ -93,16 +95,52 @@ export function TelegramConnectCard() {
           <TelegramIcon className="size-6" />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <div className="text-[13px] font-semibold text-foreground">
-              Telegram notifications
-            </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="text-[13px] font-semibold text-foreground">Telegram</div>
             {linked && (
               <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
                 <CheckCircle2 className="size-3" /> Connected
               </span>
             )}
+            <button
+              type="button"
+              onClick={() => setInfoOpen(true)}
+              className="ml-auto rounded-sm p-1 text-muted-foreground hover:text-foreground"
+              aria-label="About Telegram"
+            >
+              <Info className="size-4" />
+            </button>
           </div>
+          <Dialog open={infoOpen} onOpenChange={setInfoOpen}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader className="text-left">
+                <div className="flex items-center gap-3">
+                  <div className="grid size-10 place-items-center rounded-md" style={{ backgroundColor: `${TG_BLUE}14` }}>
+                    <TelegramIcon className="size-6" />
+                  </div>
+                  <DialogTitle>Telegram</DialogTitle>
+                </div>
+                <DialogDescription>Real-time Branta Tech alerts on your phone.</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-2 text-[12.5px] text-foreground">
+                <b>Why connect?</b>
+                <ul className="list-disc space-y-1.5 pl-5">
+                  <li>Get instant alerts for leads, tasks, invoices, payments and approvals.</li>
+                  <li>Never miss critical security alerts — they are always delivered.</li>
+                  <li>Choose which categories you receive in Notifications &amp; Alerts.</li>
+                </ul>
+              </div>
+              <div className="rounded-sm border border-border bg-muted/40 p-2.5 text-[12px] text-muted-foreground">
+                <b className="text-foreground">How to connect:</b>
+                <ol className="mt-1 list-decimal space-y-1 pl-5">
+                  <li>Tap “Connect with Telegram”.</li>
+                  <li>Telegram opens the Branta bot — press Start.</li>
+                  <li>Return here; the card shows Connected automatically.</li>
+                </ol>
+                <p className="mt-1.5">You can unlink anytime with “Unlink Telegram”.</p>
+              </div>
+            </DialogContent>
+          </Dialog>
           <p className="mt-0.5 text-[12px] text-muted-foreground">
             Receive real-time Branta Tech alerts directly on Telegram.
           </p>

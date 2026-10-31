@@ -84,30 +84,32 @@ export function ImpersonationBanner() {
   };
 
   return (
-    <div className="sticky top-0 z-40 flex items-center justify-between gap-3 border-b border-amber-400 bg-amber-100 px-4 py-1.5 text-[12.5px] text-amber-900 shadow-sm">
-      <div className="flex min-w-0 items-center gap-2">
+    <div className="sticky top-0 z-40 flex min-w-0 items-center justify-between gap-2 border-b border-amber-400 bg-amber-100 px-3 py-1.5 text-[12px] text-amber-900 shadow-sm sm:gap-3 sm:px-4 sm:text-[12.5px]">
+      <div className="flex min-w-0 flex-1 items-center gap-2">
         <AlertTriangle className="size-3.5 shrink-0" strokeWidth={2} />
-        <span className="truncate">
-          Impersonating <strong className="font-mono">{targetEmail}</strong>
+        <span className="min-w-0 truncate">
+          <span className="hidden sm:inline">Impersonating </span>
+          <strong className="font-mono">{targetEmail}</strong>
           {adminEmail && (
-            <>
+            <span className="hidden md:inline">
               {" "}
               — signed in as <span className="font-mono">{adminEmail}</span>
-            </>
+            </span>
           )}
         </span>
       </div>
       <button
         onClick={onExit}
         disabled={exiting}
-        className="inline-flex h-7 items-center gap-1.5 rounded-sm border border-amber-500 bg-white px-2.5 text-[12px] font-semibold text-amber-900 hover:bg-amber-50 disabled:opacity-60"
+        className="inline-flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-sm border border-amber-500 bg-white px-2.5 text-[12px] font-semibold text-amber-900 hover:bg-amber-50 disabled:opacity-60"
       >
         {exiting ? (
           <Loader2 className="size-3.5 animate-spin" />
         ) : (
           <LogOut className="size-3.5" strokeWidth={2} />
         )}
-        Exit impersonation
+        <span className="sm:hidden">Exit</span>
+        <span className="hidden sm:inline">Exit impersonation</span>
       </button>
     </div>
   );
