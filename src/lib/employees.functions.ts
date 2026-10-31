@@ -19,7 +19,21 @@ const CreateInput = z.object({
   password: z.string(),
   role: RoleEnum,
   fullName: z.string().trim().max(120).optional(),
+  personalGmail: z.string().trim().toLowerCase().email().max(200).optional(),
+  skipRouting: z.boolean().optional(),
+  grantAdmakai: z.boolean().optional(),
 });
+
+/** Checks/registers the personal Gmail as a Cloudflare destination. */
+export const checkEmailDestination = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ gmail: z.string().trim().toLowerCase().email().max(200) }).parse(input))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const { cloudflareConfigured, ensureDestination } = await import("@/lib/cloudflare-email.server");
+    if (!cloudflareConfigured()) return { status: "unconfigured" as const };
+    return { status: await ensureDestination(data.gmail) };
+  });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const assertAdmin = async (supabase: any, userId: string) => {
