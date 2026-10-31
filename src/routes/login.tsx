@@ -13,6 +13,8 @@ import {
   stripToDigits,
 } from "@/lib/branta-credentials";
 import brandLogo from "@/assets/brand-logo.png.asset.json";
+import admakaiLogo from "@/assets/apps/admakai.png";
+import trackerLogo from "@/assets/apps/tracker.png";
 import { registerSession } from "@/lib/user-sessions.functions";
 import { beginPasskeyLogin, finishPasskeyLogin } from "@/lib/passkeys.functions";
 import { ensureSessionKey } from "@/hooks/use-session-watcher";
@@ -83,6 +85,13 @@ async function renderTotpQrDataUrl(uri: string): Promise<string> {
 
 type CaptchaStatus = "loading" | "ready" | "expired" | "error";
 type Phase = "credentials" | "enroll" | "challenge";
+
+function detectSsoApp(redirect: string | undefined): { name: string; logo: string } | null {
+  const path = (() => { try { return decodeURIComponent(redirect ?? ""); } catch { return ""; } })();
+  if (path.startsWith("/sso/admakai")) return { name: "Admakai", logo: admakaiLogo };
+  if (path.startsWith("/sso/tracker")) return { name: "Branta Tracker", logo: trackerLogo };
+  return null;
+}
 
 function LoginPage() {
   const navigate = useNavigate();
@@ -536,7 +545,7 @@ function LoginPage() {
   return (
     <div className="flex min-h-screen bg-card">
       {/* Left rail */}
-      <aside className="relative hidden w-[45%] flex-col justify-between overflow-hidden bg-zinc-950 p-12 text-white lg:flex">
+      <aside className={cn("relative hidden w-[45%] flex-col justify-between overflow-hidden bg-zinc-950 p-12 text-white", !ssoApp && "lg:flex")}>
         <div className="z-10 flex items-center gap-3">
           <img src={brandLogo.url} alt="Branta" className="h-9 w-auto" />
         </div>
@@ -564,14 +573,31 @@ function LoginPage() {
       </aside>
 
       {/* Form */}
-      <main className="flex min-w-0 flex-1 flex-col justify-center bg-muted px-6 py-12 sm:px-16 lg:px-24">
-        <div className="mx-auto w-full max-w-[400px]">
+      <main className={cn("flex min-w-0 flex-1 flex-col justify-center bg-muted", ssoApp ? "px-5 py-6 sm:px-8" : "px-6 py-12 sm:px-16 lg:px-24")}>
+        <div className={cn("mx-auto w-full max-w-[400px]", ssoApp && "rounded border border-border bg-card p-6 shadow-sm")}>
+          {!ssoApp && (
           <div className="mb-8 flex lg:hidden">
             <img src={brandLogo.url} alt="Branta" className="h-8 w-auto" />
           </div>
+          )}
 
           {phase === "credentials" ? (
             <>
+              {ssoApp ? (
+                <header className="mb-6">
+                  <div className="mb-4 flex items-center gap-2 border-b border-border pb-3 text-[12px] font-medium text-muted-foreground">
+                    <img src={brandLogo.url} alt="Branta" className="h-4 w-auto" />
+                    <span>Sign in with Branta</span>
+                  </div>
+                  <div className="flex h-11 w-11 items-center justify-center rounded border border-border bg-card p-1.5 shadow-sm">
+                    <img src={ssoApp.logo} alt={ssoApp.name} className="max-h-full max-w-full object-contain" />
+                  </div>
+                  <h2 className="mt-4 text-2xl font-semibold tracking-tight text-foreground">Sign in</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    to continue to <span className="font-medium text-primary">{ssoApp.name}</span>
+                  </p>
+                </header>
+              ) : (
               <header className="mb-8">
                 <h2 className="text-xl font-semibold tracking-tight text-foreground">
                   Sign in to Console
@@ -580,6 +606,7 @@ function LoginPage() {
                   Access your Branta Tech workspace and operational tools.
                 </p>
               </header>
+              )}
 
               {reason === "idle" && (
                 <div className="mb-4 rounded-sm border border-border bg-card px-3 py-2 text-[12px] text-muted-foreground">
