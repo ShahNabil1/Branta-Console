@@ -1,6 +1,7 @@
 import { toast } from "sonner";
 import admakaiLogo from "@/assets/apps/admakai.png";
 import { Switch } from "@/components/ui/switch";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -36,6 +37,8 @@ import {
   checkIsAdmin,
   createEmployee,
   checkEmailDestination,
+  listEmailDestinations,
+  prepareEmailRouting,
   deleteEmployee,
   listEmployees,
   syncRecentEmailEvents,
@@ -225,6 +228,7 @@ function EmployeesPage() {
   });
 
   const [open, setOpen] = useState(false);
+  const [formKey, setFormKey] = useState(0);
 
   const { byEmail: emailEvents } = useEmailEvents(
     !!admin.data?.isAdmin,
@@ -276,22 +280,27 @@ function EmployeesPage() {
         </div>
       )}
 
-      {open && (
-        <CreateEmployeeModal
-          onClose={() => setOpen(false)}
-          canCreateSuperAdmin={!!admin.data?.isSuperAdmin}
-        />
-      )}
+      <CreateEmployeeModal
+        key={formKey}
+        open={open}
+        onClose={() => setOpen(false)}
+        onCreated={() => { setOpen(false); setFormKey((k) => k + 1); }}
+        canCreateSuperAdmin={!!admin.data?.isSuperAdmin}
+      />
 
     </EmployeesDirectory>
   );
 }
 
 function CreateEmployeeModal({
+  open,
   onClose,
+  onCreated,
   canCreateSuperAdmin,
 }: {
+  open: boolean;
   onClose: () => void;
+  onCreated: () => void;
   canCreateSuperAdmin: boolean;
 }) {
   const qc = useQueryClient();
@@ -314,6 +323,33 @@ function CreateEmployeeModal({
   const [manualRouting, setManualRouting] = useState(false);
   const [grantAdmakai, setGrantAdmakai] = useState(false);
   const checkFn = useServerFn(checkEmailDestination);
+  const prepFn = useServerFn(prepareEmailRouting);
+  const [step, setStep] = useState(1);
+  const [showDest, setShowDest] = useState(false);
+  const [routeStage, setRouteStage] = useState<RouteStage>("idle");
+  const [routeMsg, setRouteMsg] = useState<string | null>(null);
+  const routeBusy = ["checking", "creating", "verifying"].includes(routeStage);
+  useEffect(() => { setRouteStage("idle"); setRouteMsg(null); }, [local, gmail]);
+  const runRouting = async () => {
+    const g = gmail.trim().toLowerCase();
+    setRouteMsg(null);
+    try {
+      setRouteStage("checking");
+      await prepFn({ data: { local, gmail: g, stage: "id" } });
+      setRouteStage("creating");
+      const r = await prepFn({ data: { local, gmail: g, stage: "rule" } });
+      setRouteStage("verifying");
+      for (let i = 0; i < 6; i++) {
+        const v = await prepFn({ data: { local, gmail: g, stage: "verify", ruleId: r.ruleId ?? undefined } });
+        if (v.ok) { setRouteStage("active"); return; }
+        await new Promise((res) => setTimeout(res, 1500));
+      }
+      throw new Error("Cloudflare has not activated the rule yet. Try again in a moment.");
+    } catch (e) {
+      setRouteStage("error");
+      setRouteMsg(e instanceof Error ? e.message : "Routing failed.");
+    }
+  };
   const gmailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(gmail.trim());
   const onCheckGmail = async () => {
     if (!gmailOk) return;
@@ -341,13 +377,6 @@ function CreateEmployeeModal({
     passwordTimer.current = window.setTimeout(() => setPasswordHint(null), 2400);
   };
 
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [onClose]);
 
   const create = useMutation({
     mutationFn: () =>
@@ -364,7 +393,9 @@ function CreateEmployeeModal({
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["employees.list"] });
-      onClose();
+      qc.invalidateQueries({ queryKey: ["cf.destinations"] });
+      toast.success("Employee created — welcome email sent.");
+      onCreated();
     },
     onError: (err) =>
       setFormError(err instanceof Error ? err.message : "Failed to create employee."),
@@ -421,8 +452,9 @@ function CreateEmployeeModal({
     ? ROLE_OPTIONS
     : ROLE_OPTIONS.filter((r) => r.value !== "super_admin");
 
-  const onSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = (e?: React.SyntheticEvent) => {
+    e?.preventDefault();
+    if (step !== 3) return;
     setFormError(null);
     const r = localSchema.safeParse(local);
     if (!r.success) return setLocalError(r.error.issues[0]?.message ?? "Invalid Branta ID.");
@@ -431,33 +463,118 @@ function CreateEmployeeModal({
     create.mutate();
   };
 
+  const stepMeta = [
+    { n: 1, title: "Destination", sub: "Personal Gmail" },
+    { n: 2, title: "Branta ID", sub: "Email routing" },
+    { n: 3, title: "Access", sub: "Password & role" },
+  ];
+  const step1Done = manualRouting || gmailStatus === "verified";
+  const step2Done = !localError && local.length >= LOCAL_MIN && (manualRouting || routeStage === "active");
+
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/40 p-0 sm:items-center sm:p-4"
-      role="dialog"
-      aria-modal="true"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div className="flex max-h-[calc(100dvh-0.5rem)] w-full max-w-md flex-col overflow-hidden rounded-t-md border border-border bg-card shadow-xl sm:max-h-[calc(100dvh-2rem)] sm:rounded-sm">
-        <div className="shrink-0 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-border px-4 py-3 sm:px-5">
-          <div>
-            <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-              New employee
-            </div>
-            <div className="mt-0.5 text-[15px] font-semibold">Create Console access</div>
+    <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-[500px]">
+        <div className="shrink-0 border-b border-border px-4 pb-3 pt-4 pr-12 sm:px-5">
+          <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">New employee</div>
+          <div className="mt-0.5 flex items-center justify-between gap-2">
+            <SheetTitle className="text-[15px] font-semibold">Create Console access</SheetTitle>
+            <button type="button" onClick={() => setShowDest((v) => !v)} className="inline-flex h-7 items-center gap-1 rounded-sm border border-border px-2 text-[11px] font-semibold transition-colors hover:border-brand hover:text-brand">
+              <Mail className="size-3.5" /> {showDest ? "Back to form" : "Destinations"}
+            </button>
           </div>
-          <button
-            onClick={onClose}
-            aria-label="Close"
-            className="grid size-7 place-items-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            <X className="size-4" />
-          </button>
+          {!showDest && (
+            <ol className="mt-3 grid grid-cols-3 gap-1.5">
+              {stepMeta.map((m) => {
+                const done = m.n === 1 ? step1Done && step > 1 : m.n === 2 ? step2Done && step > 2 : false;
+                const active = step === m.n;
+                const reachable = m.n === 1 || (m.n === 2 && step1Done) || (m.n === 3 && step1Done && step2Done);
+                return (
+                  <li key={m.n}>
+                    <button type="button" disabled={!reachable} onClick={() => setStep(m.n)} className="group w-full text-left disabled:cursor-not-allowed">
+                      <div className={cn("h-1 rounded-full transition-all duration-500", active ? "bg-brand" : done ? "bg-emerald-500" : "bg-muted")} />
+                      <div className="mt-1.5 flex items-center gap-1.5">
+                        <span className={cn("grid size-4 shrink-0 place-items-center rounded-full font-mono text-[9px] font-bold transition-colors", active ? "bg-brand text-white" : done ? "bg-emerald-500 text-white" : "bg-muted text-muted-foreground")}>
+                          {done ? <Check className="size-2.5" strokeWidth={3} /> : m.n}
+                        </span>
+                        <span className={cn("truncate text-[11.5px] font-semibold", active ? "text-foreground" : "text-muted-foreground group-hover:text-foreground")}>{m.title}</span>
+                      </div>
+                      <div className="hidden pl-[22px] text-[10px] text-muted-foreground sm:block">{m.sub}</div>
+                    </button>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
         </div>
 
-        <form onSubmit={onSubmit} className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-5" noValidate>
+        {showDest ? (
+          <DestinationsPanel />
+        ) : (
+        <form onSubmit={onSubmit} className="min-h-0 flex-1 overflow-y-auto" noValidate>
+          <div key={step} className="space-y-4 px-4 py-4 animate-in fade-in-0 slide-in-from-right-4 duration-300 sm:px-5">
+          {step === 1 && (<>
+            <StepGuide title="Step 1 · Check the destination Gmail" items={[
+              "Enter the employee's personal Gmail and press Verify. Console checks it in Cloudflare.",
+              "Already verified → you can continue right away.",
+              "New Gmail → Cloudflare emails the employee a verification link. You can close this drawer and work on other accounts; your progress stays here. Press Check again once they click it.",
+              "If this Gmail already forwards for an existing Console account, creation is blocked.",
+            ]} />
+          {/* Personal Gmail + Cloudflare routing */}
+          <div>
+            <label htmlFor="emp-gmail" className="mb-1.5 block text-[12px] font-medium text-muted-foreground">
+              Personal Gmail <span className="text-muted-foreground/70">(mail forwarding)</span>
+            </label>
+            <div className="flex gap-1.5">
+              <input
+                id="emp-gmail"
+                type="email"
+                autoComplete="off"
+                maxLength={200}
+                value={gmail}
+                disabled={manualRouting}
+                onChange={(e) => { setGmail(e.target.value); setGmailStatus("idle"); setGmailMsg(null); }}
+                className="h-9 min-w-0 flex-1 rounded-sm border border-border bg-card px-3 text-[13px] outline-none focus:border-brand focus:ring-1 focus:ring-brand disabled:opacity-50"
+                placeholder="e.g. sabrina@gmail.com"
+              />
+              <button
+                type="button"
+                onClick={onCheckGmail}
+                disabled={manualRouting || !gmailOk || gmailStatus === "checking"}
+                className="inline-flex h-9 shrink-0 items-center gap-1 rounded-sm border border-border bg-card px-3 text-[12px] font-semibold text-foreground hover:bg-muted disabled:opacity-50"
+              >
+                {gmailStatus === "checking" ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
+                {gmailStatus === "pending" ? "Check again" : "Verify"}
+              </button>
+            </div>
+            <div className="mt-1.5 flex min-h-[14px] items-center gap-1 text-[11px]">
+              {manualRouting ? (
+                <span className="text-muted-foreground">Routing skipped — set it up in Cloudflare yourself.</span>
+              ) : gmailStatus === "verified" ? (
+                <><Check className="size-3 text-emerald-600" strokeWidth={2.25} /><span className="text-emerald-700">Verified — forwarding will be created automatically.</span></>
+              ) : gmailStatus === "pending" ? (
+                <><AlertCircle className="size-3 text-amber-700" strokeWidth={2} /><span className="text-amber-700">Verification email sent by Cloudflare. Ask the employee to click it, then Check again.</span></>
+              ) : gmailStatus === "unconfigured" ? (
+                <span className="text-rose-600">Cloudflare is not configured — use manual routing.</span>
+              ) : gmailStatus === "error" ? (
+                <span className="text-rose-600">{gmailMsg}</span>
+              ) : gmailOk ? (
+                <span className="text-muted-foreground">Press Verify to check this Gmail in Cloudflare.</span>
+              ) : null}
+            </div>
+            <label className="mt-1 flex cursor-pointer items-center gap-2 text-[11.5px] text-muted-foreground">
+              <input type="checkbox" checked={manualRouting} onChange={(e) => setManualRouting(e.target.checked)} className="accent-[var(--brand)]" />
+              Set up email routing manually
+            </label>
+          </div>
+
+          </>)}
+
+          {step === 2 && (<>
+            <StepGuide title="Step 2 · Set the Branta ID & email routing" items={[
+              "Choose the Branta ID — it becomes the employee's @brantatech.com address.",
+              "Press Set up routing: Console checks the ID is free, creates the Cloudflare forwarding rule to the verified Gmail, then reads it back to confirm it is active.",
+              "Step 3 unlocks only when the rule is confirmed active.",
+            ]} />
           {/* Branta ID */}
           <div>
             <div className="mb-1.5 flex items-center justify-between gap-2">
@@ -560,54 +677,32 @@ function CreateEmployeeModal({
             />
           </div>
 
-          {/* Personal Gmail + Cloudflare routing */}
-          <div>
-            <label htmlFor="emp-gmail" className="mb-1.5 block text-[12px] font-medium text-muted-foreground">
-              Personal Gmail <span className="text-muted-foreground/70">(mail forwarding)</span>
-            </label>
-            <div className="flex gap-1.5">
-              <input
-                id="emp-gmail"
-                type="email"
-                autoComplete="off"
-                maxLength={200}
-                value={gmail}
-                disabled={manualRouting}
-                onChange={(e) => { setGmail(e.target.value); setGmailStatus("idle"); setGmailMsg(null); }}
-                className="h-9 min-w-0 flex-1 rounded-sm border border-border bg-card px-3 text-[13px] outline-none focus:border-brand focus:ring-1 focus:ring-brand disabled:opacity-50"
-                placeholder="e.g. sabrina@gmail.com"
-              />
-              <button
-                type="button"
-                onClick={onCheckGmail}
-                disabled={manualRouting || !gmailOk || gmailStatus === "checking"}
-                className="inline-flex h-9 shrink-0 items-center gap-1 rounded-sm border border-border bg-card px-3 text-[12px] font-semibold text-foreground hover:bg-muted disabled:opacity-50"
-              >
-                {gmailStatus === "checking" ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
-                {gmailStatus === "pending" ? "Check again" : "Verify"}
-              </button>
-            </div>
-            <div className="mt-1.5 flex min-h-[14px] items-center gap-1 text-[11px]">
-              {manualRouting ? (
-                <span className="text-muted-foreground">Routing skipped — set it up in Cloudflare yourself.</span>
-              ) : gmailStatus === "verified" ? (
-                <><Check className="size-3 text-emerald-600" strokeWidth={2.25} /><span className="text-emerald-700">Verified — forwarding will be created automatically.</span></>
-              ) : gmailStatus === "pending" ? (
-                <><AlertCircle className="size-3 text-amber-700" strokeWidth={2} /><span className="text-amber-700">Verification email sent by Cloudflare. Ask the employee to click it, then Check again.</span></>
-              ) : gmailStatus === "unconfigured" ? (
-                <span className="text-rose-600">Cloudflare is not configured — use manual routing.</span>
-              ) : gmailStatus === "error" ? (
-                <span className="text-rose-600">{gmailMsg}</span>
-              ) : gmailOk ? (
-                <span className="text-muted-foreground">Press Verify to check this Gmail in Cloudflare.</span>
-              ) : null}
-            </div>
-            <label className="mt-1 flex cursor-pointer items-center gap-2 text-[11.5px] text-muted-foreground">
-              <input type="checkbox" checked={manualRouting} onChange={(e) => setManualRouting(e.target.checked)} className="accent-[var(--brand)]" />
-              Set up email routing manually
-            </label>
-          </div>
+            {!manualRouting && (
+              <div className="rounded-sm border border-border p-3">
+                <div className="mb-2 flex items-center justify-between text-[11.5px]">
+                  <span className="font-semibold text-foreground">{ROUTE_LABEL[routeStage]}</span>
+                  <span className="font-mono tabular-nums text-muted-foreground">{ROUTE_PCT[routeStage]}%</span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-muted">
+                  <div className={cn("h-full rounded-full transition-[width] duration-700 ease-out", routeStage === "error" ? "bg-rose-500" : routeStage === "active" ? "bg-emerald-500" : "bg-brand")} style={{ width: `${ROUTE_PCT[routeStage]}%` }} />
+                </div>
+                {routeMsg && <div className="mt-2 text-[11px] text-rose-600">{routeMsg}</div>}
+                {routeStage !== "active" && (
+                  <button type="button" onClick={runRouting} disabled={routeBusy || !!localError || local.length < LOCAL_MIN} className="mt-3 inline-flex h-8 items-center gap-1.5 rounded-sm bg-brand px-3 text-[12px] font-semibold text-white transition-colors hover:bg-brand-700 disabled:opacity-50">
+                    {routeBusy ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
+                    {routeStage === "error" ? "Try again" : "Set up routing"}
+                  </button>
+                )}
+              </div>
+            )}
+          </>)}
 
+          {step === 3 && (<>
+            <StepGuide title="Step 3 · Password, role & app access" items={[
+              "Generate a temporary password — the employee must change it on first sign-in.",
+              "Pick the role. Admakai access is off unless you switch it on (Super Admins always have it).",
+              "Create user sends the welcome email with the Branta ID and temporary password to the verified Gmail.",
+            ]} />
           {/* Password */}
           <div>
             <div className="mb-1.5 flex items-center justify-between gap-2">
@@ -753,25 +848,101 @@ function CreateEmployeeModal({
               {formError}
             </div>
           )}
-
-          <div className="sticky bottom-0 -mx-4 flex items-center justify-end gap-2 border-t border-border bg-card px-4 pb-1 pt-3 sm:-mx-5 sm:px-5">
-            <button
-              type="button"
-              onClick={onClose}
-              className="h-9 rounded-sm border border-border bg-card px-4 text-[13px] font-medium text-foreground hover:bg-muted"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={!canSubmit}
-              className="inline-flex h-9 items-center gap-2 rounded-sm bg-brand px-4 text-[13px] font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {create.isPending && <Loader2 className="size-3.5 animate-spin" />}
-              {create.isPending ? "Creating…" : "Create user"}
-            </button>
+          </>)}
           </div>
         </form>
+        )}
+
+        {!showDest && (
+          <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border bg-card px-4 py-3 sm:px-5">
+            <button type="button" onClick={() => (step === 1 ? onClose() : setStep(step - 1))} className="h-9 rounded-sm border border-border bg-card px-4 text-[13px] font-medium text-foreground transition-colors hover:bg-muted">
+              {step === 1 ? "Close" : "Back"}
+            </button>
+            {step < 3 ? (
+              <button type="button" disabled={step === 1 ? !step1Done : !step2Done} onClick={() => setStep(step + 1)} className="inline-flex h-9 items-center gap-1.5 rounded-sm bg-brand px-4 text-[13px] font-semibold text-white transition-all hover:bg-brand-700 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50">
+                Continue →
+              </button>
+            ) : (
+              <button type="button" onClick={onSubmit} disabled={!canSubmit} className="inline-flex h-9 items-center gap-2 rounded-sm bg-brand px-4 text-[13px] font-semibold text-white transition-all hover:bg-brand-700 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60">
+                {create.isPending && <Loader2 className="size-3.5 animate-spin" />}
+                {create.isPending ? "Creating…" : "Create user"}
+              </button>
+            )}
+          </div>
+        )}
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+type RouteStage = "idle" | "checking" | "creating" | "verifying" | "active" | "error";
+const ROUTE_PCT: Record<RouteStage, number> = { idle: 0, checking: 20, creating: 55, verifying: 85, active: 100, error: 100 };
+const ROUTE_LABEL: Record<RouteStage, string> = {
+  idle: "Routing not set up yet",
+  checking: "Checking Branta ID & Gmail in Cloudflare…",
+  creating: "Creating forwarding rule…",
+  verifying: "Confirming the rule is active…",
+  active: "Routing active — mail forwards to the Gmail",
+  error: "Routing failed",
+};
+
+function StepGuide({ title, items }: { title: string; items: string[] }) {
+  return (
+    <div className="rounded-sm border border-brand/20 bg-brand/5 px-3 py-2.5">
+      <div className="flex items-center gap-1.5 text-[12px] font-semibold text-foreground"><Info className="size-3.5 text-brand" />{title}</div>
+      <ul className="mt-1.5 space-y-1 pl-5 text-[11.5px] leading-relaxed text-muted-foreground [list-style:disc]">
+        {items.map((t) => <li key={t}>{t}</li>)}
+      </ul>
+    </div>
+  );
+}
+
+function DestinationsPanel() {
+  const listFn = useServerFn(listEmailDestinations);
+  const [q, setQ] = useState("");
+  const [filter, setFilter] = useState<"all" | "verified" | "pending">("all");
+  const dest = useQuery({ queryKey: ["cf.destinations"], queryFn: () => listFn(), staleTime: 30_000 });
+  const items = (dest.data?.items ?? []).filter((d) =>
+    (filter === "all" || (filter === "verified") === d.verified) && d.email.includes(q.trim().toLowerCase()));
+  const counts = { all: dest.data?.items.length ?? 0, verified: dest.data?.items.filter((d) => d.verified).length ?? 0, pending: dest.data?.items.filter((d) => !d.verified).length ?? 0 };
+  return (
+    <div className="flex min-h-0 flex-1 flex-col animate-in fade-in-0 duration-300">
+      <div className="shrink-0 space-y-2 border-b border-border px-4 py-3 sm:px-5">
+        <div className="flex gap-1.5">
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search Gmail…" className="h-9 min-w-0 flex-1 rounded-sm border border-border bg-card px-3 text-[13px] outline-none focus:border-brand focus:ring-1 focus:ring-brand" />
+          <button type="button" onClick={() => dest.refetch()} aria-label="Refresh" className="grid size-9 shrink-0 place-items-center rounded-sm border border-border transition-colors hover:bg-muted">
+            <RefreshCw className={cn("size-3.5", dest.isFetching && "animate-spin")} />
+          </button>
+        </div>
+        <div className="flex gap-1">
+          {(["all", "verified", "pending"] as const).map((f) => (
+            <button key={f} type="button" onClick={() => setFilter(f)} className={cn("rounded-sm border px-2 py-1 text-[11px] font-semibold capitalize transition-colors", filter === f ? "border-brand bg-brand/5 text-brand" : "border-border text-muted-foreground hover:text-foreground")}>
+              {f} <span className="font-mono">{counts[f]}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-2 sm:px-5">
+        {dest.isLoading ? (
+          <div className="flex items-center gap-2 py-6 text-[12px] text-muted-foreground"><Loader2 className="size-3.5 animate-spin" /> Loading from Cloudflare…</div>
+        ) : dest.isError ? (
+          <div className="py-6 text-[12px] text-rose-600">{dest.error instanceof Error ? dest.error.message : "Failed to load."}</div>
+        ) : dest.data && !dest.data.configured ? (
+          <div className="py-6 text-[12px] text-muted-foreground">Cloudflare Email Routing is not configured.</div>
+        ) : items.length === 0 ? (
+          <div className="py-6 text-[12px] text-muted-foreground">No addresses match.</div>
+        ) : (
+          <ul className="divide-y divide-border">
+            {items.map((d) => (
+              <li key={d.email} className="flex items-center justify-between gap-2 py-2">
+                <span className="min-w-0 truncate font-mono text-[12px]">{d.email}</span>
+                <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-semibold", d.verified ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700")}>
+                  {d.verified ? "Verified" : "Pending"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );
