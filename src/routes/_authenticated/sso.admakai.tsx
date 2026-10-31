@@ -5,7 +5,7 @@ import { z } from "zod";
 import { issueAdmakaiSession } from "@/lib/admakai-sso.functions";
 import { isAdmakaiCallback } from "@/lib/admakai-policy";
 import { SsoHandoff, type HandoffStage } from "@/components/sso/sso-handoff";
-import admakaiLogo from "@/assets/apps/admakai.png";
+import admakaiLogo from "@/assets/apps/admakai-wordmark.png.asset.json";
 
 export const Route = createFileRoute("/_authenticated/sso/admakai")({
   validateSearch: z.object({ redirect_uri: z.string().optional(), state: z.string().max(200).optional() }),
@@ -39,5 +39,5 @@ function AdmakaiSso() {
       setTimeout(() => window.location.replace(`${redirect_uri}#${fragment}`), 450);
     }).catch(() => deny("Admakai sign-in was denied. Verify your employee access and try again."));
   }, [redirect_uri, state, issue]);
-  return <SsoHandoff appName="Admakai" appLogo={admakaiLogo} stage={stage} error={error} />;
+  return <SsoHandoff appName="Admakai" appLogo={admakaiLogo.url} wideLogo stage={stage} error={error} />;
 }

@@ -19,7 +19,7 @@ const RANGE: Record<HandoffStage, [number, number]> = {
   error: [0, 0],
 };
 
-export function SsoHandoff({ appName, appLogo, stage, error }: { appName: string; appLogo: string; stage: HandoffStage; error?: string | null }) {
+export function SsoHandoff({ appName, appLogo, stage, error, wideLogo }: { appName: string; appLogo: string; wideLogo?: boolean; stage: HandoffStage; error?: string | null }) {
   const [pct, setPct] = useState(RANGE.verify[0]);
   useEffect(() => {
     const [min, cap] = RANGE[stage];
@@ -42,7 +42,7 @@ export function SsoHandoff({ appName, appLogo, stage, error }: { appName: string
               {failed ? <ShieldAlert className="h-3.5 w-3.5" /> : stage === "done" ? <ShieldCheck className="h-3.5 w-3.5" /> : <ArrowLeftRight className="h-3.5 w-3.5 animate-pulse" />}
             </span>
           </div>
-          <LogoTile src={appLogo} alt={appName} />
+          <LogoTile src={appLogo} alt={appName} wide={wideLogo} />
         </div>
 
         <h1 className="mt-6 text-[15px] font-semibold text-foreground">
@@ -67,9 +67,9 @@ export function SsoHandoff({ appName, appLogo, stage, error }: { appName: string
   );
 }
 
-function LogoTile({ src, alt }: { src: string; alt: string }) {
+function LogoTile({ src, alt, wide }: { src: string; alt: string; wide?: boolean }) {
   return (
-    <div className="flex h-14 w-14 items-center justify-center rounded border border-border bg-card p-2 shadow-sm">
+    <div className={`flex h-14 ${wide ? "w-28 px-3" : "w-14"} items-center justify-center rounded border border-border bg-card p-2 shadow-sm`}>
       <img src={src} alt={alt} className="max-h-full max-w-full object-contain" />
     </div>
   );
