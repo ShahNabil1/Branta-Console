@@ -32,8 +32,20 @@ export const checkEmailDestination = createServerFn({ method: "POST" })
     await assertAdmin(context.supabase, context.userId);
     const { cloudflareConfigured, ensureDestination } = await import("@/lib/cloudflare-email.server");
     if (!cloudflareConfigured()) return { status: "unconfigured" as const };
+    await assertGmailFree(data.gmail);
     return { status: await ensureDestination(data.gmail) };
   });
+
+/** Blocks a Gmail already forwarded-to by a Branta address that has a Console account. */
+async function assertGmailFree(gmail: string) {
+  const { forwardSourcesFor } = await import("@/lib/cloudflare-email.server");
+  const sources = await forwardSourcesFor(gmail);
+  if (sources.length === 0) return;
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+  const taken = sources.find((s) => (data?.users ?? []).some((u) => (u.email ?? "").toLowerCase() === s));
+  if (taken) throw new Error(`This Gmail already receives mail for ${taken}, which already has a Console account. Use a different Gmail.`);
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const assertAdmin = async (supabase: any, userId: string) => {
@@ -174,6 +186,7 @@ export const createEmployee = createServerFn({ method: "POST" })
     if (routing) {
       const { cloudflareConfigured, ensureDestination } = await import("@/lib/cloudflare-email.server");
       if (!cloudflareConfigured()) throw new Error("Cloudflare Email Routing is not configured. Tick “Set up email routing manually” to continue.");
+      await assertGmailFree(data.personalGmail!);
       const st = await ensureDestination(data.personalGmail!);
       if (st !== "verified") throw new Error("The personal Gmail is not verified yet. Ask the employee to click the Cloudflare verification link, then press Check again.");
     }
@@ -259,8 +272,13 @@ export const createEmployee = createServerFn({ method: "POST" })
       })();
       const loginUrl = `${origin}/login`;
 
-      const { sendWelcomeEmail } = await import("@/lib/branta-email.server");
+      const { sendWelcomeEmail, unblockBrevoContact } = await import("@/lib/branta-email.server");
+      // A brand-new routing rule can take a while to go live; sending to the
+      // Branta address immediately hard-bounces and gets it blocklisted.
+      // Deliver straight to the verified Gmail instead.
+      if (routing) await unblockBrevoContact(email);
       await sendWelcomeEmail({
+        deliverTo: routing ? data.personalGmail : undefined,
         recipientEmail: email,
         brantaId: local,
         tempPassword: password,
