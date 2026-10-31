@@ -94,3 +94,22 @@ export async function forwardSourcesFor(gmail: string): Promise<string[]> {
   }
   return out;
 }
+
+/** All destination addresses with their verification state. */
+export async function listDestinations(): Promise<{ email: string; verified: boolean; created: string | null }[]> {
+  const { account } = cfg();
+  const out: { email: string; verified: boolean; created: string | null }[] = [];
+  for (let page = 1; page <= 20; page++) {
+    const list = await cf<(Address & { created?: string })[]>(`/accounts/${account}/email/routing/addresses?per_page=50&page=${page}`);
+    for (const a of list) out.push({ email: a.email.toLowerCase(), verified: !!a.verified, created: a.created ?? null });
+    if (list.length < 50) break;
+  }
+  return out;
+}
+
+/** Reads a rule back from Cloudflare to confirm it is live. */
+export async function getRuleEnabled(ruleId: string): Promise<boolean> {
+  const { zone } = cfg();
+  const r = await cf<{ enabled?: boolean }>(`/zones/${zone}/email/routing/rules/${ruleId}`);
+  return r.enabled !== false;
+}

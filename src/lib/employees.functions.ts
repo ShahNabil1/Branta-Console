@@ -388,3 +388,38 @@ export const reactivateEmployee = createServerFn({ method: "POST" })
     { const { syncEmployeeAppsSafe } = await import("@/lib/employee-app-sync.server"); await syncEmployeeAppsSafe(data.userId); }
     return { ok: true as const };
   });
+
+/** Lists Cloudflare destination addresses (verified + pending). */
+export const listEmailDestinations = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const { cloudflareConfigured, listDestinations } = await import("@/lib/cloudflare-email.server");
+    if (!cloudflareConfigured()) return { configured: false, items: [] as { email: string; verified: boolean; created: string | null }[] };
+    return { configured: true, items: await listDestinations() };
+  });
+
+/** Step 2: checks Branta ID is free, creates the forward rule and reads it back. */
+export const prepareEmailRouting = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ local: z.string(), gmail: z.string().trim().toLowerCase().email().max(200), stage: z.enum(["id", "rule", "verify"]), ruleId: z.string().optional() }).parse(input))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const local = localSchema.parse(data.local);
+    const email = `${local}${DOMAIN}`;
+    const cfm = await import("@/lib/cloudflare-email.server");
+    if (!cfm.cloudflareConfigured()) throw new Error("Cloudflare Email Routing is not configured.");
+    if (data.stage === "id") {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: u } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+      if ((u?.users ?? []).some((x) => (x.email ?? "").toLowerCase() === email))
+        throw new Error(`${email} already has a Console account.`);
+      await assertGmailFree(data.gmail);
+      if ((await cfm.ensureDestination(data.gmail)) !== "verified") throw new Error("The personal Gmail is not verified yet.");
+      return { ok: true, ruleId: null as string | null };
+    }
+    if (data.stage === "rule") return { ok: true, ruleId: await cfm.upsertForwardRule(email, data.gmail) };
+    if (!data.ruleId) throw new Error("Missing rule.");
+    return { ok: await cfm.getRuleEnabled(data.ruleId), ruleId: data.ruleId };
+  });
