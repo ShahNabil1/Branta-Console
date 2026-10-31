@@ -1,4 +1,5 @@
 import { TrackerScheduleTab } from "@/components/employee/tracker-schedule-tab";
+import admakaiLogo from "@/assets/apps/admakai.png";
 import { WalletLedgerView } from "@/components/finance/wallet-ledger-view";
 import { SessionHistoryLog } from "@/components/profile/session-history-log";
 // Employee detail page: full profile, RBAC, lead assignment, ban / delete,
@@ -1907,15 +1908,31 @@ function AppAccessSection({ userId, roles, allowedApps }: { userId: string; role
       <h3 className="text-[13px] font-semibold text-foreground">Connected App Permissions</h3>
       <p className="mt-0.5 text-[12px] text-muted-foreground">Sister concerns this employee can sign in to with Branta Console.</p>
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-sm border border-border p-3">
-        <div className="min-w-0">
-          <div className="text-[13px] font-medium text-foreground">Admakai Creative Studio</div>
-          {isSuper ? (
-            <span className="mt-1 inline-block rounded-sm border border-border bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
-              Super Admins have universal access to all Branta apps.
-            </span>
-          ) : (
-            <div className="mt-0.5 text-[12px] text-muted-foreground">{on ? "Access granted" : "No access"}</div>
-          )}
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-border bg-background">
+            <img src={admakaiLogo} alt="Admakai" className="size-6 object-contain" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-[13px] font-medium text-foreground">Admakai Creative Studio</div>
+            {isSuper ? (
+              <span className="mt-1 inline-flex items-center gap-1 rounded-sm border border-border bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                <ShieldCheck className="size-3" />
+                Super Admins have universal access to all Branta apps.
+              </span>
+            ) : (
+              <span
+                className={cn(
+                  "mt-1 inline-flex items-center gap-1 rounded-sm border px-1.5 py-0.5 text-[11px] font-medium",
+                  on
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                    : "border-border bg-muted text-muted-foreground",
+                )}
+              >
+                <span className={cn("size-1.5 rounded-full", on ? "bg-emerald-500" : "bg-muted-foreground/50")} />
+                {on ? "Access granted" : "No access"}
+              </span>
+            )}
+          </div>
         </div>
         <button
           type="button"
