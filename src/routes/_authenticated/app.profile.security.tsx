@@ -1,3 +1,4 @@
+import { passkeyErrorMessage } from "@/lib/passkey-errors";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -25,7 +26,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   listMyPasskeys,
   beginPasskeyRegistration,
-  // (passkeyErrorMessage imported below)
+
   finishPasskeyRegistration,
   deleteMyPasskey,
 } from "@/lib/passkeys.functions";
