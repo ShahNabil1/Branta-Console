@@ -854,17 +854,25 @@ function SessionsSection() {
 
 function NotificationsPlaceholder() {
   return (
-    <Section
-      title="Notifications"
-      description="Choose where Branta Tech alerts reach you. More channels coming soon."
-      icon={ShieldCheck}
-    >
-      <div className="space-y-3">
-        <ConnectedAppsCard />
-        <TelegramConnectCard />
+    <>
+      <Section
+        title="Connected Apps & Extensions"
+        description="Manage external tools, browser extensions and messaging apps linked to your Branta account."
+        icon={ShieldCheck}
+      >
+        <div className="space-y-3">
+          <ConnectedAppsCard />
+          <TelegramConnectCard />
+        </div>
+      </Section>
+      <Section
+        title="Notifications & Alerts"
+        description="Choose which Branta Tech alerts and updates reach you."
+        icon={ShieldCheck}
+      >
         <NotificationPreferencesCard />
-      </div>
-    </Section>
+      </Section>
+    </>
   );
 }
 
