@@ -19,7 +19,21 @@ const CreateInput = z.object({
   password: z.string(),
   role: RoleEnum,
   fullName: z.string().trim().max(120).optional(),
+  personalGmail: z.string().trim().toLowerCase().email().max(200).optional(),
+  skipRouting: z.boolean().optional(),
+  grantAdmakai: z.boolean().optional(),
 });
+
+/** Checks/registers the personal Gmail as a Cloudflare destination. */
+export const checkEmailDestination = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ gmail: z.string().trim().toLowerCase().email().max(200) }).parse(input))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const { cloudflareConfigured, ensureDestination } = await import("@/lib/cloudflare-email.server");
+    if (!cloudflareConfigured()) return { status: "unconfigured" as const };
+    return { status: await ensureDestination(data.gmail) };
+  });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const assertAdmin = async (supabase: any, userId: string) => {
@@ -154,6 +168,16 @@ export const createEmployee = createServerFn({ method: "POST" })
     const password = strongPasswordSchema.parse(data.password);
     const email = `${local}${DOMAIN}`;
 
+    // Email routing must be ready before the account exists, so the welcome
+    // mail actually reaches the employee.
+    const routing = !!data.personalGmail && !data.skipRouting;
+    if (routing) {
+      const { cloudflareConfigured, ensureDestination } = await import("@/lib/cloudflare-email.server");
+      if (!cloudflareConfigured()) throw new Error("Cloudflare Email Routing is not configured. Tick “Set up email routing manually” to continue.");
+      const st = await ensureDestination(data.personalGmail!);
+      if (st !== "verified") throw new Error("The personal Gmail is not verified yet. Ask the employee to click the Cloudflare verification link, then press Check again.");
+    }
+
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
     );
@@ -175,6 +199,7 @@ export const createEmployee = createServerFn({ method: "POST" })
     }
 
     const newUserId = created.user.id;
+    let ruleId: string | null = null;
 
     try {
       const { error: roleErr } = await supabaseAdmin
@@ -187,14 +212,24 @@ export const createEmployee = createServerFn({ method: "POST" })
       // Force onboarding on first sign-in: set a personal password AND
       // link Telegram. Both flags self-clear once the employee completes
       // the corresponding step.
-      await supabaseAdmin
+      const profilePatch: Record<string, unknown> = {
+        must_change_password: true,
+        must_link_telegram: true,
+      };
+      if (data.personalGmail) profilePatch.personal_gmail = data.personalGmail;
+      if (data.grantAdmakai) profilePatch.allowed_apps = ["admakai"];
+      const { error: profErr } = await supabaseAdmin
         .from("profiles")
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .update({
-          must_change_password: true,
-          must_link_telegram: true,
-        } as any)
+        .update(profilePatch as never)
         .eq("user_id", newUserId);
+      if (profErr) throw dbError(profErr);
+
+      // Cloudflare Email Routing: forward name@brantatech.com -> personal Gmail
+      // before the welcome mail goes out.
+      if (routing && data.personalGmail) {
+        const { upsertForwardRule } = await import("@/lib/cloudflare-email.server");
+        ruleId = await upsertForwardRule(email, data.personalGmail);
+      }
 
       // Seed the temp password hash into password_history so the onboarding
       // "set initial password" step can reject reuse without asking the
@@ -235,6 +270,7 @@ export const createEmployee = createServerFn({ method: "POST" })
     } catch (err) {
       // Roll back the auth user if role assignment or email send failed —
       // otherwise the admin has to hunt down orphaned accounts by hand.
+      if (ruleId) { const { deleteRule } = await import("@/lib/cloudflare-email.server"); await deleteRule(ruleId); }
       await supabaseAdmin.auth.admin.deleteUser(newUserId).catch(() => {});
       throw err instanceof Error ? err : new Error(String(err));
     }
