@@ -572,6 +572,21 @@ function LoginPage() {
 
           {phase === "credentials" ? (
             <>
+              {ssoApp ? (
+                <header className="mb-6">
+                  <div className="mb-4 flex items-center gap-2 border-b border-border pb-3 text-[12px] font-medium text-muted-foreground">
+                    <img src={brandLogo.url} alt="Branta" className="h-4 w-auto" />
+                    <span>Sign in with Branta</span>
+                  </div>
+                  <div className="flex h-11 w-11 items-center justify-center rounded border border-border bg-card p-1.5 shadow-sm">
+                    <img src={ssoApp.logo} alt={ssoApp.name} className="max-h-full max-w-full object-contain" />
+                  </div>
+                  <h2 className="mt-4 text-2xl font-semibold tracking-tight text-foreground">Sign in</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    to continue to <span className="font-medium text-primary">{ssoApp.name}</span>
+                  </p>
+                </header>
+              ) : (
               <header className="mb-8">
                 <h2 className="text-xl font-semibold tracking-tight text-foreground">
                   Sign in to Console
@@ -580,6 +595,7 @@ function LoginPage() {
                   Access your Branta Tech workspace and operational tools.
                 </p>
               </header>
+              )}
 
               {reason === "idle" && (
                 <div className="mb-4 rounded-sm border border-border bg-card px-3 py-2 text-[12px] text-muted-foreground">
