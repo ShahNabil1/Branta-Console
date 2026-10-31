@@ -15,8 +15,9 @@ test("super_admin maps to owner", () => expect(mapAdmakaiRole(["user", "super_ad
 test("admin maps to manager", () => expect(mapAdmakaiRole(["admin"])).toBe("manager"));
 test("manager maps to manager", () => expect(mapAdmakaiRole(["manager"])).toBe("manager"));
 test("user maps to member", () => expect(mapAdmakaiRole(["user"])).toBe("member"));
-test("unmapped finance role cannot sign in", () => expect(canAccessAdmakai({ roles: ["finance"], hasProfile: true, deactivatedAt: null, bannedUntil: null })).toBe(false));
-test("deactivated employee cannot sign in", () => expect(canAccessAdmakai({ roles: ["super_admin"], hasProfile: true, deactivatedAt: "2026-10-29T12:00:00Z", bannedUntil: null })).toBe(false));
-test("banned employee cannot sign in", () => expect(canAccessAdmakai({ roles: ["user"], hasProfile: true, deactivatedAt: null, bannedUntil: "2026-10-30T00:00:00Z" }, Date.parse("2026-10-29T00:00:00Z"))).toBe(false));
-test("missing profile fails closed", () => expect(canAccessAdmakai({ roles: ["user"], hasProfile: false, deactivatedAt: null, bannedUntil: null })).toBe(false));
-test("active eligible employee can sign in", () => expect(canAccessAdmakai({ roles: ["user"], hasProfile: true, deactivatedAt: null, bannedUntil: null })).toBe(true));
+test("granted finance role can sign in", () => expect(canAccessAdmakai({ roles: ["finance"], allowedApps: ["admakai"], hasProfile: true, deactivatedAt: null, bannedUntil: null })).toBe(true));
+test("deactivated employee cannot sign in", () => expect(canAccessAdmakai({ roles: ["super_admin"], allowedApps: ["admakai"], hasProfile: true, deactivatedAt: "2026-10-29T12:00:00Z", bannedUntil: null })).toBe(false));
+test("banned employee cannot sign in", () => expect(canAccessAdmakai({ roles: ["user"], allowedApps: ["admakai"], hasProfile: true, deactivatedAt: null, bannedUntil: "2026-10-30T00:00:00Z" }, Date.parse("2026-10-29T00:00:00Z"))).toBe(false));
+test("missing profile fails closed", () => expect(canAccessAdmakai({ roles: ["user"], allowedApps: ["admakai"], hasProfile: false, deactivatedAt: null, bannedUntil: null })).toBe(false));
+test("active eligible employee can sign in", () => expect(canAccessAdmakai({ roles: ["user"], allowedApps: ["admakai"], hasProfile: true, deactivatedAt: null, bannedUntil: null })).toBe(true));test("user without grant cannot sign in", () => expect(canAccessAdmakai({ roles: ["admin"], allowedApps: [], hasProfile: true, deactivatedAt: null, bannedUntil: null })).toBe(false));
+test("super_admin always allowed without grant", () => expect(canAccessAdmakai({ roles: ["super_admin"], allowedApps: [], hasProfile: true, deactivatedAt: null, bannedUntil: null })).toBe(true));

@@ -9,11 +9,11 @@ export const issueAdmakaiSession = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     if (!isAdmakaiCallback(data.redirect_uri)) throw new Error("This Admakai callback is not approved.");
     const [profile, roles, auth] = await Promise.all([
-      context.supabase.from("profiles").select("deactivated_at").eq("user_id", context.userId).maybeSingle(),
+      context.supabase.from("profiles").select("deactivated_at, allowed_apps").eq("user_id", context.userId).maybeSingle(),
       context.supabase.from("user_roles").select("role").eq("user_id", context.userId),
       context.supabase.auth.getUser(),
     ]);
-    if (profile.error || roles.error || auth.error || !auth.data.user?.email || !canAccessAdmakai({ roles: (roles.data ?? []).map((r) => r.role), hasProfile: !!profile.data, deactivatedAt: profile.data?.deactivated_at ?? null, bannedUntil: auth.data.user?.banned_until ?? null })) throw new Error("Your account does not have Admakai access.");
+    if (profile.error || roles.error || auth.error || !auth.data.user?.email || !canAccessAdmakai({ roles: (roles.data ?? []).map((r) => r.role), allowedApps: profile.data?.allowed_apps ?? [], hasProfile: !!profile.data, deactivatedAt: profile.data?.deactivated_at ?? null, bannedUntil: auth.data.user?.banned_until ?? null })) throw new Error("Access denied: You do not have permission to access Admakai. Contact a Branta administrator.");
     const assurance = await context.supabase.auth.mfa.getAuthenticatorAssuranceLevel();
     if (assurance.error || (assurance.data?.nextLevel === "aal2" && assurance.data.currentLevel !== "aal2")) throw new Error("Complete Branta two-factor verification first.");
     const { syncAdmakaiEmployee, mintAdmakaiSession, admakaiAdmin } = await import("./admakai.server");
