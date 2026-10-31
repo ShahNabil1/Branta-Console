@@ -76,3 +76,21 @@ export async function deleteRule(ruleId: string) {
   const { zone } = cfg();
   await cf(`/zones/${zone}/email/routing/rules/${ruleId}`, { method: "DELETE" }).catch(() => {});
 }
+
+type FullRule = Rule & { actions?: { type: string; value?: string[] }[] };
+
+/** Branta addresses whose forward rules already deliver to this Gmail. */
+export async function forwardSourcesFor(gmail: string): Promise<string[]> {
+  const { zone } = cfg();
+  const target = gmail.toLowerCase();
+  const out: string[] = [];
+  for (let page = 1; page <= 20; page++) {
+    const rules = await cf<FullRule[]>(`/zones/${zone}/email/routing/rules?per_page=50&page=${page}`);
+    for (const r of rules) {
+      if (!r.actions?.some((a) => a.type === "forward" && a.value?.some((v) => v.toLowerCase() === target))) continue;
+      for (const m of r.matchers ?? []) if (m.type === "literal" && m.value) out.push(m.value.toLowerCase());
+    }
+    if (rules.length < 50) break;
+  }
+  return out;
+}

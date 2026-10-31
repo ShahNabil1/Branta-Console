@@ -156,7 +156,18 @@ const sendBrevo = async (subject: string, html: string, to: string) => {
   }
 };
 
-export const sendWelcomeEmail = async (input: WelcomeEmailInput): Promise<void> => {
+/** Removes an address from Brevo's blocklist (e.g. after a bounce before routing existed). */
+export const unblockBrevoContact = async (email: string) => {
+  const LOVABLE_API_KEY = process.env.LOVABLE_API_KEY;
+  const BREVO_KEY = process.env.BREVO_API_KEY;
+  if (!LOVABLE_API_KEY || !BREVO_KEY) return;
+  await fetch(`${GATEWAY_URL}/smtp/blockedContacts/${encodeURIComponent(email)}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "X-Connection-Api-Key": BREVO_KEY },
+  }).catch(() => {});
+};
+
+export const sendWelcomeEmail = async (input: WelcomeEmailInput & { deliverTo?: string }): Promise<void> => {
   const html = renderCredentialsHtml({
     ...input,
     headingKicker: "Branta Tech",
@@ -166,7 +177,7 @@ export const sendWelcomeEmail = async (input: WelcomeEmailInput): Promise<void> 
     ctaLabel: "Open Branta Console",
     subject: "Welcome to Branta Tech — Console access",
   });
-  await sendBrevo("Welcome to Branta Tech — Console access", html, input.recipientEmail);
+  await sendBrevo("Welcome to Branta Tech — Console access", html, input.deliverTo ?? input.recipientEmail);
 };
 
 export const sendPasswordResetEmail = async (input: WelcomeEmailInput): Promise<void> => {
