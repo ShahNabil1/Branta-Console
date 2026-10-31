@@ -570,8 +570,8 @@ function LoginPage() {
       </aside>
 
       {/* Form */}
-      <main className={cn("flex min-w-0 flex-1 flex-col justify-center bg-muted", ssoApp ? "px-5 py-6 sm:px-8" : "px-6 py-12 sm:px-16 lg:px-24")}>
-        <div className={cn("mx-auto w-full max-w-[400px]", ssoApp && "rounded border border-border bg-card p-6 shadow-sm")}>
+      <main className={cn("flex min-w-0 flex-1 flex-col justify-center bg-muted", ssoApp ? "h-screen overflow-hidden px-3 py-3 sm:px-6" : "px-6 py-12 sm:px-16 lg:px-24")}>
+        <div className={cn("mx-auto w-full max-w-[400px]", ssoApp && "rounded border border-border bg-card px-5 py-4 shadow-sm")}>
           {!ssoApp && (
           <div className="mb-8 flex lg:hidden">
             <img src={brandLogo.url} alt="Branta" className="h-8 w-auto" />
@@ -581,17 +581,13 @@ function LoginPage() {
           {phase === "credentials" ? (
             <>
               {ssoApp ? (
-                <header className="mb-6">
-                  <div className="mb-4 flex items-center gap-2 border-b border-border pb-3 text-[12px] font-medium text-muted-foreground">
-                    <img src={brandLogo.url} alt="Branta" className="h-5 w-auto" />
+                <header className="mb-4">
+                  <div className="mb-3 flex items-center justify-center border-b border-border pb-3">
+                    <img src={brandLogo.url} alt="Branta" className="h-8 w-auto" />
                   </div>
-                  <div className={cn("flex h-11 items-center", !ssoApp.wide && "w-11 justify-center rounded border border-border bg-card p-1.5 shadow-sm")}>
-                    <img src={ssoApp.logo} alt={ssoApp.name} className="max-h-full max-w-full object-contain" />
+                  <div className="flex h-12 items-center justify-center">
+                    <img src={ssoApp.logo} alt={ssoApp.name} className={cn("max-h-full max-w-full object-contain", !ssoApp.wide && "size-12 rounded border border-border bg-card p-1.5 shadow-sm")} />
                   </div>
-                  <h2 className="mt-4 text-2xl font-semibold tracking-tight text-foreground">Sign in</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    to continue to <span className="font-medium text-primary">{ssoApp.name}</span>
-                  </p>
                 </header>
               ) : (
               <header className="mb-8">
@@ -1100,41 +1096,14 @@ function LoginPage() {
                       <Loader2 className="size-3.5 animate-spin" />
                       Verifying code…
                     </div>
-                  ) : (
-                    <div className="flex items-center gap-1.5 text-muted-foreground">
-                      <Info className="size-3.5" strokeWidth={1.75} />
-                      Codes refresh every 30s. We&rsquo;ll verify automatically.
-                    </div>
-                  )}
+                  ) : null}
                 </div>
-
-                {phase === "challenge" && (
-                  <button
-                    type="button"
-                    onClick={onRefreshChallenge}
-                    disabled={challengeRemaining > 0 || refreshingChallenge}
-                    className={cn(
-                      "mt-2 inline-flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground transition-colors hover:text-foreground",
-                      (challengeRemaining > 0 || refreshingChallenge) &&
-                        "cursor-not-allowed opacity-60",
-                    )}
-                  >
-                    {refreshingChallenge ? (
-                      <Loader2 className="size-3 animate-spin" />
-                    ) : (
-                      <RefreshCw className="size-3" strokeWidth={1.75} />
-                    )}
-                    {challengeRemaining > 0
-                      ? `New challenge in ${Math.ceil(challengeRemaining / 1000)}s`
-                      : "Request new challenge"}
-                  </button>
-                )}
               </div>
 
               <div className="mt-4 flex items-center justify-between gap-3">
                 <button
                   onClick={onCancelTotp}
-                  className="h-9 rounded-sm border border-border bg-card px-4 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  className="h-9 rounded-sm border border-destructive/40 bg-destructive/5 px-4 text-[13px] font-semibold text-destructive transition-colors hover:bg-destructive hover:text-destructive-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/40"
                 >
                   Cancel
                 </button>
@@ -1151,7 +1120,8 @@ function LoginPage() {
                 </button>
               </div>
 
-              <div className="mt-3 text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
+              <div className="mt-3 flex items-center gap-1.5 text-[11px] font-medium text-destructive">
+                <AlertCircle className="size-3.5" strokeWidth={2} />
                 Canceling will sign you out immediately.
               </div>
             </>
