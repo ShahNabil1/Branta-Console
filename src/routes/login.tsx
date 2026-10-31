@@ -96,6 +96,7 @@ function detectSsoApp(redirect: string | undefined): { name: string; logo: strin
 function LoginPage() {
   const navigate = useNavigate();
   const { reason, redirect: redirectParam } = useSearch({ from: "/login" });
+  const ssoApp = detectSsoApp(redirectParam);
   const registerSessionFn = useServerFn(registerSession);
   const beginPasskey = useServerFn(beginPasskeyLogin);
   const finishPasskey = useServerFn(finishPasskeyLogin);
