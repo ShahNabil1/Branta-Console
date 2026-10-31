@@ -96,7 +96,7 @@ export const scheduleLeadMeeting = createServerFn({ method: "POST" })
     // Only the lead owner or a privileged role may schedule meetings for a lead.
     const { data: leadRow } = await context.supabase
       .from("leads")
-      .select("owner_id, alt_email")
+      .select("owner_id, email, alt_email")
       .eq("id", data.leadId)
       .maybeSingle();
     if (!leadRow) throw new Error("Lead not found");
@@ -119,6 +119,24 @@ export const scheduleLeadMeeting = createServerFn({ method: "POST" })
       .select("email, alt_email")
       .eq("lead_id", data.leadId);
     const known = leadRecipientEmails(leadRow.alt_email, contacts ?? []);
+    const leadEmail = (leadRow as { email?: string | null }).email?.trim().toLowerCase();
+    if (leadEmail) known.add(leadEmail);
+    // Registered personal Gmail of active employees (verified server-side).
+    const candidates = uniqAttendees
+      .map((e) => e.trim().toLowerCase())
+      .filter((e) => !known.has(e) && !e.endsWith("@brantatech.com"));
+    if (candidates.length) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: emps } = await supabaseAdmin
+        .from("profiles")
+        .select("personal_gmail")
+        .in("personal_gmail", candidates)
+        .eq("is_active", true);
+      for (const p of emps ?? []) {
+        const g = (p as { personal_gmail: string | null }).personal_gmail?.trim().toLowerCase();
+        if (g) known.add(g);
+      }
+    }
     const outsider = uniqAttendees.find(
       (e) => !known.has(e.trim().toLowerCase()) && !e.toLowerCase().endsWith("@brantatech.com"),
     );
