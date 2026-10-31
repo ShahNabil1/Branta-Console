@@ -76,9 +76,13 @@ export async function syncAdmakaiEmployee(hubId: string): Promise<{ user: User; 
   const savedProfile = await sb.from("profiles").upsert({ user_id: user.id, email, full_name: profile.data?.full_name ?? null, is_active: true }, { onConflict: "user_id" });
   if (savedProfile.error) throw new Error("Could not synchronize the Admakai profile.");
   // Super Admins are always owners; others keep any role Admakai assigned internally.
+  // Admakai's signup trigger auto-creates a non-staff "client" row, so only keep existing staff roles.
+  const current = await sb.from("user_roles").select("role").eq("user_id", user.id).maybeSingle();
+  const isStaff = ["owner", "manager", "member"].includes(String(current.data?.role ?? ""));
   const savedRole = sourceRoles.includes("super_admin")
     ? await sb.from("user_roles").upsert({ user_id: user.id, role: "owner" }, { onConflict: "user_id" })
-    : await sb.from("user_roles").upsert({ user_id: user.id, role: "member" }, { onConflict: "user_id", ignoreDuplicates: true });
+    : isStaff ? { error: current.error }
+    : await sb.from("user_roles").upsert({ user_id: user.id, role: "member" }, { onConflict: "user_id" });
   if (savedRole.error) {
     await disableUser(sb, updated.data.user);
     throw new Error("Could not synchronize the Admakai access role.");
