@@ -1,6 +1,5 @@
 // Server-only Brevo email sender for Branta Tech transactional messages.
 // Sends via the Lovable connector gateway using the linked Brevo connection.
-const GATEWAY_URL = "https://connector-gateway.lovable.dev/brevo";
 
 const BRAND_ORANGE = "#E56A17";
 const BRAND_TEXT = "#0F172A";
@@ -126,44 +125,27 @@ const renderCredentialsHtml = ({
 };
 
 const sendBrevo = async (subject: string, html: string, to: string) => {
-  const LOVABLE_API_KEY = process.env.LOVABLE_API_KEY;
-  const BREVO_KEY = process.env.BREVO_API_KEY;
-  if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
-  if (!BREVO_KEY)
-    throw new Error(
-      "Brevo connector is not linked. Link the Brevo connection in project settings.",
-    );
-
-  const res = await fetch(`${GATEWAY_URL}/smtp/email`, {
+  const { callGateway } = await import("@/lib/connector-gateway.server");
+  await callGateway({
+    connector: "brevo",
+    path: "/smtp/email",
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${LOVABLE_API_KEY}`,
-      "X-Connection-Api-Key": BREVO_KEY,
-    },
-    body: JSON.stringify({
+    body: {
       sender: { name: "Branta Tech", email: "noreply@brantatech.com" },
       to: [{ email: to }],
       subject,
       htmlContent: html,
-    }),
+    },
   });
-
-  if (!res.ok) {
-    const body = await res.text();
-    console.error(`[brevo] send failed [${res.status}]: ${body}`);
-    throw new Error(`Email send failed [${res.status}]: ${body}`);
-  }
 };
 
 /** Removes an address from Brevo's blocklist (e.g. after a bounce before routing existed). */
 export const unblockBrevoContact = async (email: string) => {
-  const LOVABLE_API_KEY = process.env.LOVABLE_API_KEY;
-  const BREVO_KEY = process.env.BREVO_API_KEY;
-  if (!LOVABLE_API_KEY || !BREVO_KEY) return;
-  await fetch(`${GATEWAY_URL}/smtp/blockedContacts/${encodeURIComponent(email)}`, {
+  const { callGateway } = await import("@/lib/connector-gateway.server");
+  await callGateway({
+    connector: "brevo",
+    path: `/smtp/blockedContacts/${encodeURIComponent(email)}`,
     method: "DELETE",
-    headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "X-Connection-Api-Key": BREVO_KEY },
   }).catch(() => {});
 };
 
