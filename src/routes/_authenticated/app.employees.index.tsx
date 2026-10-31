@@ -228,6 +228,7 @@ function EmployeesPage() {
   });
 
   const [open, setOpen] = useState(false);
+  const [formKey, setFormKey] = useState(0);
 
   const { byEmail: emailEvents } = useEmailEvents(
     !!admin.data?.isAdmin,
