@@ -13,7 +13,7 @@ import {
   stripToDigits,
 } from "@/lib/branta-credentials";
 import brandLogo from "@/assets/brand-logo.png.asset.json";
-import admakaiLogo from "@/assets/apps/admakai.png";
+import admakaiLogo from "@/assets/apps/admakai-wordmark.png.asset.json";
 import trackerLogo from "@/assets/apps/tracker.png";
 import { registerSession } from "@/lib/user-sessions.functions";
 import { beginPasskeyLogin, finishPasskeyLogin } from "@/lib/passkeys.functions";
@@ -86,9 +86,9 @@ async function renderTotpQrDataUrl(uri: string): Promise<string> {
 type CaptchaStatus = "loading" | "ready" | "expired" | "error";
 type Phase = "credentials" | "enroll" | "challenge";
 
-function detectSsoApp(redirect: string | undefined): { name: string; logo: string } | null {
+function detectSsoApp(redirect: string | undefined): { name: string; logo: string; wide?: boolean } | null {
   const path = (() => { try { return decodeURIComponent(redirect ?? ""); } catch { return ""; } })();
-  if (path.startsWith("/sso/admakai")) return { name: "Admakai", logo: admakaiLogo };
+  if (path.startsWith("/sso/admakai")) return { name: "Admakai", logo: admakaiLogo.url, wide: true };
   if (path.startsWith("/sso/tracker")) return { name: "Branta Tracker", logo: trackerLogo };
   return null;
 }
@@ -559,11 +559,7 @@ function LoginPage() {
             back-office workflows.
           </p>
         </div>
-        <div className="z-10 font-mono text-[11px] uppercase tracking-[0.14em] text-zinc-500">
-          SYSTEM_STATE: READY_FOR_AUTH
-          <br />
-          LOCAL_NODE: BRANTA_HQ_01
-        </div>
+        <div />
         <div
           className="pointer-events-none absolute inset-0 opacity-[0.08]"
           style={{
@@ -587,10 +583,9 @@ function LoginPage() {
               {ssoApp ? (
                 <header className="mb-6">
                   <div className="mb-4 flex items-center gap-2 border-b border-border pb-3 text-[12px] font-medium text-muted-foreground">
-                    <img src={brandLogo.url} alt="Branta" className="h-4 w-auto" />
-                    <span>Sign in with Branta</span>
+                    <img src={brandLogo.url} alt="Branta" className="h-5 w-auto" />
                   </div>
-                  <div className="flex h-11 w-11 items-center justify-center rounded border border-border bg-card p-1.5 shadow-sm">
+                  <div className={cn("flex h-11 items-center", !ssoApp.wide && "w-11 justify-center rounded border border-border bg-card p-1.5 shadow-sm")}>
                     <img src={ssoApp.logo} alt={ssoApp.name} className="max-h-full max-w-full object-contain" />
                   </div>
                   <h2 className="mt-4 text-2xl font-semibold tracking-tight text-foreground">Sign in</h2>
@@ -927,8 +922,7 @@ function LoginPage() {
                     className="min-h-[14px] text-[10px] uppercase tracking-[0.12em] text-muted-foreground"
                   >
                     {captchaStatus === "loading" && "Loading verification…"}
-                    {captchaStatus === "ready" && "Protected by Cloudflare"}
-                    {captchaStatus === "expired" && "Verification expired — retrying"}
+                                        {captchaStatus === "expired" && "Verification expired — retrying"}
                     {captchaStatus === "error" && "Verification error — try again"}
                   </p>
                 </div>
@@ -1164,12 +1158,6 @@ function LoginPage() {
 
           )}
 
-          <footer className="mt-6 border-t border-border pt-4">
-            <p className="text-[11px] uppercase leading-relaxed tracking-[0.1em] text-muted-foreground">
-              BRANTA TECH SECURE NETWORK. THIS SYSTEM IS FOR AUTHORIZED BRANTA
-              TECH PERSONNEL ONLY. ALL ACTIVITIES ARE LOGGED AND MONITORED.
-            </p>
-          </footer>
 
         </div>
       </main>
