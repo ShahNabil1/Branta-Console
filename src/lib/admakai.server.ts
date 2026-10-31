@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient, type User } from "@supabase/supabase-js";
-import { canAccessAdmakai, mapAdmakaiRole } from "./admakai-policy";
+import { canAccessAdmakai } from "./admakai-policy";
 
 export function admakaiAdmin(): SupabaseClient {
   const url = process.env["ADMAKAI_SUPABASE_URL"];
@@ -47,14 +47,14 @@ export async function syncAdmakaiEmployee(hubId: string): Promise<{ user: User; 
   const sb = admakaiAdmin();
   const [auth, profile, roles] = await Promise.all([
     supabaseAdmin.auth.admin.getUserById(hubId),
-    supabaseAdmin.from("profiles").select("full_name, deactivated_at").eq("user_id", hubId).maybeSingle(),
+    supabaseAdmin.from("profiles").select("full_name, deactivated_at, allowed_apps").eq("user_id", hubId).maybeSingle(),
     supabaseAdmin.from("user_roles").select("role").eq("user_id", hubId),
   ]);
   if (profile.error || roles.error || (auth.error && auth.error.status !== 404)) throw new Error("Could not verify Hub employee access.");
   const source = auth.data.user;
   let user = await findUser(sb, source?.email, hubId);
   const sourceRoles = (roles.data ?? []).map((r) => r.role);
-  const active = !!source?.email && canAccessAdmakai({ roles: sourceRoles, hasProfile: !!profile.data, deactivatedAt: profile.data?.deactivated_at ?? null, bannedUntil: source?.banned_until ?? null });
+  const active = !!source?.email && canAccessAdmakai({ roles: sourceRoles, allowedApps: profile.data?.allowed_apps ?? [], hasProfile: !!profile.data, deactivatedAt: profile.data?.deactivated_at ?? null, bannedUntil: source?.banned_until ?? null });
   if (!active) {
     if (user) await disableUser(sb, user);
     return user ? { user, active: false } : null;
@@ -73,11 +73,12 @@ export async function syncAdmakaiEmployee(hubId: string): Promise<{ user: User; 
   }
   const updated = await sb.auth.admin.updateUserById(user.id, { ...attributes, ban_duration: "none" });
   if (updated.error) throw new Error("Could not synchronize the Admakai account.");
-  const role = mapAdmakaiRole(sourceRoles);
-  if (!role) throw new Error("Your Hub role has no Admakai access.");
   const savedProfile = await sb.from("profiles").upsert({ user_id: user.id, email, full_name: profile.data?.full_name ?? null, is_active: true }, { onConflict: "user_id" });
   if (savedProfile.error) throw new Error("Could not synchronize the Admakai profile.");
-  const savedRole = await sb.from("user_roles").upsert({ user_id: user.id, role }, { onConflict: "user_id" });
+  // Super Admins are always owners; others keep any role Admakai assigned internally.
+  const savedRole = sourceRoles.includes("super_admin")
+    ? await sb.from("user_roles").upsert({ user_id: user.id, role: "owner" }, { onConflict: "user_id" })
+    : await sb.from("user_roles").upsert({ user_id: user.id, role: "member" }, { onConflict: "user_id", ignoreDuplicates: true });
   if (savedRole.error) {
     await disableUser(sb, updated.data.user);
     throw new Error("Could not synchronize the Admakai access role.");

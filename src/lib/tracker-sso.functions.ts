@@ -97,6 +97,17 @@ export const listMyConnectedApps = createServerFn({ method: "GET" })
     return (data ?? []).filter((r) => (seen.has(r.app) ? false : (seen.add(r.app), true)));
   });
 
+export const getMyAppAccess = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const [prof, sup] = await Promise.all([
+      context.supabase.from("profiles").select("allowed_apps").eq("user_id", context.userId).maybeSingle(),
+      context.supabase.rpc("has_role", { _user_id: context.userId, _role: "super_admin" }),
+    ]);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return { allowedApps: (((prof.data as any)?.allowed_apps as string[] | null) ?? []), isSuperAdmin: !!sup.data };
+  });
+
 export const disconnectMyApp = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ app: z.enum(["tracker_extension", "admakai"]) }).parse(d))

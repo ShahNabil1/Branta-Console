@@ -58,6 +58,7 @@ import {
   setEmployeeJobRole,
   startImpersonation,
   updateEmployeeRoles,
+  updateEmployeeAllowedApps,
   resolveEmployeeSlug,
   type EmployeeDetail,
   type EmployeeRole,
@@ -804,6 +805,8 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
       ) : (
         <PermissionsTab userId={userId} />
       )}
+
+      <AppAccessSection userId={userId} roles={e.roles} allowedApps={e.allowedApps} />
 
       {/* Sessions */}
       <SessionsSection
@@ -1881,6 +1884,54 @@ function PermissionsTab({ userId }: { userId: string }) {
         })}
       </ul>
 
+    </section>
+  );
+}
+
+function AppAccessSection({ userId, roles, allowedApps }: { userId: string; roles: readonly string[]; allowedApps: string[] }) {
+  const qc = useQueryClient();
+  const saveFn = useServerFn(updateEmployeeAllowedApps);
+  const isSuper = roles.includes("super_admin");
+  const on = isSuper || allowedApps.includes("admakai");
+  const m = useMutation({
+    mutationFn: (next: boolean) =>
+      saveFn({ data: { userId, allowedApps: next ? [...new Set([...allowedApps, "admakai"])] as "admakai"[] : allowedApps.filter((a) => a !== "admakai") as "admakai"[] } }),
+    onSuccess: (_d, next) => {
+      toast.success(next ? "Admakai access granted" : "Admakai access revoked");
+      qc.invalidateQueries({ queryKey: ["employee.detail", userId] });
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Could not update access"),
+  });
+  return (
+    <section className="rounded-sm border border-border bg-card p-4 sm:p-5">
+      <h3 className="text-[13px] font-semibold text-foreground">Connected App Permissions</h3>
+      <p className="mt-0.5 text-[12px] text-muted-foreground">Sister concerns this employee can sign in to with Branta Console.</p>
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-sm border border-border p-3">
+        <div className="min-w-0">
+          <div className="text-[13px] font-medium text-foreground">Admakai Creative Studio</div>
+          {isSuper ? (
+            <span className="mt-1 inline-block rounded-sm border border-border bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+              Super Admins have universal access to all Branta apps.
+            </span>
+          ) : (
+            <div className="mt-0.5 text-[12px] text-muted-foreground">{on ? "Access granted" : "No access"}</div>
+          )}
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={on}
+          aria-label="Admakai access"
+          disabled={isSuper || m.isPending}
+          onClick={() => m.mutate(!on)}
+          className={cn(
+            "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-60",
+            on ? "bg-primary" : "bg-muted-foreground/30",
+          )}
+        >
+          <span className={cn("inline-block size-4 rounded-full bg-background shadow transition-transform", on ? "translate-x-4" : "translate-x-0.5")} />
+        </button>
+      </div>
     </section>
   );
 }

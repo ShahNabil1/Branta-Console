@@ -15,7 +15,8 @@ export function mapAdmakaiRole(roles: readonly string[]): "owner" | "manager" | 
   if (roles.includes("user")) return "member";
   return null;
 }
-export function canAccessAdmakai(input: { roles: readonly string[]; hasProfile: boolean; deactivatedAt: string | null; bannedUntil: string | null }, now = Date.now()): boolean {
+export function canAccessAdmakai(input: { roles: readonly string[]; allowedApps: readonly string[]; hasProfile: boolean; deactivatedAt: string | null; bannedUntil: string | null }, now = Date.now()): boolean {
   return input.hasProfile && !input.deactivatedAt &&
-    !(input.bannedUntil && new Date(input.bannedUntil).getTime() > now) && mapAdmakaiRole(input.roles) !== null;
+    !(input.bannedUntil && new Date(input.bannedUntil).getTime() > now) &&
+    (input.roles.includes("super_admin") || input.allowedApps.includes("admakai"));
 }

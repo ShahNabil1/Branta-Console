@@ -12,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { disconnectMyApp, listMyConnectedApps } from "@/lib/tracker-sso.functions";
+import { disconnectMyApp, getMyAppAccess, listMyConnectedApps } from "@/lib/tracker-sso.functions";
 import trackerLogo from "@/assets/apps/tracker.png";
 import admakaiLogo from "@/assets/apps/admakai.png";
 
@@ -72,6 +72,9 @@ export function ConnectedAppsCard() {
   const qc = useQueryClient();
   const [info, setInfo] = useState<AppKey | null>(null);
   const q = useQuery({ queryKey: ["connected-apps"], queryFn: () => list() });
+  const accessFn = useServerFn(getMyAppAccess);
+  const access = useQuery({ queryKey: ["connected-apps", "access"], queryFn: () => accessFn() });
+  const admakaiAllowed = !!access.data && (access.data.isSuperAdmin || access.data.allowedApps.includes("admakai"));
   const m = useMutation({
     mutationFn: (app: AppKey) => disconnect({ data: { app } }),
     onSuccess: (_d, app) => {
@@ -174,10 +177,15 @@ export function ConnectedAppsCard() {
                         <a href={TRACKER_ZIP} download><Download className="mr-1.5 size-3.5" /> Download Extension</a>
                       </Button>
                     ) : (
-                      <Button type="button" size="sm" onClick={() => onConnect(key)}>
-                        {a.connectLabel}
-                        {a.connectUrl ? <ExternalLink className="ml-1.5 size-3.5 opacity-80" /> : null}
-                      </Button>
+                      <>
+                        <Button type="button" size="sm" disabled={key === "admakai" && !admakaiAllowed} onClick={() => onConnect(key)}>
+                          {a.connectLabel}
+                          {a.connectUrl ? <ExternalLink className="ml-1.5 size-3.5 opacity-80" /> : null}
+                        </Button>
+                        {key === "admakai" && access.data && !admakaiAllowed ? (
+                          <p className="mt-1.5 text-[12px] text-muted-foreground">Access not granted by administrator.</p>
+                        ) : null}
+                      </>
                     )}
                   </div>
                 )}

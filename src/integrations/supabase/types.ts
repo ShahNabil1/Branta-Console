@@ -3838,6 +3838,7 @@ export type Database = {
         Row: {
           address_line1: string | null
           address_line2: string | null
+          allowed_apps: string[]
           avatar_url: string | null
           bank_account_name: string | null
           bank_account_number: string | null
@@ -3891,6 +3892,7 @@ export type Database = {
         Insert: {
           address_line1?: string | null
           address_line2?: string | null
+          allowed_apps?: string[]
           avatar_url?: string | null
           bank_account_name?: string | null
           bank_account_number?: string | null
@@ -3944,6 +3946,7 @@ export type Database = {
         Update: {
           address_line1?: string | null
           address_line2?: string | null
+          allowed_apps?: string[]
           avatar_url?: string | null
           bank_account_name?: string | null
           bank_account_number?: string | null

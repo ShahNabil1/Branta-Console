@@ -66,6 +66,7 @@ export interface EmployeeDetail {
   isBanned: boolean;
   mustChangePassword: boolean;
   mustLinkTelegram: boolean;
+  allowedApps: string[];
   profile: {
     full_name: string | null;
     legal_full_name: string | null;
@@ -126,7 +127,7 @@ export const getEmployeeDetail = createServerFn({ method: "GET" })
       supabaseAdmin
         .from("profiles")
         .select(
-          "full_name, legal_full_name, avatar_url, employee_code, job_role, phone_primary, phone_alt, address_line1, address_line2, city, district, division, upazila, post_office, postcode, country, bank_name, bank_account_name, bank_account_number, bank_routing, mfs_provider, mfs_number, payment_methods, nid_url, cv_url, identity_doc_type, nid_front_url, nid_back_url, passport_photo_url, passport_address_url, birth_certificate_url, personal_gmail, kyc_status, must_change_password, must_link_telegram",
+          "full_name, legal_full_name, avatar_url, employee_code, job_role, phone_primary, phone_alt, address_line1, address_line2, city, district, division, upazila, post_office, postcode, country, bank_name, bank_account_name, bank_account_number, bank_routing, mfs_provider, mfs_number, payment_methods, nid_url, cv_url, identity_doc_type, nid_front_url, nid_back_url, passport_photo_url, passport_address_url, birth_certificate_url, personal_gmail, kyc_status, must_change_password, must_link_telegram, allowed_apps",
         )
         .eq("user_id", data.userId)
         .maybeSingle(),
@@ -153,6 +154,8 @@ export const getEmployeeDetail = createServerFn({ method: "GET" })
       isBanned,
       mustChangePassword: !!(prof.data as any)?.must_change_password,
       mustLinkTelegram: !!(prof.data as any)?.must_link_telegram,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      allowedApps: ((prof.data as any)?.allowed_apps as string[] | null) ?? [],
       profile: (prof.data ?? {
         full_name: null,
         legal_full_name: null,
@@ -865,4 +868,20 @@ export const resolveEmployeeSlug = createServerFn({ method: "GET" })
       if (res.users.length < 200) break;
     }
     throw new Error("Employee not found");
+  });
+
+// Admin-only: grant/revoke sister-concern app access (e.g. Admakai).
+export const updateEmployeeAllowedApps = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ userId: uuid, allowedApps: z.array(z.enum(["admakai"])).max(10) }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const allowed = [...new Set(data.allowedApps)];
+    const { error } = await supabaseAdmin.from("profiles").update({ allowed_apps: allowed } as never).eq("user_id", data.userId);
+    if (error) throw dbError(error);
+    { const { syncEmployeeAppsSafe } = await import("@/lib/employee-app-sync.server"); await syncEmployeeAppsSafe(data.userId); }
+    return { ok: true as const, allowedApps: allowed };
   });
