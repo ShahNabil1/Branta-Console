@@ -3,6 +3,7 @@ import { dbError } from "@/lib/db-errors";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { leadRecipientEmails } from "@/lib/lead-recipient-policy";
 
 export const BD_TIMEZONE = "Asia/Dhaka";
 
@@ -95,7 +96,7 @@ export const scheduleLeadMeeting = createServerFn({ method: "POST" })
     // Only the lead owner or a privileged role may schedule meetings for a lead.
     const { data: leadRow } = await context.supabase
       .from("leads")
-      .select("owner_id")
+      .select("owner_id, alt_email")
       .eq("id", data.leadId)
       .maybeSingle();
     if (!leadRow) throw new Error("Lead not found");
@@ -117,13 +118,9 @@ export const scheduleLeadMeeting = createServerFn({ method: "POST" })
       .from("lead_contacts")
       .select("email, alt_email")
       .eq("lead_id", data.leadId);
-    const known = new Set<string>();
-    for (const c of (contacts ?? []) as Array<{ email: string | null; alt_email: string | null }>) {
-      if (c.email) known.add(c.email.trim().toLowerCase());
-      if (c.alt_email) known.add(c.alt_email.trim().toLowerCase());
-    }
+    const known = leadRecipientEmails(leadRow.alt_email, contacts ?? []);
     const outsider = uniqAttendees.find(
-      (e) => !known.has(e) && !e.endsWith("@brantatech.com"),
+      (e) => !known.has(e.trim().toLowerCase()) && !e.toLowerCase().endsWith("@brantatech.com"),
     );
     if (outsider)
       throw new Error(`${outsider} is not a contact of this lead. Add them as a lead contact first.`);
