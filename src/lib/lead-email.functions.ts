@@ -4,6 +4,7 @@ import { dbError } from "@/lib/db-errors";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { leadRecipientEmails } from "@/lib/lead-recipient-policy";
 
 export type LeadEmailStatus =
   | "draft"
@@ -250,7 +251,7 @@ export const sendLeadEmail = createServerFn({ method: "POST" })
 
       const { data: lead } = await context.supabase
         .from("leads")
-        .select("id, slug, lead_code, name, company, status, owner_id")
+        .select("id, slug, lead_code, name, company, status, owner_id, alt_email")
         .eq("id", data.leadId)
         .maybeSingle();
       if (!lead) throw new Error("Lead not found");
@@ -282,11 +283,7 @@ export const sendLeadEmail = createServerFn({ method: "POST" })
         .from("lead_contacts")
         .select("email, alt_email")
         .eq("lead_id", data.leadId);
-      const allowed = new Set<string>();
-      for (const c of (contacts ?? []) as Array<{ email: string | null; alt_email: string | null }>) {
-        if (c.email) allowed.add(c.email.trim().toLowerCase());
-        if (c.alt_email) allowed.add(c.alt_email.trim().toLowerCase());
-      }
+      const allowed = leadRecipientEmails(lead.alt_email, contacts ?? []);
       const requested = [
         ...data.to.map((r) => (typeof r === "string" ? r : r.email)),
         ...data.cc,
