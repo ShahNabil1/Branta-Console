@@ -130,6 +130,8 @@ function OnboardingPasswordPage() {
               />
               <button
                 type="button"
+                onPointerDown={(e) => e.preventDefault()}
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => setShowNext((s) => !s)}
                 className="grid size-9 place-items-center rounded-sm border border-border bg-card text-muted-foreground hover:bg-muted"
                 aria-label={showNext ? "Hide" : "Show"}
