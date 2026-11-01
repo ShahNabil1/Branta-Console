@@ -5049,6 +5049,10 @@ export type Database = {
         Returns: undefined
       }
       validate_branta_email: { Args: { _email: string }; Returns: boolean }
+      verify_cron_token: {
+        Args: { _name: string; _token: string }
+        Returns: boolean
+      }
       wallet_balances_v2: {
         Args: { _user?: string }
         Returns: {
