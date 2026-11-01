@@ -97,9 +97,9 @@ export const offboardStep = createServerFn({ method: "POST" })
           if (!email) return { status: "already", detail: "Login account no longer exists." };
           const { error } = await admin.auth.admin.updateUserById(data.userId, { ban_duration: "876000h" });
           if (error) throw new Error(`Supabase Auth refused to block sign-in: ${error.message}`);
-          // Revoke refresh tokens on every device.
-          const { count } = await admin.schema("auth" as never).from("refresh_tokens" as never).delete({ count: "exact" }).eq("user_id" as never, data.userId as never).then((r) => r, () => ({ count: null }));
-          return { status: "done", detail: `Sign-in blocked; signed out of all devices${count ? ` (${count} sessions revoked)` : ""}.` };
+          // A banned user can no longer refresh tokens, so every device session ends at its next refresh.
+          await admin.from("passkey_sessions" as never).delete().eq("user_id" as never, data.userId as never).then(() => null, () => null);
+          return { status: "done", detail: "Sign-in blocked on every device; existing sessions can no longer refresh." };
         }
         case "account": {
           const sb = context.supabase as never as { rpc: (f: string, a: object) => Promise<{ data: unknown; error: { message: string; code?: string } | null }> };
