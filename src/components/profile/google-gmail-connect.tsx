@@ -1,12 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { BadgeCheck, X } from "lucide-react";
+import { BadgeCheck, Unlink } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const CLIENT_ID = "437429798252-8hu096me780rb7vm072nfnqoadkvkpqq.apps.googleusercontent.com";
 
 type GoogleId = {
   initialize: (o: Record<string, unknown>) => void;
   prompt: () => void;
+  cancel: () => void;
   renderButton: (el: HTMLElement, o: Record<string, unknown>) => void;
 };
 
@@ -58,6 +63,7 @@ export function GoogleGmailConnect({
           cancel_on_tap_outside: true,
           context: "use",
           callback: (res: { credential?: string }) => {
+            gid.cancel();
             if (!res.credential) return;
             const p = decodeJwt(res.credential);
             const mail = String(p.email ?? "").toLowerCase();
@@ -82,6 +88,8 @@ export function GoogleGmailConnect({
       .catch((e: Error) => !cancelled && setErr(e.message));
     return () => {
       cancelled = true;
+      const g = (window as unknown as { google?: { accounts?: { id?: GoogleId } } }).google;
+      g?.accounts?.id?.cancel();
     };
   }, [email]);
 
@@ -93,13 +101,30 @@ export function GoogleGmailConnect({
           <span className="truncate font-mono text-[12px]">{email}</span>
           <span className="hidden text-[11px] text-muted-foreground sm:inline">Verified via Google</span>
         </div>
-        <button
-          type="button"
-          onClick={onDisconnect}
-          className="inline-flex items-center gap-1 text-[11.5px] text-muted-foreground hover:text-destructive"
-        >
-          <X className="h-3.5 w-3.5" /> Disconnect
-        </button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <button
+              type="button"
+              className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-sm border border-destructive/30 bg-destructive/5 px-2.5 text-[11.5px] font-medium text-destructive transition-colors hover:bg-destructive/10"
+            >
+              <Unlink className="h-3.5 w-3.5" /> Disconnect
+            </button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Disconnect Gmail?</AlertDialogTitle>
+              <AlertDialogDescription>
+                <span className="font-mono">{email}</span> will be removed from your profile. Your profile photo stays unchanged. Click Save changes to apply.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={onDisconnect} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Disconnect
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     );
   }
