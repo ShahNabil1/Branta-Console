@@ -35,6 +35,7 @@ import {
 import bdTree from "@/lib/bd-postcodes.json";
 import { BD_BANKS, BD_MFS_PROVIDERS } from "@/lib/bd-banks";
 import { ProfileSocialLinksSection } from "@/components/profile/profile-social-links-section";
+import { GoogleGmailConnect } from "@/components/profile/google-gmail-connect";
 
 
 import { requestR2Upload } from "@/lib/r2.functions";
@@ -388,12 +389,13 @@ function ProfileForm({
                 hint="Used for Google Meet invites. Must be a @gmail.com address."
                 className="md:col-span-2"
               >
-                <Input
-                  className="h-9 rounded-sm font-mono text-[12px]"
-                  value={form.personal_gmail ?? ""}
-                  onChange={(e) => set("personal_gmail", e.target.value.trim().toLowerCase() || null)}
-                  type="email"
-                  aria-invalid={!gmailValid}
+                <GoogleGmailConnect
+                  email={gmailValid && form.personal_gmail ? form.personal_gmail : null}
+                  onConnect={(mail, pic) => {
+                    set("personal_gmail", mail);
+                    if (pic && !form.avatar_url) set("avatar_url", pic);
+                  }}
+                  onDisconnect={() => set("personal_gmail", null)}
                 />
               </Field>
             </div>
