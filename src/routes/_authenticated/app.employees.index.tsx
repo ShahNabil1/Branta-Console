@@ -922,7 +922,26 @@ function StepGuide({ title, items }: { title: string; items: string[] }) {
 }
 
 function DestinationsPanel() {
-  const listFn = useServerFn(listEmailDestinations);
+  const listFn = useServerFn(listDestinationRoutes);
+  const delFn = useServerFn(deleteCloudflareRoute);
+  const confirmDlg = useConfirm();
+  const qcd = useQueryClient();
+  const [busy, setBusy] = useState<{ key: string; pct: number; label: string } | null>(null);
+  const remove = async (kind: "rule" | "destination", value: string, rules: string[]) => {
+    const ok = await confirmDlg({ title: kind === "rule" ? "Delete routing rule?" : "Delete destination address?", description: kind === "rule" ? `Mail to ${value} will stop forwarding. This deletes the rule in Cloudflare.` : `Deletes ${value} from Cloudflare${rules.length ? ` and its ${rules.length} routing rule(s): ${rules.join(", ")}` : ""}.`, confirmLabel: "Delete", tone: "danger" });
+    if (!ok) return;
+    const jobs: { kind: "rule" | "destination"; value: string }[] = kind === "rule" ? [{ kind, value }] : [...rules.map((r) => ({ kind: "rule" as const, value: r })), { kind, value }];
+    const errs: string[] = [];
+    for (let i = 0; i < jobs.length; i++) {
+      setBusy({ key: value, pct: Math.round((i / jobs.length) * 100), label: `Deleting ${jobs[i].kind === "rule" ? "rule " + jobs[i].value : "destination"}…` });
+      const r = await delFn({ data: jobs[i] }).catch((e) => ({ status: "failed" as const, detail: e instanceof Error ? e.message : String(e) }));
+      if (r.status === "failed") errs.push(r.detail); else if (r.status === "already") toast.info(r.detail);
+    }
+    setBusy({ key: value, pct: 100, label: "Done" });
+    if (errs.length) toast.error(`Cloudflare: ${errs.join(" · ")}`); else toast.success(kind === "rule" ? `Routing rule for ${value} deleted` : `Destination ${value} deleted from Cloudflare`);
+    await qcd.invalidateQueries({ queryKey: ["cf.destinations"] });
+    setBusy(null);
+  };
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"all" | "verified" | "pending">("all");
   const dest = useQuery({ queryKey: ["cf.destinations"], queryFn: () => listFn(), staleTime: 30_000 });
@@ -958,11 +977,25 @@ function DestinationsPanel() {
         ) : (
           <ul className="divide-y divide-border">
             {items.map((d) => (
-              <li key={d.email} className="flex items-center justify-between gap-2 py-2">
-                <span className="min-w-0 truncate font-mono text-[12px]">{d.email}</span>
-                <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-semibold", d.verified ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700")}>
-                  {d.verified ? "Verified" : "Pending"}
-                </span>
+              <li key={d.email} className="space-y-1.5 py-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="min-w-0 truncate font-mono text-[12px]">{d.email}</span>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <span className={cn("rounded-full px-2 py-0.5 text-[10.5px] font-semibold", d.verified ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700")}>{d.verified ? "Verified" : "Pending"}</span>
+                    <button type="button" disabled={!!busy} onClick={() => remove("destination", d.email, d.rules.map((r) => r.from))} aria-label={`Delete ${d.email}`} className="grid size-7 place-items-center rounded-sm border border-border text-rose-600 hover:bg-rose-50 disabled:opacity-50"><Trash2 className="size-3.5" /></button>
+                  </div>
+                </div>
+                {d.rules.length === 0 ? (
+                  <div className="text-[11.5px] text-muted-foreground">No routing rules yet</div>
+                ) : d.rules.map((r) => (
+                  <div key={r.id} className="flex items-center justify-between gap-2 rounded-sm bg-muted/50 px-2 py-1 text-[11.5px]">
+                    <span className="min-w-0 truncate font-mono">{r.from} → this Gmail{!r.enabled && " (disabled)"}</span>
+                    <button type="button" disabled={!!busy} onClick={() => remove("rule", r.from, [])} className="shrink-0 text-rose-600 hover:underline disabled:opacity-50">Delete rule</button>
+                  </div>
+                ))}
+                {busy?.key === d.email || d.rules.some((r) => r.from === busy?.key) ? (
+                  <div className="space-y-1"><div className="flex justify-between text-[11px] text-muted-foreground"><span>{busy?.label}</span><span className="font-mono">{busy?.pct}%</span></div><Progress value={busy?.pct ?? 0} /></div>
+                ) : null}
               </li>
             ))}
           </ul>
