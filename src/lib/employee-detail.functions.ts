@@ -523,13 +523,16 @@ export const startImpersonation = createServerFn({ method: "POST" })
   });
 
 // Called from the exit banner after we restore the admin's session.
+// The end record is only written when this admin has an open, recent
+// "start" record for the same target; target identity comes from that
+// server-written record, never from the caller.
 export const logImpersonationEnd = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
     z
       .object({
         targetUserId: uuid,
-        targetEmail: z.string().email(),
+        targetEmail: z.string().email().optional(),
       })
       .parse(input),
   )
@@ -539,14 +542,27 @@ export const logImpersonationEnd = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
     );
-    const { data: adminUser } = await supabaseAdmin.auth.admin.getUserById(
-      context.userId,
-    );
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { data: events, error: evErr } = await supabaseAdmin
+      .from("impersonation_events")
+      .select("action, admin_email, target_email, created_at")
+      .eq("admin_user_id", context.userId)
+      .eq("target_user_id", data.targetUserId)
+      .gte("created_at", since)
+      .order("created_at", { ascending: false })
+      .limit(1);
+    if (evErr) throw dbError(evErr);
+    const last = events?.[0] as
+      | { action: string; admin_email: string; target_email: string }
+      | undefined;
+    // Nothing open to close (never started, or already ended): no-op.
+    if (!last || last.action !== "start") return { ok: true as const };
+
     await supabaseAdmin.from("impersonation_events").insert({
       admin_user_id: context.userId,
-      admin_email: (adminUser.user?.email ?? "").toLowerCase(),
+      admin_email: last.admin_email,
       target_user_id: data.targetUserId,
-      target_email: data.targetEmail,
+      target_email: last.target_email,
       action: "end",
     });
     try {

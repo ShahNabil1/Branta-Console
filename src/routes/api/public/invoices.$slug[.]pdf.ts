@@ -25,6 +25,11 @@ export const Route = createFileRoute("/api/public/invoices/$slug.pdf")({
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const payload = await loadInvoicePdfPayload(supabaseAdmin, slug);
         if (!payload) return new Response("Not found", { status: 404 });
+        // Archived or voided invoices are withdrawn: existing signed links stop working.
+        const inv = payload.invoice as { archived_at?: string | null; status?: string | null };
+        if (inv.archived_at || inv.status === "void") {
+          return new Response("This invoice is no longer available", { status: 410 });
+        }
 
         const { renderInvoicePdf } = await import("@/lib/invoice-pdf.server");
         const base = defaultSettings();
