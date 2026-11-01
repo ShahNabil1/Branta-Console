@@ -1,4 +1,5 @@
 import { TrackerScheduleTab } from "@/components/employee/tracker-schedule-tab";
+import { MailActivity } from "@/components/employee/mail-activity";
 import admakaiLogo from "@/assets/apps/admakai.png";
 import { WalletLedgerView } from "@/components/finance/wallet-ledger-view";
 import { SessionHistoryLog } from "@/components/profile/session-history-log";
@@ -840,7 +841,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
       </div>
 
       {tab === "profile" ? (
-        <ProfileTab e={e} />
+        <><ProfileTab e={e} /><div className="mt-4"><MailActivity emails={[e.email, e.profile.personal_gmail ?? ""]} /></div></>
       ) : tab === "wallet" ? (
         <WalletTab userId={userId} walletFn={walletFn} />
       ) : tab === "schedule" ? (

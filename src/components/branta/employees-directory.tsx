@@ -3,6 +3,7 @@ import { Loader2, Mail, Phone, Plus, Search, UserPlus } from "lucide-react";
 import type { EmployeeRow } from "@/lib/employees.functions";
 import { useOnlineUsers, type PresenceInfo } from "@/hooks/use-presence";
 import { cn } from "@/lib/utils";
+import { MAIL_LABEL, mailTone } from "@/components/employee/mail-activity";
 
 type Status = "online" | "idle" | "offline";
 interface MailEvent {
@@ -304,9 +305,9 @@ export function EmployeesDirectory({
                       {statusText}
                     </span>
                   </span>
-                  {mailBad ? (
-                    <span className="shrink-0 rounded-sm border border-rose-300 bg-rose-50 px-1.5 py-0.5 text-[10px] font-semibold text-rose-700">
-                      Mail issue
+                  {mail ? (
+                    <span title={`Last mail: ${MAIL_LABEL[mail.event] ?? mail.event} · ${ago(mail.occurred_at, now)}`} className={cn("shrink-0 rounded-sm border px-1.5 py-0.5 text-[10px] font-semibold", mailTone(mail.event))}>
+                      {mailBad ? "⚠ " : ""}{MAIL_LABEL[mail.event] ?? mail.event}
                     </span>
                   ) : (
                     <span className="shrink-0 font-semibold text-brand sm:opacity-0 sm:group-hover:opacity-100">
