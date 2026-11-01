@@ -344,6 +344,24 @@ export const deleteEmployee = createServerFn({ method: "POST" })
     return { ok: true as const, result: "deactivated" as const, blockers };
   });
 
+/** Removes an address from Brevo's transactional blocklist; returns the real provider error on failure. */
+export const unblockEmployeeMail = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ email: z.string().trim().toLowerCase().email().max(200) }).parse(input))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const { callGateway } = await import("@/lib/connector-gateway.server");
+    try {
+      await callGateway({ connector: "brevo", path: `/smtp/blockedContacts/${encodeURIComponent(data.email)}`, method: "DELETE" });
+      return { ok: true as const, wasBlocked: true };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      // Brevo answers 404 when the address is not on the blocklist — that is a success for the admin.
+      if (/404|not.?found|does not exist/i.test(msg)) return { ok: true as const, wasBlocked: false };
+      throw new Error(`Brevo refused the unblock: ${msg}`);
+    }
+  });
+
 export const syncRecentEmailEvents = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
