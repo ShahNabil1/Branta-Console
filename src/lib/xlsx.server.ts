@@ -195,7 +195,12 @@ ${list
 export function buildCsv(headers: string[], rows: XlsxCell[][], preamble: string[] = []) {
   const cell = (v: XlsxCell) => {
     if (v === null || v === undefined) return "";
-    const s = String(v);
+    let s = String(v);
+    // Neutralize spreadsheet formula injection: text cells beginning with
+    // = + - @ tab or CR are prefixed with ' (plain numbers are left intact).
+    if (typeof v === "string" && /^[=+\-@\t\r]/.test(s) && !/^[-+]?[\d,]*\.?\d+$/.test(s)) {
+      s = `'${s}`;
+    }
     return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   const lines: string[] = [];

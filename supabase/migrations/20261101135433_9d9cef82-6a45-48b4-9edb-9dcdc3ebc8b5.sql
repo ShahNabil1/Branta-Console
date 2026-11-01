@@ -1,0 +1,10 @@
+REVOKE EXECUTE ON FUNCTION public.is_active_employee(uuid) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.is_ops_viewer(uuid) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.can_view_project(uuid, uuid) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.can_view_task(uuid, uuid) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.can_view_customer(uuid, uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.is_active_employee(uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.is_ops_viewer(uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.can_view_project(uuid, uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.can_view_task(uuid, uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.can_view_customer(uuid, uuid) TO authenticated, service_role;
