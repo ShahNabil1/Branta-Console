@@ -140,3 +140,19 @@ export async function deleteDestination(gmail: string): Promise<boolean> {
   }
   return false;
 }
+
+/** All forward rules as { from, to[] } pairs. */
+export async function listForwardRules(): Promise<{ id: string; from: string; to: string[]; enabled: boolean }[]> {
+  const { zone } = cfg();
+  const out: { id: string; from: string; to: string[]; enabled: boolean }[] = [];
+  for (let page = 1; page <= 20; page++) {
+    const rules = await cf<(FullRule & { enabled?: boolean })[]>(`/zones/${zone}/email/routing/rules?per_page=50&page=${page}`);
+    for (const r of rules) {
+      const from = r.matchers?.find((m) => m.type === "literal")?.value?.toLowerCase();
+      const to = (r.actions ?? []).filter((a) => a.type === "forward").flatMap((a) => a.value ?? []).map((v) => v.toLowerCase());
+      if (from && to.length) out.push({ id: r.id, from, to, enabled: r.enabled !== false });
+    }
+    if (rules.length < 50) break;
+  }
+  return out;
+}

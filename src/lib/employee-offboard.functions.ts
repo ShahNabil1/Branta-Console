@@ -124,3 +124,28 @@ export const offboardStep = createServerFn({ method: "POST" })
       return { status: "failed", detail: msg(e) };
     }
   });
+
+export const listDestinationRoutes = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const cf = await import("@/lib/cloudflare-email.server");
+    if (!cf.cloudflareConfigured()) return { configured: false as const, items: [] };
+    const [dests, rules] = await Promise.all([cf.listDestinations(), cf.listForwardRules()]);
+    return { configured: true as const, items: dests.map((d) => ({ ...d, rules: rules.filter((r) => r.to.includes(d.email)).map((r) => ({ id: r.id, from: r.from, enabled: r.enabled })) })) };
+  });
+
+export const deleteCloudflareRoute = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({ kind: z.enum(["rule", "destination"]), value: z.string().trim().toLowerCase().min(3).max(200) }).parse(i))
+  .handler(async ({ data, context }): Promise<StepResult> => {
+    await assertAdmin(context.supabase, context.userId);
+    const cf = await import("@/lib/cloudflare-email.server");
+    try {
+      if (data.kind === "rule") {
+        const n = await cf.deleteRulesFor(data.value);
+        return n ? { status: "done", detail: `Routing rule for ${data.value} deleted.` } : { status: "already", detail: `No rule for ${data.value} — already removed.` };
+      }
+      return (await cf.deleteDestination(data.value)) ? { status: "done", detail: `Destination ${data.value} deleted.` } : { status: "already", detail: `${data.value} was already removed.` };
+    } catch (e) { return { status: "failed", detail: msg(e) }; }
+  });
