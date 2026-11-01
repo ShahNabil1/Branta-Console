@@ -4863,6 +4863,18 @@ export type Database = {
         Args: { _task_id: string; _user: string }
         Returns: boolean
       }
+      can_view_customer: {
+        Args: { _customer_id: string; _user: string }
+        Returns: boolean
+      }
+      can_view_project: {
+        Args: { _project_id: string; _user: string }
+        Returns: boolean
+      }
+      can_view_task: {
+        Args: { _task_id: string; _user: string }
+        Returns: boolean
+      }
       code_pad: { Args: { _n: number; _w: number }; Returns: string }
       correct_allocation_base: {
         Args: { _allocation_id: string; _reason: string }
@@ -4976,8 +4988,10 @@ export type Database = {
         Returns: number
       }
       invoice_delete_blockers: { Args: { _invoice_id: string }; Returns: Json }
+      is_active_employee: { Args: { _user: string }; Returns: boolean }
       is_finance_admin: { Args: { _user_id?: string }; Returns: boolean }
       is_lead_owner: { Args: { _lead_id: string }; Returns: boolean }
+      is_ops_viewer: { Args: { _user: string }; Returns: boolean }
       is_super_admin: { Args: { _user_id?: string }; Returns: boolean }
       is_task_assignee: {
         Args: { _task_id: string; _user: string }
