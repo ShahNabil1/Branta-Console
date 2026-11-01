@@ -155,6 +155,7 @@ export const getEmployeeDetail = createServerFn({ method: "GET" })
       isBanned,
       mustChangePassword: !!(prof.data as any)?.must_change_password,
       mustLinkTelegram: !!(prof.data as any)?.must_link_telegram,
+      passwordResetPending: u.app_metadata?.password_reset_pending === true,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       allowedApps: ((prof.data as any)?.allowed_apps as string[] | null) ?? [],
       profile: (prof.data ?? {
@@ -379,6 +380,9 @@ export const resendOnboardingInstructions = createServerFn({ method: "POST" })
     const email = (u.user.email ?? "").toLowerCase();
     if (!email.endsWith(DOMAIN))
       throw new Error("Not a Branta employee account.");
+
+    if (u.user.app_metadata?.password_reset_pending === true)
+      throw new Error("This employee is awaiting a password change, not onboarding. Use Reset password instead.");
 
     const prof = await supabaseAdmin
       .from("profiles")

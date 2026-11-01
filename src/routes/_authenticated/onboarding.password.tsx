@@ -19,10 +19,18 @@ import {
   stripToPassword,
 } from "@/lib/branta-credentials";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated/onboarding/password")({
   ssr: false,
-  head: () => ({ meta: [{ title: "Set your password · Branta Tech" }] }),
+  head: () => ({ meta: [
+    { title: "Set your password · Branta Tech" },
+    { name: "description", content: "Securely replace your temporary Branta Console password." },
+    { property: "og:title", content: "Set your password · Branta Tech" },
+    { property: "og:description", content: "Securely replace your temporary Branta Console password." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   component: OnboardingPasswordPage,
 });
 
@@ -98,11 +106,12 @@ function OnboardingPasswordPage() {
             <KeyRound className="size-5" />
           </div>
           <h1 className="mt-3 text-[15px] font-semibold">
-            Set your personal password
+            {status.data?.passwordResetPending ? "Choose a new password" : "Set your personal password"}
           </h1>
           <p className="mt-1 max-w-sm text-[12.5px] text-muted-foreground">
-            The temporary password was only for the first sign-in. Choose a
-            personal password now — you'll use it every time from here on.
+            {status.data?.passwordResetPending
+              ? "Replace your temporary password. Your Telegram connection and other account settings are unchanged."
+              : "The temporary password was only for the first sign-in. Choose a personal password now."}
           </p>
           {email && (
             <div className="mt-2 font-mono text-[11.5px] text-muted-foreground">
@@ -128,7 +137,7 @@ function OnboardingPasswordPage() {
                   next.length > 0 && !parsed.success && "border-rose-400",
                 )}
               />
-              <button
+              <Button variant="outline" size="icon"
                 type="button"
                 onPointerDown={(e) => e.preventDefault()}
                 onMouseDown={(e) => e.preventDefault()}
@@ -137,7 +146,7 @@ function OnboardingPasswordPage() {
                 aria-label={showNext ? "Hide" : "Show"}
               >
                 {showNext ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-              </button>
+              </Button>
             </div>
             {next.length > 0 && !parsed.success && (
               <p className="mt-1 text-[11.5px] text-rose-600">
@@ -174,18 +183,18 @@ function OnboardingPasswordPage() {
             </p>
           )}
 
-          <button
+          <Button
             type="submit"
             disabled={!canSubmit}
-            className="inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-sm bg-brand text-[13px] font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
+            className="h-10 w-full gap-1.5 rounded-sm text-[13px] font-semibold"
           >
             {busy ? (
               <Loader2 className="size-4 animate-spin" />
             ) : (
               <ShieldCheck className="size-4" />
             )}
-            Save personal password
-          </button>
+            Save new password
+          </Button>
         </form>
       </div>
     </div>
