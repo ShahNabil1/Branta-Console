@@ -113,3 +113,30 @@ export async function getRuleEnabled(ruleId: string): Promise<boolean> {
   const r = await cf<{ enabled?: boolean }>(`/zones/${zone}/email/routing/rules/${ruleId}`);
   return r.enabled !== false;
 }
+
+/** Deletes every forward rule whose literal "to" matcher is this address. Returns number removed (0 = already gone). */
+export async function deleteRulesFor(brantaEmail: string): Promise<number> {
+  const { zone } = cfg();
+  const to = brantaEmail.toLowerCase();
+  const ids: string[] = [];
+  for (let page = 1; page <= 20; page++) {
+    const rules = await cf<Rule[]>(`/zones/${zone}/email/routing/rules?per_page=50&page=${page}`);
+    for (const r of rules) if (r.matchers?.some((m) => m.type === "literal" && m.value?.toLowerCase() === to)) ids.push(r.id);
+    if (rules.length < 50) break;
+  }
+  for (const id of ids) await cf(`/zones/${zone}/email/routing/rules/${id}`, { method: "DELETE" });
+  return ids.length;
+}
+
+/** Deletes a destination address. Returns false when Cloudflare no longer has it. */
+export async function deleteDestination(gmail: string): Promise<boolean> {
+  const { account } = cfg();
+  const target = gmail.toLowerCase();
+  for (let page = 1; page <= 20; page++) {
+    const list = await cf<(Address & { tag?: string })[]>(`/accounts/${account}/email/routing/addresses?per_page=50&page=${page}`);
+    const hit = list.find((a) => a.email.toLowerCase() === target);
+    if (hit) { await cf(`/accounts/${account}/email/routing/addresses/${hit.tag ?? hit.id}`, { method: "DELETE" }); return true; }
+    if (list.length < 50) break;
+  }
+  return false;
+}
