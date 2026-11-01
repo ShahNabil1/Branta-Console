@@ -87,6 +87,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 export const Route = createFileRoute("/_authenticated/app/employees/$userId")({
   head: () => ({
@@ -230,9 +231,16 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
 
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetTwoFactor, setResetTwoFactor] = useState(false);
+  const [resetResult, setResetResult] = useState<Awaited<ReturnType<typeof resetFn>> | null>(null);
   const resetMut = useMutation({
-    mutationFn: () => resetFn({ data: { userId } }),
-    onSuccess: () => toast.success("New password emailed to the employee"),
+    mutationFn: () => resetFn({ data: { userId, resetTwoFactor } }),
+    onSuccess: (result) => {
+      setResetResult(result);
+      qc.invalidateQueries({ queryKey: ["employee.detail", userId] });
+      toast.success("Temporary password created");
+    },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
 
@@ -393,17 +401,18 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
     banMut.mutate(!e.isBanned);
   };
 
-  const onReset = async () => {
-    const ok = await confirm({
-      title: "Reset password?",
-      description: `A new temporary password will be emailed to ${e.email}. Their current password will stop working.`,
-      confirmLabel: "Reset password",
-    });
-    if (!ok) return;
-    resetMut.mutate();
+  const onReset = () => {
+    setResetResult(null);
+    setResetTwoFactor(false);
+    resetOpenChange(true);
+  };
+  const resetOpenChange = (open: boolean) => {
+    if (resetMut.isPending) return;
+    setResetOpen(open);
+    if (!open) { setResetResult(null); resetMut.reset(); }
   };
 
-  const onboardingPending = e.mustChangePassword || e.mustLinkTelegram;
+  const onboardingPending = (!e.passwordResetPending && e.mustChangePassword) || e.mustLinkTelegram;
   const pendingSteps = [
     e.mustChangePassword ? "set their personal password" : null,
     e.mustLinkTelegram ? "link Telegram" : null,
@@ -630,6 +639,39 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
         url={p.avatar_url}
         name={p.full_name ?? e.brantaId}
       />
+      <Dialog open={resetOpen} onOpenChange={resetOpenChange}>
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto" onInteractOutside={(event) => { if (resetMut.isPending) event.preventDefault(); }} onEscapeKeyDown={(event) => { if (resetMut.isPending) event.preventDefault(); }}>
+          <DialogHeader><DialogTitle>{resetResult ? "Temporary password created" : "Reset employee password"}</DialogTitle></DialogHeader>
+          <p className="break-all font-mono text-xs text-muted-foreground">{e.email}</p>
+          {resetResult ? (
+            <div className="space-y-4">
+              <p role="status" className={cn("text-sm", resetResult.emailStatus === "failed" ? "text-destructive" : "text-muted-foreground")}>
+                {resetResult.emailStatus === "accepted" ? "Email accepted for sending. Delivery is not yet confirmed." : "Email could not be sent. Copy the password and share it securely with the employee."}
+              </p>
+              {!resetResult.twoFactorResetComplete && <p role="alert" className="text-sm text-destructive">The password was reset, but some authenticator factors could not be removed. Retry the 2FA reset if needed.</p>}
+              <div className="flex min-w-0 items-center gap-3 rounded-sm border border-border bg-muted p-3">
+                <code className="min-w-0 flex-1 select-all break-all text-lg">{resetResult.tempPassword}</code>
+                <Button variant="outline" size="icon" aria-label="Copy temporary password" onClick={async () => {
+                  try { await navigator.clipboard.writeText(resetResult.tempPassword); toast.success("Temporary password copied"); }
+                  catch { toast.error("Copy unavailable. Select and copy the password manually."); }
+                }}><Copy className="size-4" /></Button>
+              </div>
+              <p className="text-xs text-muted-foreground">This password is shown only here. Closing this dialog clears it. The employee must choose a new password after signing in.</p>
+              <Button className="w-full" onClick={() => resetOpenChange(false)}>Done</Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">A temporary password replaces the current password. Telegram, passkeys and other account settings stay unchanged.</p>
+              <RadioGroup value={resetTwoFactor ? "reset" : "keep"} onValueChange={(value) => setResetTwoFactor(value === "reset")} disabled={resetMut.isPending}>
+                <label className="flex cursor-pointer items-start gap-3 rounded-sm border border-border p-3"><RadioGroupItem value="keep" className="mt-0.5" /><span><span className="block text-sm font-medium">Password only — keep 2FA</span><span className="text-xs text-muted-foreground">Use the existing authenticator when signing in.</span></span></label>
+                <label className="flex cursor-pointer items-start gap-3 rounded-sm border border-border p-3"><RadioGroupItem value="reset" className="mt-0.5" /><span><span className="block text-sm font-medium">Password + reset authenticator 2FA</span><span className="text-xs text-muted-foreground">Remove TOTP factors; set up an authenticator again after signing in. Passkeys remain.</span></span></label>
+              </RadioGroup>
+              {resetMut.isError && <p role="alert" className="text-sm text-destructive">{resetMut.error instanceof Error ? resetMut.error.message : "Reset failed"}</p>}
+              <div className="flex flex-wrap justify-end gap-2"><Button variant="outline" disabled={resetMut.isPending} onClick={() => resetOpenChange(false)}>Cancel</Button><Button disabled={resetMut.isPending} onClick={() => resetMut.mutate()}>{resetMut.isPending ? <Loader2 className="size-4 animate-spin" /> : <KeyRound className="size-4" />}Reset password</Button></div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Employee ID + Job Role */}
       <section className="rounded-sm border border-border bg-card p-4 sm:p-5">

@@ -23,7 +23,7 @@ export const changeMyPassword = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
     );
-    const { hashPassword, HISTORY_SALT } = await import(
+    const { hashPassword, HISTORY_SALT: HISTORY_SALT } = await import(
       "@/lib/password-hash.server"
     );
 
@@ -119,10 +119,13 @@ export const setInitialPassword = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => InitialInput.parse(input))
   .handler(async ({ data, context }) => {
+    const { isStrongSession } = await import("@/lib/session-assurance.server");
+    if (!await isStrongSession(context.supabase, context.claims, context.userId))
+      throw new Error("Complete two-factor authentication or passkey verification first.");
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
     );
-    const { hashPassword, HISTORY_SALT } = await import(
+    const { hashPassword, HISTORY_SALT: HISTORY_SALT } = await import(
       "@/lib/password-hash.server"
     );
 
@@ -167,11 +170,21 @@ export const setInitialPassword = createServerFn({ method: "POST" })
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .insert({ user_id: context.userId, password_hash: newHash } as any);
 
-    await supabaseAdmin
+    const cleared = await supabaseAdmin
       .from("profiles")
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .update({ must_change_password: false } as any)
       .eq("user_id", context.userId);
+    if (cleared.error) throw new Error("Password changed, but the required-change status could not be cleared. Please retry.");
+
+    const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.getUserById(context.userId);
+    if (authError || !authUser.user) throw new Error("Could not finish the password change. Please retry.");
+    if (authUser.user.app_metadata?.password_reset_pending === true) {
+      const finished = await supabaseAdmin.auth.admin.updateUserById(context.userId, {
+        app_metadata: { ...authUser.user.app_metadata, password_reset_pending: false },
+      });
+      if (finished.error) throw new Error("Could not finish the password change. Please retry.");
+    }
 
     try {
       const { notify } = await import("@/lib/notify.server");
@@ -202,7 +215,7 @@ export const setInitialPassword = createServerFn({ method: "POST" })
       const name =
         (prof2 as { full_name?: string } | null)?.full_name ??
         "New employee";
-      if (sub?.active && !(prof2 as { must_link_telegram?: boolean } | null)?.must_link_telegram) {
+      if (authUser.user.app_metadata?.password_reset_pending !== true && sub?.active && !(prof2 as { must_link_telegram?: boolean } | null)?.must_link_telegram) {
         await notify({
           event: "employee.onboarded",
           recipientRoles: ["super_admin", "admin"],

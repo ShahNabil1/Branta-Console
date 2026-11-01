@@ -8,6 +8,7 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+- Admin password recovery uses server-owned auth app_metadata.password_reset_pending plus the existing required-change gate; it never changes Telegram flags and only removes TOTP factors on explicit request — why: recovery must not restart employee onboarding or reset unrelated app access.
 - Project/task money lives in client_project_finance (RLS: is_finance_admin only); list APIs null out budget/work_value/monthly_fee for others — why: financial data must never reach non-finance users.
 - Today’s Operations aggregates existing task records in a management-gated server function without finance fields — why: one secure daily view must not duplicate workflow state.
 - Fund balances are derived only from append-only fund_ledger; allocation snapshots per installment with one active row (partial unique) — why: history must never change.

@@ -66,6 +66,7 @@ export interface EmployeeDetail {
   isBanned: boolean;
   mustChangePassword: boolean;
   mustLinkTelegram: boolean;
+  passwordResetPending: boolean;
   allowedApps: string[];
   profile: {
     full_name: string | null;
@@ -154,6 +155,7 @@ export const getEmployeeDetail = createServerFn({ method: "GET" })
       isBanned,
       mustChangePassword: !!(prof.data as any)?.must_change_password,
       mustLinkTelegram: !!(prof.data as any)?.must_link_telegram,
+      passwordResetPending: u.app_metadata?.password_reset_pending === true,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       allowedApps: ((prof.data as any)?.allowed_apps as string[] | null) ?? [],
       profile: (prof.data ?? {
@@ -311,9 +313,12 @@ export const setEmployeeBan = createServerFn({ method: "POST" })
 
 export const resetEmployeePassword = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ userId: uuid }).parse(input))
+  .inputValidator((input: unknown) => z.object({ userId: uuid, resetTwoFactor: z.boolean().default(false) }).parse(input))
   .handler(async ({ data, context }) => {
-    await assertAdmin(context.supabase, context.userId);
+    const { isSuperAdmin } = await assertAdmin(context.supabase, context.userId);
+    const { isStrongSession } = await import("@/lib/session-assurance.server");
+    if (!await isStrongSession(context.supabase, context.claims, context.userId))
+      throw new Error("Verify your two-factor authentication or passkey before resetting an employee password.");
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
     );
@@ -324,48 +329,35 @@ export const resetEmployeePassword = createServerFn({ method: "POST" })
     const email = (u.user.email ?? "").toLowerCase();
     if (!email.endsWith(DOMAIN)) throw new Error("Not a Branta employee account.");
 
-    const newPassword = generateTempPassword();
-
-    const upd = await supabaseAdmin.auth.admin.updateUserById(data.userId, {
-      password: newPassword,
-    });
-    if (upd.error) throw new Error(upd.error.message);
-
-    // Force the employee to set their own password on next sign-in.
-    await supabaseAdmin
-      .from("profiles")
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .update({ must_change_password: true } as any)
-      .eq("user_id", data.userId);
-
-    try {
-      const { hashPassword } = await import("@/lib/password-hash.server");
-      const tempHash = await hashPassword(newPassword);
-      await supabaseAdmin
-        .from("password_history")
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .insert({ user_id: data.userId, password_hash: tempHash } as any);
-    } catch { /* best-effort */ }
-
-
     const roleRes = await supabaseAdmin
       .from("user_roles")
       .select("role")
       .eq("user_id", data.userId);
+    if (roleRes.error) throw dbError(roleRes.error);
+    if (!isSuperAdmin && roleRes.data?.some((r) => r.role === "super_admin"))
+      throw new Error("Only a Super Admin can reset another Super Admin's password.");
     const role = primaryRole((roleRes.data ?? []).map((r) => r.role));
-
+    const newPassword = generateTempPassword();
+    const { hashPassword } = await import("@/lib/password-hash.server");
+    const { applyEmployeePasswordReset } = await import("@/lib/employee-password-reset.server");
     const { sendPasswordResetEmail } = await import(
       "@/lib/branta-email.server"
     );
-    await sendPasswordResetEmail({
+    return applyEmployeePasswordReset({
+      admin: supabaseAdmin,
+      user: u.user,
+      password: newPassword,
+      passwordHash: await hashPassword(newPassword),
+      resetTwoFactor: data.resetTwoFactor,
+      sendEmail: () => sendPasswordResetEmail({
       recipientEmail: email,
       brantaId: email.split("@")[0] ?? "",
       tempPassword: newPassword,
       loginUrl: `${requestOrigin()}/login`,
       role,
+      resetTwoFactor: data.resetTwoFactor,
+      }),
     });
-
-    return { ok: true as const };
   });
 
 // Re-send onboarding instructions to an employee who hasn't yet set their
@@ -388,6 +380,9 @@ export const resendOnboardingInstructions = createServerFn({ method: "POST" })
     const email = (u.user.email ?? "").toLowerCase();
     if (!email.endsWith(DOMAIN))
       throw new Error("Not a Branta employee account.");
+
+    if (u.user.app_metadata?.password_reset_pending === true)
+      throw new Error("This employee is awaiting a password change, not onboarding. Use Reset password instead.");
 
     const prof = await supabaseAdmin
       .from("profiles")

@@ -8,6 +8,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 export interface OnboardingStatus {
   mustChangePassword: boolean;
   mustLinkTelegram: boolean;
+  passwordResetPending: boolean;
 }
 
 export const getOnboardingStatus = createServerFn({ method: "GET" })
@@ -44,5 +45,7 @@ export const getOnboardingStatus = createServerFn({ method: "GET" })
       }
     }
 
-    return { mustChangePassword, mustLinkTelegram };
+    const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.getUserById(context.userId);
+    if (authError || !authUser.user) throw new Error("Could not check password change status.");
+    return { mustChangePassword, mustLinkTelegram, passwordResetPending: authUser.user.app_metadata?.password_reset_pending === true };
   });
