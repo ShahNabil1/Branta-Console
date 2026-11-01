@@ -658,6 +658,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
                 }}><Copy className="size-4" /></Button>
               </div>
               <p className="text-xs text-muted-foreground">This password is shown only here. Closing this dialog clears it. The employee must choose a new password after signing in.</p>
+              <MailActivity emails={[e.email, p.personal_gmail ?? ""]} />
               <Button className="w-full" onClick={() => resetOpenChange(false)}>Done</Button>
             </div>
           ) : (
