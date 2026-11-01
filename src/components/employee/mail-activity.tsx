@@ -76,7 +76,10 @@ export function MailActivity({ emails }: { emails: string[] }) {
     return Array.from(m.values()).map((evs) => evs.sort((a, b) => a.occurred_at.localeCompare(b.occurred_at)));
   }, [q.data]);
   const latestBad = (q.data ?? []).find((e) => BAD.has(e.event));
-  const blockedEmail = latestBad && !(q.data ?? []).some((e) => e.email === latestBad.email && (e.event === "delivered") && e.occurred_at > latestBad.occurred_at) ? latestBad.email : null;
+  const cleared = (e: Ev) => (q.data ?? []).some((x) => x.email === e.email && (x.event === "delivered" || x.event === "unblocked") && x.occurred_at > e.occurred_at);
+  const blockedEmail = latestBad && !cleared(latestBad) ? latestBad.email : null;
+  const unblocks = (q.data ?? []).filter((e) => e.event === "unblocked");
+  const lastUnblock = unblocks[0];
 
   const unblock = useMutation({
     mutationFn: (email: string) => unblockFn({ data: { email } }),
