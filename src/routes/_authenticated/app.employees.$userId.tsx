@@ -66,6 +66,7 @@ import {
   type EmployeeRole,
   type PaymentMethodLite,
 } from "@/lib/employee-detail.functions";
+import { OffboardDialog } from "@/components/employee/offboard-dialog";
 import { checkIsAdmin, deleteEmployee } from "@/lib/employees.functions";
 import {
   adminUnsubscribeTelegram,
@@ -252,6 +253,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
 
+  const [offOpen, setOffOpen] = useState(false);
   const delMut = useMutation({
     mutationFn: () => deleteFn({ data: { userId } }),
     onSuccess: (res) => {
@@ -430,17 +432,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
   };
 
 
-  const onDelete = async () => {
-    const ok = await confirm({
-      title: "Delete this employee?",
-      description: `Type ${e.brantaId} to confirm. This removes their account, roles and profile.`,
-      confirmLabel: "Delete",
-      tone: "danger",
-      requireTypedText: e.brantaId,
-    });
-    if (!ok) return;
-    delMut.mutate();
-  };
+  const onDelete = () => setOffOpen(true);
 
   const initial = (p.full_name ?? e.brantaId).slice(0, 1).toUpperCase();
 
@@ -555,6 +547,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
             )}
             Delete
           </button>
+          <OffboardDialog userId={userId} open={offOpen} onOpenChange={setOffOpen} onFinished={() => { void qc.invalidateQueries({ queryKey: ["employees.list"] }); navigate({ to: "/app/employees" }); }} />
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
