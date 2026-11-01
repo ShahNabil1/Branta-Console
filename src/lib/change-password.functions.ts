@@ -23,7 +23,7 @@ export const changeMyPassword = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
     );
-    const { hashPassword, HISTORY_SALT } = await import(
+    const { hashPassword, HISTORY_SALT: HISTORY_SALT } = await import(
       "@/lib/password-hash.server"
     );
 
@@ -119,10 +119,13 @@ export const setInitialPassword = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => InitialInput.parse(input))
   .handler(async ({ data, context }) => {
+    const { isStrongSession } = await import("@/lib/session-assurance.server");
+    if (!await isStrongSession(context.supabase, context.claims, context.userId))
+      throw new Error("Complete two-factor authentication or passkey verification first.");
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
     );
-    const { hashPassword, HISTORY_SALT } = await import(
+    const { hashPassword, HISTORY_SALT: HISTORY_SALT } = await import(
       "@/lib/password-hash.server"
     );
 

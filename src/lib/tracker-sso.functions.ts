@@ -33,13 +33,15 @@ export const issueTrackerSession = createServerFn({ method: "POST" })
     const [{ data: prof }, { data: roles }, { data: userRes }] = await Promise.all([
       sb
         .from("profiles")
-        .select("full_name, employee_code, job_role, avatar_url, deactivated_at")
+        .select("full_name, employee_code, job_role, avatar_url, deactivated_at, must_change_password, must_link_telegram")
         .eq("user_id", context.userId)
         .maybeSingle(),
       sb.from("user_roles").select("role").eq("user_id", context.userId),
       sb.auth.getUser(),
     ]);
     if (prof?.deactivated_at) throw new Error("Your account is deactivated.");
+    if (!prof || prof.must_change_password || prof.must_link_telegram || userRes.user?.app_metadata?.password_reset_pending === true)
+      throw new Error("Complete your required password change and account setup in Branta Console first.");
     const email = userRes.user?.email;
     if (!email) throw new Error("Your account has no email address.");
 
