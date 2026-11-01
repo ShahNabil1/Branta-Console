@@ -470,11 +470,65 @@ export const getInvoiceTemplates = createServerFn({ method: "GET" })
     return { pdf, email };
   });
 
-// Settings fields callers may never set directly.
-const PROTECTED_SETTING_KEYS = new Set(["id", "created_at", "updated_at", "updated_by", "created_by"]);
-const settingsPatch = z
-  .record(z.string().regex(/^[a-z][a-z0-9_]{0,62}$/), z.unknown())
-  .transform((r) => Object.fromEntries(Object.entries(r).filter(([k]) => !PROTECTED_SETTING_KEYS.has(k))));
+// Explicit allow-lists: only these template fields can be written. Unknown
+// keys (id, timestamps, updated_by, anything else) are stripped by zod.
+const hexColor = z.string().trim().regex(/^#[0-9a-fA-F]{3,8}$/, "Use a hex color like #E56A17");
+const optText = (max: number) => z.string().max(max).nullable().optional();
+const optEmail = z
+  .union([z.string().trim().email().max(254), z.literal("")])
+  .nullable()
+  .optional()
+  .transform((v) => (v ? v : null));
+const dayList = z.string().trim().max(100).regex(/^(\d{1,3}(\s*,\s*\d{1,3})*)?$/, "Use comma-separated day numbers");
+
+const pdfSettingsPatch = z
+  .object({
+    company_name: z.string().trim().min(1).max(200),
+    company_tagline: optText(300),
+    company_address: optText(1000),
+    company_email: optEmail,
+    company_website: optText(300),
+    logo_url: optText(2000),
+    brand_color: hexColor,
+    header_bg_color: hexColor,
+    page_bg_color: hexColor,
+    panel_bg_color: hexColor,
+    text_color: hexColor,
+    muted_color: hexColor,
+    hairline_color: hexColor,
+    header_text: z.string().max(100),
+    footer_text: z.string().max(1000),
+    signature_name: optText(200),
+    signature_title: optText(200),
+    payment_info: optText(5000),
+    payment_note: optText(2000),
+    sections: z.record(z.string().regex(/^[a-z][a-z0-9_]{0,40}$/), z.boolean()),
+  })
+  .partial();
+
+const emailSettingsPatch = z
+  .object({
+    from_name: z.string().trim().min(1).max(200),
+    from_email: z.string().trim().email().max(254),
+    reply_to: optEmail,
+    subject_template: z.string().trim().min(1).max(500),
+    brand_color: hexColor,
+    background_color: hexColor,
+    card_background: hexColor,
+    header_html: z.string().max(50_000),
+    body_html: z.string().max(100_000),
+    cta_label: z.string().max(100),
+    footer_html: z.string().max(50_000),
+    auto_send_on_create: z.boolean(),
+    auto_send_on_installment_paid: z.boolean(),
+    auto_send_on_fully_paid: z.boolean(),
+    reminders_enabled: z.boolean(),
+    reminder_days_upcoming: dayList,
+    reminder_days_overdue: dayList,
+    reminder_subject_template: z.string().trim().min(1).max(500),
+    reminder_body_html: z.string().max(100_000),
+  })
+  .partial();
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function assertFinanceAdmin(supabase: any, userId: string) {
