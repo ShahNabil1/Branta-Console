@@ -351,15 +351,25 @@ export const unblockEmployeeMail = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
     const { callGateway } = await import("@/lib/connector-gateway.server");
+    let wasBlocked = true;
     try {
       await callGateway({ connector: "brevo", path: `/smtp/blockedContacts/${encodeURIComponent(data.email)}`, method: "DELETE" });
-      return { ok: true as const, wasBlocked: true };
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       // Brevo answers 404 when the address is not on the blocklist — that is a success for the admin.
-      if (/404|not.?found|does not exist/i.test(msg)) return { ok: true as const, wasBlocked: false };
-      throw new Error(`Brevo refused the unblock: ${msg}`);
+      if (!/404|not.?found|does not exist/i.test(msg)) throw new Error(`Brevo refused the unblock: ${msg}`);
+      wasBlocked = false;
     }
+    // Record the outcome so history shows block → unblock and the current state is real.
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      await supabaseAdmin.from("email_events").insert({
+        event: "unblocked", email: data.email, subject: null,
+        reason: wasBlocked ? "Removed from Brevo blocklist by admin" : "Brevo confirmed the address is not blocked",
+        occurred_at: new Date().toISOString(), raw: { source: "console_unblock", by: context.userId, wasBlocked },
+      });
+    } catch (e) { console.error("[unblock] history insert failed", e); }
+    return { ok: true as const, wasBlocked };
   });
 
 export const syncRecentEmailEvents = createServerFn({ method: "POST" })
