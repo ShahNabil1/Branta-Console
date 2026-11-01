@@ -117,33 +117,84 @@ function LoginPage() {
     navigate({ href: sanitizeRedirect(redirectParam), replace: true });
   };
 
+  const passkeyCancelledRef = useRef(false);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const completeAssertion = async (assertion: any) => {
+    setPasskeyBusy(true);
+    setPasskeyStage("verify");
+    const res = await finishPasskey({ data: { assertion_response: assertion } });
+    // Supabase verifyOtp with a hashed token only accepts { type, token_hash }.
+    const { error } = await supabase.auth.verifyOtp({
+      type: "magiclink",
+      token_hash: res.token_hash,
+    });
+    if (error) throw error;
+    setPasskeyStage("done");
+    await finalizeAndGo({ viaPasskey: true });
+  };
+
+  // WebAuthn Conditional UI: saved passkeys appear in the Branta ID autofill.
+  const startConditional = async () => {
+    try {
+      const { startAuthentication, browserSupportsWebAuthnAutofill } = await import("@simplewebauthn/browser");
+      if (!(await browserSupportsWebAuthnAutofill())) return;
+      const options = await beginPasskey({ data: { branta_local: null } });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const assertion = await startAuthentication({ optionsJSON: options as any, useBrowserAutofill: true });
+      setPasskeyError(null);
+      await completeAssertion(assertion);
+    } catch (err) {
+      // Aborted when the user starts the button flow — ignore silently.
+      const name = (err as { name?: string })?.name;
+      if (name === "AbortError" || name === "NotAllowedError" || (err as { code?: string })?.code === "ERROR_CEREMONY_ABORTED") return;
+      const { passkeyErrorMessage } = await import("@/lib/passkey-errors");
+      setPasskeyError(passkeyErrorMessage(err, "signin"));
+      setPasskeyBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    void startConditional();
+    return () => {
+      void import("@simplewebauthn/browser").then((m) => m.WebAuthnAbortService.cancelCeremony());
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const onCancelPasskey = async () => {
+    passkeyCancelledRef.current = true;
+    const { WebAuthnAbortService } = await import("@simplewebauthn/browser");
+    WebAuthnAbortService.cancelCeremony();
+    setPasskeyBusy(false);
+    setPasskeyStage("device");
+  };
+
   const onPasskeySignIn = async () => {
     setPasskeyError(null);
     setPasskeyBusy(true);
     setPasskeyStage("device");
+    passkeyCancelledRef.current = false;
+    let ok = false;
     try {
       const { startAuthentication } = await import("@simplewebauthn/browser");
-      // Discoverable / usernameless flow — the browser prompts the user to
-      // choose a saved Branta passkey. The typed Branta ID is intentionally
-      // ignored: the chosen passkey alone decides which account signs in.
+      // Discoverable / usernameless flow — the chosen passkey decides the account.
       const options = await beginPasskey({ data: { branta_local: null } });
+      if (passkeyCancelledRef.current) return;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const assertion = await startAuthentication({ optionsJSON: options as any });
-      setPasskeyStage("verify");
-      const res = await finishPasskey({ data: { assertion_response: assertion } });
-      // Supabase verifyOtp with a hashed token only accepts { type, token_hash }.
-      const { error } = await supabase.auth.verifyOtp({
-        type: "magiclink",
-        token_hash: res.token_hash,
-      });
-      if (error) throw error;
-      setPasskeyStage("done");
-      await finalizeAndGo({ viaPasskey: true });
+      await completeAssertion(assertion);
+      ok = true;
     } catch (err) {
-      const { passkeyErrorMessage } = await import("@/lib/passkey-errors");
-      setPasskeyError(passkeyErrorMessage(err, "signin"));
+      if (!passkeyCancelledRef.current) {
+        const { passkeyErrorMessage } = await import("@/lib/passkey-errors");
+        setPasskeyError(passkeyErrorMessage(err, "signin"));
+      }
     } finally {
-      setPasskeyBusy(false);
+      if (!ok) {
+        setPasskeyBusy(false);
+        void startConditional();
+      }
     }
   };
 
@@ -644,7 +695,7 @@ function LoginPage() {
                       id="local"
                       type="text"
                       inputMode="text"
-                      autoComplete="username"
+                      autoComplete="username webauthn"
                       autoCapitalize="none"
                       spellCheck={false}
                       lang="en"
@@ -860,29 +911,88 @@ function LoginPage() {
                   <div className="h-px flex-1 bg-border" />
                 </div>
 
-                <button
-                  type="button"
-                  onClick={onPasskeySignIn}
-                  disabled={passkeyBusy}
-                  className="flex h-9 w-full items-center justify-center gap-2 rounded-sm border border-input bg-background text-[13px] font-semibold text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {passkeyBusy ? (
-                    <Loader2 className="size-3.5 animate-spin" />
-                  ) : (
-                    <Fingerprint className="size-3.5 text-brand" />
-                  )}
-                  {passkeyBusy
-                    ? passkeyStage === "device"
-                      ? "Confirm with fingerprint, face or screen lock…"
-                      : passkeyStage === "verify"
-                        ? "Verifying your passkey…"
-                        : "Verified — opening Console…"
-                    : "Sign in with a passkey"}
-                </button>
+                {passkeyBusy ? (
+                  <div
+                    role="status"
+                    aria-live="polite"
+                    className="relative overflow-hidden rounded-md border border-brand/30 bg-gradient-to-br from-brand/10 via-card to-sky-500/10 p-3 shadow-sm"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="relative grid size-10 shrink-0 place-items-center">
+                        {passkeyStage !== "done" && (
+                          <span className="absolute inset-0 animate-ping rounded-full bg-brand/25" />
+                        )}
+                        <span
+                          className={cn(
+                            "relative grid size-10 place-items-center rounded-full text-white shadow-md transition-colors",
+                            passkeyStage === "done" ? "bg-emerald-500" : passkeyStage === "verify" ? "bg-sky-500" : "bg-brand",
+                          )}
+                        >
+                          {passkeyStage === "done" ? (
+                            <Check className="size-5" strokeWidth={2.5} />
+                          ) : passkeyStage === "verify" ? (
+                            <ShieldCheck className="size-5" />
+                          ) : (
+                            <Fingerprint className="size-5" />
+                          )}
+                        </span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[13px] font-semibold text-foreground">
+                          {passkeyStage === "device"
+                            ? "Waiting for your device"
+                            : passkeyStage === "verify"
+                              ? "Verifying passkey"
+                              : "Verified"}
+                        </p>
+                        <p className="text-[11.5px] text-muted-foreground">
+                          {passkeyStage === "device"
+                            ? "Confirm with fingerprint, face or screen lock."
+                            : passkeyStage === "verify"
+                              ? "Checking your signature securely…"
+                              : "Opening Console…"}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-3 flex gap-1.5" aria-hidden="true">
+                      {(["device", "verify", "done"] as const).map((s, i) => {
+                        const idx = ["device", "verify", "done"].indexOf(passkeyStage);
+                        return (
+                          <span
+                            key={s}
+                            className={cn(
+                              "h-1 flex-1 rounded-full transition-colors duration-500",
+                              i < idx ? "bg-emerald-500" : i === idx ? "animate-pulse bg-brand" : "bg-border",
+                            )}
+                          />
+                        );
+                      })}
+                    </div>
+                    {passkeyStage === "device" && (
+                      <button
+                        type="button"
+                        onClick={onCancelPasskey}
+                        className="mt-3 flex h-8 w-full items-center justify-center rounded-sm border border-rose-200 bg-rose-50 text-[12px] font-semibold text-rose-700 transition-colors hover:bg-rose-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={onPasskeySignIn}
+                    className="group flex h-9 w-full items-center justify-center gap-2 rounded-sm border border-brand/30 bg-gradient-to-r from-brand/5 to-sky-500/5 text-[13px] font-semibold text-foreground transition-all hover:border-brand/60 hover:from-brand/10 hover:to-sky-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                  >
+                    <Fingerprint className="size-4 text-brand transition-transform group-hover:scale-110" />
+                    Sign in with a passkey
+                  </button>
+                )}
                 {passkeyError ? (
-                  <p className="text-center text-[11.5px] text-rose-700">
-                    {passkeyError}
-                  </p>
+                  <div className="flex items-start gap-2 rounded-sm border border-rose-200 bg-rose-50 px-3 py-2 text-[11.5px] text-rose-700">
+                    <AlertCircle className="mt-px size-3.5 shrink-0" />
+                    <span>{passkeyError}</span>
+                  </div>
                 ) : null}
 
 
