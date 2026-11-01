@@ -26,6 +26,9 @@ export const issueTrackerSession = createServerFn({ method: "POST" })
       throw new Error("This extension is not approved for Branta sign-in.");
     }
 
+    const { isStrongSession } = await import("./session-assurance.server");
+    if (!(await isStrongSession(context.supabase, context.claims, context.userId)))
+      throw new Error("Complete Branta two-factor verification first.");
     const sb = context.supabase;
     const [{ data: prof }, { data: roles }, { data: userRes }] = await Promise.all([
       sb

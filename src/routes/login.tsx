@@ -18,8 +18,8 @@ import trackerLogo from "@/assets/apps/tracker.png";
 import { registerSession } from "@/lib/user-sessions.functions";
 import { beginPasskeyLogin, finishPasskeyLogin } from "@/lib/passkeys.functions";
 import { ensureSessionKey } from "@/hooks/use-session-watcher";
+import { claimPasskeySession } from "@/lib/session-assurance.functions";
 
-export const PASSKEY_SESSION_FLAG = "branta.passkey_session";
 
 const TURNSTILE_SITE_KEY = "0x4AAAAAACNbiRh7P7qtgkXG";
 
@@ -100,15 +100,13 @@ function LoginPage() {
   const registerSessionFn = useServerFn(registerSession);
   const beginPasskey = useServerFn(beginPasskeyLogin);
   const finishPasskey = useServerFn(finishPasskeyLogin);
+  const claimPasskey = useServerFn(claimPasskeySession);
   const [passkeyBusy, setPasskeyBusy] = useState(false);
   const [passkeyStage, setPasskeyStage] = useState<"device" | "verify" | "done">("device");
   const [passkeyError, setPasskeyError] = useState<string | null>(null);
 
   const finalizeAndGo = async (opts?: { viaPasskey?: boolean }) => {
     try {
-      if (opts?.viaPasskey && typeof window !== "undefined") {
-        window.sessionStorage.setItem(PASSKEY_SESSION_FLAG, "1");
-      }
       const key = ensureSessionKey();
       await registerSessionFn({ data: { session_key: key } }).catch(() => {});
     } catch {
@@ -130,6 +128,7 @@ function LoginPage() {
       token_hash: res.token_hash,
     });
     if (error) throw error;
+    await claimPasskey({ data: { grant: res.grant } });
     setPasskeyStage("done");
     await finalizeAndGo({ viaPasskey: true });
   };
