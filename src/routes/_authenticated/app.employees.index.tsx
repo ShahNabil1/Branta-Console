@@ -47,6 +47,7 @@ import { cn } from "@/lib/utils";
 
 import { RequireSuperAdmin } from "@/components/branta/require-super-admin";
 import { EmployeesDirectory } from "@/components/branta/employees-directory";
+import { MailActivity } from "@/components/employee/mail-activity";
 
 export const Route = createFileRoute("/_authenticated/app/employees/")({
   head: () => ({
@@ -307,6 +308,7 @@ function CreateEmployeeModal({
   const createFn = useServerFn(createEmployee);
 
   const [local, setLocal] = useState("");
+  const [created, setCreated] = useState<{ email: string; gmail: string; password: string } | null>(null);
   const [fullName, setFullName] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<Role>("user");
@@ -394,8 +396,8 @@ function CreateEmployeeModal({
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["employees.list"] });
       qc.invalidateQueries({ queryKey: ["cf.destinations"] });
-      toast.success("Employee created — welcome email sent.");
-      onCreated();
+      toast.success("Employee created — welcome email handed to Brevo.");
+      setCreated({ email: `${local}${DOMAIN}`, gmail: gmailOk ? gmail.trim().toLowerCase() : "", password });
     },
     onError: (err) =>
       setFormError(err instanceof Error ? err.message : "Failed to create employee."),
@@ -472,8 +474,28 @@ function CreateEmployeeModal({
   const step2Done = !localError && local.length >= LOCAL_MIN && (manualRouting || routeStage === "active");
 
   return (
-    <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+    <Sheet open={open} onOpenChange={(o) => { if (!o) { if (created) onCreated(); else onClose(); } }}>
       <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-[500px]">
+        {created && (
+          <div className="absolute inset-0 z-20 flex flex-col overflow-y-auto bg-card p-4 pr-12 sm:p-5">
+            <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Account ready · 100%</div>
+            <SheetTitle className="mt-0.5 text-[15px] font-semibold">Console access created</SheetTitle>
+            <div className="mt-2 h-1 rounded-full bg-emerald-500" />
+            <p className="mt-3 break-all font-mono text-[12px]">{created.email}</p>
+            <div className="mt-3 rounded-sm border border-border p-3">
+              <div className="text-[11px] font-semibold text-muted-foreground">Temporary password (fallback if the mail does not arrive)</div>
+              <div className="mt-1 flex items-center gap-2">
+                <code className="flex-1 select-all break-all rounded-sm bg-muted px-2 py-1.5 font-mono text-[14px]">{created.password}</code>
+                <button type="button" className="inline-flex h-8 items-center gap-1 rounded-sm border border-border px-2 text-[12px] font-semibold hover:bg-muted" onClick={async () => {
+                  try { await navigator.clipboard.writeText(`Login: ${created.email}\nTemporary password: ${created.password}`); toast.success("Credentials copied"); }
+                  catch { toast.error("Copy unavailable. Select the password manually."); }
+                }}><Copy className="size-3.5" /> Copy</button>
+              </div>
+            </div>
+            <div className="mt-3"><MailActivity emails={[created.email, created.gmail]} /></div>
+            <button type="button" onClick={onCreated} className="mt-4 inline-flex h-9 shrink-0 items-center justify-center rounded-sm bg-brand px-4 text-[13px] font-semibold text-primary-foreground hover:bg-brand-700">Done</button>
+          </div>
+        )}
         <div className="shrink-0 border-b border-border px-4 pb-3 pt-4 pr-12 sm:px-5">
           <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">New employee</div>
           <div className="mt-0.5 flex items-center justify-between gap-2">
