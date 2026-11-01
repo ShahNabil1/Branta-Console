@@ -539,7 +539,7 @@ async function assertFinanceAdmin(supabase: any, userId: string) {
 
 export const updateInvoicePdfSettings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: Record<string, unknown>) => settingsPatch.parse(d))
+  .inputValidator((d: Record<string, unknown>) => pdfSettingsPatch.parse(d))
   .handler(async ({ data, context }) => {
     await assertFinanceAdmin(context.supabase, context.userId);
     const { error } = await context.supabase
@@ -553,7 +553,7 @@ export const updateInvoicePdfSettings = createServerFn({ method: "POST" })
 
 export const updateInvoiceEmailSettings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: Record<string, unknown>) => settingsPatch.parse(d))
+  .inputValidator((d: Record<string, unknown>) => emailSettingsPatch.parse(d))
   .handler(async ({ data, context }) => {
     await assertFinanceAdmin(context.supabase, context.userId);
     const { error } = await context.supabase
