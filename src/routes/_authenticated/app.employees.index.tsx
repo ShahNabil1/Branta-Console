@@ -769,7 +769,9 @@ function CreateEmployeeModal({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowPw((v) => !v)}
+                  onPointerDown={(e) => e.preventDefault()}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => setShowPw((v) => !v)}
                   aria-label={showPw ? "Hide password" : "Show password"}
                   className="grid size-7 place-items-center rounded-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >

@@ -101,6 +101,7 @@ function LoginPage() {
   const beginPasskey = useServerFn(beginPasskeyLogin);
   const finishPasskey = useServerFn(finishPasskeyLogin);
   const [passkeyBusy, setPasskeyBusy] = useState(false);
+  const [passkeyStage, setPasskeyStage] = useState<"device" | "verify" | "done">("device");
   const [passkeyError, setPasskeyError] = useState<string | null>(null);
 
   const finalizeAndGo = async (opts?: { viaPasskey?: boolean }) => {
@@ -119,6 +120,7 @@ function LoginPage() {
   const onPasskeySignIn = async () => {
     setPasskeyError(null);
     setPasskeyBusy(true);
+    setPasskeyStage("device");
     try {
       const { startAuthentication } = await import("@simplewebauthn/browser");
       // Discoverable / usernameless flow — the browser prompts the user to
@@ -127,6 +129,7 @@ function LoginPage() {
       const options = await beginPasskey({ data: { branta_local: null } });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const assertion = await startAuthentication({ optionsJSON: options as any });
+      setPasskeyStage("verify");
       const res = await finishPasskey({ data: { assertion_response: assertion } });
       // Supabase verifyOtp with a hashed token only accepts { type, token_hash }.
       const { error } = await supabase.auth.verifyOtp({
@@ -134,6 +137,7 @@ function LoginPage() {
         token_hash: res.token_hash,
       });
       if (error) throw error;
+      setPasskeyStage("done");
       await finalizeAndGo({ viaPasskey: true });
     } catch (err) {
       const { passkeyErrorMessage } = await import("@/lib/passkey-errors");
@@ -783,6 +787,8 @@ function LoginPage() {
                     />
                     <button
                       type="button"
+                      onPointerDown={(e) => e.preventDefault()}
+                      onMouseDown={(e) => e.preventDefault()}
                       onClick={() => setShowPw((v) => !v)}
                       aria-label={showPw ? "Hide password" : "Show password"}
                       aria-pressed={showPw}
@@ -865,7 +871,13 @@ function LoginPage() {
                   ) : (
                     <Fingerprint className="size-3.5 text-brand" />
                   )}
-                  {passkeyBusy ? "Waiting for passkey…" : "Sign in with a passkey"}
+                  {passkeyBusy
+                    ? passkeyStage === "device"
+                      ? "Confirm with fingerprint, face or screen lock…"
+                      : passkeyStage === "verify"
+                        ? "Verifying your passkey…"
+                        : "Verified — opening Console…"
+                    : "Sign in with a passkey"}
                 </button>
                 {passkeyError ? (
                   <p className="text-center text-[11.5px] text-rose-700">
