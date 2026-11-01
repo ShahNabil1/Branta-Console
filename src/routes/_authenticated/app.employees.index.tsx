@@ -5,6 +5,10 @@ import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { listDestinationRoutes, deleteCloudflareRoute } from "@/lib/employee-offboard.functions";
+import { Progress } from "@/components/ui/progress";
+import { useConfirm } from "@/components/ui/confirm-dialog";
+import { Trash2 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import {
