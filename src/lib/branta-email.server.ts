@@ -162,13 +162,15 @@ export const sendWelcomeEmail = async (input: WelcomeEmailInput & { deliverTo?: 
   await sendBrevo("Welcome to Branta Tech — Console access", html, input.deliverTo ?? input.recipientEmail);
 };
 
-export const sendPasswordResetEmail = async (input: WelcomeEmailInput): Promise<void> => {
+export const sendPasswordResetEmail = async (input: WelcomeEmailInput & { resetTwoFactor?: boolean }): Promise<void> => {
   const html = renderCredentialsHtml({
     ...input,
     headingKicker: "Branta Tech",
     headingTitle: "Your password was reset",
     intro: "An administrator has reset your Branta Console password. Your previous password no longer works.",
-    subInfo: "Use the temporary password below to sign in. Two-factor authentication will still be required.",
+    subInfo: input.resetTwoFactor
+      ? "Use the temporary password below to sign in, set up your authenticator again, then choose a new password. Your Telegram connection is unchanged."
+      : "Use the temporary password below to sign in with your existing two-factor authentication, then choose a new password. Your authenticator and Telegram connection are unchanged.",
     ctaLabel: "Sign in to Console",
     subject: "Branta Tech — Your password has been reset",
   });
