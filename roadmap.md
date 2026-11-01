@@ -1,8 +1,9 @@
 # Roadmap
 
 ## Employee password reset
-- [ ] Preserve Telegram and existing MFA; offer explicit MFA reset and one-time temporary password copy fallback.
-- [ ] Separate password-only change from initial onboarding; run regression tests and check the available live flow.
+- [x] Preserve Telegram and existing MFA; offer explicit MFA reset and one-time temporary password copy fallback.
+- [x] Separate password-only change from initial onboarding; run password-reset and existing policy regression tests.
+- [ ] Verify authenticated employee reset → temporary login → password change end-to-end; blocked by external unmanaged auth with no available admin test session.
 
 ## Admakai SSO
 - [x] Add authenticated Admakai SSO with exact callback allowlist and role mapping (20 policy tests pass).

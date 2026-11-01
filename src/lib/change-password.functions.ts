@@ -23,7 +23,7 @@ export const changeMyPassword = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
     );
-    const { hashPassword, HISTORY_SALT: HISTORY_SALT } = await import(
+    const { hashPassword, HISTORY_SALT } = await import(
       "@/lib/password-hash.server"
     );
 
@@ -125,7 +125,7 @@ export const setInitialPassword = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
     );
-    const { hashPassword, HISTORY_SALT: HISTORY_SALT } = await import(
+    const { hashPassword, HISTORY_SALT } = await import(
       "@/lib/password-hash.server"
     );
 
@@ -146,12 +146,13 @@ export const setInitialPassword = createServerFn({ method: "POST" })
 
     // Reject reuse of the temp password (seeded in history) or the last
     // stored password.
-    const { data: history } = await supabaseAdmin
+    const { data: history, error: historyError } = await supabaseAdmin
       .from("password_history")
       .select("password_hash")
       .eq("user_id", context.userId)
       .order("created_at", { ascending: false })
       .limit(5);
+    if (historyError) throw new Error("Could not verify password history. Please retry.");
     if ((history ?? []).some((h) => h.password_hash === newHash)) {
       throw new Error(
         "New password must be different from your temporary password.",
@@ -165,17 +166,11 @@ export const setInitialPassword = createServerFn({ method: "POST" })
     if (updateErr) throw new Error(updateErr.message);
 
     // Record the new password's hash so future changes can't reuse it.
-    await supabaseAdmin
+    const recorded = await supabaseAdmin
       .from("password_history")
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .insert({ user_id: context.userId, password_hash: newHash } as any);
-
-    const cleared = await supabaseAdmin
-      .from("profiles")
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .update({ must_change_password: false } as any)
-      .eq("user_id", context.userId);
-    if (cleared.error) throw new Error("Password changed, but the required-change status could not be cleared. Please retry.");
+    if (recorded.error) throw new Error("Could not finish recording the password change. Please retry with a different password.");
 
     const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.getUserById(context.userId);
     if (authError || !authUser.user) throw new Error("Could not finish the password change. Please retry.");
@@ -185,6 +180,12 @@ export const setInitialPassword = createServerFn({ method: "POST" })
       });
       if (finished.error) throw new Error("Could not finish the password change. Please retry.");
     }
+
+    const cleared = await supabaseAdmin
+      .from("profiles")
+      .update({ must_change_password: false } as any)
+      .eq("user_id", context.userId);
+    if (cleared.error) throw new Error("Password changed, but the required-change status could not be cleared. Please retry.");
 
     try {
       const { notify } = await import("@/lib/notify.server");
