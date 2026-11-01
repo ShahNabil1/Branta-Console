@@ -30,8 +30,11 @@ const LAST_COL = colLetters(HEADERS.length);
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Admin = any;
 
-async function getSheetId(supabase: Admin): Promise<string | null> {
-  const { data } = await supabase
+// integration_sync_state is admin-only under RLS; read it server-side with the
+// privileged client (callers are already authenticated server functions).
+async function getSheetId(_supabase: Admin): Promise<string | null> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data } = await supabaseAdmin
     .from("integration_sync_state")
     .select("resource_id")
     .eq("kind", "leads_sheet")

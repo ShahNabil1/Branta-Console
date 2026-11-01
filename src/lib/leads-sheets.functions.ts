@@ -110,8 +110,11 @@ function normPhone(v: string | null | undefined): string | null {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function getSyncRow(supabase: any) {
-  const { data } = await supabase
+// integration_sync_state is admin-only under RLS. These helpers run only inside
+// authenticated server functions, so they use the privileged server client.
+async function getSyncRow(_supabase: any) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data } = await supabaseAdmin
     .from("integration_sync_state")
     .select("resource_id, last_sync_at")
     .eq("kind", "leads_sheet")
@@ -124,10 +127,11 @@ async function getSyncRow(supabase: any) {
 
 async function upsertSync(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any,
+  _supabase: any,
   patch: { resource_id?: string; last_sync_at?: string },
 ) {
-  await supabase.from("integration_sync_state").upsert(
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  await supabaseAdmin.from("integration_sync_state").upsert(
     {
       kind: "leads_sheet",
       ...patch,
@@ -767,7 +771,8 @@ async function insertLeadFromRec(
     .select("id, slug, lead_code")
     .single();
   if (error || !inserted?.id) {
-    console.error("[sheet-pull] insert failed", error?.message, leadPatch);
+    // Never log leadPatch — it carries personal contact data.
+    console.error("[sheet-pull] insert failed", error?.code ?? "unknown");
     return null;
   }
   if (emailFromSheet) {

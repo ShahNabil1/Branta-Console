@@ -608,8 +608,11 @@ export const searchLeadsForAssignment = createServerFn({ method: "GET" })
       .select("id, slug, lead_code, name, company, status")
       .order("last_activity_at", { ascending: false })
       .limit(20);
-    if (data.q) {
-      const like = `%${data.q}%`;
+    // Strip PostgREST filter syntax (, . ( ) : " \) and LIKE wildcards so the
+    // search text can only ever be a literal substring match.
+    const term = data.q.replace(/[,.():"\\%_*]/g, " ").replace(/\s+/g, " ").trim();
+    if (term) {
+      const like = `%${term}%`;
       q = q.or(
         `name.ilike.${like},company.ilike.${like},lead_code.ilike.${like},slug.ilike.${like}`,
       );
