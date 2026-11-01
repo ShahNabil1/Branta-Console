@@ -10,6 +10,7 @@
 <!-- LOVABLE:END -->
 - Admin password recovery uses server-owned auth app_metadata.password_reset_pending plus the existing required-change gate; it never changes Telegram flags and only removes TOTP factors on explicit request — why: recovery must not restart employee onboarding or reset unrelated app access.
 - Project/task money lives in client_project_finance (RLS: is_finance_admin only); list APIs null out budget/work_value/monthly_fee for others — why: financial data must never reach non-finance users.
+- Read access to projects/tasks/customers/profiles goes through the SECURITY DEFINER predicates can_view_project, can_view_task, can_view_customer and is_active_employee; never re-add USING (true) policies — why: only involved or management employees may see delivery and client data.
 - Today’s Operations aggregates existing task records in a management-gated server function without finance fields — why: one secure daily view must not duplicate workflow state.
 - Fund balances are derived only from append-only fund_ledger; allocation snapshots per installment with one active row (partial unique) — why: history must never change.
 - New expenses are created only via the create_expense_atomic RPC (expense + items + receipt rows + fund debit in one transaction, idempotency_key per form submit) — why: a failed child write must never leave the Fund Ledger wrong or double-charged.
