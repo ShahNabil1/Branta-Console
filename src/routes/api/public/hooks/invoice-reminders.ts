@@ -7,22 +7,30 @@ import { createFileRoute } from "@tanstack/react-router";
  * Idempotent per (installment_id, kind, day_bucket) via unique index on
  * invoice_reminder_log. Safe to invoke multiple times per day.
  *
- * Trigger via pg_cron with an apikey header (Supabase anon publishable key).
+ * POST only. The scheduler must present either the database-held
+ * x-cron-token (verified via verify_cron_token, service-role only) or the
+ * INVOICE_REMINDERS_CRON_SECRET. Anything else gets 401 before any work.
  */
 export const Route = createFileRoute("/api/public/hooks/invoice-reminders")({
   server: {
     handlers: {
       POST: async ({ request }) => wrap(request),
-      GET: async ({ request }) => wrap(request),
     },
   },
 });
 
 async function wrap(request: Request): Promise<Response> {
+  if (!(await isAuthorizedScheduler(request))) {
+    return new Response(JSON.stringify({ error: "unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
   try {
-    return await handle(request);
+    return await handle();
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
+    console.error("[invoice-reminders] failed:", msg);
     try {
       const { notify } = await import("@/lib/notify.server");
       await notify({
@@ -34,27 +42,36 @@ async function wrap(request: Request): Promise<Response> {
     } catch (err) {
       console.error("[invoice-reminders] cron.failed notify failed:", err);
     }
-    return new Response(JSON.stringify({ ok: false, error: msg }), {
+    return new Response(JSON.stringify({ ok: false, error: "internal_error" }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
     });
   }
 }
 
-async function handle(request: Request): Promise<Response> {
-  // Only the scheduler holding the dedicated cron secret may trigger sends.
-  const providedKey =
+async function isAuthorizedScheduler(request: Request): Promise<boolean> {
+  const secret = process.env.INVOICE_REMINDERS_CRON_SECRET ?? "";
+  const providedSecret =
     request.headers.get("x-cron-secret") ??
     request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ??
     "";
-  const expected = process.env.INVOICE_REMINDERS_CRON_SECRET ?? "";
-  if (!expected || providedKey !== expected) {
-    return new Response(JSON.stringify({ error: "unauthorized" }), {
-      status: 401,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
+  if (secret && providedSecret && providedSecret === secret) return true;
 
+  const token = request.headers.get("x-cron-token") ?? "";
+  if (token.length < 64 || token.length > 256) return false;
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await (supabaseAdmin as any).rpc("verify_cron_token", {
+      _name: "invoice-reminders",
+      _token: token,
+    });
+    return !error && data === true;
+  } catch {
+    return false;
+  }
+}
+
+async function handle(): Promise<Response> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { internalSendInvoiceEmail } = await import("@/lib/invoice-email.functions");
 
