@@ -9,16 +9,27 @@ import { callGateway } from "@/lib/connector-gateway.server";
 const FROM_NAME = "Branta Tech";
 const FROM_EMAIL = "hello@brantatech.com";
 
+// RFC 5322 Message-ID(s): <local@domain>, no whitespace/CR/LF inside.
+const MSG_ID_RE = /^<[^<>\s]+>$/;
+const MSG_IDS_RE = /^<[^<>\s]+>( <[^<>\s]+>)*$/;
+
 const ReplyInput = z.object({
   threadId: z.string().min(1),
   to: z.array(z.string().trim().email()).min(1).max(20),
   cc: z.array(z.string().trim().email()).default([]),
-  subject: z.string().trim().min(1).max(300),
-  body: z.string().trim().min(1).max(100_000),
-  contentType: z.enum(["html", "text"]).default("html"),
+  // Single-line subject only (no header smuggling via CR/LF or control chars).
+  subject: z
+    .string()
+    .trim()
+    .min(1)
+    .max(300)
+    .refine((v) => !/[\u0000-\u001f\u007f]/.test(v), "Subject must be a single line"),
+  body: z.string().trim().min(1).max(20_000),
+  // Replies are always sent as escaped plain text; caller HTML is never sent.
+  contentType: z.literal("text").default("text"),
   provider: z.enum(["resend", "brevo"]).default("resend"),
-  inReplyTo: z.string().nullable().optional(), // original Message-ID header
-  references: z.string().nullable().optional(),
+  inReplyTo: z.string().trim().max(998).regex(MSG_ID_RE, "Invalid Message-ID").nullable().optional(), // original Message-ID header
+  references: z.string().trim().max(4000).regex(MSG_IDS_RE, "Invalid References header").nullable().optional(),
   leadId: z.string().uuid().nullable().optional(),
 });
 
@@ -42,16 +53,18 @@ export const sendInboxReply = createServerFn({ method: "POST" })
       // be a participant of that thread — no arbitrary outbound addresses.
       const { data: threadMsgs } = await context.supabase
         .from("inbox_messages")
-        .select("from_email")
+        .select("from_email, lead_id")
         .eq("gmail_thread_id", data.threadId)
         .limit(100);
       if (!threadMsgs || threadMsgs.length === 0)
         throw new Error("Thread not found in the shared inbox");
+      const msgs = threadMsgs as Array<{ from_email: string; lead_id: string | null }>;
       const participants = new Set<string>(
-        (threadMsgs as Array<{ from_email: string }>).map((m) =>
-          m.from_email.trim().toLowerCase(),
-        ),
+        msgs.map((m) => m.from_email.trim().toLowerCase()),
       );
+      // A lead can only be tagged/logged when the thread is linked to it.
+      if (data.leadId && !msgs.some((m) => m.lead_id === data.leadId))
+        throw new Error("This thread is not linked to that lead");
       participants.add(FROM_EMAIL);
       const outsider = [...data.to, ...data.cc].find(
         (e) => !participants.has(e.trim().toLowerCase()),
@@ -59,9 +72,8 @@ export const sendInboxReply = createServerFn({ method: "POST" })
       if (outsider)
         throw new Error(`${outsider} is not a participant of this thread`);
 
-      const html =
-        data.contentType === "html" ? data.body : textToHtml(data.body);
-      const text = data.contentType === "text" ? data.body : undefined;
+      const html = textToHtml(data.body);
+      const text = data.body;
 
       // Compose References header per RFC: existing References + In-Reply-To id.
       const refs = [

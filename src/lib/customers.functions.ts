@@ -122,17 +122,22 @@ export const listCustomers = createServerFn({ method: "GET" })
   });
 
 /**
- * Minimal customer list for pickers (e.g. invoice creation).
- * Any authenticated user can call this — it deliberately bypasses
- * customer_access so users with invoice access but no customer page
- * access can still select/search customers when creating invoices.
- * Returns only safe display fields.
+ * Minimal customer list for pickers (invoice creation/editing).
+ * Finance/Admin see every active customer (they invoice any client);
+ * everyone else only gets customers their own access rules allow.
  */
 export const listCustomersForPicker = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async (): Promise<CustomerPickerItem[]> => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data, error } = await supabaseAdmin
+  .handler(async ({ context }): Promise<CustomerPickerItem[]> => {
+    const { data: isFinance, error: roleErr } = await context.supabase.rpc(
+      "is_finance_admin",
+      { _user_id: context.userId },
+    );
+    if (roleErr) throw dbError(roleErr);
+    const client = isFinance
+      ? (await import("@/integrations/supabase/client.server")).supabaseAdmin
+      : context.supabase;
+    const { data, error } = await client
       .from("customers")
       .select("id, customer_code, name, company, email, phone, currency")
       .is("archived_at" as never, null)

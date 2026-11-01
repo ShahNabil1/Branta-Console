@@ -12,6 +12,11 @@ import {
 } from "@/lib/branta-credentials";
 import { z } from "zod";
 
+const RESERVED_LOCALS = new Set([
+  "hello", "admin", "administrator", "root", "postmaster", "abuse",
+  "hostmaster", "webmaster", "security", "noreply", "no-reply", "mailer-daemon",
+]);
+
 const RoleEnum = z.enum(["super_admin", "admin", "manager", "user"]);
 
 const CreateInput = z.object({
@@ -179,6 +184,11 @@ export const createEmployee = createServerFn({ method: "POST" })
     const local = localSchema.parse(data.local);
     const password = strongPasswordSchema.parse(data.password);
     const email = `${local}${DOMAIN}`;
+    // Shared company mailboxes are never employee accounts. "hello" is the
+    // owner address the database auto-promotes to super_admin.
+    if (RESERVED_LOCALS.has(local.toLowerCase())) {
+      throw new Error("This Branta ID is reserved for a company mailbox. Choose another one.");
+    }
 
     // Email routing must be ready before the account exists, so the welcome
     // mail actually reaches the employee.

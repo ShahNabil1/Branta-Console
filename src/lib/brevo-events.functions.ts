@@ -17,7 +17,14 @@ export const listBrevoEventsForLead = createServerFn({ method: "POST" })
     z.object({ leadId: z.string().uuid() }).parse(d),
   )
   .handler(
-    async ({ data }): Promise<Record<string, BrevoLeadEvent[]>> => {
+    async ({ data, context }): Promise<Record<string, BrevoLeadEvent[]>> => {
+      // The caller must be able to see this lead under its normal access rules.
+      const { data: lead, error: leadErr } = await context.supabase
+        .from("leads")
+        .select("id")
+        .eq("id", data.leadId)
+        .maybeSingle();
+      if (leadErr || !lead) throw new Error("Lead not found");
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { readAllBrevoEvents } = await import("@/lib/brevo-events.server");
       let rows;
