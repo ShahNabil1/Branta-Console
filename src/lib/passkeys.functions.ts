@@ -439,9 +439,18 @@ export const finishPasskeyLogin = createServerFn({ method: "POST" })
     if (linkErr || !linkRes?.properties?.hashed_token) {
       throw new Error(linkErr?.message ?? "Failed to mint session.");
     }
+    // One-time grant: the client binds its new auth session to this passkey proof.
+    const grant = crypto.randomUUID() + crypto.randomUUID();
+    const { hashPasskeyGrant } = await import("./session-assurance.functions");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabaseAdmin as any).from("passkey_login_grants").insert({
+      grant_hash: await hashPasskeyGrant(grant),
+      user_id: pkRow.user_id,
+    });
     return {
       ok: true as const,
       email,
       token_hash: linkRes.properties.hashed_token,
+      grant,
     };
   });

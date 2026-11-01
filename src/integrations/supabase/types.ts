@@ -3780,6 +3780,45 @@ export type Database = {
         }
         Relationships: []
       }
+      passkey_login_grants: {
+        Row: {
+          created_at: string
+          expires_at: string
+          grant_hash: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          grant_hash: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          grant_hash?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      passkey_sessions: {
+        Row: {
+          created_at: string
+          session_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          session_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          session_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       password_history: {
         Row: {
           created_at: string

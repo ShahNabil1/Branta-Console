@@ -5,7 +5,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useIdleTimeout } from "@/hooks/use-idle-timeout";
 import { useSessionWatcher } from "@/hooks/use-session-watcher";
 import { IMP_ACTIVE_KEY } from "@/lib/impersonation";
-import { PASSKEY_SESSION_FLAG } from "@/routes/login";
+import { getSessionAssurance } from "@/lib/session-assurance.functions";
+
+// Per-session cache so passkey assurance is checked once per auth session, not per navigation.
+let strongSessionId: string | null = null;
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -20,13 +23,19 @@ export const Route = createFileRoute("/_authenticated")({
     const impersonating =
       typeof window !== "undefined" &&
       sessionStorage.getItem(IMP_ACTIVE_KEY) === "1";
-    const viaPasskey =
-      typeof window !== "undefined" &&
-      sessionStorage.getItem(PASSKEY_SESSION_FLAG) === "1";
-    if (!impersonating && !viaPasskey) {
+    if (!impersonating) {
       const { data: aal } =
         await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-      if (aal?.nextLevel === "aal2" && aal.currentLevel !== "aal2") {
+      if (aal?.currentLevel === "aal2") return { user: userData.user };
+      // Passkey sessions are verified server-side (works across tabs and restarts).
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token ?? "";
+      let sid: string | null = null;
+      try { sid = JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))).session_id ?? null; } catch { sid = null; }
+      if (sid && sid === strongSessionId) return { user: userData.user };
+      const strong = await getSessionAssurance().then((r) => r.strong).catch(() => false);
+      if (strong) { strongSessionId = sid; return { user: userData.user }; }
+      if (aal?.nextLevel === "aal2") {
         await supabase.auth.signOut();
         throw redirect(redirectTo);
       }

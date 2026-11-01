@@ -14,8 +14,8 @@ export const issueAdmakaiSession = createServerFn({ method: "POST" })
       context.supabase.auth.getUser(),
     ]);
     if (profile.error || roles.error || auth.error || !auth.data.user?.email || !canAccessAdmakai({ roles: (roles.data ?? []).map((r) => r.role), allowedApps: profile.data?.allowed_apps ?? [], hasProfile: !!profile.data, deactivatedAt: profile.data?.deactivated_at ?? null, bannedUntil: auth.data.user?.banned_until ?? null })) throw new Error("Access denied: You do not have permission to access Admakai. Contact a Branta administrator.");
-    const assurance = await context.supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-    if (assurance.error || (assurance.data?.nextLevel === "aal2" && assurance.data.currentLevel !== "aal2")) throw new Error("Complete Branta two-factor verification first.");
+    const { isStrongSession } = await import("./session-assurance.server");
+    if (!(await isStrongSession(context.supabase, context.claims, context.userId))) throw new Error("Complete Branta two-factor verification first.");
     const { syncAdmakaiEmployee, mintAdmakaiSession, admakaiAdmin } = await import("./admakai.server");
     const mirrored = await syncAdmakaiEmployee(context.userId);
     if (!mirrored?.active || !mirrored.user.email) throw new Error("Admakai access is disabled.");
