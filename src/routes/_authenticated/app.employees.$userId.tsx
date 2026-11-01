@@ -841,7 +841,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
       </div>
 
       {tab === "profile" ? (
-        <><ProfileTab e={e} /><div className="mt-4"><MailActivity emails={[e.email, (e as unknown as { profile?: { personal_gmail?: string | null } }).profile?.personal_gmail ?? ""]} /></div></>
+        <><ProfileTab e={e} /><div className="mt-4"><MailActivity emails={[e.email, e.profile.personal_gmail ?? ""]} /></div></>
       ) : tab === "wallet" ? (
         <WalletTab userId={userId} walletFn={walletFn} />
       ) : tab === "schedule" ? (
