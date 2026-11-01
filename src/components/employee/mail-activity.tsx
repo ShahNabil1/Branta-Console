@@ -14,7 +14,7 @@ interface Ev { id: string; event: string; email: string; subject: string | null;
 export const MAIL_LABEL: Record<string, string> = {
   sent: "Sent", delivered: "Delivered", opened: "Opened", clicked: "Link clicked", deferred: "Delayed",
   soft_bounce: "Soft bounce", hard_bounce: "Bounced", blocked: "Blocked by Brevo", spam: "Marked as spam",
-  invalid_email: "Invalid address", error: "Send error", unsubscribed: "Unsubscribed",
+  invalid_email: "Invalid address", error: "Send error", unsubscribed: "Unsubscribed", unblocked: "Unblocked",
 };
 const EXPLAIN: Record<string, string> = {
   deferred: "The receiving mail server asked Brevo to try again later. Brevo retries automatically — usually it arrives within minutes.",
@@ -43,7 +43,7 @@ export function mailTone(ev?: string) {
   if (BAD.has(ev)) return "border-rose-300 bg-rose-50 text-rose-700";
   if (WARN.has(ev)) return "border-amber-300 bg-amber-50 text-amber-700";
   if (ev === "opened" || ev === "clicked") return "border-sky-300 bg-sky-50 text-sky-700";
-  if (ev === "delivered") return "border-emerald-300 bg-emerald-50 text-emerald-700";
+  if (ev === "delivered" || ev === "unblocked") return "border-emerald-300 bg-emerald-50 text-emerald-700";
   return "border-border bg-muted text-muted-foreground";
 }
 
@@ -70,6 +70,7 @@ export function MailActivity({ emails }: { emails: string[] }) {
   const messages = useMemo(() => {
     const m = new Map<string, Ev[]>();
     for (const e of q.data ?? []) {
+      if (e.event === "unblocked") continue;
       const k = e.message_id ?? `${e.email}|${e.subject ?? ""}|${e.occurred_at.slice(0, 13)}`;
       (m.get(k) ?? m.set(k, []).get(k)!).push(e);
     }
