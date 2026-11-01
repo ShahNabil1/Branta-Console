@@ -117,6 +117,17 @@ export function MailActivity({ emails }: { emails: string[] }) {
           </button>
         </div>
       )}
+      {!blockedEmail && lastUnblock && (
+        <div className="mb-3 rounded-sm border border-emerald-300 bg-emerald-50 p-3 text-[12px] text-emerald-800">
+          <div className="flex gap-2"><Unlock className="mt-0.5 size-4 shrink-0" /><div><b>Not blocked — ready for mail</b> · {lastUnblock.email}<div className="mt-0.5">Brevo can deliver to this address now. Resend the onboarding or reset mail if an earlier one failed.</div></div></div>
+          <details className="mt-2 text-[11px]"><summary className="cursor-pointer select-none font-semibold">Block / unblock history ({unblocks.length})</summary>
+            <ul className="mt-1 space-y-0.5 font-mono">
+              {(q.data ?? []).filter((e) => e.event === "unblocked" || BAD.has(e.event)).map((e) => <li key={e.id}>{fmt(e.occurred_at)} · {e.email} · {MAIL_LABEL[e.event] ?? e.event}{e.reason ? ` · ${e.reason}` : ""}</li>)}
+            </ul>
+          </details>
+        </div>
+      )}
+
 
       {q.isLoading ? (
         <div className="flex items-center gap-2 py-6 text-[12px] text-muted-foreground"><Loader2 className="size-3.5 animate-spin" /> Loading mail history from Brevo…</div>
@@ -152,12 +163,18 @@ export function MailActivity({ emails }: { emails: string[] }) {
                     );
                   })}
                 </ol>
-                {problem && (
-                  <div className={cn("mt-2 flex gap-1.5 rounded-sm border px-2 py-1.5 text-[11.5px]", mailTone(problem.event))}>
-                    <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
-                    <div><b>{MAIL_LABEL[problem.event] ?? problem.event}</b> · {fmt(problem.occurred_at)} — {EXPLAIN[problem.event] ?? "Brevo reported a problem."}{problem.reason && <div className="font-mono text-[10.5px]">Brevo says: {problem.reason}</div>}</div>
-                  </div>
-                )}
+                {problem && (() => {
+                  const fix = BAD.has(problem.event) ? unblocks.filter((u) => u.email === problem.email && u.occurred_at > problem.occurred_at).at(-1) : undefined;
+                  return (
+                    <div className={cn("mt-2 rounded-sm border px-2 py-1.5 text-[11.5px]", fix ? "border-border bg-muted/40 text-muted-foreground" : mailTone(problem.event))}>
+                      <div className="flex gap-1.5">
+                        <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
+                        <div><b>{fix ? "Earlier: " : ""}{MAIL_LABEL[problem.event] ?? problem.event}</b> · {fmt(problem.occurred_at)} — {fix ? "This was the problem at that time." : EXPLAIN[problem.event] ?? "Brevo reported a problem."}{problem.reason && <div className="font-mono text-[10.5px]">Brevo says: {problem.reason}</div>}</div>
+                      </div>
+                      {fix && <div className="mt-1 flex gap-1.5 font-semibold text-emerald-700"><Check className="mt-0.5 size-3.5 shrink-0" /> Resolved · unblocked on {fmt(fix.occurred_at)}. Resend to deliver it now.</div>}
+                    </div>
+                  );
+                })()}
                 <details className="mt-2 text-[11px] text-muted-foreground">
                   <summary className="cursor-pointer select-none">All events ({evs.length})</summary>
                   <ul className="mt-1 space-y-0.5 font-mono">
