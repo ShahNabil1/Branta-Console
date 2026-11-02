@@ -160,7 +160,7 @@ function TwoFactorSection() {
   return (
     <Section
       title="Two-Factor Authentication"
-      description="TOTP codes from your authenticator app (Google Authenticator, 1Password, Authy…)."
+      description=""
       icon={ShieldCheck}
       right={
         <span
@@ -280,7 +280,7 @@ function PasskeysSection() {
   return (
     <Section
       title="Passkeys"
-      description={`Sign in with Face ID, Touch ID, or a security key — no code needed. Up to ${max} passkeys per account.`}
+      description={`Sign in with Face ID, Touch ID.  Up to ${max} passkeys per account.`}
       icon={Fingerprint}
       right={
         <Button
