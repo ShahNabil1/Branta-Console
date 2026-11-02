@@ -29,6 +29,7 @@ import {
 import {
   getMyProfile,
   updateMyProfile,
+  patchMyProfile,
   type ProfileRow,
   type PaymentMethod,
 } from "@/lib/profile.functions";
