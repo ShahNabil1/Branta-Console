@@ -324,13 +324,13 @@ function ProfileForm({
       {/* Header */}
       <header className="mb-6">
         <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-          Account
+          {"\n"}
         </div>
         <h1 className="mt-1 text-[22px] font-semibold tracking-tight text-foreground">
-          Profile
+          {"\n"}
         </h1>
         <p className="mt-1 text-[13px] text-muted-foreground">
-          Manage your personal, financial, and identity information.
+          {"\n"}
         </p>
       </header>
 
