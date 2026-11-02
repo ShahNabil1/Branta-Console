@@ -118,9 +118,6 @@ export function CreateCompanyWizard({ open, onOpenChange, onCreated }: { open: b
 
           {step === 1 && (
             <>
-              <div className="rounded-md border border-brand/25 bg-brand/5 p-3 text-[12px] font-medium text-foreground">
-                <span className="font-bold text-brand">Heads up:</span> The CEO and COO you pick become this company's super admins, with full access to everything in it.
-              </div>
               <Field label="CEO · Chief Executive Officer" required error={show("ceo_user_id")}>
                 <PersonPicker people={people} loading={opts.isLoading} value={f.ceo_user_id} exclude={f.coo_user_id}
                   onChange={(v) => setF((p) => ({ ...p, ceo_user_id: v }))} icon={<Crown className="size-4 text-brand" />} />

@@ -75,7 +75,7 @@ export const listCompanyLeaderOptions = createServerFn({ method: "GET" })
     const sb = context.supabase as unknown as Sb;
     await assertAdmin(sb, context.userId);
     const { data, error } = await sb.from("profiles")
-      .select("id, full_name, email, avatar_url, job_role, employee_code, deactivated_at").order("full_name");
+      .select("id, full_name, avatar_url, job_role, employee_code, deactivated_at").order("full_name");
     if (error) throw dbError(error);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: au } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
