@@ -137,12 +137,20 @@ export const PatchCompanySchema = z.object({
     email: z.string().trim().email().max(254).optional(),
     support_email: nul(254).refine((v) => !v || z.string().email().safeParse(v).success, "Invalid support email"),
     phone: nul(11).refine((v) => !v || /^01[3-9]\d{8}$/.test(v), "Enter a valid 11-digit BD number"),
-    website_url: nul(300).refine((v) => !v || /^https?:\/\/[^\s.]+\.[^\s]+$/i.test(v), "Website must start with http:// or https://"),
+    website_url: nul(300).refine((v) => !v || /^[a-z0-9-]+(\.[a-z0-9-]+)+(\/\S*)?$/i.test(v), "Enter a domain like example.com"),
     logo_url: nul(500),
     address_line1: nul(200).refine((v) => !v || !/[^A-Za-z0-9\s,./#()'&:-]/.test(v), "English only"),
     division: nul(60), district: nul(60), upazila: nul(80), post_office: nul(80),
     postcode: nul(4).refine((v) => !v || /^\d{4}$/.test(v), "Postcode must be 4 digits"),
-    address: nul(500),
+    address: nul(500), address_label: nul(60),
+    extra_emails: z.array(z.object({ label: z.string().trim().min(1).max(40), value: z.string().trim().email().max(254) })).max(20).optional(),
+    extra_phones: z.array(z.object({ label: z.string().trim().min(1).max(40), value: z.string().regex(/^01[3-9]\d{8}$/) })).max(20).optional(),
+    offices: z.array(z.object({
+      label: z.string().trim().min(1).max(60),
+      address_line1: z.string().max(200).regex(/^[A-Za-z0-9\s,./#()'&:-]*$/),
+      division: z.string().max(60).nullable(), district: z.string().max(60).nullable(), upazila: z.string().max(80).nullable(),
+      post_office: z.string().max(80).nullable(), postcode: z.string().regex(/^\d{4}$/).nullable(),
+    })).max(20).optional(),
   }).strict(),
 });
 

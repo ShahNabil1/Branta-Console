@@ -5,7 +5,7 @@ import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import {
   ArrowLeft, Building2, Check, Globe, Loader2, Lock, Mail, MapPin, Pencil, Phone, Plug, Settings2,
-  ShieldCheck, Sparkles, Users, X, LayoutGrid, type LucideIcon,
+  ShieldCheck, Sparkles, Users, X, Plus, Trash2, LayoutGrid, type LucideIcon,
 } from "lucide-react";
 import { RequireSuperAdmin } from "@/components/branta/require-super-admin";
 import { CompanyAvatar, PersonChip } from "@/components/company/company-avatar";
@@ -37,7 +37,7 @@ export const Route = createFileRoute("/_authenticated/app/companies/$slug")({
 });
 
 type Company = NonNullable<Awaited<ReturnType<typeof getCompany>>>;
-type Patch = Record<string, string | number | null>;
+type Patch = Record<string, unknown>;
 
 const TABS: { id: string; label: string; icon: LucideIcon }[] = [
   { id: "info", label: "Company Info", icon: Building2 },
@@ -124,7 +124,7 @@ function useSave(id: string) {
   const qc = useQueryClient();
   return async (patch: Patch, msg: string) => {
     try {
-      await fn({ data: { id, patch } });
+      await fn({ data: { id, patch } as never });
       await qc.invalidateQueries({ queryKey: ["company"] });
       await qc.invalidateQueries({ queryKey: ["companies"] });
       toast.success(msg);
@@ -227,7 +227,7 @@ function IdentitySection({ c, accent }: { c: Company; accent: string }) {
   const save = useSave(c.id);
   const e = useEditable({
     name: c.name, tagline: c.tagline ?? "", company_type: c.company_type ?? "", industry: c.industry ?? "",
-    founded_year: c.founded_year ?? null, description: c.description ?? "",
+    founded_year: c.founded_year ?? null,
   } as Patch);
   const f = e.form as Record<string, string | number | null>;
   const valid = String(f.name ?? "").trim().length >= 2;
@@ -247,10 +247,6 @@ function IdentitySection({ c, accent }: { c: Company; accent: string }) {
           </FieldL>
           <FieldL label="Industry / What it does"><Input value={String(f.industry ?? "")} maxLength={80} placeholder="e.g. Software development" onChange={(v) => e.set("industry", v.target.value)} /></FieldL>
           <FieldL label="Founded year"><Input inputMode="numeric" maxLength={4} className="font-mono" value={f.founded_year ?? ""} onChange={(v) => { const d = v.target.value.replace(/\D/g, "").slice(0, 4); e.set("founded_year", d ? Number(d) : null); }} /></FieldL>
-          <FieldL label="About the company" className="sm:col-span-2">
-            <textarea rows={4} maxLength={2000} value={String(f.description ?? "")} onChange={(v) => e.set("description", v.target.value)}
-              className="w-full resize-y rounded-sm border border-input bg-background px-3 py-2 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-brand" />
-          </FieldL>
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
@@ -260,69 +256,161 @@ function IdentitySection({ c, accent }: { c: Company; accent: string }) {
           <View label="Industry" value={c.industry} />
           <View label="Founded" value={c.founded_year} mono />
           <View label="Workspace slug" value={c.slug} mono />
-          <div className="sm:col-span-2"><View label="About" value={c.description && <span className="whitespace-pre-line font-semibold">{c.description}</span>} /></div>
         </div>
       )}
     </Section>
   );
 }
 
+const EMAIL_LABELS = ["Sales", "Support", "Accounts", "HR", "Billing", "Careers", "Info", "Other"];
+const PHONE_LABELS = ["Hotline", "Office", "Sales", "Support", "WhatsApp", "Mobile", "Other"];
+const OFFICE_LABELS = ["Head Office", "Corporate Office", "Branch Office", "Dhaka Office", "Bogura Office", "Factory", "Warehouse", "Other"];
+type Item = { label: string; value: string };
+const emailOk = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+const phoneValid = (v: string) => /^01[3-9]\d{8}$/.test(v);
+const cleanDomain = (v: string) => v.trim().replace(/^https?:\/\//i, "").replace(/^www\./i, "www.").replace(/\/$/, "");
+const domainOk = (v: string) => !v || /^[a-z0-9-]+(\.[a-z0-9-]+)+(\/\S*)?$/i.test(v);
+
+function LabelPicker({ value, options, onChange }: { value: string; options: string[]; onChange: (v: string) => void }) {
+  return (
+    <div className="flex w-40 shrink-0 gap-1">
+      <select value={value} onChange={(e) => onChange(e.target.value)}
+        className="h-9 min-w-0 flex-1 rounded-sm border border-input bg-background px-2 text-[12.5px] font-semibold outline-none focus-visible:ring-2 focus-visible:ring-brand">
+        <option value="" disabled>Label</option>{options.map((o) => <option key={o}>{o}</option>)}
+      </select>
+    </div>
+  );
+}
+
+function LabeledList({ items, onChange, options, kind, addText }: { items: Item[]; onChange: (v: Item[]) => void; options: string[]; kind: "email" | "phone"; addText: string }) {
+  const upd = (i: number, p: Partial<Item>) => onChange(items.map((it, j) => (j === i ? { ...it, ...p } : it)));
+  return (
+    <div className="space-y-2">
+      {items.map((it, i) => {
+        const bad = it.value && (kind === "email" ? !emailOk(it.value) : !phoneValid(it.value));
+        return (
+          <div key={i} className="flex animate-in fade-in slide-in-from-top-1 items-start gap-2">
+            <LabelPicker value={it.label} options={options} onChange={(v) => upd(i, { label: v })} />
+            <div className="min-w-0 flex-1">
+              {kind === "email"
+                ? <Input type="email" value={it.value} placeholder="name@company.com" onChange={(e) => upd(i, { value: e.target.value.trim() })} className={cn(bad && "border-destructive")} />
+                : <BdPhoneInput value={it.value} onChange={(v) => upd(i, { value: v })} invalid={!!bad} />}
+            </div>
+            <Button type="button" size="icon" variant="ghost" onClick={() => onChange(items.filter((_, j) => j !== i))} className="size-9 shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive active:scale-90"><Trash2 className="size-3.5" /></Button>
+          </div>
+        );
+      })}
+      <Button type="button" size="sm" variant="outline" onClick={() => onChange([...items, { label: "", value: "" }])}
+        className="h-8 gap-1 border-dashed text-[12px] font-bold hover:border-brand/50 hover:text-brand active:scale-95"><Plus className="size-3.5" /> {addText}</Button>
+    </div>
+  );
+}
+
+const itemsOk = (xs: Item[], kind: "email" | "phone") => xs.every((x) => x.label.trim() && (kind === "email" ? emailOk(x.value) : phoneValid(x.value)));
+
+function PhoneView({ label, phone }: { label: string; phone: string }) {
+  return <View label={label} value={
+    <span className="flex items-center gap-2"><BdFlag /><span className="font-mono">+88 {phone}</span>
+      <a href={`tel:+88${phone}`} className="ml-auto inline-flex items-center gap-1 rounded-full bg-status-converted/10 px-2 py-0.5 text-[10.5px] font-bold text-status-converted transition-transform hover:scale-105"><Phone className="size-3" /> Call</a>
+    </span>} />;
+}
+
 function ContactSection({ c, accent }: { c: Company; accent: string }) {
   const save = useSave(c.id);
-  const e = useEditable({ email: c.email, support_email: c.support_email ?? "", phone: c.phone ?? "", website_url: c.website_url ?? "" } as Patch);
-  const f = e.form as Record<string, string>;
-  const emailOk = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
-  const phoneOk = !f.phone || /^01[3-9]\d{8}$/.test(f.phone);
-  const webOk = !f.website_url || /^https?:\/\/[^\s.]+\.[^\s]+$/i.test(f.website_url);
-  const valid = emailOk(f.email ?? "") && (!f.support_email || emailOk(f.support_email)) && phoneOk && webOk;
+  const cx = c as unknown as { extra_emails?: Item[]; extra_phones?: Item[] };
+  const e = useEditable({
+    email: c.email, support_email: c.support_email ?? "", phone: c.phone ?? "", website_url: cleanDomain(c.website_url ?? ""),
+    extra_emails: cx.extra_emails ?? [], extra_phones: cx.extra_phones ?? [],
+  } as Patch);
+  const f = e.form as { email: string; support_email: string; phone: string; website_url: string; extra_emails: Item[]; extra_phones: Item[] };
+  const phoneOk = !f.phone || phoneValid(f.phone);
+  const webOk = domainOk(f.website_url);
+  const valid = emailOk(f.email ?? "") && (!f.support_email || emailOk(f.support_email)) && phoneOk && webOk
+    && itemsOk(f.extra_emails, "email") && itemsOk(f.extra_phones, "phone");
+  const site = cleanDomain(c.website_url ?? "");
   return (
     <Section title="Contact" icon={Mail} accent={accent} canEdit={c.canManage} editing={e.editing} saving={e.saving} dirty={e.dirty && valid}
       onEdit={e.edit} onCancel={e.cancel}
-      onSave={async () => { e.setSaving(true); if (await save(e.form, "Contact saved")) e.done(); e.setSaving(false); }}>
+      onSave={async () => { e.setSaving(true); if (await save({ ...f, website_url: f.website_url || null }, "Contact saved")) e.done(); e.setSaving(false); }}>
       {e.editing ? (
-        <div className="grid gap-4 sm:grid-cols-2">
-          <FieldL label="Company email *"><Input type="email" value={f.email} onChange={(v) => e.set("email", v.target.value.trim())} className={cn(!emailOk(f.email ?? "") && "border-destructive")} /></FieldL>
-          <FieldL label="Support email"><Input type="email" value={f.support_email} onChange={(v) => e.set("support_email", v.target.value.trim())} className={cn(f.support_email && !emailOk(f.support_email) && "border-destructive")} /></FieldL>
-          <FieldL label="Phone">
-            <BdPhoneInput value={f.phone ?? ""} onChange={(v) => e.set("phone", v)} invalid={!phoneOk} />
-            {!phoneOk && <p className="text-[11px] text-destructive">Enter a valid 11-digit number (01XXXXXXXXX).</p>}
-          </FieldL>
-          <FieldL label="Website">
-            <Input value={f.website_url} placeholder="https://" onChange={(v) => e.set("website_url", v.target.value.trim())} className={cn(!webOk && "border-destructive")} />
-            {!webOk && <p className="text-[11px] text-destructive">Must start with http:// or https://</p>}
-          </FieldL>
+        <div className="space-y-5">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FieldL label="Company email *"><Input type="email" value={f.email} onChange={(v) => e.set("email", v.target.value.trim())} className={cn(!emailOk(f.email ?? "") && "border-destructive")} /></FieldL>
+            <FieldL label="Support email"><Input type="email" value={f.support_email} onChange={(v) => e.set("support_email", v.target.value.trim())} className={cn(f.support_email && !emailOk(f.support_email) && "border-destructive")} /></FieldL>
+            <FieldL label="Primary phone">
+              <BdPhoneInput value={f.phone ?? ""} onChange={(v) => e.set("phone", v)} invalid={!phoneOk} />
+              {!phoneOk && <p className="text-[11px] text-destructive">Enter a valid 11-digit number (01XXXXXXXXX).</p>}
+            </FieldL>
+            <FieldL label="Website">
+              <div className={cn("flex h-9 items-center overflow-hidden rounded-sm border border-input bg-background focus-within:ring-2 focus-within:ring-brand", !webOk && "border-destructive")}>
+                <span className="flex h-full items-center gap-1 border-r border-input bg-muted/40 px-2.5 text-muted-foreground"><Globe className="size-3.5" /></span>
+                <input value={f.website_url} placeholder="example.com" onChange={(v) => e.set("website_url", cleanDomain(v.target.value).toLowerCase())}
+                  className="h-full min-w-0 flex-1 bg-transparent px-2.5 font-mono text-[13px] outline-none" />
+              </div>
+              {!webOk && <p className="text-[11px] text-destructive">Enter a domain like example.com</p>}
+            </FieldL>
+          </div>
+          <FieldL label="More emails"><LabeledList kind="email" items={f.extra_emails} options={EMAIL_LABELS} addText="Add email" onChange={(v) => e.set("extra_emails", v)} /></FieldL>
+          <FieldL label="More phone numbers"><LabeledList kind="phone" items={f.extra_phones} options={PHONE_LABELS} addText="Add phone" onChange={(v) => e.set("extra_phones", v)} /></FieldL>
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
           <View label="Company email" value={c.email} href={`mailto:${c.email}`} />
           <View label="Support email" value={c.support_email} href={c.support_email ? `mailto:${c.support_email}` : undefined} />
-          <View label="Phone" value={c.phone && (
-            <span className="flex items-center gap-2"><BdFlag /><span className="font-mono">+88 {c.phone}</span>
-              <a href={`tel:+88${c.phone}`} className="ml-auto inline-flex items-center gap-1 rounded-full bg-status-converted/10 px-2 py-0.5 text-[10.5px] font-bold text-status-converted transition-transform hover:scale-105"><Phone className="size-3" /> Call</a>
-            </span>)} />
-          <View label="Website" value={c.website_url && <span className="inline-flex items-center gap-1.5"><Globe className="size-3.5" />{c.website_url.replace(/^https?:\/\//, "")}</span>} href={c.website_url ?? undefined} />
+          {(cx.extra_emails ?? []).map((x, i) => <View key={`e${i}`} label={`${x.label} email`} value={x.value} href={`mailto:${x.value}`} />)}
+          {c.phone ? <PhoneView label="Primary phone" phone={c.phone} /> : <View label="Primary phone" value={null} />}
+          {(cx.extra_phones ?? []).map((x, i) => <PhoneView key={`p${i}`} label={x.label} phone={x.value} />)}
+          <View label="Website" value={site && <span className="inline-flex items-center gap-1.5"><Globe className="size-3.5" />{site}</span>} href={site ? `https://${site}` : undefined} />
         </div>
       )}
     </Section>
   );
 }
 
+type Office = AddrFields & { label: string };
+const EMPTY_ADDR: AddrFields = { address_line1: "", division: null, district: null, upazila: null, post_office: null, postcode: null };
+
 function AddressSection({ c, accent }: { c: Company; accent: string }) {
   const save = useSave(c.id);
-  const initial = pickAddr(c as unknown as AddrFields);
-  const e = useEditable(initial as unknown as Patch);
-  const f = e.form as unknown as AddrFields;
-  const valid = addrValid(f) && isEnglishAddr(f.address_line1 ?? "");
-  const hasAddr = !!initial.address_line1;
+  const cx = c as unknown as { offices?: Office[]; address_label?: string | null };
+  const primary = { ...pickAddr(c as unknown as AddrFields), label: cx.address_label || "Head Office" } as Office;
+  const initial = [primary, ...(cx.offices ?? [])];
+  const e = useEditable({ list: initial } as Patch);
+  const list = (e.form as { list: Office[] }).list;
+  const setList = (v: Office[]) => e.set("list", v);
+  const upd = (i: number, k: string, v: unknown) => setList(list.map((o, j) => (j === i ? { ...o, [k]: v } : o)));
+  const valid = list.every((o) => o.label.trim() && addrValid(o) && isEnglishAddr(o.address_line1 ?? ""));
+  const shown = initial.filter((o) => o.address_line1);
   return (
-    <Section title="Address" icon={MapPin} accent={accent} canEdit={c.canManage} editing={e.editing} saving={e.saving} dirty={e.dirty && valid}
+    <Section title="Addresses" icon={MapPin} accent={accent} canEdit={c.canManage} editing={e.editing} saving={e.saving} dirty={e.dirty && valid}
       onEdit={e.edit} onCancel={e.cancel}
-      onSave={async () => { e.setSaving(true); if (await save({ ...(f as unknown as Patch), address: fmtAddr(f) }, "Address saved")) e.done(); e.setSaving(false); }}>
+      onSave={async () => {
+        e.setSaving(true);
+        const [p, ...rest] = list;
+        const { label, ...pa } = p;
+        if (await save({ ...pa, address_label: label, address: fmtAddr(pa), offices: rest }, "Addresses saved")) e.done();
+        e.setSaving(false);
+      }}>
       {e.editing ? (
-        <BdAddressBlock form={f} set={(k, v) => e.set(k as never, v as never)} />
-      ) : (
-        <View label="Registered address" value={hasAddr ? fmtAddr(initial) : c.address} />
-      )}
+        <div className="space-y-4">
+          {list.map((o, i) => (
+            <div key={i} className="animate-in fade-in slide-in-from-top-1 space-y-3 rounded-lg border border-border/80 bg-muted/10 p-4">
+              <div className="flex items-center gap-2">
+                <LabelPicker value={o.label} options={OFFICE_LABELS} onChange={(v) => upd(i, "label", v)} />
+                {i === 0 && <span className="rounded-full bg-brand/10 px-2 py-0.5 text-[10px] font-bold text-brand">Primary</span>}
+                {i > 0 && <Button type="button" size="icon" variant="ghost" onClick={() => setList(list.filter((_, j) => j !== i))} className="ml-auto size-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive active:scale-90"><Trash2 className="size-3.5" /></Button>}
+              </div>
+              <BdAddressBlock form={o} set={(k, v) => upd(i, k as string, v)} />
+            </div>
+          ))}
+          <Button type="button" size="sm" variant="outline" onClick={() => setList([...list, { ...EMPTY_ADDR, label: "" }])}
+            className="h-8 gap-1 border-dashed text-[12px] font-bold hover:border-brand/50 hover:text-brand active:scale-95"><Plus className="size-3.5" /> Add office address</Button>
+        </div>
+      ) : shown.length ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {shown.map((o, i) => <View key={i} label={o.label} value={fmtAddr(o)} />)}
+        </div>
+      ) : <View label="Address" value={c.address} />}
     </Section>
   );
 }

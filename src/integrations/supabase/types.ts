@@ -517,6 +517,7 @@ export type Database = {
       companies: {
         Row: {
           address: string | null
+          address_label: string | null
           address_line1: string | null
           ceo_user_id: string | null
           company_type: string | null
@@ -527,12 +528,15 @@ export type Database = {
           district: string | null
           division: string | null
           email: string
+          extra_emails: Json
+          extra_phones: Json
           founded_year: number | null
           id: string
           industry: string | null
           is_holding: boolean
           logo_url: string | null
           name: string
+          offices: Json
           phone: string | null
           post_office: string | null
           postcode: string | null
@@ -547,6 +551,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          address_label?: string | null
           address_line1?: string | null
           ceo_user_id?: string | null
           company_type?: string | null
@@ -557,12 +562,15 @@ export type Database = {
           district?: string | null
           division?: string | null
           email: string
+          extra_emails?: Json
+          extra_phones?: Json
           founded_year?: number | null
           id?: string
           industry?: string | null
           is_holding?: boolean
           logo_url?: string | null
           name: string
+          offices?: Json
           phone?: string | null
           post_office?: string | null
           postcode?: string | null
@@ -577,6 +585,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          address_label?: string | null
           address_line1?: string | null
           ceo_user_id?: string | null
           company_type?: string | null
@@ -587,12 +596,15 @@ export type Database = {
           district?: string | null
           division?: string | null
           email?: string
+          extra_emails?: Json
+          extra_phones?: Json
           founded_year?: number | null
           id?: string
           industry?: string | null
           is_holding?: boolean
           logo_url?: string | null
           name?: string
+          offices?: Json
           phone?: string | null
           post_office?: string | null
           postcode?: string | null
