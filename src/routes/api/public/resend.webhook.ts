@@ -62,7 +62,11 @@ export const Route = createFileRoute("/api/public/resend/webhook")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const secret = process.env.RESEND_WEBHOOK_SECRET;
+        // ?company=<slug> → that company's own signing secret; otherwise the group default.
+        const company = new URL(request.url).searchParams.get("company");
+        const secret = company
+          ? await (await import("@/lib/company-email.server")).companyWebhookSecret("resend", company)
+          : process.env.RESEND_WEBHOOK_SECRET;
         if (!secret) {
           console.error("[resend-webhook] RESEND_WEBHOOK_SECRET not set");
           return new Response("Not configured", { status: 500 });
