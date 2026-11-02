@@ -165,7 +165,10 @@ const buildRow = (payload: Record<string, unknown>): EventRow | null => {
 
 async function handlePost(request: Request): Promise<Response> {
   const url = new URL(request.url);
-  const expected = process.env.BREVO_WEBHOOK_SECRET;
+  const company = url.searchParams.get("company");
+  const expected = company
+    ? await (await import("@/lib/company-email.server")).companyWebhookSecret("brevo", company)
+    : process.env.BREVO_WEBHOOK_SECRET;
   if (!expected) {
     console.error("[brevo-webhook] BREVO_WEBHOOK_SECRET is not configured");
     return new Response("Server misconfigured", { status: 500 });
