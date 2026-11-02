@@ -762,6 +762,35 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
         </div>
       </section>
 
+
+      {/* Tabs */}
+      <div className="flex items-center gap-1 overflow-x-auto border-b border-border whitespace-nowrap">
+        <TabBtn active={tab === "profile"} onClick={() => setTab("profile")} icon={UserCog}>
+          Profile
+        </TabBtn>
+        <TabBtn active={tab === "wallet"} onClick={() => setTab("wallet")} icon={Wallet}>
+          Wallet &amp; Earnings
+        </TabBtn>
+        <TabBtn active={tab === "schedule"} onClick={() => setTab("schedule")} icon={UserCog}>
+          Shift Schedule
+        </TabBtn>
+        <TabBtn
+          active={tab === "permissions"}
+          onClick={() => setTab("permissions")}
+          icon={ShieldCheck}
+        >
+          Permissions
+        </TabBtn>
+      </div>
+
+      {tab === "profile" ? (
+        <><ProfileTab e={e} /><div className="mt-4"><MailActivity emails={[e.email, e.profile.personal_gmail ?? ""]} /></div></>
+      ) : tab === "wallet" ? (
+        <WalletTab userId={userId} walletFn={walletFn} />
+      ) : tab === "schedule" ? (
+        <TrackerScheduleTab userId={userId} />
+      ) : (
+        <div className="space-y-4">
       {/* RBAC */}
       <section className="rounded-sm border border-border bg-card p-4 sm:p-5">
         <div className="mb-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
@@ -816,40 +845,11 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
           })}
         </div>
       </section>
-
-      {/* Tabs */}
-      <div className="flex items-center gap-1 overflow-x-auto border-b border-border whitespace-nowrap">
-        <TabBtn active={tab === "profile"} onClick={() => setTab("profile")} icon={UserCog}>
-          Profile
-        </TabBtn>
-        <TabBtn active={tab === "wallet"} onClick={() => setTab("wallet")} icon={Wallet}>
-          Wallet &amp; Earnings
-        </TabBtn>
-        <TabBtn active={tab === "schedule"} onClick={() => setTab("schedule")} icon={UserCog}>
-          Shift Schedule
-        </TabBtn>
-        {canSuperAdmin && (
-          <TabBtn
-            active={tab === "permissions"}
-            onClick={() => setTab("permissions")}
-            icon={ShieldCheck}
-          >
-            Permissions
-          </TabBtn>
-        )}
-      </div>
-
-      {tab === "profile" ? (
-        <><ProfileTab e={e} /><div className="mt-4"><MailActivity emails={[e.email, e.profile.personal_gmail ?? ""]} /></div></>
-      ) : tab === "wallet" ? (
-        <WalletTab userId={userId} walletFn={walletFn} />
-      ) : tab === "schedule" ? (
-        <TrackerScheduleTab userId={userId} />
-      ) : (
-        <PermissionsTab userId={userId} />
+          <AppAccessSection userId={userId} roles={e.roles} allowedApps={e.allowedApps} />
+          {canSuperAdmin && <PermissionsTab userId={userId} />}
+        </div>
       )}
 
-      <AppAccessSection userId={userId} roles={e.roles} allowedApps={e.allowedApps} />
 
       {/* Sessions */}
       <SessionsSection
@@ -860,32 +860,6 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
         qc={qc}
       />
 
-      {/* Assigned leads */}
-      <section className="rounded-sm border border-border bg-card p-4 sm:p-5">
-        <div className="mb-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <LinkIcon className="size-4 text-brand" strokeWidth={2} />
-            <h2 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-              Assigned leads ({leads.data?.length ?? 0})
-            </h2>
-          </div>
-        </div>
-        <AssignLeadsPanel
-          userId={userId}
-          assigned={leads.data ?? []}
-          onSearch={(q) => searchLeadsFn({ data: { q } })}
-          onAssign={(leadId) =>
-            assignFn({ data: { leadId, ownerId: userId } }).then(() => {
-              qc.invalidateQueries({ queryKey: ["employee.leads", userId] });
-            })
-          }
-          onUnassign={(leadId) =>
-            assignFn({ data: { leadId, ownerId: null } }).then(() => {
-              qc.invalidateQueries({ queryKey: ["employee.leads", userId] });
-            })
-          }
-        />
-      </section>
     </div>
   );
 }
