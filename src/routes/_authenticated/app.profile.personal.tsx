@@ -509,8 +509,19 @@ const pickAddr = (r: AddrFields): AddrFields => ({
   post_office: r.post_office ?? null,
   postcode: r.postcode ?? null,
 });
+const NON_EN = /[^A-Za-z0-9\s,./#()'&:-]/g;
+const isEnglishAddr = (v: string) => !/[^A-Za-z0-9\s,./#()'&:-]/.test(v);
+const OTHER_PO = "Other (not listed)";
 const addrValid = (r: AddrFields) =>
-  !!(r.address_line1?.trim() && r.division && r.district && r.upazila && r.post_office && r.postcode);
+  !!(
+    r.address_line1?.trim() &&
+    isEnglishAddr(r.address_line1) &&
+    r.division &&
+    r.district &&
+    r.upazila &&
+    r.post_office?.trim() &&
+    /^\d{4}$/.test(r.postcode ?? "")
+  );
 /** Present address is stored as JSON in address_line2. */
 function parsePresent(raw: string | null): { same: boolean; addr: AddrFields } {
   const empty = pickAddr({} as AddrFields);
@@ -1688,6 +1699,11 @@ function BdAddressBlock({
         : [],
     [form.division, form.district, form.upazila],
   );
+  const [manual, setManual] = useState(false);
+  const [nonEn, setNonEn] = useState(false);
+  useEffect(() => {
+    setManual(false);
+  }, [form.division, form.district, form.upazila]);
 
   const autoPostcode =
     form.division && form.district && form.upazila && form.post_office
@@ -1720,7 +1736,12 @@ function BdAddressBlock({
       set("postcode", null);
       return;
     }
+    if (manual) return;
     if (form.post_office && !postOffices.includes(form.post_office)) {
+      if (postOffices.length) {
+        setManual(true);
+        return;
+      }
       set("post_office", null);
       set("postcode", null);
       return;
@@ -1749,9 +1770,18 @@ function BdAddressBlock({
           maxLength={200}
           className="w-full resize-y rounded-sm border border-input bg-background px-3 py-2 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-brand"
           value={form.address_line1 ?? ""}
-          onChange={(e) => set("address_line1", e.target.value)}
+          onChange={(e) => {
+            const v = e.target.value;
+            setNonEn(!isEnglishAddr(v));
+            set("address_line1", v.replace(NON_EN, ""));
+          }}
           placeholder="House 12, Road 4, Block C / Village name"
         />
+        {nonEn && (
+          <p className="mt-1 text-[11px] text-destructive">
+            Only English letters, numbers and , . - / # ( ) are allowed.
+          </p>
+        )}
       </Field>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -1801,23 +1831,51 @@ function BdAddressBlock({
 
         <Field label="Post Office *">
           <BdSelect
-            value={form.post_office}
+            value={manual ? OTHER_PO : form.post_office}
             onChange={(v) => {
-              set("post_office", v);
+              if (v === OTHER_PO) {
+                setManual(true);
+                set("post_office", null);
+                set("postcode", null);
+              } else {
+                setManual(false);
+                set("post_office", v);
+              }
             }}
-            options={postOffices}
+            options={postOffices.length ? [...postOffices, OTHER_PO] : []}
             placeholder="Select post office"
             disabled={postOffices.length === 0}
           />
+          {manual && (
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Not listed? Type the exact post office name and its 4-digit postcode.
+            </p>
+          )}
         </Field>
 
+        {manual && (
+          <Field label="Post Office name *">
+            <Input
+              className="h-9 rounded-sm text-[13px]"
+              value={form.post_office ?? ""}
+              onChange={(e) => set("post_office", e.target.value.replace(/[^A-Za-z .'-]/g, "") || null)}
+              placeholder="e.g. Banaichhat"
+            />
+          </Field>
+        )}
         <Field label="Postcode *">
           <Input
-            className="h-9 rounded-sm bg-muted font-mono text-[12px]"
+            className={`h-9 rounded-sm font-mono text-[12px] ${manual ? "" : "bg-muted"}`}
             value={form.postcode ?? ""}
-            readOnly
-            placeholder="—"
+            readOnly={!manual}
+            inputMode="numeric"
+            maxLength={4}
+            onChange={(e) => manual && set("postcode", e.target.value.replace(/\D/g, "").slice(0, 4) || null)}
+            placeholder={manual ? "4 digits" : "—"}
           />
+          {manual && form.postcode && form.postcode.length !== 4 && (
+            <p className="mt-1 text-[11px] text-destructive">Postcode must be 4 digits.</p>
+          )}
         </Field>
 
         <Field label="Country *">
