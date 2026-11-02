@@ -15,6 +15,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app.index'
 import { Route as AuthenticatedAppAnalyticsRouteImport } from './routes/_authenticated/app.analytics'
+import { Route as AuthenticatedAppCompaniesRouteImport } from './routes/_authenticated/app.companies'
 import { Route as AuthenticatedAppCustomersRouteImport } from './routes/_authenticated/app.customers'
 import { Route as AuthenticatedAppFinanceRouteImport } from './routes/_authenticated/app.finance'
 import { Route as AuthenticatedAppInboxRouteImport } from './routes/_authenticated/app.inbox'
@@ -32,6 +33,8 @@ import { Route as AuthenticatedSsoAdmakaiRouteImport } from './routes/_authentic
 import { Route as AuthenticatedSsoTrackerRouteImport } from './routes/_authenticated/sso.tracker'
 import { Route as AuthenticatedXVoucherRouteImport } from './routes/_authenticated/x.$voucher'
 import { Route as ApiPublicR2HealthRouteImport } from './routes/api/public/r2-health'
+import { Route as AuthenticatedAppCompaniesIndexRouteImport } from './routes/_authenticated/app.companies.index'
+import { Route as AuthenticatedAppCompaniesSlugRouteImport } from './routes/_authenticated/app.companies.$slug'
 import { Route as AuthenticatedAppCustomersIndexRouteImport } from './routes/_authenticated/app.customers.index'
 import { Route as AuthenticatedAppCustomersCodeRouteImport } from './routes/_authenticated/app.customers.$code'
 import { Route as AuthenticatedAppEmployeesIndexRouteImport } from './routes/_authenticated/app.employees.index'
@@ -111,6 +114,12 @@ const AuthenticatedAppAnalyticsRoute =
   AuthenticatedAppAnalyticsRouteImport.update({
     id: '/analytics',
     path: '/analytics',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppCompaniesRoute =
+  AuthenticatedAppCompaniesRouteImport.update({
+    id: '/companies',
+    path: '/companies',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
 const AuthenticatedAppCustomersRoute =
@@ -207,6 +216,18 @@ const ApiPublicR2HealthRoute = ApiPublicR2HealthRouteImport.update({
   path: '/api/public/r2-health',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedAppCompaniesIndexRoute =
+  AuthenticatedAppCompaniesIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedAppCompaniesRoute,
+  } as any)
+const AuthenticatedAppCompaniesSlugRoute =
+  AuthenticatedAppCompaniesSlugRouteImport.update({
+    id: '/$slug',
+    path: '/$slug',
+    getParentRoute: () => AuthenticatedAppCompaniesRoute,
+  } as any)
 const AuthenticatedAppCustomersIndexRoute =
   AuthenticatedAppCustomersIndexRouteImport.update({
     id: '/',
@@ -511,6 +532,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/app': typeof AuthenticatedAppRouteWithChildren
   '/app/analytics': typeof AuthenticatedAppAnalyticsRoute
+  '/app/companies': typeof AuthenticatedAppCompaniesRouteWithChildren
   '/app/customers': typeof AuthenticatedAppCustomersRouteWithChildren
   '/app/finance': typeof AuthenticatedAppFinanceRouteWithChildren
   '/app/inbox': typeof AuthenticatedAppInboxRoute
@@ -529,6 +551,7 @@ export interface FileRoutesByFullPath {
   '/x/$voucher': typeof AuthenticatedXVoucherRoute
   '/api/public/r2-health': typeof ApiPublicR2HealthRoute
   '/app/': typeof AuthenticatedAppIndexRoute
+  '/app/companies/$slug': typeof AuthenticatedAppCompaniesSlugRoute
   '/app/customers/$code': typeof AuthenticatedAppCustomersCodeRoute
   '/app/employees/$userId': typeof AuthenticatedAppEmployeesUserIdRoute
   '/app/finance/employee-earnings': typeof AuthenticatedAppFinanceEmployeeEarningsRoute
@@ -568,6 +591,7 @@ export interface FileRoutesByFullPath {
   '/api/public/resend/webhook': typeof ApiPublicResendWebhookRoute
   '/api/public/salary/$slip.pdf': typeof ApiPublicSalarySlipDotpdfRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
+  '/app/companies/': typeof AuthenticatedAppCompaniesIndexRoute
   '/app/customers/': typeof AuthenticatedAppCustomersIndexRoute
   '/app/employees/': typeof AuthenticatedAppEmployeesIndexRoute
   '/app/finance/': typeof AuthenticatedAppFinanceIndexRoute
@@ -598,6 +622,7 @@ export interface FileRoutesByTo {
   '/x/$voucher': typeof AuthenticatedXVoucherRoute
   '/api/public/r2-health': typeof ApiPublicR2HealthRoute
   '/app': typeof AuthenticatedAppIndexRoute
+  '/app/companies/$slug': typeof AuthenticatedAppCompaniesSlugRoute
   '/app/customers/$code': typeof AuthenticatedAppCustomersCodeRoute
   '/app/employees/$userId': typeof AuthenticatedAppEmployeesUserIdRoute
   '/app/finance/employee-earnings': typeof AuthenticatedAppFinanceEmployeeEarningsRoute
@@ -637,6 +662,7 @@ export interface FileRoutesByTo {
   '/api/public/resend/webhook': typeof ApiPublicResendWebhookRoute
   '/api/public/salary/$slip.pdf': typeof ApiPublicSalarySlipDotpdfRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
+  '/app/companies': typeof AuthenticatedAppCompaniesIndexRoute
   '/app/customers': typeof AuthenticatedAppCustomersIndexRoute
   '/app/employees': typeof AuthenticatedAppEmployeesIndexRoute
   '/app/finance': typeof AuthenticatedAppFinanceIndexRoute
@@ -656,6 +682,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_authenticated/app': typeof AuthenticatedAppRouteWithChildren
   '/_authenticated/app/analytics': typeof AuthenticatedAppAnalyticsRoute
+  '/_authenticated/app/companies': typeof AuthenticatedAppCompaniesRouteWithChildren
   '/_authenticated/app/customers': typeof AuthenticatedAppCustomersRouteWithChildren
   '/_authenticated/app/finance': typeof AuthenticatedAppFinanceRouteWithChildren
   '/_authenticated/app/inbox': typeof AuthenticatedAppInboxRoute
@@ -674,6 +701,7 @@ export interface FileRoutesById {
   '/_authenticated/x/$voucher': typeof AuthenticatedXVoucherRoute
   '/api/public/r2-health': typeof ApiPublicR2HealthRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
+  '/_authenticated/app/companies/$slug': typeof AuthenticatedAppCompaniesSlugRoute
   '/_authenticated/app/customers/$code': typeof AuthenticatedAppCustomersCodeRoute
   '/_authenticated/app/employees/$userId': typeof AuthenticatedAppEmployeesUserIdRoute
   '/_authenticated/app/finance/employee-earnings': typeof AuthenticatedAppFinanceEmployeeEarningsRoute
@@ -713,6 +741,7 @@ export interface FileRoutesById {
   '/api/public/resend/webhook': typeof ApiPublicResendWebhookRoute
   '/api/public/salary/$slip.pdf': typeof ApiPublicSalarySlipDotpdfRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
+  '/_authenticated/app/companies/': typeof AuthenticatedAppCompaniesIndexRoute
   '/_authenticated/app/customers/': typeof AuthenticatedAppCustomersIndexRoute
   '/_authenticated/app/employees/': typeof AuthenticatedAppEmployeesIndexRoute
   '/_authenticated/app/finance/': typeof AuthenticatedAppFinanceIndexRoute
@@ -732,6 +761,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/app'
     | '/app/analytics'
+    | '/app/companies'
     | '/app/customers'
     | '/app/finance'
     | '/app/inbox'
@@ -750,6 +780,7 @@ export interface FileRouteTypes {
     | '/x/$voucher'
     | '/api/public/r2-health'
     | '/app/'
+    | '/app/companies/$slug'
     | '/app/customers/$code'
     | '/app/employees/$userId'
     | '/app/finance/employee-earnings'
@@ -789,6 +820,7 @@ export interface FileRouteTypes {
     | '/api/public/resend/webhook'
     | '/api/public/salary/$slip.pdf'
     | '/api/public/telegram/webhook'
+    | '/app/companies/'
     | '/app/customers/'
     | '/app/employees/'
     | '/app/finance/'
@@ -819,6 +851,7 @@ export interface FileRouteTypes {
     | '/x/$voucher'
     | '/api/public/r2-health'
     | '/app'
+    | '/app/companies/$slug'
     | '/app/customers/$code'
     | '/app/employees/$userId'
     | '/app/finance/employee-earnings'
@@ -858,6 +891,7 @@ export interface FileRouteTypes {
     | '/api/public/resend/webhook'
     | '/api/public/salary/$slip.pdf'
     | '/api/public/telegram/webhook'
+    | '/app/companies'
     | '/app/customers'
     | '/app/employees'
     | '/app/finance'
@@ -876,6 +910,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/_authenticated/app'
     | '/_authenticated/app/analytics'
+    | '/_authenticated/app/companies'
     | '/_authenticated/app/customers'
     | '/_authenticated/app/finance'
     | '/_authenticated/app/inbox'
@@ -894,6 +929,7 @@ export interface FileRouteTypes {
     | '/_authenticated/x/$voucher'
     | '/api/public/r2-health'
     | '/_authenticated/app/'
+    | '/_authenticated/app/companies/$slug'
     | '/_authenticated/app/customers/$code'
     | '/_authenticated/app/employees/$userId'
     | '/_authenticated/app/finance/employee-earnings'
@@ -933,6 +969,7 @@ export interface FileRouteTypes {
     | '/api/public/resend/webhook'
     | '/api/public/salary/$slip.pdf'
     | '/api/public/telegram/webhook'
+    | '/_authenticated/app/companies/'
     | '/_authenticated/app/customers/'
     | '/_authenticated/app/employees/'
     | '/_authenticated/app/finance/'
@@ -1004,6 +1041,13 @@ declare module '@tanstack/react-router' {
       path: '/analytics'
       fullPath: '/app/analytics'
       preLoaderRoute: typeof AuthenticatedAppAnalyticsRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/companies': {
+      id: '/_authenticated/app/companies'
+      path: '/companies'
+      fullPath: '/app/companies'
+      preLoaderRoute: typeof AuthenticatedAppCompaniesRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
     '/_authenticated/app/customers': {
@@ -1124,6 +1168,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/public/r2-health'
       preLoaderRoute: typeof ApiPublicR2HealthRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/app/companies/': {
+      id: '/_authenticated/app/companies/'
+      path: '/'
+      fullPath: '/app/companies/'
+      preLoaderRoute: typeof AuthenticatedAppCompaniesIndexRouteImport
+      parentRoute: typeof AuthenticatedAppCompaniesRoute
+    }
+    '/_authenticated/app/companies/$slug': {
+      id: '/_authenticated/app/companies/$slug'
+      path: '/$slug'
+      fullPath: '/app/companies/$slug'
+      preLoaderRoute: typeof AuthenticatedAppCompaniesSlugRouteImport
+      parentRoute: typeof AuthenticatedAppCompaniesRoute
     }
     '/_authenticated/app/customers/': {
       id: '/_authenticated/app/customers/'
@@ -1478,6 +1536,22 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthenticatedAppCompaniesRouteChildren {
+  AuthenticatedAppCompaniesSlugRoute: typeof AuthenticatedAppCompaniesSlugRoute
+  AuthenticatedAppCompaniesIndexRoute: typeof AuthenticatedAppCompaniesIndexRoute
+}
+
+const AuthenticatedAppCompaniesRouteChildren: AuthenticatedAppCompaniesRouteChildren =
+  {
+    AuthenticatedAppCompaniesSlugRoute: AuthenticatedAppCompaniesSlugRoute,
+    AuthenticatedAppCompaniesIndexRoute: AuthenticatedAppCompaniesIndexRoute,
+  }
+
+const AuthenticatedAppCompaniesRouteWithChildren =
+  AuthenticatedAppCompaniesRoute._addFileChildren(
+    AuthenticatedAppCompaniesRouteChildren,
+  )
+
 interface AuthenticatedAppCustomersRouteChildren {
   AuthenticatedAppCustomersCodeRoute: typeof AuthenticatedAppCustomersCodeRoute
   AuthenticatedAppCustomersIndexRoute: typeof AuthenticatedAppCustomersIndexRoute
@@ -1620,6 +1694,7 @@ const AuthenticatedAppProfileRouteWithChildren =
 
 interface AuthenticatedAppRouteChildren {
   AuthenticatedAppAnalyticsRoute: typeof AuthenticatedAppAnalyticsRoute
+  AuthenticatedAppCompaniesRoute: typeof AuthenticatedAppCompaniesRouteWithChildren
   AuthenticatedAppCustomersRoute: typeof AuthenticatedAppCustomersRouteWithChildren
   AuthenticatedAppFinanceRoute: typeof AuthenticatedAppFinanceRouteWithChildren
   AuthenticatedAppInboxRoute: typeof AuthenticatedAppInboxRoute
@@ -1640,6 +1715,7 @@ interface AuthenticatedAppRouteChildren {
 
 const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
   AuthenticatedAppAnalyticsRoute: AuthenticatedAppAnalyticsRoute,
+  AuthenticatedAppCompaniesRoute: AuthenticatedAppCompaniesRouteWithChildren,
   AuthenticatedAppCustomersRoute: AuthenticatedAppCustomersRouteWithChildren,
   AuthenticatedAppFinanceRoute: AuthenticatedAppFinanceRouteWithChildren,
   AuthenticatedAppInboxRoute: AuthenticatedAppInboxRoute,
