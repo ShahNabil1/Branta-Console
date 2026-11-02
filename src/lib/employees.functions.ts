@@ -250,6 +250,7 @@ export const createEmployee = createServerFn({ method: "POST" })
       // Cloudflare Email Routing: forward name@brantatech.com -> personal Gmail
       // before the welcome mail goes out.
       if (routing && data.personalGmail) {
+        await supabaseAdmin.auth.admin.updateUserById(newUserId, { app_metadata: { gmail_source: { email: data.personalGmail, via: "cloudflare" } } });
         const { upsertForwardRule } = await import("@/lib/cloudflare-email.server");
         ruleId = await upsertForwardRule(email, data.personalGmail);
       }
