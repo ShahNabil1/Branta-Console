@@ -139,6 +139,7 @@ export const getMyProfile = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<{
     profile: ProfileRow;
     email: string;
+    gmailSource: "google" | "cloudflare" | null;
   }> => {
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
@@ -163,9 +164,23 @@ export const getMyProfile = createServerFn({ method: "GET" })
     const { data: userData } = await supabaseAdmin.auth.admin.getUserById(
       context.userId,
     );
+    const gmail = (profile as { personal_gmail?: string | null }).personal_gmail?.toLowerCase() ?? null;
+    const meta = userData.user?.app_metadata as { gmail_source?: { email: string; via: "google" | "cloudflare" } } | undefined;
+    let gmailSource: "google" | "cloudflare" | null = null;
+    if (gmail) {
+      if (meta?.gmail_source?.email === gmail) gmailSource = meta.gmail_source.via;
+      else {
+        try {
+          const { cloudflareConfigured, listDestinations } = await import("@/lib/cloudflare-email.server");
+          if (cloudflareConfigured() && (await listDestinations()).some((d) => d.email === gmail && d.verified)) gmailSource = "cloudflare";
+        } catch { /* Cloudflare unavailable */ }
+        gmailSource ??= "google";
+      }
+    }
     return {
       profile: profile as unknown as ProfileRow,
       email: userData.user?.email ?? "",
+      gmailSource,
     };
   });
 
@@ -219,6 +234,12 @@ export const patchMyProfile = createServerFn({ method: "POST" })
       .update(payload as any)
       .eq("user_id", context.userId);
     if (error) throw dbError(error);
+    if (data.personal_gmail !== undefined) {
+      const { data: u } = await supabaseAdmin.auth.admin.getUserById(context.userId);
+      if (u.user) await supabaseAdmin.auth.admin.updateUserById(context.userId, {
+        app_metadata: { ...u.user.app_metadata, gmail_source: data.personal_gmail ? { email: data.personal_gmail, via: "google" } : null },
+      });
+    }
     { const { syncEmployeeAppsSafe } = await import("@/lib/employee-app-sync.server"); await syncEmployeeAppsSafe(context.userId); }
     return { ok: true as const };
   });
