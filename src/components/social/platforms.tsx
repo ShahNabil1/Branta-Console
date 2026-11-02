@@ -165,10 +165,12 @@ export function PlatformSelect({
   value,
   onChange,
   className,
+  exclude,
 }: {
   value: SocialPlatform;
   onChange: (v: SocialPlatform) => void;
   className?: string;
+  exclude?: readonly SocialPlatform[];
 }) {
   return (
     <Select value={value} onValueChange={(v) => onChange(v as SocialPlatform)}>
@@ -176,7 +178,7 @@ export function PlatformSelect({
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
-        {SOCIAL_PLATFORMS.map((p) => (
+        {SOCIAL_PLATFORMS.filter((p) => !exclude?.includes(p)).map((p) => (
           <SelectItem key={p} value={p}>
             <span className="inline-flex items-center gap-2">
               <PlatformIcon platform={p} />
