@@ -517,50 +517,92 @@ export type Database = {
       companies: {
         Row: {
           address: string | null
+          address_line1: string | null
           ceo_user_id: string | null
+          company_type: string | null
           coo_user_id: string | null
           created_at: string
           created_by: string | null
+          description: string | null
+          district: string | null
+          division: string | null
           email: string
+          founded_year: number | null
           id: string
+          industry: string | null
           is_holding: boolean
+          logo_url: string | null
           name: string
           phone: string | null
+          post_office: string | null
+          postcode: string | null
           slug: string
           status: string
+          support_email: string | null
+          tagline: string | null
+          upazila: string | null
           updated_at: string
+          updated_by: string | null
           website_url: string | null
         }
         Insert: {
           address?: string | null
+          address_line1?: string | null
           ceo_user_id?: string | null
+          company_type?: string | null
           coo_user_id?: string | null
           created_at?: string
           created_by?: string | null
+          description?: string | null
+          district?: string | null
+          division?: string | null
           email: string
+          founded_year?: number | null
           id?: string
+          industry?: string | null
           is_holding?: boolean
+          logo_url?: string | null
           name: string
           phone?: string | null
+          post_office?: string | null
+          postcode?: string | null
           slug: string
           status?: string
+          support_email?: string | null
+          tagline?: string | null
+          upazila?: string | null
           updated_at?: string
+          updated_by?: string | null
           website_url?: string | null
         }
         Update: {
           address?: string | null
+          address_line1?: string | null
           ceo_user_id?: string | null
+          company_type?: string | null
           coo_user_id?: string | null
           created_at?: string
           created_by?: string | null
+          description?: string | null
+          district?: string | null
+          division?: string | null
           email?: string
+          founded_year?: number | null
           id?: string
+          industry?: string | null
           is_holding?: boolean
+          logo_url?: string | null
           name?: string
           phone?: string | null
+          post_office?: string | null
+          postcode?: string | null
           slug?: string
           status?: string
+          support_email?: string | null
+          tagline?: string | null
+          upazila?: string | null
           updated_at?: string
+          updated_by?: string | null
           website_url?: string | null
         }
         Relationships: [
@@ -4965,6 +5007,10 @@ export type Database = {
           _rows: Json
         }
         Returns: number
+      }
+      can_manage_company: {
+        Args: { _company: string; _user: string }
+        Returns: boolean
       }
       can_manage_project: {
         Args: { _project_id: string; _user: string }
