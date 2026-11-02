@@ -275,7 +275,7 @@ function PaymentMethodsBlock({
   );
 }
 
-function ViewRow({ label, value, mono }: { label: string; value: string | null; mono?: boolean }) {
+function ViewRow({ label, value, mono }: { label: string; value?: string | null; mono?: boolean }) {
   return (
     <div className="space-y-0.5">
       <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{label}</div>
