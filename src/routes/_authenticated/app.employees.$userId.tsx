@@ -49,7 +49,7 @@ import brandLogo from "@/assets/brand-logo.png.asset.json";
 import { GoogleG, CloudflareLogo } from "@/components/profile/google-gmail-connect";
 import { PLATFORM_META, type SocialPlatform } from "@/components/social/platforms";
 import { waNumberFromUrl } from "@/components/profile/social-link-rules";
-import { BadgeCheck as BadgeCheck, Phone as Phone, ExternalLink as ExternalLink } from "lucide-react";
+import { BadgeCheck, Phone } from "lucide-react";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
   assignLeadOwner,
