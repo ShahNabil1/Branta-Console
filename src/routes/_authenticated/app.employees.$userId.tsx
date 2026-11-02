@@ -58,6 +58,7 @@ import {
   searchLeadsForAssignment,
   setEmployeeBan,
   setEmployeeJobRole,
+  setEmployeeName,
   startImpersonation,
   updateEmployeeRoles,
   updateEmployeeAllowedApps,
@@ -915,6 +916,65 @@ function TabBtn({
   );
 }
 
+function EditNameDialog({ e }: { e: EmployeeDetail }) {
+  const qc = useQueryClient();
+  const fn = useServerFn(setEmployeeName);
+  const [open, setOpen] = useState(false);
+  const [fullName, setFullName] = useState("");
+  const [legal, setLegal] = useState("");
+  const [busy, setBusy] = useState(false);
+  const init = () => {
+    setFullName(e.profile.full_name ?? "");
+    setLegal(e.profile.legal_full_name ?? "");
+  };
+  const dirty =
+    fullName.trim() !== (e.profile.full_name ?? "") ||
+    legal.trim() !== (e.profile.legal_full_name ?? "");
+  const valid = fullName.trim().length >= 2 && legal.trim().length >= 2;
+  const save = async () => {
+    setBusy(true);
+    try {
+      await fn({ data: { userId: e.userId, fullName: fullName.trim(), legalFullName: legal.trim() } });
+      toast.success("Name updated");
+      await qc.invalidateQueries({ queryKey: ["employee.detail"] });
+      setOpen(false);
+    } catch (err) {
+      toast.error("Could not update name", { description: (err as Error).message });
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (o) init(); setOpen(o); }}>
+      <Button type="button" variant="outline" size="sm" className="ml-auto h-7 rounded-sm text-[12px]" onClick={() => { init(); setOpen(true); }}>
+        Edit name
+      </Button>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Edit employee name</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <label className="block space-y-1 text-[12px] font-medium">
+            <span>Display name</span>
+            <Input value={fullName} onChange={(ev) => setFullName(ev.target.value)} className="h-9 rounded-sm" />
+          </label>
+          <label className="block space-y-1 text-[12px] font-medium">
+            <span>Legal full name (as on NID / passport)</span>
+            <Input value={legal} onChange={(ev) => setLegal(ev.target.value)} className="h-9 rounded-sm" />
+          </label>
+          <p className="text-[11.5px] text-muted-foreground">The employee sees this as read-only on their profile. The change is logged.</p>
+          <div className="flex justify-end gap-2 pt-1">
+            <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button type="button" size="sm" disabled={!dirty || !valid || busy} onClick={save}>
+              {busy ? "Saving…" : "Save changes"}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function ProfileTab({ e }: { e: EmployeeDetail }) {
   const p = e.profile;
   const addressLine =
@@ -928,6 +988,7 @@ function ProfileTab({ e }: { e: EmployeeDetail }) {
         <h2 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
           Personal details
         </h2>
+        <EditNameDialog e={e} />
       </div>
       <div className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
         <Field label="Full name" value={p.full_name} copy />
