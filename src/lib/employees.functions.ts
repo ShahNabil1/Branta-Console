@@ -237,7 +237,7 @@ export const createEmployee = createServerFn({ method: "POST" })
       // the corresponding step.
       const profilePatch: Record<string, unknown> = {
         must_change_password: true,
-        must_link_telegram: true,
+        must_link_telegram: false,
       };
       if (data.personalGmail) profilePatch.personal_gmail = data.personalGmail;
       if (data.grantAdmakai) profilePatch.allowed_apps = ["admakai"];

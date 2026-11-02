@@ -47,5 +47,7 @@ export const getOnboardingStatus = createServerFn({ method: "GET" })
 
     const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.getUserById(context.userId);
     if (authError || !authUser.user) throw new Error("Could not check password change status.");
-    return { mustChangePassword, mustLinkTelegram, passwordResetPending: authUser.user.app_metadata?.password_reset_pending === true };
+    void mustLinkTelegram;
+    // Telegram is optional now (Phase 6): never gate the app on it.
+    return { mustChangePassword, mustLinkTelegram: false, passwordResetPending: authUser.user.app_metadata?.password_reset_pending === true };
   });

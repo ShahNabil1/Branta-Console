@@ -40,7 +40,7 @@ export const issueTrackerSession = createServerFn({ method: "POST" })
       sb.auth.getUser(),
     ]);
     if (prof?.deactivated_at) throw new Error("Your account is deactivated.");
-    if (!prof || prof.must_change_password || prof.must_link_telegram || userRes.user?.app_metadata?.password_reset_pending === true)
+    if (!prof || prof.must_change_password || userRes.user?.app_metadata?.password_reset_pending === true)
       throw new Error("Complete your required password change and account setup in Branta Console first.");
     const email = userRes.user?.email;
     if (!email) throw new Error("Your account has no email address.");

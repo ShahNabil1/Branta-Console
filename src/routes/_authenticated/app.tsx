@@ -12,6 +12,7 @@ import { TransferNotifier } from "@/components/branta/transfer-notifier";
 import { ImpersonationBanner } from "@/components/branta/impersonation-banner";
 import { usePresenceTracker } from "@/hooks/use-presence";
 import { getOnboardingStatus } from "@/lib/onboarding.functions";
+import { isImpersonating } from "@/lib/impersonation";
 
 export const Route = createFileRoute("/_authenticated/app")({
   ssr: false,
@@ -28,7 +29,11 @@ function AppShell() {
   // level, so nested routes don't re-fetch it.
   const status = useQuery({
     queryKey: ["onboarding.status"],
-    queryFn: () => statusFn(),
+    // Admins impersonating skip onboarding; the employee still sees it.
+    queryFn: () =>
+      isImpersonating()
+        ? Promise.resolve({ mustChangePassword: false, mustLinkTelegram: false, passwordResetPending: false })
+        : statusFn(),
     staleTime: 60_000,
   });
 

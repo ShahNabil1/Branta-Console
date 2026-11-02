@@ -216,7 +216,7 @@ export const setInitialPassword = createServerFn({ method: "POST" })
       const name =
         (prof2 as { full_name?: string } | null)?.full_name ??
         "New employee";
-      if (authUser.user.app_metadata?.password_reset_pending !== true && sub?.active && !(prof2 as { must_link_telegram?: boolean } | null)?.must_link_telegram) {
+      if (authUser.user.app_metadata?.password_reset_pending !== true) {
         await notify({
           event: "employee.onboarded",
           recipientRoles: ["super_admin", "admin"],
