@@ -71,6 +71,7 @@ import {
   type EmployeeRole,
   type PaymentMethodLite,
 } from "@/lib/employee-detail.functions";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { OffboardDialog } from "@/components/employee/offboard-dialog";
 import { checkIsAdmin, deleteEmployee } from "@/lib/employees.functions";
 import {
@@ -573,6 +574,9 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
                 <MailPlus /> Re-send onboarding
               </DropdownMenuItem>
             )}
+            <DropdownMenuItem onSelect={() => setLogsOpen(true)}>
+              <ShieldAlert /> Logs
+            </DropdownMenuItem>
             <DropdownMenuItem onSelect={onReset} disabled={resetMut.isPending}>
               <KeyRound /> Reset password
             </DropdownMenuItem>
@@ -1133,11 +1137,6 @@ function WalletTab({
     queryFn: () => walletFn({ data: { userId } }),
   });
 
-  const detail = useQueryClient().getQueryData<EmployeeDetail>([
-    "employee.detail",
-    userId,
-  ]);
-  const methods = (detail?.profile.payment_methods ?? []) as PaymentMethodLite[];
 
   if (wallet.isLoading) {
     return (
@@ -1197,27 +1196,6 @@ function WalletTab({
       </section>
 
       <WalletLedgerView userId={userId} admin />
-      {/* Payment methods */}
-      <section className="rounded-sm border border-border bg-card p-4 sm:p-5">
-        <div className="mb-3 flex items-center gap-2">
-          <UserCog className="size-4 text-brand" strokeWidth={2} />
-          <h3 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Payment methods
-          </h3>
-        </div>
-        {methods.length === 0 ? (
-          <p className="text-[12.5px] text-muted-foreground">
-            This employee hasn't saved any bank or MFS account yet.
-          </p>
-        ) : (
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            {methods.map((m) => (
-              <PaymentMethodCard key={m.id} m={m} />
-            ))}
-          </div>
-        )}
-      </section>
-
       {/* Payouts */}
       <section className="rounded-sm border border-border bg-card p-4 sm:p-5">
         <div className="mb-3 flex items-center gap-2">
