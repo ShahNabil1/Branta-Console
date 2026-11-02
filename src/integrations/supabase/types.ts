@@ -514,6 +514,72 @@ export type Database = {
           },
         ]
       }
+      companies: {
+        Row: {
+          address: string | null
+          ceo_user_id: string | null
+          coo_user_id: string | null
+          created_at: string
+          created_by: string | null
+          email: string
+          id: string
+          is_holding: boolean
+          name: string
+          phone: string | null
+          slug: string
+          status: string
+          updated_at: string
+          website_url: string | null
+        }
+        Insert: {
+          address?: string | null
+          ceo_user_id?: string | null
+          coo_user_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          email: string
+          id?: string
+          is_holding?: boolean
+          name: string
+          phone?: string | null
+          slug: string
+          status?: string
+          updated_at?: string
+          website_url?: string | null
+        }
+        Update: {
+          address?: string | null
+          ceo_user_id?: string | null
+          coo_user_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string
+          id?: string
+          is_holding?: boolean
+          name?: string
+          phone?: string | null
+          slug?: string
+          status?: string
+          updated_at?: string
+          website_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "companies_ceo_user_id_fkey"
+            columns: ["ceo_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "companies_coo_user_id_fkey"
+            columns: ["coo_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_ledger: {
         Row: {
           amount: number
@@ -549,6 +615,51 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      company_members: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          role: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          role?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          role?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_members_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       connected_apps: {
         Row: {
@@ -4989,6 +5100,10 @@ export type Database = {
       }
       invoice_delete_blockers: { Args: { _invoice_id: string }; Returns: Json }
       is_active_employee: { Args: { _user: string }; Returns: boolean }
+      is_company_member: {
+        Args: { _company: string; _user: string }
+        Returns: boolean
+      }
       is_finance_admin: { Args: { _user_id?: string }; Returns: boolean }
       is_lead_owner: { Args: { _lead_id: string }; Returns: boolean }
       is_ops_viewer: { Args: { _user: string }; Returns: boolean }
