@@ -162,7 +162,7 @@ export const registerSession = createServerFn({ method: "POST" })
           recipients: [context.userId],
           vars: {
             device: `${device} · ${browser}`.trim(),
-            ip: `${ip ?? "unknown"}${location ? ` (${location})` : ""}`,
+            ip: `${ip ?? "unknown"}${location ? ` (approx. ${location})` : ""}`,
             when: `${when} (BDT)`,
           },
           dedupeKey: `session:${context.userId}:${data.session_key}:new`,
