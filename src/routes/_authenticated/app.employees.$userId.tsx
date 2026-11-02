@@ -260,6 +260,8 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
   });
 
   const [offOpen, setOffOpen] = useState(false);
+  const [logsOpen, setLogsOpen] = useState(false);
+  const [logsTab, setLogsTab] = useState<"mail" | "sessions">("mail");
   const delMut = useMutation({
     mutationFn: () => deleteFn({ data: { userId } }),
     onSuccess: (res) => {
