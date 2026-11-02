@@ -39,7 +39,6 @@ export function EmailIntegrations({ slug, accent }: { slug: string; accent: stri
             <h2 className="text-[16px] font-bold">Email Settings</h2>
             <p className="text-[12px] font-semibold text-muted-foreground">Used only for {d.company.name}'s Leads, Invoices and Inbox replies. Connect one or both.</p>
           </div>
-          <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-[11px] font-bold text-muted-foreground"><Lock className="size-3" /> Keys encrypted · never shown again</span>
         </div>
         <div className="relative mt-4 grid gap-3 md:grid-cols-2">
           {(["resend", "brevo"] as P[]).map((p) => (
@@ -72,10 +71,10 @@ function ProviderCard({ p, v, on, onClick }: { p: P; v: ProviderView | null; on:
       style={on ? { ["--tw-ring-color" as string]: m.color } : undefined}>
       <span className="absolute inset-x-0 top-0 h-1 transition-all group-hover:h-1.5" style={{ background: m.color }} />
       <div className="flex items-center gap-3">
-        <span className="grid size-10 place-items-center rounded-lg text-[15px] font-black text-primary-foreground shadow-md transition-transform group-hover:rotate-6" style={{ background: m.color }}>{m.name[0]}</span>
+        <span className="grid size-10 place-items-center rounded-lg shadow-md transition-transform group-hover:rotate-6" style={{ background: m.color }}><ProviderLogo p={p} /></span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 text-[14px] font-bold">{m.name}{v?.is_default && <Star className="size-3.5 fill-brand text-brand" />}</div>
-          <div className="truncate text-[11.5px] font-semibold text-muted-foreground">{v ? `${v.sender_name} <${v.sender_email}>` : m.tag}</div>
+          {v && <div className="truncate text-[11.5px] font-semibold text-muted-foreground">{`${v.sender_name} <${v.sender_email}>`}</div>}
         </div>
         <span className={cn("rounded-full px-2 py-0.5 text-[10.5px] font-bold", s.cls)}>{s.label}</span>
         <ChevronDown className={cn("size-4 text-muted-foreground transition-transform duration-300", on && "rotate-180")} />
