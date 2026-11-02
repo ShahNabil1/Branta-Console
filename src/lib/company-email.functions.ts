@@ -62,6 +62,7 @@ export const getEmailIntegrations = createServerFn({ method: "GET" })
       resendEvents: [...m.RESEND_EVENTS],
       brevoEvents: [...m.BREVO_EVENTS],
       inboxGmail: m.INBOX_GMAIL,
+      inbox: await inboxView(admin, co.id),
     };
   });
 
@@ -82,6 +83,9 @@ export const verifyEmailProvider = createServerFn({ method: "POST" })
     const existing = await row(admin, co.id, data.provider);
     const key = data.apiKey || (existing?.is_active ? await m.open(existing.api_key_enc) : null);
     if (!key) return { ok: false, checks: [{ id: "key", label: "API key", ok: false, detail: "Paste an API key to verify." }] as Check[] };
+    const inbox = await inboxView(admin, co.id);
+    if (!inbox?.verified_at) throw new Error("Verify the Inbox address first.");
+    if (inbox.email !== data.senderEmail) throw new Error(`Sender email must be the verified Inbox address (${inbox.email}).`);
     const domain = data.senderEmail.split("@")[1];
     const checks: Check[] = [];
 
@@ -276,4 +280,60 @@ export const disconnectProvider = createServerFn({ method: "POST" })
     const { data: left } = await admin.from("company_email_providers").select("id").eq("company_id", co.id).eq("is_active", true).limit(1);
     if (left?.[0]) await admin.from("company_email_providers").update({ is_default: true }).eq("id", left[0].id);
     return { ok: true };
+  });
+
+// ---------- Inbox address (routed to the shared Gmail) ----------
+export type InboxView = { email: string; verified_at: string | null; probe_code: string | null; probe_started_at: string | null };
+async function inboxView(admin: Any, companyId: string): Promise<InboxView | null> {
+  const { data } = await admin.from("company_inbox_addresses").select("email, verified_at, probe_code, probe_started_at").eq("company_id", companyId).maybeSingle();
+  return (data as InboxView) ?? null;
+}
+
+/** Save the Inbox address and issue a one-time code for the probe email. */
+export const startInboxVerification = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({ slug: Slug, email: z.string().trim().toLowerCase().email().max(254) }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { co, admin } = await gate(context, data.slug);
+    const m = await import("@/lib/company-email.server");
+    if (data.email === m.INBOX_GMAIL) throw new Error("Use the company address that forwards to the Inbox, not the Inbox Gmail itself.");
+    const cur = await inboxView(admin, co.id);
+    const code = `BRANTA-${m.randomToken(6).toUpperCase()}`;
+    const patch: Any = { company_id: co.id, email: data.email, probe_code: code, probe_started_at: new Date().toISOString(), updated_by: context.userId };
+    if (!cur || cur.email !== data.email) patch.verified_at = null;
+    const { error } = await admin.from("company_inbox_addresses").upsert(patch, { onConflict: "company_id" });
+    if (error) throw new Error("Could not save the Inbox address.");
+    return { email: data.email, code };
+  });
+
+/** Looks for the probe email in the shared Gmail, delivered to the Inbox address. */
+export const checkInboxVerification = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({ slug: Slug }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { co, admin } = await gate(context, data.slug);
+    const cur = await inboxView(admin, co.id);
+    if (!cur?.probe_code) throw new Error("Start verification first.");
+    const { callGateway } = await import("@/lib/connector-gateway.server");
+    type L = { messages?: { id: string }[] };
+    type H = { name: string; value: string };
+    type Msg = { payload?: { headers?: H[] } };
+    let list: L;
+    try {
+      list = await callGateway<L>({ connector: "google_mail", path: "/gmail/v1/users/me/messages", query: { q: `"${cur.probe_code}" newer_than:2d`, includeSpamTrash: true, maxResults: 5 } });
+    } catch (e) {
+      return { ok: false, message: `Could not read the Inbox Gmail: ${e instanceof Error ? e.message : "error"}` };
+    }
+    const ids = list.messages ?? [];
+    if (!ids.length) return { ok: false, message: `No email with code ${cur.probe_code} has arrived yet. Routing may be missing, or give it a minute.` };
+    for (const { id } of ids) {
+      const msg = await callGateway<Msg>({ connector: "google_mail", path: `/gmail/v1/users/me/messages/${encodeURIComponent(id)}`, query: { format: "metadata", metadataHeaders: ["To", "Cc", "Delivered-To", "X-Forwarded-To", "X-Original-To", "Subject"] } });
+      const hs = msg.payload?.headers ?? [];
+      const hit = hs.some((h) => ["to", "cc", "delivered-to", "x-forwarded-to", "x-original-to"].includes(h.name.toLowerCase()) && h.value.toLowerCase().includes(cur.email));
+      if (hit) {
+        await admin.from("company_inbox_addresses").update({ verified_at: new Date().toISOString(), probe_code: null, updated_by: context.userId }).eq("company_id", co.id);
+        return { ok: true, message: `${cur.email} is delivering to the Inbox.` };
+      }
+    }
+    return { ok: false, message: `The code arrived, but not via ${cur.email}. Send it to ${cur.email} exactly.` };
   });

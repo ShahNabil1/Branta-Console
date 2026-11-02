@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   checkInboundRouting, connectBrevoWebhook, disconnectProvider, getEmailIntegrations, sendProviderTest,
-  setDefaultProvider, verifyEmailProvider, verifyResendWebhook, type Check as CheckT, type ProviderView,
+  setDefaultProvider, verifyEmailProvider, startInboxVerification, checkInboxVerification, verifyResendWebhook, type Check as CheckT, type ProviderView,
 } from "@/lib/company-email.functions";
 import { cn } from "@/lib/utils";
 
@@ -40,14 +40,20 @@ export function EmailIntegrations({ slug, accent }: { slug: string; accent: stri
             <p className="text-[12px] font-semibold text-muted-foreground">Used only for {d.company.name}'s Leads, Invoices and Inbox replies. Connect one or both.</p>
           </div>
         </div>
-        <div className="relative mt-4 grid gap-3 md:grid-cols-2">
+        <InboxAddress slug={slug} accent={accent} inbox={d.inbox} gmail={d.inboxGmail} />
+        {!d.inbox?.verified_at && (
+          <div className="relative mt-4 flex items-center gap-2 rounded-lg border border-dashed border-border bg-muted/30 px-3 py-2 text-[12px] font-semibold text-muted-foreground">
+            <Lock className="size-3.5" /> Verify the Inbox address first — Resend and Brevo unlock after that.
+          </div>
+        )}
+        <div className={cn("relative mt-4 grid gap-3 md:grid-cols-2 transition-opacity", !d.inbox?.verified_at && "pointer-events-none opacity-40")}>
           {(["resend", "brevo"] as P[]).map((p) => (
             <ProviderCard key={p} p={p} v={d[p]} on={open === p} onClick={() => setOpen(open === p ? null : p)} />
           ))}
         </div>
       </section>
 
-      {open && (
+      {open && d.inbox?.verified_at && (
         <div key={open} className="animate-in fade-in slide-in-from-top-2 duration-300">
           <Setup p={open} slug={slug} v={d[open]} data={d} both={!!d.resend && !!d.brevo} />
         </div>
@@ -129,7 +135,7 @@ function Setup({ p, slug, v, data, both }: { p: P; slug: string; v: ProviderView
         })}
       </div>
       <div key={step} className="p-5 animate-in fade-in slide-in-from-right-2 duration-300">
-        {step === 1 && <StepKey p={p} slug={slug} v={v} onDone={() => setStep(2)} />}
+        {step === 1 && <StepKey p={p} slug={slug} v={v} inboxEmail={data.inbox!.email} onDone={() => setStep(2)} />}
         {step === 2 && (p === "resend" ? <StepResendHook slug={slug} v={v} data={data} onDone={() => setStep(3)} /> : <StepBrevoHook slug={slug} v={v} data={data} onDone={() => setStep(3)} />)}
         {step === 3 && <StepFinish p={p} slug={slug} v={v} both={both} inbox={data.inboxGmail} />}
       </div>
@@ -186,10 +192,10 @@ function SecretBox({ value, onChange, placeholder, savedHint }: { value: string;
   );
 }
 
-function StepKey({ p, slug, v, onDone }: { p: P; slug: string; v: ProviderView | null; onDone: () => void }) {
+function StepKey({ p, slug, v, inboxEmail, onDone }: { p: P; slug: string; v: ProviderView | null; inboxEmail: string; onDone: () => void }) {
   const m = META[p];
   const [name, setName] = useState(v?.sender_name ?? "");
-  const [email, setEmail] = useState(v?.sender_email ?? "");
+  const email = inboxEmail;
   const [key, setKey] = useState("");
   const [checks, setChecks] = useState<CheckT[] | null>(null);
   const [busy, setBusy] = useState(false);
@@ -209,7 +215,13 @@ function StepKey({ p, slug, v, onDone }: { p: P; slug: string; v: ProviderView |
     <div className="grid gap-5 lg:grid-cols-[1fr_300px]">
       <div className="space-y-4">
         <Field label="Sender name" hint="Shown as the From name, e.g. Admakai"><Input value={name} maxLength={80} onChange={(e) => setName(e.target.value)} placeholder="Admakai" /></Field>
-        <Field label="Sender email address" hint="Use the same address that is routed to the Inbox (e.g. hello@admakai.com)."><Input value={email} onChange={(e) => setEmail(e.target.value.toLowerCase())} placeholder="hello@admakai.com" /></Field>
+        <Field label="Sender email address" hint="Locked to the verified Inbox address so client replies always land in the Inbox.">
+          <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2">
+            <Lock className="size-3.5 text-status-converted" />
+            <span className="flex-1 truncate text-[13px] font-semibold">{email}</span>
+            <CheckCircle2 className="size-4 text-status-converted" />
+          </div>
+        </Field>
         <Field label="API key" hint={m.keyHelp}><SecretBox value={key} onChange={setKey} placeholder={m.keyPh} savedHint={v?.api_key_hint ?? null} /></Field>
         <Button disabled={!can || busy} onClick={run} className="shadow-md transition-all hover:-translate-y-0.5 active:scale-95" style={{ background: m.color }}>
           {busy ? <Loader2 className="size-4 animate-spin" /> : <ShieldCheck className="size-4" />} Verify
@@ -378,6 +390,62 @@ function Tile({ icon: I, title, body, children }: { icon: LucideIcon; title: str
       <div className="flex items-center gap-2 text-[13px] font-bold"><I className="size-4 text-brand transition-transform group-hover:scale-110" />{title}</div>
       <p className="mb-3 mt-1 text-[12px] font-semibold text-muted-foreground">{body}</p>
       {children}
+    </div>
+  );
+}
+
+function InboxAddress({ slug, accent, inbox, gmail }: { slug: string; accent: string; inbox: Data["inbox"]; gmail: string }) {
+  const start = useServerFn(startInboxVerification);
+  const check = useServerFn(checkInboxVerification);
+  const refresh = useRefresh(slug);
+  const [editing, setEditing] = useState(!inbox);
+  const [email, setEmail] = useState(inbox?.email ?? "");
+  const [busy, setBusy] = useState<string | null>(null);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const valid = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
+  const pending = !!inbox?.probe_code && !inbox.verified_at;
+  const act = async (id: string, f: () => Promise<void>) => { setBusy(id); try { await f(); } catch (e) { toast.error(err(e)); } finally { setBusy(null); } };
+  const begin = () => act("start", async () => { await start({ data: { slug, email: email.trim().toLowerCase() } }); setEditing(false); setMsg(null); await refresh(); });
+  const verify = () => act("check", async () => { const r = await check({ data: { slug } }); setMsg({ ok: r.ok, text: r.message }); if (r.ok) { toast.success("Inbox address verified"); await refresh(); } });
+
+  return (
+    <div className="relative mt-4 overflow-hidden rounded-xl border border-border bg-background p-4">
+      <span className="absolute inset-y-0 left-0 w-1" style={{ background: inbox?.verified_at ? "var(--color-status-converted)" : accent }} />
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="grid size-9 place-items-center rounded-lg" style={{ background: `color-mix(in oklab, ${accent} 15%, transparent)`, color: accent }}><Inbox className="size-4" /></span>
+        <div className="min-w-0 flex-1">
+          <div className="text-[13.5px] font-bold">Inbox address</div>
+          <div className="text-[11.5px] font-semibold text-muted-foreground">Mail sent to this address shows in this company's Inbox. It must forward to {gmail}.</div>
+        </div>
+        {inbox?.verified_at && !editing && <span className="flex items-center gap-1 rounded-full bg-status-converted/15 px-2 py-0.5 text-[10.5px] font-bold text-status-converted"><CheckCircle2 className="size-3" /> Verified</span>}
+        {pending && !editing && <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10.5px] font-bold text-amber-600">Waiting for test email</span>}
+      </div>
+
+      {editing ? (
+        <div className="mt-3 flex flex-wrap gap-2 animate-in fade-in">
+          <Input value={email} onChange={(e) => setEmail(e.target.value.toLowerCase())} placeholder="info@admakai.com" className="max-w-sm" />
+          <Button disabled={!valid || !!busy} onClick={begin}>{busy === "start" ? <Loader2 className="size-4 animate-spin" /> : <ShieldCheck className="size-4" />} Save & verify</Button>
+          {inbox && <Button variant="ghost" onClick={() => { setEmail(inbox.email); setEditing(false); }}>Cancel</Button>}
+        </div>
+      ) : inbox && (
+        <div className="mt-3 space-y-3 animate-in fade-in">
+          <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2">
+            <Mail className="size-3.5 text-muted-foreground" />
+            <span className="flex-1 truncate text-[13px] font-semibold">{inbox.email}</span>
+            <Button size="sm" variant="ghost" onClick={() => setEditing(true)}><Pencil className="size-3.5" /> Change</Button>
+          </div>
+          {pending && (
+            <div className="space-y-2 rounded-lg border border-dashed border-border bg-muted/30 p-3 text-[12.5px] font-semibold">
+              <div><b>1.</b> From any other mailbox (e.g. your personal Gmail), send an email to <b>{inbox.email}</b> with this code in the subject:</div>
+              <CopyRow value={inbox.probe_code!} />
+              <div><b>2.</b> Wait a few seconds, then press Verify. We look for it in {gmail}.</div>
+              <Button size="sm" disabled={!!busy} onClick={verify}>{busy === "check" ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />} Verify</Button>
+            </div>
+          )}
+          {msg && <div className={cn("rounded-md px-3 py-2 text-[12px] font-bold animate-in fade-in", msg.ok ? "bg-status-converted/10 text-status-converted" : "bg-amber-500/10 text-amber-700")}>{msg.text}</div>}
+          {inbox.verified_at && <div className="text-[11.5px] font-semibold text-muted-foreground">Changing this address requires verifying again and re-verifying Resend/Brevo with the new sender.</div>}
+        </div>
+      )}
     </div>
   );
 }
