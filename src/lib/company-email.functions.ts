@@ -337,3 +337,83 @@ export const checkInboxVerification = createServerFn({ method: "POST" })
     }
     return { ok: false, message: `The code arrived, but not via ${cur.email}. Send it to ${cur.email} exactly.` };
   });
+
+// ---------- Automatic Inbox probe (global Branta Resend → company address → Gmail) ----------
+export type ProbeStage = "sent" | "delivered" | "forwarded" | "verified" | "failed";
+
+/** Issues a fresh code and emails it from the global Branta Tech Resend sender to the Inbox address. */
+export const sendInboxProbe = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({ slug: Slug, email: z.string().trim().toLowerCase().email().max(254) }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { co, admin } = await gate(context, data.slug);
+    const m = await import("@/lib/company-email.server");
+    if (data.email === m.INBOX_GMAIL) throw new Error("Use the company address that forwards to the Inbox, not the Inbox Gmail itself.");
+    const cur = await inboxView(admin, co.id);
+    const code = `BRANTA-${m.randomToken(6).toUpperCase()}`;
+    const patch: Any = { company_id: co.id, email: data.email, probe_code: code, probe_started_at: new Date().toISOString(), updated_by: context.userId };
+    if (!cur || cur.email !== data.email) patch.verified_at = null;
+    const { error } = await admin.from("company_inbox_addresses").upsert(patch, { onConflict: "company_id" });
+    if (error) throw new Error("Could not save the Inbox address.");
+    const { callGateway } = await import("@/lib/connector-gateway.server");
+    try {
+      const r = await callGateway<{ id: string }>({
+        connector: "resend", path: "/emails", method: "POST",
+        body: {
+          from: "Branta Tech <hello@brantatech.com>", to: [data.email],
+          subject: `[${code}] Inbox verification for ${co.name}`,
+          html: `<p>This automatic message verifies that <b>${data.email}</b> forwards to the Branta Console Inbox.</p><p>Code: <b>${code}</b></p><p>No action needed.</p>`,
+          tags: [{ name: "purpose", value: "inbox_probe" }, { name: "company", value: co.slug.replace(/[^a-zA-Z0-9_-]/g, "_") }],
+        },
+      });
+      return { emailId: r.id, code };
+    } catch (e) {
+      throw new Error(`Branta Tech's Resend could not send the test email: ${e instanceof Error ? e.message : "error"}`);
+    }
+  });
+
+/** Reports real progress: Resend delivery status, then the Gmail arrival with routing headers. */
+export const pollInboxProbe = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({ slug: Slug, emailId: z.string().trim().min(8).max(100).regex(/^[a-zA-Z0-9-]+$/) }).parse(i))
+  .handler(async ({ data, context }): Promise<{ stage: ProbeStage; message: string }> => {
+    const { co, admin } = await gate(context, data.slug);
+    const cur = await inboxView(admin, co.id);
+    if (cur?.verified_at && !cur.probe_code) return { stage: "verified", message: `${cur.email} is delivering to the Inbox.` };
+    if (!cur?.probe_code) throw new Error("Start verification first.");
+    const { callGateway } = await import("@/lib/connector-gateway.server");
+    let last = "sent";
+    try {
+      const em = await callGateway<{ to?: string[]; subject?: string; last_event?: string }>({ connector: "resend", path: `/emails/${data.emailId}` });
+      const to = (em.to ?? []).map((x) => x.toLowerCase());
+      if (!to.includes(cur.email) || !(em.subject ?? "").includes(cur.probe_code)) throw new Error("This test email does not belong to the current verification.");
+      last = em.last_event ?? "sent";
+    } catch (e) {
+      if (e instanceof Error && e.message.startsWith("This test")) throw e;
+    }
+    const failReasons: Record<string, string> = {
+      bounced: `The mail server for ${cur.email.split("@")[1]} rejected the email. Check that Email Routing is enabled for this domain in Cloudflare (MX records) and that ${cur.email} has a routing rule.`,
+      failed: "Resend could not send the test email. Press Retry.",
+      complained: "The test email was marked as spam by the receiving server.",
+      suppressed: `${cur.email} is on Resend's suppression list because an earlier email bounced. Remove it in Resend → Suppressions, then Retry.`,
+    };
+    if (failReasons[last]) return { stage: "failed", message: failReasons[last] };
+    // Gmail check (whether or not Resend has reported delivery yet)
+    type H = { name: string; value: string };
+    try {
+      const list = await callGateway<{ messages?: { id: string }[] }>({ connector: "google_mail", path: "/gmail/v1/users/me/messages", query: { q: `"${cur.probe_code}" newer_than:1d`, includeSpamTrash: true, maxResults: 5 } });
+      for (const { id } of list.messages ?? []) {
+        const msg = await callGateway<{ payload?: { headers?: H[] } }>({ connector: "google_mail", path: `/gmail/v1/users/me/messages/${encodeURIComponent(id)}`, query: { format: "metadata", metadataHeaders: ["To", "Delivered-To", "X-Forwarded-To", "X-Original-To"] } });
+        const hit = (msg.payload?.headers ?? []).some((h) => ["to", "delivered-to", "x-forwarded-to", "x-original-to"].includes(h.name.toLowerCase()) && h.value.toLowerCase().includes(cur.email));
+        if (hit) {
+          await admin.from("company_inbox_addresses").update({ verified_at: new Date().toISOString(), probe_code: null, updated_by: context.userId }).eq("company_id", co.id);
+          return { stage: "verified", message: `${cur.email} is delivering to the Inbox.` };
+        }
+      }
+      if ((list.messages ?? []).length) return { stage: "forwarded", message: "Arrived in the Inbox Gmail — checking routing headers…" };
+    } catch (e) {
+      return { stage: "failed", message: `Could not read the Inbox Gmail: ${e instanceof Error ? e.message : "error"}` };
+    }
+    if (last === "delivered") return { stage: "delivered", message: `Accepted by ${cur.email.split("@")[1]}. Waiting for Cloudflare to forward it to the Inbox Gmail…` };
+    return { stage: "sent", message: "Sent by Branta Tech's Resend. Waiting for the receiving server…" };
+  });
