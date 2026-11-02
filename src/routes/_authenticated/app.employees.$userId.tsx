@@ -416,7 +416,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
     if (!open) { setResetResult(null); resetMut.reset(); }
   };
 
-  const onboardingPending = (!e.passwordResetPending && e.mustChangePassword) || e.mustLinkTelegram;
+  const onboardingPending = !e.passwordResetPending && e.mustChangePassword;
   const pendingSteps = [
     e.mustChangePassword ? "set their personal password" : null,
     e.mustLinkTelegram ? "link Telegram" : null,

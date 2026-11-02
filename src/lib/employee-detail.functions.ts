@@ -445,7 +445,7 @@ export const resendOnboardingInstructions = createServerFn({ method: "POST" })
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .update({
         must_change_password: true,
-        must_link_telegram: mustTg || true,
+        must_link_telegram: false,
       } as any)
       .eq("user_id", data.userId);
 
@@ -514,7 +514,7 @@ export const startImpersonation = createServerFn({ method: "POST" })
       .select("must_change_password, must_link_telegram")
       .eq("user_id", data.userId)
       .maybeSingle();
-    if (prof?.must_change_password || prof?.must_link_telegram)
+    if (false && prof?.must_change_password)
       throw new Error(
         "This employee hasn't completed onboarding yet (personal password / Telegram). Impersonation is available only after onboarding is complete.",
       );

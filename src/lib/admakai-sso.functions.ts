@@ -14,7 +14,7 @@ export const issueAdmakaiSession = createServerFn({ method: "POST" })
       context.supabase.auth.getUser(),
     ]);
     if (profile.error || roles.error || auth.error || !auth.data.user?.email || !canAccessAdmakai({ roles: (roles.data ?? []).map((r) => r.role), allowedApps: profile.data?.allowed_apps ?? [], hasProfile: !!profile.data, deactivatedAt: profile.data?.deactivated_at ?? null, bannedUntil: auth.data.user?.banned_until ?? null })) throw new Error("Access denied: You do not have permission to access Admakai. Contact a Branta administrator.");
-    if (profile.data?.must_change_password || profile.data?.must_link_telegram || auth.data.user.app_metadata?.password_reset_pending === true)
+    if (profile.data?.must_change_password || auth.data.user.app_metadata?.password_reset_pending === true)
       throw new Error("Complete your required password change and account setup in Branta Console first.");
     const { isStrongSession } = await import("./session-assurance.server");
     if (!(await isStrongSession(context.supabase, context.claims, context.userId))) throw new Error("Complete Branta two-factor verification first.");
