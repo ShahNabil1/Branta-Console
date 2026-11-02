@@ -119,3 +119,39 @@ export const createCompany = createServerFn({ method: "POST" })
     if (error) throw dbError(error);
     return row as { id: string; slug: string };
   });
+
+// ---------- Company Info: per-section patch (admin or company super admin) ----------
+const nul = (max: number) => z.string().trim().max(max).nullable().optional().transform((v) => (v ? v : null));
+export const PatchCompanySchema = z.object({
+  id: z.string().uuid(),
+  patch: z.object({
+    name: z.string().trim().min(2).max(120).optional(),
+    tagline: nul(160), description: nul(2000), company_type: nul(60), industry: nul(80),
+    founded_year: z.number().int().min(1900).max(2100).nullable().optional(),
+    email: z.string().trim().email().max(254).optional(),
+    support_email: nul(254).refine((v) => !v || z.string().email().safeParse(v).success, "Invalid support email"),
+    phone: nul(11).refine((v) => !v || /^01[3-9]\d{8}$/.test(v), "Enter a valid 11-digit BD number"),
+    website_url: nul(300).refine((v) => !v || /^https?:\/\/[^\s.]+\.[^\s]+$/i.test(v), "Website must start with http:// or https://"),
+    logo_url: nul(500),
+    address_line1: nul(200).refine((v) => !v || !/[^A-Za-z0-9\s,./#()'&:-]/.test(v), "English only"),
+    division: nul(60), district: nul(60), upazila: nul(80), post_office: nul(80),
+    postcode: nul(4).refine((v) => !v || /^\d{4}$/.test(v), "Postcode must be 4 digits"),
+    address: nul(500),
+  }).strict(),
+});
+
+export const updateCompanyInfo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => PatchCompanySchema.parse(i))
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase as unknown as Sb;
+    const { data: ok } = await sb.rpc("can_manage_company", { _company: data.id, _user: context.userId });
+    if (!ok) throw new Error("You don't have permission to edit this company.");
+    const patch = Object.fromEntries(Object.entries(data.patch).filter(([, v]) => v !== undefined));
+    if (!Object.keys(patch).length) return { ok: true };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await (supabaseAdmin as unknown as Sb).from("companies")
+      .update({ ...patch, updated_by: context.userId }).eq("id", data.id);
+    if (error) throw dbError(error);
+    return { ok: true };
+  });
