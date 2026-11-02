@@ -634,6 +634,80 @@ export type Database = {
           },
         ]
       }
+      company_email_providers: {
+        Row: {
+          api_key_enc: string | null
+          api_key_hint: string | null
+          company_id: string
+          created_at: string
+          domain: string | null
+          domain_verified_at: string | null
+          id: string
+          is_active: boolean
+          is_default: boolean
+          last_check: Json | null
+          provider: string
+          sender_email: string
+          sender_name: string
+          updated_at: string
+          updated_by: string | null
+          webhook_events: string[]
+          webhook_secret_enc: string | null
+          webhook_secret_hint: string | null
+          webhook_verified_at: string | null
+        }
+        Insert: {
+          api_key_enc?: string | null
+          api_key_hint?: string | null
+          company_id: string
+          created_at?: string
+          domain?: string | null
+          domain_verified_at?: string | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          last_check?: Json | null
+          provider: string
+          sender_email: string
+          sender_name: string
+          updated_at?: string
+          updated_by?: string | null
+          webhook_events?: string[]
+          webhook_secret_enc?: string | null
+          webhook_secret_hint?: string | null
+          webhook_verified_at?: string | null
+        }
+        Update: {
+          api_key_enc?: string | null
+          api_key_hint?: string | null
+          company_id?: string
+          created_at?: string
+          domain?: string | null
+          domain_verified_at?: string | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          last_check?: Json | null
+          provider?: string
+          sender_email?: string
+          sender_name?: string
+          updated_at?: string
+          updated_by?: string | null
+          webhook_events?: string[]
+          webhook_secret_enc?: string | null
+          webhook_secret_hint?: string | null
+          webhook_verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_email_providers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_ledger: {
         Row: {
           amount: number
