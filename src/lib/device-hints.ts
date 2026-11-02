@@ -23,8 +23,8 @@ export async function collectDeviceHints(): Promise<DeviceHints> {
     if (uad) {
       out.mobile = !!uad.mobile;
       out.platform = uad.platform || undefined;
-      const hv = await Promise.race([
-        uad.getHighEntropyValues?.(["model", "platformVersion"]) ?? Promise.resolve({}),
+      const hv: Record<string, unknown> = await Promise.race<Record<string, unknown>>([
+        uad.getHighEntropyValues?.(["model", "platformVersion"]) ?? Promise.resolve<Record<string, unknown>>({}),
         new Promise<Record<string, unknown>>((r) => setTimeout(() => r({}), 800)),
       ]);
       if (typeof hv.model === "string" && hv.model) out.model = hv.model.slice(0, 80);
