@@ -19,6 +19,7 @@ import {
   Camera,
   X,
 } from "lucide-react";
+import { BadgeCheck } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -366,11 +367,13 @@ function ProfileForm({
                 />
               </Field>
               <Field label="Official Email" hint="">
-                <Input
-                  className="h-9 rounded-sm bg-muted font-mono text-[12px]"
-                  value={email}
-                  readOnly
-                />
+                <div className="flex min-h-10 items-center gap-2.5 rounded-sm border border-border bg-card px-3 py-1.5 shadow-sm">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border bg-background">
+                    <img src="/favicon-96x96.png" alt="Branta" className="h-4 w-4 rounded-full" />
+                  </span>
+                  <span className="truncate font-mono text-[12.5px] font-semibold text-foreground">{email}</span>
+                  <BadgeCheck className="h-4 w-4 shrink-0 fill-[#0866FF] text-white" aria-label="Verified" />
+                </div>
               </Field>
               <Field
                 label="Job Role"

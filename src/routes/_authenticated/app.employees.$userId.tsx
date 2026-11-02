@@ -45,7 +45,6 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import brandLogo from "@/assets/brand-logo.png.asset.json";
 import { GoogleG, CloudflareLogo } from "@/components/profile/google-gmail-connect";
 import { PLATFORM_META, type SocialPlatform } from "@/components/social/platforms";
 import { waNumberFromUrl } from "@/components/profile/social-link-rules";
@@ -1043,7 +1042,7 @@ function ProfileTab({ e }: { e: EmployeeDetail }) {
       </div>
       <div className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
         <Field label="Full name" value={p.full_name} copy />
-        <IconEmailField label="Work email" value={e.email} verified={e.workEmailVerified} icon={<img src={brandLogo.url} alt="Branta" className="size-4 rounded-sm object-contain" />} />
+        <IconEmailField label="Work email" value={e.email} verified={e.workEmailVerified} icon={<img src="/favicon-96x96.png" alt="Branta" className="size-4 rounded-full object-contain" />} />
         <IconEmailField label="Personal Gmail" value={p.personal_gmail} verified={!!e.gmailSource} icon={e.gmailSource === "cloudflare" ? <CloudflareLogo /> : <GoogleG />} />
         <PhoneField label="Phone" value={p.phone_primary} />
         <PhoneField label="Alt. phone" value={p.phone_alt} />
