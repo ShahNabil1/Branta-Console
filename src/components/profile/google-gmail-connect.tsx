@@ -116,7 +116,7 @@ export function GoogleGmailConnect({
             <div className="truncate font-mono text-[12.5px] font-semibold text-foreground">{email}</div>
             <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
               <BadgeCheck className="h-3.5 w-3.5 text-primary" />
-              <span>Signed in with Google · email verified</span>
+              <span></span>
             </div>
           </div>
         </div>

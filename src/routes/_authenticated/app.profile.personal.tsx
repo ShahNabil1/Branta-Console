@@ -327,7 +327,7 @@ function ProfileForm({
           Profile
         </h1>
         <p className="mt-1 text-[13px] text-muted-foreground">
-          Manage your personal, financial, and identity information. Each section saves on its own.
+          Manage your personal, financial, and identity information.
         </p>
       </header>
 
@@ -344,7 +344,7 @@ function ProfileForm({
               presign={presign}
             />
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <Field label="Legal Full Name" hint="Set by HR / Admin · contact them to correct it">
+              <Field label="Legal Full Name" hint="">
                 <Input
                   className="h-9 rounded-sm bg-muted"
                   value={form.legal_full_name ?? ""}
@@ -354,7 +354,7 @@ function ProfileForm({
               </Field>
               <Field
                 label="Employee Code"
-                hint="Your unique Branta Tech Employee ID"
+                hint=""
               >
                 <Input
                   className="h-9 rounded-sm bg-muted font-mono text-[12.5px] font-semibold tracking-[0.06em] text-foreground"
@@ -362,7 +362,7 @@ function ProfileForm({
                   readOnly
                 />
               </Field>
-              <Field label="Official Email" hint="Assigned by Branta Tech · read only">
+              <Field label="Official Email" hint="">
                 <Input
                   className="h-9 rounded-sm bg-muted font-mono text-[12px]"
                   value={email}
@@ -371,7 +371,7 @@ function ProfileForm({
               </Field>
               <Field
                 label="Job Role"
-                hint="Assigned by Branta Tech · read only"
+                hint=""
               >
                 <Input
                   className="h-9 rounded-sm bg-muted text-[12.5px]"
@@ -382,7 +382,7 @@ function ProfileForm({
               </Field>
               <Field
                 label="Personal Gmail *"
-                hint="Used for Google Meet invites. Must be a @gmail.com address."
+                hint=""
                 className="md:col-span-2"
               >
                 <GoogleGmailConnect
@@ -448,7 +448,7 @@ function ProfileForm({
         {/* Identity Documents */}
         <Section
           title="Identity Document"
-          description="Upload one identity document. Files are stored privately and save automatically."
+          description="Upload one identity document."
         >
           <IdentityDocumentsBlock
             form={form}
@@ -460,7 +460,7 @@ function ProfileForm({
         {/* CV */}
         <Section
           title="CV / Résumé"
-          description="Upload your latest CV in PDF format. It saves automatically."
+          description="Upload your latest CV in PDF format."
         >
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <DocumentSlot
@@ -589,7 +589,7 @@ function AddressSection({
   return (
     <Section
       title="Address"
-      description="Bangladesh only. Permanent address must match your government ID exactly."
+      description="Permanent address must match your government ID exactly."
     >
       {!editing ? (
         <div className="space-y-4">
@@ -690,7 +690,6 @@ function IdentityDocumentsBlock({
         </div>
         <div className="mt-1.5 text-muted-foreground">
           Photo tips: high resolution, no glare or blur, and all four corners clearly visible.
-          Files save automatically as soon as they upload.
         </div>
       </div>
 
