@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import {
   ArrowLeft, Building2, Check, Globe, Loader2, Lock, Mail, MapPin, Pencil, Phone, Plug, Settings2,
