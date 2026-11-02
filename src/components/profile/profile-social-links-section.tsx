@@ -1,5 +1,5 @@
 // Social Links section for the current employee's profile.
-// Mirrors the lead Social Links UX: icon dropdown + URL + label → clickable chip.
+// Icon dropdown + URL (WhatsApp: BD number with fixed prefix) + label dropdown → chip.
 import { useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -7,6 +7,13 @@ import { toast } from "sonner";
 import { Loader2, Plus, Trash2, Pencil, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Tooltip,
   TooltipContent,
@@ -24,12 +31,99 @@ import {
   type SocialPlatform,
 } from "@/components/social/platforms";
 import {
+  EMPLOYEE_EXCLUDED_PLATFORMS,
+  SOCIAL_LABELS,
+  WA_PREFIX,
+  isBdMobile,
+  waNumberFromUrl,
+  waUrl,
+} from "@/components/profile/social-link-rules";
+import {
   listMyProfileSocialLinks,
   addMyProfileSocialLink,
   updateMyProfileSocialLink,
   deleteMyProfileSocialLink,
   type ProfileSocialLinkRow,
 } from "@/lib/profile-social-links.functions";
+
+type Draft = { platform: SocialPlatform; value: string; label: string };
+
+/** Returns null if valid, else an error message. `value` is a URL or, for WhatsApp, an 11-digit number. */
+function draftError(d: Draft): string | null {
+  if (!d.value.trim()) return null;
+  if (d.platform === "whatsapp")
+    return isBdMobile(d.value) ? null : "Enter an 11-digit BD mobile number (013–019)";
+  return validateUrl(d.platform, d.value);
+}
+const draftUrl = (d: Draft) =>
+  d.platform === "whatsapp" ? waUrl(d.value) : normalizeUrl(d.platform, d.value);
+
+function LinkFields({
+  d,
+  setD,
+  compact,
+}: {
+  d: Draft;
+  setD: (d: Draft) => void;
+  compact?: boolean;
+}) {
+  const h = compact ? "h-8 text-[12px]" : "h-9 text-[12.5px]";
+  const err = draftError(d);
+  const placeholder =
+    d.platform === "website"
+      ? "https://yourdomain.com"
+      : `https://${PLATFORM_DOMAINS[d.platform][0]}/…`;
+  return (
+    <>
+      <PlatformSelect
+        value={d.platform}
+        exclude={EMPLOYEE_EXCLUDED_PLATFORMS}
+        onChange={(v) =>
+          setD({ ...d, platform: v, value: v === "whatsapp" || d.platform === "whatsapp" ? "" : d.value })
+        }
+        className={`${h} w-[150px] shrink-0 rounded-sm`}
+      />
+      {d.platform === "whatsapp" ? (
+        <div
+          className={`flex ${h} min-w-[220px] flex-1 items-center overflow-hidden rounded-sm border bg-background ${
+            err ? "border-destructive" : "border-input"
+          }`}
+        >
+          <span className="h-full shrink-0 border-r border-border bg-muted px-2 font-mono text-[11.5px] leading-[2.6] text-muted-foreground">
+            {WA_PREFIX}
+          </span>
+          <input
+            inputMode="numeric"
+            maxLength={11}
+            value={d.value}
+            onChange={(e) => setD({ ...d, value: e.target.value.replace(/\D/g, "").slice(0, 11) })}
+            placeholder="01XXXXXXXXX"
+            className="h-full min-w-0 flex-1 bg-transparent px-2 font-mono outline-none"
+          />
+        </div>
+      ) : (
+        <Input
+          value={d.value}
+          onChange={(e) => setD({ ...d, value: e.target.value })}
+          placeholder={placeholder}
+          className={`${h} min-w-[220px] flex-1 rounded-sm ${err ? "border-destructive" : ""}`}
+        />
+      )}
+      <Select value={d.label || undefined} onValueChange={(v) => setD({ ...d, label: v })}>
+        <SelectTrigger className={`${h} w-[170px] rounded-sm`}>
+          <SelectValue placeholder="Label" />
+        </SelectTrigger>
+        <SelectContent>
+          {SOCIAL_LABELS.map((l) => (
+            <SelectItem key={l} value={l}>
+              {l}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </>
+  );
+}
 
 export function ProfileSocialLinksSection() {
   const qc = useQueryClient();
@@ -43,33 +137,22 @@ export function ProfileSocialLinksSection() {
     queryFn: () => listFn({}),
   });
 
-  const [draftPlatform, setDraftPlatform] = useState<SocialPlatform>("linkedin");
-  const [draftUrl, setDraftUrl] = useState("");
-  const [draftLabel, setDraftLabel] = useState("");
+  const empty: Draft = { platform: "linkedin", value: "", label: "" };
+  const [draft, setDraft] = useState<Draft>(empty);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editDraft, setEditDraft] = useState<{
-    platform: SocialPlatform;
-    url: string;
-    label: string;
-  } | null>(null);
+  const [editDraft, setEditDraft] = useState<Draft | null>(null);
 
   const addM = useMutation({
     mutationFn: () =>
       addFn({
-        data: {
-          platform: draftPlatform,
-          url: normalizeUrl(draftPlatform, draftUrl),
-          label: draftLabel || null,
-        },
+        data: { platform: draft.platform, url: draftUrl(draft), label: draft.label || null },
       }),
     onSuccess: () => {
       toast.success("Social link added");
-      setDraftUrl("");
-      setDraftLabel("");
+      setDraft({ ...empty, platform: draft.platform });
       qc.invalidateQueries({ queryKey: ["profile-social-links"] });
     },
-    onError: (e: unknown) =>
-      toast.error(e instanceof Error ? e.message : "Failed to add"),
+    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Failed to add"),
   });
 
   const updateM = useMutation({
@@ -83,25 +166,18 @@ export function ProfileSocialLinksSection() {
       setEditDraft(null);
       qc.invalidateQueries({ queryKey: ["profile-social-links"] });
     },
-    onError: (e: unknown) =>
-      toast.error(e instanceof Error ? e.message : "Failed to update"),
+    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Failed to update"),
   });
 
   const deleteM = useMutation({
     mutationFn: (id: string) => deleteFn({ data: { id } }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["profile-social-links"] });
-    },
-    onError: (e: unknown) =>
-      toast.error(e instanceof Error ? e.message : "Failed to delete"),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["profile-social-links"] }),
+    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Failed to delete"),
   });
 
   const rows = useMemo(() => q.data ?? [], [q.data]);
-  const draftError = draftUrl.trim() ? validateUrl(draftPlatform, draftUrl) : null;
-  const placeholder =
-    draftPlatform === "website"
-      ? "https://yourdomain.com"
-      : `https://${PLATFORM_DOMAINS[draftPlatform][0]}/…`;
+  const addErr = draftError(draft);
+  const editErr = editDraft ? draftError(editDraft) : null;
 
   return (
     <div className="space-y-3">
@@ -110,58 +186,29 @@ export function ProfileSocialLinksSection() {
           {rows.map((row: ProfileSocialLinkRow) => {
             const meta = PLATFORM_META[row.platform as SocialPlatform];
             const displayName = meta?.name ?? row.platform;
-            const isEditing = editingId === row.id;
-            if (isEditing && editDraft) {
+            if (editingId === row.id && editDraft) {
               return (
                 <div
                   key={row.id}
-                  className="flex w-full items-center gap-1.5 rounded-sm border border-border bg-background p-1.5 md:w-auto"
+                  className="flex w-full flex-wrap items-center gap-1.5 rounded-sm border border-border bg-background p-1.5"
                 >
-                  <PlatformSelect
-                    value={editDraft.platform}
-                    onChange={(v) => setEditDraft({ ...editDraft, platform: v })}
-                    className="h-8 w-[140px] shrink-0 rounded-sm text-[12px]"
-                  />
-                  <Input
-                    value={editDraft.url}
-                    onChange={(e) =>
-                      setEditDraft({ ...editDraft, url: e.target.value })
-                    }
-                    placeholder="https://…"
-                    className="h-8 w-[220px] rounded-sm text-[12px]"
-                  />
-                  <Input
-                    value={editDraft.label}
-                    onChange={(e) =>
-                      setEditDraft({ ...editDraft, label: e.target.value })
-                    }
-                    placeholder="Label (optional)"
-                    className="h-8 w-[160px] rounded-sm text-[12px]"
-                  />
+                  <LinkFields d={editDraft} setD={setEditDraft} compact />
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 rounded-sm"
-                    disabled={
-                      updateM.isPending ||
-                      validateUrl(editDraft.platform, editDraft.url) !== null
-                    }
-                    onClick={() => {
-                      const err = validateUrl(editDraft.platform, editDraft.url);
-                      if (err) {
-                        toast.error(err);
-                        return;
-                      }
+                    disabled={updateM.isPending || !editDraft.value.trim() || editErr !== null}
+                    onClick={() =>
                       updateM.mutate({
                         id: row.id,
                         patch: {
                           platform: editDraft.platform,
-                          url: normalizeUrl(editDraft.platform, editDraft.url),
+                          url: draftUrl(editDraft),
                           label: editDraft.label || null,
                         },
-                      });
-                    }}
+                      })
+                    }
                     aria-label="Save"
                   >
                     {updateM.isPending ? (
@@ -183,6 +230,7 @@ export function ProfileSocialLinksSection() {
                   >
                     <X className="size-3.5" />
                   </Button>
+                  {editErr && <p className="w-full text-[11.5px] text-destructive">{editErr}</p>}
                 </div>
               );
             }
@@ -198,34 +246,30 @@ export function ProfileSocialLinksSection() {
                         className="inline-flex items-center gap-1.5 px-1.5 py-1 text-[12px] text-foreground"
                       >
                         <PlatformIcon platform={row.platform} />
-                        <span className="font-medium">
-                          {row.label?.trim() || displayName}
-                        </span>
+                        <span className="font-medium">{displayName}</span>
+                        {row.label?.trim() && (
+                          <span className="text-muted-foreground">· {row.label}</span>
+                        )}
                       </a>
                     </TooltipTrigger>
-                    <TooltipContent
-                      side="top"
-                      className="max-w-[320px] break-all text-[11.5px]"
-                    >
-                      {displayName}
-                      {row.label ? ` · ${row.label}` : ""}
-                      <br />
-                      <span className="text-muted-foreground">{row.url}</span>
+                    <TooltipContent side="top" className="max-w-[320px] break-all text-[11.5px]">
+                      {row.url}
                     </TooltipContent>
                   </Tooltip>
                   <button
                     type="button"
-                    className="inline-flex size-6 items-center justify-center rounded-sm text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100"
+                    className="inline-flex size-6 items-center justify-center rounded-sm text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground focus:opacity-100 group-hover:opacity-100"
                     onClick={() => {
+                      const platform = (SOCIAL_PLATFORMS as readonly string[]).includes(row.platform)
+                        ? (row.platform as SocialPlatform)
+                        : "website";
                       setEditingId(row.id);
                       setEditDraft({
-                        platform: (SOCIAL_PLATFORMS as readonly string[]).includes(
-                          row.platform,
-                        )
-                          ? (row.platform as SocialPlatform)
-                          : "website",
-                        url: row.url,
-                        label: row.label ?? "",
+                        platform,
+                        value: platform === "whatsapp" ? waNumberFromUrl(row.url) : row.url,
+                        label: (SOCIAL_LABELS as readonly string[]).includes(row.label ?? "")
+                          ? (row.label as string)
+                          : "",
                       });
                     }}
                     aria-label="Edit"
@@ -234,10 +278,9 @@ export function ProfileSocialLinksSection() {
                   </button>
                   <button
                     type="button"
-                    className="inline-flex size-6 items-center justify-center rounded-sm text-muted-foreground opacity-0 transition-opacity hover:bg-red-50 hover:text-red-600 group-hover:opacity-100"
+                    className="inline-flex size-6 items-center justify-center rounded-sm text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive focus:opacity-100 group-hover:opacity-100"
                     onClick={() => {
-                      if (confirm(`Remove this ${displayName} link?`))
-                        deleteM.mutate(row.id);
+                      if (confirm(`Remove this ${displayName} link?`)) deleteM.mutate(row.id);
                     }}
                     aria-label="Delete"
                   >
@@ -252,38 +295,13 @@ export function ProfileSocialLinksSection() {
 
       <div className="space-y-1">
         <div className="flex flex-wrap items-center gap-1.5">
-          <PlatformSelect
-            value={draftPlatform}
-            onChange={(v) => setDraftPlatform(v)}
-            className="h-9 w-[160px] shrink-0 rounded-sm text-[12.5px]"
-          />
-          <Input
-            value={draftUrl}
-            onChange={(e) => setDraftUrl(e.target.value)}
-            placeholder={placeholder}
-            className={`h-9 min-w-[220px] flex-1 rounded-sm text-[12.5px] ${
-              draftError ? "border-red-500 focus-visible:ring-red-500" : ""
-            }`}
-          />
-          <Input
-            value={draftLabel}
-            onChange={(e) => setDraftLabel(e.target.value)}
-            placeholder="Label (optional)"
-            className="h-9 w-[180px] rounded-sm text-[12.5px]"
-          />
+          <LinkFields d={draft} setD={setDraft} />
           <Button
             type="button"
             size="sm"
             className="h-9 rounded-sm text-[12.5px]"
-            disabled={addM.isPending || !draftUrl.trim() || draftError !== null}
-            onClick={() => {
-              const err = validateUrl(draftPlatform, draftUrl);
-              if (err) {
-                toast.error(err);
-                return;
-              }
-              addM.mutate();
-            }}
+            disabled={addM.isPending || !draft.value.trim() || addErr !== null}
+            onClick={() => addM.mutate()}
           >
             {addM.isPending ? (
               <Loader2 className="mr-1.5 size-3 animate-spin" />
@@ -293,9 +311,7 @@ export function ProfileSocialLinksSection() {
             Add
           </Button>
         </div>
-        {draftError && (
-          <p className="text-[11.5px] text-red-600">{draftError}</p>
-        )}
+        {addErr && <p className="text-[11.5px] text-destructive">{addErr}</p>}
       </div>
     </div>
   );
