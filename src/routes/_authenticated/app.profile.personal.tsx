@@ -387,6 +387,7 @@ function ProfileForm({
               >
                 <GoogleGmailConnect
                   email={gmailValid && form.personal_gmail ? form.personal_gmail : null}
+                  source={profileQuery.data?.profile.personal_gmail?.toLowerCase() === form.personal_gmail?.toLowerCase() ? profileQuery.data?.gmailSource : "google"}
                   onConnect={(mail, pic) => {
                     const patch: { personal_gmail: string; avatar_url?: string } = { personal_gmail: mail };
                     if (pic && !form.avatar_url) patch.avatar_url = pic;
