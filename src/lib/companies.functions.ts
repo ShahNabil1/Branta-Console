@@ -10,6 +10,10 @@ export type CompanyRow = {
   phone: string | null; address: string | null; website_url: string | null;
   ceo_user_id: string | null; coo_user_id: string | null;
   is_holding: boolean; status: string; created_at: string;
+  tagline?: string | null; description?: string | null; company_type?: string | null; industry?: string | null;
+  founded_year?: number | null; support_email?: string | null; logo_url?: string | null;
+  address_line1?: string | null; division?: string | null; district?: string | null;
+  upazila?: string | null; post_office?: string | null; postcode?: string | null; updated_at?: string;
 };
 export type PersonLite = { id: string; full_name: string | null; avatar_url: string | null; job_role: string | null; employee_code: string | null; email?: string | null };
 
@@ -61,8 +65,10 @@ export const getCompany = createServerFn({ method: "GET" })
     const { data: mem } = await sb.from("company_members").select("user_id, role").eq("company_id", c.id).eq("is_active", true);
     const members = (mem ?? []) as { user_id: string; role: string }[];
     const ppl = await people(sb, [c.ceo_user_id ?? "", c.coo_user_id ?? "", ...members.map((m) => m.user_id)]);
+    const { data: canManage } = await sb.rpc("can_manage_company", { _company: c.id, _user: context.userId });
     return {
       ...c,
+      canManage: !!canManage,
       ceo: c.ceo_user_id ? ppl[c.ceo_user_id] ?? null : null,
       coo: c.coo_user_id ? ppl[c.coo_user_id] ?? null : null,
       members: members.map((m) => ({ ...m, person: ppl[m.user_id] ?? null })),
