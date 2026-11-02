@@ -1,5 +1,10 @@
 # Roadmap
 
+## Company People & Access
+- [ ] Build company-scoped teams, member assignments, reporting hierarchy and protected access management.
+- [ ] Build the interactive organization chart, people directory and team editors using real employees.
+- [ ] Test hierarchy rules and company isolation; verify available live flows.
+
 ## Employee password reset
 - [x] Preserve Telegram and existing MFA; offer explicit MFA reset and one-time temporary password copy fallback.
 - [x] Separate password-only change from initial onboarding; run password-reset and existing policy regression tests.
