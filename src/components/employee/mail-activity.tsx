@@ -1,6 +1,6 @@
 // Employee mail delivery history from real Brevo events (email_events), with
 // plain-language reasons and an Unblock action when Brevo blocks an address.
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { AlertTriangle, Check, Eye, Loader2, Mail, MousePointerClick, RefreshCw, Send, ShieldOff, Unlock } from "lucide-react";
@@ -9,21 +9,21 @@ import { supabase } from "@/integrations/supabase/client";
 import { syncRecentEmailEvents, unblockEmployeeMail } from "@/lib/employees.functions";
 import { cn } from "@/lib/utils";
 
-interface Ev { id: string; event: string; email: string; subject: string | null; reason: string | null; message_id: string | null; occurred_at: string }
+interface Ev { id: string; event: string; email: string; subject: string | null; reason: string | null; message_id: string | null; occurred_at: string; raw?: { by_name?: string; by?: string } | null }
 
 export const MAIL_LABEL: Record<string, string> = {
   sent: "Sent", delivered: "Delivered", opened: "Opened", clicked: "Link clicked", deferred: "Delayed",
-  soft_bounce: "Soft bounce", hard_bounce: "Bounced", blocked: "Blocked by Brevo", spam: "Marked as spam",
+  soft_bounce: "Soft bounce", hard_bounce: "Bounced", blocked: "Blocked by mail service", spam: "Marked as spam",
   invalid_email: "Invalid address", error: "Send error", unsubscribed: "Unsubscribed", unblocked: "Unblocked",
 };
 const EXPLAIN: Record<string, string> = {
-  deferred: "The receiving mail server asked Brevo to try again later. Brevo retries automatically — usually it arrives within minutes.",
-  soft_bounce: "Temporary problem at the receiver (mailbox full, server busy). Brevo will retry; if it repeats, check the mailbox.",
-  hard_bounce: "The address does not exist or permanently refused mail. Brevo then blocks it. Check the address, Unblock, then resend.",
-  blocked: "Brevo stopped sending to this address because of an earlier bounce or spam report. Press Unblock, then resend.",
-  spam: "The recipient (or their mail provider) reported this mail as spam, so Brevo blocks further mail. Unblock only if this was a mistake.",
+  deferred: "The receiving mail server asked the mail service to try again later. The mail service retries automatically — usually it arrives within minutes.",
+  soft_bounce: "Temporary problem at the receiver (mailbox full, server busy). The mail service will retry; if it repeats, check the mailbox.",
+  hard_bounce: "The address does not exist or permanently refused mail. The mail service then blocks it. Check the address, Unblock, then resend.",
+  blocked: "The mail service stopped sending to this address because of an earlier bounce or spam report. Press Unblock, then resend.",
+  spam: "The recipient (or their mail provider) reported this mail as spam, so the mail service blocks further mail. Unblock only if this was a mistake.",
   invalid_email: "The address format is not valid, so it was never sent. Fix the email address.",
-  error: "Brevo could not process the message. Retry; if it repeats, check the Brevo account.",
+  error: "The mail service could not process the message. Retry; if it repeats, check the mail service settings.",
   unsubscribed: "The recipient unsubscribed. Transactional mail may be blocked until unblocked.",
 };
 const BAD = new Set(["hard_bounce", "blocked", "spam", "invalid_email", "error", "unsubscribed"]);
@@ -59,10 +59,17 @@ export function MailActivity({ emails }: { emails: string[] }) {
     queryFn: async () => {
       try { await syncFn(); } catch (e) { console.error("[mail-activity] Brevo sync failed", e); }
       const { data, error } = await supabase.from("email_events")
-        .select("id, event, email, subject, reason, message_id, occurred_at")
+        .select("id, event, email, subject, reason, message_id, occurred_at, raw")
         .in("email", list).order("occurred_at", { ascending: false }).limit(200);
       if (error) throw error;
-      return (data ?? []) as Ev[];
+      const rows = (data ?? []) as unknown as Ev[];
+      const ids = [...new Set(rows.filter((r) => r.event === "unblocked" && r.raw?.by && !r.raw.by_name).map((r) => r.raw!.by!))];
+      if (ids.length) {
+        const { data: ps } = await supabase.from("profiles").select("id, full_name, email").in("id", ids);
+        const nm = new Map((ps ?? []).map((p: any) => [p.id, p.full_name || p.email]));
+        rows.forEach((r) => { if (r.raw?.by && !r.raw.by_name) r.raw.by_name = nm.get(r.raw.by) ?? undefined; });
+      }
+      return rows;
     },
   });
 
@@ -82,10 +89,11 @@ export function MailActivity({ emails }: { emails: string[] }) {
   const unblocks = (q.data ?? []).filter((e) => e.event === "unblocked");
   const lastUnblock = unblocks[0];
 
+  const [shown, setShown] = useState(5);
   const unblock = useMutation({
     mutationFn: (email: string) => unblockFn({ data: { email } }),
     onSuccess: (r, email) => {
-      toast.success(r.wasBlocked ? `${email} unblocked on Brevo` : `${email} was not blocked on Brevo`, {
+      toast.success(r.wasBlocked ? `${email} unblocked ` : `${email} was not blocked `, {
         description: "New mail to this address can be delivered now. Resend the onboarding or reset mail to retry.",
       });
       qc.invalidateQueries({ queryKey: ["mail-activity"] });
@@ -101,28 +109,28 @@ export function MailActivity({ emails }: { emails: string[] }) {
           <h2 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Mail delivery history</h2>
         </div>
         <button type="button" onClick={() => q.refetch()} className="inline-flex h-7 items-center gap-1 rounded-sm border border-border px-2 text-[11px] font-semibold hover:bg-muted">
-          <RefreshCw className={cn("size-3", q.isFetching && "animate-spin")} /> Refresh from Brevo
+          <RefreshCw className={cn("size-3", q.isFetching && "animate-spin")} /> Refresh 
         </button>
       </div>
-      <p className="mb-3 text-[11.5px] text-muted-foreground">Live from Brevo for {list.join(" · ")}. Updates every 30 seconds.</p>
+      <p className="mb-3 text-[11.5px] text-muted-foreground">Live  for {list.join(" · ")}. Updates every 30 seconds.</p>
 
       {blockedEmail && (
         <div className="mb-3 flex flex-col gap-2 rounded-sm border border-rose-300 bg-rose-50 p-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex gap-2 text-[12px] text-rose-800">
             <ShieldOff className="mt-0.5 size-4 shrink-0" />
-            <div><b>{MAIL_LABEL[latestBad!.event] ?? latestBad!.event}</b> — {blockedEmail}<div className="mt-0.5">{EXPLAIN[latestBad!.event]}</div>{latestBad!.reason && <div className="mt-0.5 font-mono text-[11px]">Brevo says: {latestBad!.reason}</div>}</div>
+            <div><b>{MAIL_LABEL[latestBad!.event] ?? latestBad!.event}</b> — {blockedEmail}<div className="mt-0.5">{EXPLAIN[latestBad!.event]}</div>{latestBad!.reason && <div className="mt-0.5 font-mono text-[11px]">Provider says: {latestBad!.reason}</div>}</div>
           </div>
           <button type="button" disabled={unblock.isPending} onClick={() => unblock.mutate(blockedEmail)} className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-sm bg-brand px-3 text-[12px] font-semibold text-primary-foreground hover:bg-brand-700 disabled:opacity-60">
-            {unblock.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Unlock className="size-3.5" />} Unblock on Brevo
+            {unblock.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Unlock className="size-3.5" />} Unblock 
           </button>
         </div>
       )}
       {!blockedEmail && lastUnblock && (
         <div className="mb-3 rounded-sm border border-emerald-300 bg-emerald-50 p-3 text-[12px] text-emerald-800">
-          <div className="flex gap-2"><Unlock className="mt-0.5 size-4 shrink-0" /><div><b>Not blocked — ready for mail</b> · {lastUnblock.email}<div className="mt-0.5">Brevo can deliver to this address now. Resend the onboarding or reset mail if an earlier one failed.</div></div></div>
+          <div className="flex gap-2"><Unlock className="mt-0.5 size-4 shrink-0" /><div><b>Not blocked — ready for mail</b> · {lastUnblock.email}<div className="mt-0.5">the mail service can deliver to this address now. Resend the onboarding or reset mail if an earlier one failed.</div></div></div>
           <details className="mt-2 text-[11px]"><summary className="cursor-pointer select-none font-semibold">Block / unblock history ({unblocks.length})</summary>
             <ul className="mt-1 space-y-0.5 font-mono">
-              {(q.data ?? []).filter((e) => e.event === "unblocked" || BAD.has(e.event)).map((e) => <li key={e.id}>{fmt(e.occurred_at)} · {e.email} · {MAIL_LABEL[e.event] ?? e.event}{e.reason ? ` · ${e.reason}` : ""}</li>)}
+              {(q.data ?? []).filter((e) => e.event === "unblocked" || BAD.has(e.event)).map((e) => <li key={e.id}>{fmt(e.occurred_at)} · {e.email} · {MAIL_LABEL[e.event] ?? e.event}{e.event === "unblocked" && e.raw?.by_name ? <b className="font-sans"> · by {e.raw.by_name}</b> : null}{e.reason ? ` · ${e.reason.replace(/the mail service/g, "Mail provider")}` : ""}</li>)}
             </ul>
           </details>
         </div>
@@ -130,14 +138,14 @@ export function MailActivity({ emails }: { emails: string[] }) {
 
 
       {q.isLoading ? (
-        <div className="flex items-center gap-2 py-6 text-[12px] text-muted-foreground"><Loader2 className="size-3.5 animate-spin" /> Loading mail history from Brevo…</div>
+        <div className="flex items-center gap-2 py-6 text-[12px] text-muted-foreground"><Loader2 className="size-3.5 animate-spin" /> Loading mail history …</div>
       ) : q.isError ? (
         <div className="py-4 text-[12px] text-rose-600">Could not read mail history: {q.error instanceof Error ? q.error.message : String(q.error)}</div>
       ) : messages.length === 0 ? (
-        <div className="py-6 text-[12px] text-muted-foreground">No mail recorded for this employee yet. Welcome and password-reset mails appear here once Brevo reports them.</div>
+        <div className="py-6 text-[12px] text-muted-foreground">No mail recorded for this employee yet. Welcome and password-reset mails appear here once the mail service reports them.</div>
       ) : (
         <ul className="space-y-3">
-          {messages.map((evs) => {
+          {messages.slice(0, shown).map((evs) => {
             const first = evs[0]!;
             const top = Math.max(...evs.map((e) => RANK[e.event] ?? -1));
             const problem = [...evs].reverse().find((e) => BAD.has(e.event) || WARN.has(e.event));
@@ -169,7 +177,7 @@ export function MailActivity({ emails }: { emails: string[] }) {
                     <div className={cn("mt-2 rounded-sm border px-2 py-1.5 text-[11.5px]", fix ? "border-border bg-muted/40 text-muted-foreground" : mailTone(problem.event))}>
                       <div className="flex gap-1.5">
                         <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
-                        <div><b>{fix ? "Earlier: " : ""}{MAIL_LABEL[problem.event] ?? problem.event}</b> · {fmt(problem.occurred_at)} — {fix ? "This was the problem at that time." : EXPLAIN[problem.event] ?? "Brevo reported a problem."}{problem.reason && <div className="font-mono text-[10.5px]">Brevo says: {problem.reason}</div>}</div>
+                        <div><b>{fix ? "Earlier: " : ""}{MAIL_LABEL[problem.event] ?? problem.event}</b> · {fmt(problem.occurred_at)} — {fix ? "This was the problem at that time." : EXPLAIN[problem.event] ?? "The mail service reported a problem."}{problem.reason && <div className="font-mono text-[10.5px]">Provider says: {problem.reason}</div>}</div>
                       </div>
                       {fix && <div className="mt-1 flex gap-1.5 font-semibold text-emerald-700"><Check className="mt-0.5 size-3.5 shrink-0" /> Resolved · unblocked on {fmt(fix.occurred_at)}. Resend to deliver it now.</div>}
                     </div>
@@ -178,13 +186,18 @@ export function MailActivity({ emails }: { emails: string[] }) {
                 <details className="mt-2 text-[11px] text-muted-foreground">
                   <summary className="cursor-pointer select-none">All events ({evs.length})</summary>
                   <ul className="mt-1 space-y-0.5 font-mono">
-                    {evs.map((e) => <li key={e.id}>{fmt(e.occurred_at)} · {MAIL_LABEL[e.event] ?? e.event}{e.reason ? ` · ${e.reason}` : ""}</li>)}
+                    {evs.map((e) => <li key={e.id}>{fmt(e.occurred_at)} · {MAIL_LABEL[e.event] ?? e.event}{e.event === "unblocked" && e.raw?.by_name ? <b className="font-sans"> · by {e.raw.by_name}</b> : null}{e.reason ? ` · ${e.reason.replace(/the mail service/g, "Mail provider")}` : ""}</li>)}
                   </ul>
                 </details>
               </li>
             );
           })}
         </ul>
+      )}
+      {messages.length > shown && (
+        <button type="button" onClick={() => setShown((n) => n + 5)} className="mt-3 h-8 w-full rounded-sm border border-border text-[12px] font-semibold hover:bg-muted">
+          View more ({messages.length - shown} older)
+        </button>
       )}
     </section>
   );

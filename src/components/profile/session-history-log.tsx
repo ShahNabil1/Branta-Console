@@ -42,7 +42,7 @@ export function SessionHistoryLog({ rows }: { rows: SessionLogRow[] }) {
   return (
     <div className="mt-4">
       <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-        <History className="size-3.5" /> Logout log
+        <History className="size-3.5" /> Logout log · last 7 days
       </div>
       <ul className="max-h-72 divide-y divide-border overflow-y-auto overscroll-contain rounded-sm border border-border">
         {rows.map((s) => {

@@ -829,12 +829,15 @@ export const listEmployeeSessions = createServerFn({ method: "GET" })
     );
     const { expireStaleSessions } = await import("@/lib/user-sessions.functions");
     await expireStaleSessions(supabaseAdmin, data.userId);
+    const admin = supabaseAdmin; const cutoff = new Date(Date.now() - 7 * 864e5).toISOString();
+    void admin.from("user_sessions").delete().not("revoked_at", "is", null).lt("revoked_at", cutoff).then(() => {});
     const { data: rows, error } = await supabaseAdmin
       .from("user_sessions")
       .select(
         "id, session_key, device, browser, os, ip, country, city, region, created_at, last_seen_at, revoked_at, logout_reason",
       )
       .eq("user_id", data.userId)
+      .or(`revoked_at.is.null,revoked_at.gte.${cutoff}`)
       .order("last_seen_at", { ascending: false })
       .limit(50);
     if (error) throw dbError(error);
