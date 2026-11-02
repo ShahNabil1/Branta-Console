@@ -343,7 +343,7 @@ function ContactSection({ c, accent }: { c: Company; accent: string }) {
             </FieldL>
             <FieldL label="Website">
               <div className={cn("flex h-9 items-center overflow-hidden rounded-sm border border-input bg-background focus-within:ring-2 focus-within:ring-brand", !webOk && "border-destructive")}>
-                <span className="flex h-full items-center gap-1 border-r border-input bg-muted/40 px-2.5 text-muted-foreground"><Globe className="size-3.5" /></span>
+                <span className="flex h-full items-center gap-1 border-r border-input bg-muted/40 px-2.5 text-muted-foreground"><SiteFavicon domain={f.website_url ?? ""} /></span>
                 <input value={f.website_url} placeholder="example.com" onChange={(v) => e.set("website_url", cleanDomain(v.target.value).toLowerCase())}
                   className="h-full min-w-0 flex-1 bg-transparent px-2.5 font-mono text-[13px] outline-none" />
               </div>
@@ -360,10 +360,22 @@ function ContactSection({ c, accent }: { c: Company; accent: string }) {
           {(cx.extra_emails ?? []).map((x, i) => <View key={`e${i}`} label={`${x.label} email`} value={x.value} href={`mailto:${x.value}`} />)}
           {c.phone ? <PhoneView label="Primary phone" phone={c.phone} /> : <View label="Primary phone" value={null} />}
           {(cx.extra_phones ?? []).map((x, i) => <PhoneView key={`p${i}`} label={x.label} phone={x.value} />)}
-          <View label="Website" value={site && <span className="inline-flex items-center gap-1.5"><Globe className="size-3.5" />{site}</span>} href={site ? `https://${site}` : undefined} />
+          <View label="Website" value={site && <span className="inline-flex items-center gap-1.5"><SiteFavicon domain={site} />{site}</span>} href={site ? `https://${site}` : undefined} />
         </div>
       )}
     </Section>
+  );
+}
+
+function SiteFavicon({ domain }: { domain: string }) {
+  const d = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(domain) ? domain : "";
+  const [debounced, setDebounced] = useState(d);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => { const t = setTimeout(() => { setDebounced(d); setFailed(false); }, 400); return () => clearTimeout(t); }, [d]);
+  if (!debounced || failed) return <Globe className="size-3.5" />;
+  return (
+    <img key={debounced} src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(debounced)}&sz=64`} alt=""
+      className="size-4 rounded-[3px] object-contain animate-in fade-in zoom-in-75 duration-300" onError={() => setFailed(true)} />
   );
 }
 
