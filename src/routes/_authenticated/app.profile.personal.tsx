@@ -52,6 +52,16 @@ import {
 } from "@/components/ui/dialog";
 import Cropper, { type Area } from "react-easy-crop";
 import { cn } from "@/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/_authenticated/app/profile/personal")({
   head: () => ({ meta: [{ title: "Personal Information · Profile" }] }),
