@@ -708,6 +708,47 @@ export type Database = {
           },
         ]
       }
+      company_inbox_addresses: {
+        Row: {
+          company_id: string
+          created_at: string
+          email: string
+          probe_code: string | null
+          probe_started_at: string | null
+          updated_at: string
+          updated_by: string | null
+          verified_at: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          email: string
+          probe_code?: string | null
+          probe_started_at?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          verified_at?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          email?: string
+          probe_code?: string | null
+          probe_started_at?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_inbox_addresses_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_ledger: {
         Row: {
           amount: number
