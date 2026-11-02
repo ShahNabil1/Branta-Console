@@ -269,6 +269,7 @@ function EmployeesPage() {
     );
   }
 
+  const [startDest, setStartDest] = useState(false);
   const rows = employees.data ?? [];
 
   return (
@@ -277,7 +278,8 @@ function EmployeesPage() {
       loading={employees.isLoading}
       emailEvents={emailEvents}
       onOpen={(userId) => navigate({ to: "/app/employees/$userId", params: { userId } })}
-      onCreate={() => setOpen(true)}
+      onCreate={() => { setStartDest(false); setOpen(true); }}
+      onDestinations={() => { setStartDest(true); setOpen(true); }}
     >
       {del.isError && (
         <div className="rounded-sm border border-rose-200 bg-rose-50 px-3 py-2 text-[12px] text-rose-700">
@@ -291,6 +293,7 @@ function EmployeesPage() {
         onClose={() => setOpen(false)}
         onCreated={() => { setOpen(false); setFormKey((k) => k + 1); }}
         canCreateSuperAdmin={!!admin.data?.isSuperAdmin}
+        startInDest={startDest}
       />
 
     </EmployeesDirectory>
@@ -302,7 +305,9 @@ function CreateEmployeeModal({
   onClose,
   onCreated,
   canCreateSuperAdmin,
+  startInDest = false,
 }: {
+  startInDest?: boolean;
   open: boolean;
   onClose: () => void;
   onCreated: () => void;
@@ -326,12 +331,13 @@ function CreateEmployeeModal({
   const [gmail, setGmail] = useState("");
   const [gmailStatus, setGmailStatus] = useState<"idle" | "checking" | "verified" | "pending" | "unconfigured" | "error">("idle");
   const [gmailMsg, setGmailMsg] = useState<string | null>(null);
-  const [manualRouting, setManualRouting] = useState(false);
+  const manualRouting = false as boolean;
   const [grantAdmakai, setGrantAdmakai] = useState(false);
   const checkFn = useServerFn(checkEmailDestination);
   const prepFn = useServerFn(prepareEmailRouting);
   const [step, setStep] = useState(1);
-  const [showDest, setShowDest] = useState(false);
+  const [showDest, setShowDest] = useState(startInDest);
+  useEffect(() => { if (open) setShowDest(startInDest); }, [open, startInDest]);
   const [routeStage, setRouteStage] = useState<RouteStage>("idle");
   const [routeMsg, setRouteMsg] = useState<string | null>(null);
   const routeBusy = ["checking", "creating", "verifying"].includes(routeStage);
@@ -503,10 +509,12 @@ function CreateEmployeeModal({
         <div className="shrink-0 border-b border-border px-4 pb-3 pt-4 pr-12 sm:px-5">
           <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">New employee</div>
           <div className="mt-0.5 flex items-center justify-between gap-2">
-            <SheetTitle className="text-[15px] font-semibold">Create Console access</SheetTitle>
-            <button type="button" onClick={() => setShowDest((v) => !v)} className="inline-flex h-7 items-center gap-1 rounded-sm border border-border px-2 text-[11px] font-semibold transition-colors hover:border-brand hover:text-brand">
-              <Mail className="size-3.5" /> {showDest ? "Back to form" : "Destinations"}
-            </button>
+            <SheetTitle className="text-[15px] font-semibold">{showDest ? "Email destinations" : "Create Console access"}</SheetTitle>
+            {showDest && (
+              <button type="button" onClick={() => setShowDest(false)} className="inline-flex h-7 items-center gap-1 rounded-sm border border-border px-2 text-[11px] font-semibold transition-colors hover:border-brand hover:text-brand">
+                <Plus className="size-3.5" /> Create employee
+              </button>
+            )}
           </div>
           {!showDest && (
             <ol className="mt-3 grid grid-cols-3 gap-1.5">
@@ -587,10 +595,6 @@ function CreateEmployeeModal({
                 <span className="text-muted-foreground">Press Verify to check this Gmail in Cloudflare.</span>
               ) : null}
             </div>
-            <label className="mt-1 flex cursor-pointer items-center gap-2 text-[11.5px] text-muted-foreground">
-              <input type="checkbox" checked={manualRouting} onChange={(e) => setManualRouting(e.target.checked)} className="accent-[var(--brand)]" />
-              Set up email routing manually
-            </label>
           </div>
 
           </>)}
@@ -947,11 +951,11 @@ function DestinationsPanel() {
     setBusy(null);
   };
   const [q, setQ] = useState("");
-  const [filter, setFilter] = useState<"all" | "verified" | "pending">("all");
+  const [filter, setFilter] = useState<"all" | "verified" | "unrouted" | "pending">("all");
   const dest = useQuery({ queryKey: ["cf.destinations"], queryFn: () => listFn(), staleTime: 30_000 });
   const items = (dest.data?.items ?? []).filter((d) =>
-    (filter === "all" || (filter === "verified") === d.verified) && d.email.includes(q.trim().toLowerCase()));
-  const counts = { all: dest.data?.items.length ?? 0, verified: dest.data?.items.filter((d) => d.verified).length ?? 0, pending: dest.data?.items.filter((d) => !d.verified).length ?? 0 };
+    (filter === "all" || (filter === "verified" && d.verified) || (filter === "pending" && !d.verified) || (filter === "unrouted" && d.verified && d.rules.length === 0)) && d.email.includes(q.trim().toLowerCase()));
+  const counts = { all: dest.data?.items.length ?? 0, verified: dest.data?.items.filter((d) => d.verified).length ?? 0, pending: dest.data?.items.filter((d) => !d.verified).length ?? 0, unrouted: dest.data?.items.filter((d) => d.verified && d.rules.length === 0).length ?? 0 };
   return (
     <div className="flex min-h-0 flex-1 flex-col animate-in fade-in-0 duration-300">
       <div className="shrink-0 space-y-2 border-b border-border px-4 py-3 sm:px-5">
@@ -962,7 +966,7 @@ function DestinationsPanel() {
           </button>
         </div>
         <div className="flex gap-1">
-          {(["all", "verified", "pending"] as const).map((f) => (
+          {(["all", "verified", "unrouted", "pending"] as const).map((f) => (
             <button key={f} type="button" onClick={() => setFilter(f)} className={cn("rounded-sm border px-2 py-1 text-[11px] font-semibold capitalize transition-colors", filter === f ? "border-brand bg-brand/5 text-brand" : "border-border text-muted-foreground hover:text-foreground")}>
               {f} <span className="font-mono">{counts[f]}</span>
             </button>
@@ -979,29 +983,42 @@ function DestinationsPanel() {
         ) : items.length === 0 ? (
           <div className="py-6 text-[12px] text-muted-foreground">No addresses match.</div>
         ) : (
-          <ul className="divide-y divide-border">
-            {items.map((d) => (
-              <li key={d.email} className="space-y-1.5 py-2.5">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="min-w-0 truncate font-mono text-[12px]">{d.email}</span>
-                  <div className="flex shrink-0 items-center gap-1.5">
-                    <span className={cn("rounded-full px-2 py-0.5 text-[10.5px] font-semibold", d.verified ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700")}>{d.verified ? "Verified" : "Pending"}</span>
-                    <button type="button" disabled={!!busy} onClick={() => remove("destination", d.email, d.rules.map((r) => r.from))} aria-label={`Delete ${d.email}`} className="grid size-7 place-items-center rounded-sm border border-border text-rose-600 hover:bg-rose-50 disabled:opacity-50"><Trash2 className="size-3.5" /></button>
+          <ul className="space-y-2.5 py-1">
+            {items.map((d) => {
+              const working = busy?.key === d.email || d.rules.some((r) => r.from === busy?.key);
+              return (
+              <li key={d.email} className={cn("overflow-hidden rounded-md border bg-card shadow-sm transition-colors", d.verified ? (d.rules.length ? "border-border" : "border-amber-200") : "border-amber-300")}>
+                <div className="flex items-start gap-3 p-3">
+                  <div className={cn("grid size-8 shrink-0 place-items-center rounded-md", d.verified ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700")}><Mail className="size-4" /></div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-mono text-[12.5px] font-semibold text-foreground">{d.email}</div>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      <span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-semibold", d.verified ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700")}>{d.verified ? "Verified" : "Pending verification"}</span>
+                      <span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-semibold", d.rules.length ? "border-border bg-muted text-foreground" : "border-amber-200 bg-amber-50 text-amber-700")}>{d.rules.length ? `${d.rules.length} forwarding rule${d.rules.length > 1 ? "s" : ""}` : "Unrouted"}</span>
+                    </div>
                   </div>
+                  <button type="button" disabled={!!busy} onClick={() => remove("destination", d.email, d.rules.map((r) => r.from))} className="inline-flex h-7 shrink-0 items-center gap-1 rounded-sm border border-border px-2 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 disabled:opacity-50"><Trash2 className="size-3.5" /> Remove</button>
                 </div>
-                {d.rules.length === 0 ? (
-                  <div className="text-[11.5px] text-muted-foreground">No routing rules yet</div>
-                ) : d.rules.map((r) => (
-                  <div key={r.id} className="flex items-center justify-between gap-2 rounded-sm bg-muted/50 px-2 py-1 text-[11.5px]">
-                    <span className="min-w-0 truncate font-mono">{r.from} → this Gmail{!r.enabled && " (disabled)"}</span>
-                    <button type="button" disabled={!!busy} onClick={() => remove("rule", r.from, [])} className="shrink-0 text-rose-600 hover:underline disabled:opacity-50">Delete rule</button>
-                  </div>
-                ))}
-                {busy?.key === d.email || d.rules.some((r) => r.from === busy?.key) ? (
-                  <div className="space-y-1"><div className="flex justify-between text-[11px] text-muted-foreground"><span>{busy?.label}</span><span className="font-mono">{busy?.pct}%</span></div><Progress value={busy?.pct ?? 0} /></div>
-                ) : null}
+                <div className="border-t border-border bg-muted/30 px-3 py-2">
+                  {d.rules.length === 0 ? (
+                    <div className="text-[11.5px] text-muted-foreground">No routing rules yet — no Branta address forwards here.</div>
+                  ) : (
+                    <ul className="space-y-1">
+                      {d.rules.map((r) => (
+                        <li key={r.id} className="group flex items-center justify-between gap-2 rounded-sm border border-border bg-card px-2 py-1.5 text-[11.5px]">
+                          <span className="min-w-0 truncate"><span className="font-mono font-semibold">{r.from}</span> <span className="text-muted-foreground">→ forwards here</span>{!r.enabled && <span className="ml-1 rounded-full bg-muted px-1.5 text-[10px] font-semibold">Disabled</span>}</span>
+                          <button type="button" disabled={!!busy} onClick={() => remove("rule", r.from, [])} aria-label={`Delete rule ${r.from}`} className="grid size-6 shrink-0 place-items-center rounded-sm text-muted-foreground transition-colors hover:bg-rose-50 hover:text-rose-700 disabled:opacity-50"><Trash2 className="size-3.5" /></button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {working ? (
+                    <div className="mt-2 space-y-1"><div className="flex justify-between text-[11px] text-muted-foreground"><span>{busy?.label}</span><span className="font-mono">{busy?.pct}%</span></div><Progress value={busy?.pct ?? 0} /></div>
+                  ) : null}
+                </div>
               </li>
-            ))}
+              );
+            })}
           </ul>
         )}
       </div>
