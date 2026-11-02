@@ -478,6 +478,13 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
             </button>
           )}
           <button
+            onClick={() => setLogsOpen(true)}
+            className="inline-flex h-9 items-center gap-1.5 rounded-sm border border-border bg-card px-3 text-[12.5px] font-semibold hover:bg-muted"
+          >
+            <ShieldAlert className="size-3.5" strokeWidth={2} />
+            Logs
+          </button>
+          <button
             onClick={onReset}
             disabled={resetMut.isPending}
             className="inline-flex h-9 items-center gap-1.5 rounded-sm border border-border bg-card px-3 text-[12.5px] font-medium hover:bg-muted disabled:opacity-60"
@@ -784,7 +791,17 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
       </div>
 
       {tab === "profile" ? (
-        <><ProfileTab e={e} /><div className="mt-4"><MailActivity emails={[e.email, e.profile.personal_gmail ?? ""]} /></div></>
+        <><ProfileTab e={e} />
+          <section className="mt-4 rounded-sm border border-border bg-card p-4 sm:p-5">
+            <h3 className="mb-3 text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Payment methods</h3>
+            {(e.profile.payment_methods ?? []).length === 0 ? (
+              <p className="text-[12.5px] italic text-muted-foreground">N/A — no bank or MFS account saved yet.</p>
+            ) : (
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                {(e.profile.payment_methods as PaymentMethodLite[]).map((m) => <PaymentMethodCard key={m.id} m={m} />)}
+              </div>
+            )}
+          </section></>
       ) : tab === "wallet" ? (
         <WalletTab userId={userId} walletFn={walletFn} />
       ) : tab === "schedule" ? (
@@ -850,15 +867,28 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
         </div>
       )}
 
+      <Sheet open={logsOpen} onOpenChange={setLogsOpen}>
+        <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-[620px]">
+          <div className="border-b border-border px-5 py-4">
+            <SheetTitle className="text-[15px] font-semibold">Logs · {e.profile.full_name ?? e.email}</SheetTitle>
+            <div className="mt-3 flex gap-1 rounded-sm bg-muted p-1">
+              {(["mail", "sessions"] as const).map((t) => (
+                <button key={t} onClick={() => setLogsTab(t)} className={cn("h-8 flex-1 rounded-sm text-[12.5px] font-semibold", logsTab === t ? "bg-card text-brand shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+                  {t === "mail" ? "Mail delivery" : "Sessions & logout"}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4">
+            {logsTab === "mail" ? (
+              <MailActivity emails={[e.email, e.profile.personal_gmail ?? ""]} />
+            ) : (
+              <SessionsSection userId={userId} listFn={sessionsFn} revokeFn={revokeSessionFn} confirm={confirm} qc={qc} />
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
 
-      {/* Sessions */}
-      <SessionsSection
-        userId={userId}
-        listFn={sessionsFn}
-        revokeFn={revokeSessionFn}
-        confirm={confirm}
-        qc={qc}
-      />
 
     </div>
   );
