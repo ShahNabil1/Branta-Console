@@ -74,8 +74,10 @@ export function EmployeesDirectory({
   emailEvents,
   onOpen,
   onCreate,
+  onDestinations,
   children,
 }: {
+  onDestinations?: () => void;
   rows: EmployeeRow[];
   loading: boolean;
   emailEvents: Map<string, MailEvent[]>;
@@ -144,6 +146,12 @@ export function EmployeesDirectory({
             Team members, roles and live activity. Accounts require @brantatech.com identities.
           </p>
         </div>
+        <div className="flex gap-2">
+        {onDestinations && (
+          <button onClick={onDestinations} className="inline-flex h-10 items-center justify-center gap-2 rounded-sm border border-border bg-card px-4 text-[13px] font-semibold transition-colors hover:border-brand hover:text-brand sm:h-9">
+            <Mail className="size-3.5" /> Destinations
+          </button>
+        )}
         <button
           onClick={onCreate}
           className="inline-flex h-10 items-center justify-center gap-2 rounded-sm bg-brand px-4 text-[13px] font-semibold text-primary-foreground transition-colors hover:bg-brand-700 sm:h-9"
@@ -151,6 +159,7 @@ export function EmployeesDirectory({
           <Plus className="size-3.5" strokeWidth={2} />
           Create Employee
         </button>
+        </div>
       </header>
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
