@@ -108,7 +108,9 @@ function LoginPage() {
   const finalizeAndGo = async (opts?: { viaPasskey?: boolean }) => {
     try {
       const key = ensureSessionKey();
-      await registerSessionFn({ data: { session_key: key } }).catch(() => {});
+      const { collectDeviceHints } = await import("@/lib/device-hints");
+      const hints = await collectDeviceHints();
+      await registerSessionFn({ data: { session_key: key, hints } }).catch(() => {});
     } catch {
       /* non-fatal */
     }
