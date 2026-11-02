@@ -12,7 +12,18 @@ import {
   Star,
   Landmark,
   Smartphone,
+  Pencil,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   getMyProfile,
   updateMyProfile,
@@ -56,22 +67,10 @@ function FinanceTab() {
     };
   }, [userId, q]);
 
-  const [methods, setMethods] = useState<PaymentMethod[]>([]);
-  useEffect(() => {
-    if (q.data) setMethods(q.data.profile.payment_methods ?? []);
-  }, [q.data]);
-
-  const dirty = useMemo(
-    () =>
-      q.data
-        ? JSON.stringify(methods) !==
-          JSON.stringify(q.data.profile.payment_methods ?? [])
-        : false,
-    [methods, q.data],
-  );
+  const methods = q.data?.profile.payment_methods ?? [];
 
   const save = useMutation({
-    mutationFn: async () => {
+    mutationFn: async ({ next }: { next: PaymentMethod[]; msg: string }) => {
       const p = q.data!.profile;
       await update({
         data: {
@@ -94,7 +93,7 @@ function FinanceTab() {
           bank_routing: p.bank_routing,
           mfs_provider: p.mfs_provider,
           mfs_number: p.mfs_number,
-          payment_methods: methods,
+          payment_methods: next,
           avatar_url: p.avatar_url,
           nid_url: p.nid_url,
           cv_url: p.cv_url,
@@ -108,13 +107,12 @@ function FinanceTab() {
         },
       });
     },
-    onSuccess: () => {
-      toast.success("Payment methods updated");
+    onSuccess: (_d, v) => {
+      toast.success(v.msg);
       void q.refetch();
     },
     onError: (err) => toast.error((err as Error).message),
   });
-
 
   if (q.isLoading) {
     return (
@@ -127,36 +125,24 @@ function FinanceTab() {
 
   return (
     <div className="mx-auto w-full min-w-0 max-w-5xl space-y-4 px-3 py-5 sm:px-6 sm:py-8">
-      {/* My Wallet — moved from the removed My Wallet tab */}
       <MyWalletPanel />
 
-
-      {/* Payment Methods */}
       <section className="rounded-md border border-border bg-card">
-        <header className="flex items-start justify-between gap-4 border-b border-border px-5 py-3">
-          <div>
-            <h2 className="text-[13px] font-semibold text-foreground">
-              Payment Methods
-            </h2>
-            <p className="mt-0.5 text-[12px] text-muted-foreground">
-              Bank or Mobile-Financial-Service accounts. Mark one as primary —
-              payroll and reimbursements use it first.
-            </p>
-          </div>
-          <Button
-            onClick={() => save.mutate()}
-            disabled={!dirty || save.isPending}
-            className="h-9 rounded-sm bg-primary text-primary-foreground hover:bg-brand-700"
-          >
-            {save.isPending ? (
-              <><Loader2 className="mr-1.5 size-3.5 animate-spin" />Saving…</>
-            ) : (
-              "Save changes"
-            )}
-          </Button>
+        <header className="border-b border-border px-5 py-3">
+          <h2 className="text-[13px] font-semibold text-foreground">Payment Methods</h2>
+          <p className="mt-0.5 text-[12px] text-muted-foreground">
+            Bank or Mobile-Financial-Service accounts. Mark one as primary —
+            payroll and reimbursements use it first.
+          </p>
         </header>
         <div className="p-5">
-          <PaymentMethodsBlock methods={methods} onChange={setMethods} />
+          <PaymentMethodsBlock
+            methods={methods}
+            saving={save.isPending}
+            onSave={async (next, msg) => {
+              await save.mutateAsync({ next, msg });
+            }}
+          />
         </div>
       </section>
     </div>
@@ -190,42 +176,59 @@ function newPmId() {
   return `pm_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function pmValid(m: PaymentMethod) {
+  return m.kind === "bank"
+    ? !!(m.bank_name && m.account_holder?.trim() && m.account_number?.trim() && m.branch?.trim())
+    : !!(m.mfs_provider && m.account_holder?.trim() && /^01[3-9]\d{8}$/.test(m.mfs_number ?? ""));
+}
+
+function Confirm({
+  open, title, body, action, destructive, onCancel, onConfirm,
+}: {
+  open: boolean; title: string; body: string; action: string; destructive?: boolean;
+  onCancel: () => void; onConfirm: () => void;
+}) {
+  return (
+    <AlertDialog open={open} onOpenChange={(o) => !o && onCancel()}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
+          <AlertDialogDescription>{body}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={onConfirm}
+            className={destructive ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}
+          >
+            {action}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 function PaymentMethodsBlock({
   methods,
-  onChange,
+  onSave,
+  saving,
 }: {
   methods: PaymentMethod[];
-  onChange: (next: PaymentMethod[]) => void;
+  onSave: (next: PaymentMethod[], msg: string) => Promise<void>;
+  saving: boolean;
 }) {
-  const update = (id: string, patch: Partial<PaymentMethod>) =>
-    onChange(methods.map((m) => (m.id === id ? { ...m, ...patch } : m)));
-  const remove = (id: string) => {
-    const next = methods.filter((m) => m.id !== id);
-    if (next.length > 0 && !next.some((m) => m.is_primary)) {
-      next[0] = { ...next[0]!, is_primary: true };
-    }
-    onChange(next);
-  };
-  const setPrimary = (id: string) =>
-    onChange(methods.map((m) => ({ ...m, is_primary: m.id === id })));
-  const add = (kind: "bank" | "mfs") => {
-    const method: PaymentMethod = {
-      id: newPmId(),
-      kind,
-      is_primary: methods.length === 0,
-      bank_name: null,
-      account_holder: null,
-      account_number: null,
-      branch: null,
-      mfs_provider: null,
-      mfs_number: null,
-    };
-    onChange([...methods, method]);
-  };
+  const [draft, setDraft] = useState<PaymentMethod | null>(null);
+  const add = (kind: "bank" | "mfs") =>
+    setDraft({
+      id: newPmId(), kind, is_primary: methods.length === 0,
+      bank_name: null, account_holder: null, account_number: null, branch: null,
+      mfs_provider: null, mfs_number: null,
+    });
 
   return (
     <div className="space-y-3">
-      {methods.length === 0 && (
+      {methods.length === 0 && !draft && (
         <div className="rounded-sm border border-dashed border-border bg-muted/30 px-4 py-6 text-center text-[12px] text-muted-foreground">
           No payment methods yet. Add a bank account or an MFS wallet below.
         </div>
@@ -234,98 +237,212 @@ function PaymentMethodsBlock({
         <PaymentMethodCard
           key={m.id}
           method={m}
-          onPatch={(p) => update(m.id, p)}
-          onRemove={() => remove(m.id)}
-          onMakePrimary={() => setPrimary(m.id)}
+          saving={saving}
+          onSave={(p) => onSave(methods.map((x) => (x.id === m.id ? p : x)), "Payment method updated")}
+          onRemove={() => {
+            const next = methods.filter((x) => x.id !== m.id);
+            if (next.length && !next.some((x) => x.is_primary)) next[0] = { ...next[0]!, is_primary: true };
+            return onSave(next, "Payment method deleted");
+          }}
+          onMakePrimary={() =>
+            onSave(methods.map((x) => ({ ...x, is_primary: x.id === m.id })), "Primary method updated")
+          }
         />
       ))}
-      <div className="flex items-center gap-2 pt-1">
-        <Button type="button" variant="outline" size="sm" onClick={() => add("bank")} className="h-8 rounded-sm text-[12px]">
-          <Plus className="mr-1.5 size-3" /><Landmark className="mr-1.5 size-3.5" />Add Bank
-        </Button>
-        <Button type="button" variant="outline" size="sm" onClick={() => add("mfs")} className="h-8 rounded-sm text-[12px]">
-          <Plus className="mr-1.5 size-3" /><Smartphone className="mr-1.5 size-3.5" />Add MFS
-        </Button>
-      </div>
+      {draft && (
+        <PaymentMethodCard
+          method={draft}
+          isNew
+          saving={saving}
+          onCancelNew={() => setDraft(null)}
+          onSave={async (p) => {
+            await onSave([...methods, p], "Payment method added");
+            setDraft(null);
+          }}
+        />
+      )}
+      {!draft && (
+        <div className="flex items-center gap-2 pt-1">
+          <Button type="button" variant="outline" size="sm" onClick={() => add("bank")} className="h-9 rounded-sm text-[12.5px] font-semibold">
+            <Plus className="mr-1.5 size-3.5" /><Landmark className="mr-1.5 size-3.5" />Add Bank
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={() => add("mfs")} className="h-9 rounded-sm text-[12.5px] font-semibold">
+            <Plus className="mr-1.5 size-3.5" /><Smartphone className="mr-1.5 size-3.5" />Add MFS
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ViewRow({ label, value, mono }: { label: string; value: string | null; mono?: boolean }) {
+  return (
+    <div className="space-y-0.5">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{label}</div>
+      <div className={cn("text-[13px] font-medium text-foreground", mono && "font-mono")}>{value || "—"}</div>
     </div>
   );
 }
 
 function PaymentMethodCard({
   method,
-  onPatch,
+  isNew,
+  saving,
+  onSave,
   onRemove,
   onMakePrimary,
+  onCancelNew,
 }: {
   method: PaymentMethod;
-  onPatch: (patch: Partial<PaymentMethod>) => void;
-  onRemove: () => void;
-  onMakePrimary: () => void;
+  isNew?: boolean;
+  saving: boolean;
+  onSave: (m: PaymentMethod) => Promise<void>;
+  onRemove?: () => Promise<void>;
+  onMakePrimary?: () => Promise<void>;
+  onCancelNew?: () => void;
 }) {
+  const [editing, setEditing] = useState(!!isNew);
+  const [d, setD] = useState<PaymentMethod>(method);
+  const [confirm, setConfirm] = useState<null | "delete" | "primary">(null);
+  useEffect(() => {
+    if (!editing) setD(method);
+  }, [method, editing]);
+  const onPatch = (p: Partial<PaymentMethod>) => setD((x) => ({ ...x, ...p }));
+  const dirty = isNew || JSON.stringify(d) !== JSON.stringify(method);
+  const cancel = () => (isNew ? onCancelNew?.() : (setD(method), setEditing(false)));
+  const save = async () => {
+    try {
+      await onSave(d);
+      setEditing(false);
+    } catch {
+      /* toast shown by mutation */
+    }
+  };
+  const m = editing ? d : method;
+
   return (
     <div
       className={cn(
         "rounded-md border bg-card p-4 transition-colors",
-        method.is_primary ? "border-brand ring-1 ring-brand/30" : "border-border",
+        method.is_primary && !isNew ? "border-brand ring-1 ring-brand/30" : "border-border",
       )}
     >
       <div className="mb-3 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <div className="inline-flex items-center gap-1 rounded-sm border border-border p-0.5 text-[11px]">
-            <button type="button" onClick={() => onPatch({ kind: "bank" })}
-              className={cn("rounded-[3px] px-2 py-0.5", method.kind === "bank" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground")}>
-              Bank
-            </button>
-            <button type="button" onClick={() => onPatch({ kind: "mfs" })}
-              className={cn("rounded-[3px] px-2 py-0.5", method.kind === "mfs" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground")}>
-              MFS
-            </button>
-          </div>
-          {method.is_primary && (
+          {editing && isNew ? (
+            <div className="inline-flex items-center gap-1 rounded-sm border border-border p-0.5 text-[11px]">
+              {(["bank", "mfs"] as const).map((k) => (
+                <button key={k} type="button" onClick={() => onPatch({ kind: k })}
+                  className={cn("rounded-[3px] px-2 py-0.5 font-semibold", m.kind === k ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground")}>
+                  {k === "bank" ? "Bank" : "MFS"}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-foreground">
+              {m.kind === "bank" ? <Landmark className="size-4" /> : <Smartphone className="size-4" />}
+              {m.kind === "bank" ? m.bank_name || "Bank account" : m.mfs_provider || "MFS wallet"}
+            </span>
+          )}
+          {method.is_primary && !isNew && (
             <span className="inline-flex items-center gap-1 rounded-sm bg-brand/10 px-1.5 py-0.5 text-[11px] font-semibold text-brand">
               <Star className="size-3 fill-current" /> Primary
             </span>
           )}
         </div>
-        <div className="flex items-center gap-1.5">
-          {!method.is_primary && (
-            <Button type="button" variant="ghost" size="sm" onClick={onMakePrimary} className="h-7 rounded-sm text-[11px]">
-              <Star className="mr-1 size-3" /> Make primary
+        {!editing && (
+          <div className="flex items-center gap-1.5">
+            {!method.is_primary && (
+              <Button type="button" variant="ghost" size="sm" disabled={saving} onClick={() => setConfirm("primary")} className="h-7 rounded-sm text-[11.5px] font-semibold">
+                <Star className="mr-1 size-3" /> Make primary
+              </Button>
+            )}
+            <Button type="button" variant="outline" size="sm" onClick={() => setEditing(true)} className="h-7 rounded-sm text-[11.5px] font-semibold">
+              <Pencil className="mr-1 size-3" /> Edit
             </Button>
-          )}
-          <Button type="button" variant="ghost" size="sm" onClick={onRemove} className="h-7 rounded-sm text-[11px] text-red-600 hover:bg-red-50 hover:text-red-700">
-            <Trash2 className="size-3.5" />
-          </Button>
-        </div>
+          </div>
+        )}
       </div>
-      {method.kind === "bank" ? (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <Field label="Bank Name *">
-            <SearchableSelect value={method.bank_name ?? null} onChange={(v) => onPatch({ bank_name: v })} options={BD_BANKS} placeholder="Search Bangladeshi banks…" />
-          </Field>
-          <Field label="Account Holder Name *">
-            <Input className="h-9 rounded-sm" value={method.account_holder ?? ""} onChange={(e) => onPatch({ account_holder: e.target.value })} />
-          </Field>
-          <Field label="Account Number *">
-            <Input className="h-9 rounded-sm font-mono text-[12px]" value={method.account_number ?? ""} onChange={(e) => onPatch({ account_number: e.target.value })} />
-          </Field>
-          <Field label="Branch *">
-            <Input className="h-9 rounded-sm" value={method.branch ?? ""} onChange={(e) => onPatch({ branch: e.target.value })} placeholder="e.g. Gulshan, Dhaka" />
-          </Field>
-        </div>
+
+      {!editing ? (
+        m.kind === "bank" ? (
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <ViewRow label="Account Holder" value={m.account_holder} />
+            <ViewRow label="Account Number" value={m.account_number} mono />
+            <ViewRow label="Branch" value={m.branch} />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <ViewRow label="Account Holder" value={m.account_holder} />
+            <ViewRow label="MFS Number" value={m.mfs_number} mono />
+          </div>
+        )
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <Field label="MFS Provider *">
-            <SearchableSelect value={method.mfs_provider ?? null} onChange={(v) => onPatch({ mfs_provider: v })} options={BD_MFS_PROVIDERS} placeholder="Select MFS provider…" />
-          </Field>
-          <Field label="Account Holder Name *">
-            <Input className="h-9 rounded-sm" value={method.account_holder ?? ""} onChange={(e) => onPatch({ account_holder: e.target.value })} />
-          </Field>
-          <Field label="MFS Number *" className="md:col-span-2">
-            <Input className="h-9 rounded-sm font-mono text-[12px]" value={method.mfs_number ?? ""} onChange={(e) => onPatch({ mfs_number: e.target.value })} placeholder="01XXXXXXXXX" inputMode="numeric" />
-          </Field>
-        </div>
+        <>
+          {m.kind === "bank" ? (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <Field label="Bank Name *">
+                <SearchableSelect value={m.bank_name ?? null} onChange={(v) => onPatch({ bank_name: v })} options={BD_BANKS} placeholder="Search Bangladeshi banks…" />
+              </Field>
+              <Field label="Account Holder Name *">
+                <Input className="h-9 rounded-sm" value={m.account_holder ?? ""} onChange={(e) => onPatch({ account_holder: e.target.value })} />
+              </Field>
+              <Field label="Account Number *">
+                <Input className="h-9 rounded-sm font-mono text-[12px]" value={m.account_number ?? ""} onChange={(e) => onPatch({ account_number: e.target.value })} />
+              </Field>
+              <Field label="Branch *">
+                <Input className="h-9 rounded-sm" value={m.branch ?? ""} onChange={(e) => onPatch({ branch: e.target.value })} placeholder="e.g. Gulshan, Dhaka" />
+              </Field>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <Field label="MFS Provider *">
+                <SearchableSelect value={m.mfs_provider ?? null} onChange={(v) => onPatch({ mfs_provider: v })} options={BD_MFS_PROVIDERS} placeholder="Select MFS provider…" />
+              </Field>
+              <Field label="Account Holder Name *">
+                <Input className="h-9 rounded-sm" value={m.account_holder ?? ""} onChange={(e) => onPatch({ account_holder: e.target.value })} />
+              </Field>
+              <Field label="MFS Number *" className="md:col-span-2">
+                <Input className="h-9 rounded-sm font-mono text-[12px]" value={m.mfs_number ?? ""} onChange={(e) => onPatch({ mfs_number: e.target.value.replace(/\D/g, "").slice(0, 11) })} placeholder="01XXXXXXXXX" inputMode="numeric" />
+              </Field>
+            </div>
+          )}
+          <div className="mt-4 flex items-center justify-between gap-2 border-t border-border pt-3">
+            {!isNew ? (
+              <Button type="button" variant="ghost" size="sm" disabled={saving} onClick={() => setConfirm("delete")} className="h-8 rounded-sm text-[12px] font-semibold text-destructive hover:bg-destructive/10 hover:text-destructive">
+                <Trash2 className="mr-1 size-3.5" /> Delete
+              </Button>
+            ) : <span />}
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="outline" size="sm" onClick={cancel} disabled={saving} className="h-8 rounded-sm text-[12px]">
+                Cancel
+              </Button>
+              <Button type="button" size="sm" onClick={save} disabled={!dirty || !pmValid(d) || saving} className="h-8 rounded-sm text-[12px] font-semibold">
+                {saving ? <Loader2 className="mr-1 size-3.5 animate-spin" /> : null}
+                {isNew ? "Save" : "Save changes"}
+              </Button>
+            </div>
+          </div>
+        </>
       )}
+
+      <Confirm
+        open={confirm === "primary"}
+        title="Make this your primary method?"
+        body="Payroll and reimbursements will be sent to this account first."
+        action="Make primary"
+        onCancel={() => setConfirm(null)}
+        onConfirm={() => { setConfirm(null); void onMakePrimary?.().catch(() => {}); }}
+      />
+      <Confirm
+        open={confirm === "delete"}
+        title="Delete this payment method?"
+        body={method.is_primary ? "This is your primary method. The next saved method will become primary." : "This account will be removed from your profile."}
+        action="Delete"
+        destructive
+        onCancel={() => setConfirm(null)}
+        onConfirm={() => { setConfirm(null); void onRemove?.().then(() => setEditing(false)).catch(() => {}); }}
+      />
     </div>
   );
 }

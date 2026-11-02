@@ -67,7 +67,7 @@ function LinkFields({
   setD: (d: Draft) => void;
   compact?: boolean;
 }) {
-  const h = compact ? "h-8 text-[12px]" : "h-9 text-[12.5px]";
+  const h = `${compact ? "h-9 text-[13px]" : "h-10 text-[13.5px]"} font-semibold border-2 border-foreground/20 shadow-sm focus-visible:border-brand focus:border-brand`;
   const err = draftError(d);
   const placeholder =
     d.platform === "website"
