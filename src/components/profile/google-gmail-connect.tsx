@@ -72,7 +72,7 @@ export function GoogleGmailConnect({
               return;
             }
             cbRef.current(mail, typeof p.picture === "string" ? p.picture.replace(/=s\d+-c$/, "=s400-c") : null);
-            toast.success("Gmail connected — click Save changes");
+            
           },
         });
         gid.renderButton(btnRef.current, {
@@ -90,6 +90,7 @@ export function GoogleGmailConnect({
       cancelled = true;
       const g = (window as unknown as { google?: { accounts?: { id?: GoogleId } } }).google;
       g?.accounts?.id?.cancel();
+      if (btnRef.current) btnRef.current.innerHTML = "";
     };
   }, [email]);
 
@@ -114,7 +115,7 @@ export function GoogleGmailConnect({
             <AlertDialogHeader>
               <AlertDialogTitle>Disconnect Gmail?</AlertDialogTitle>
               <AlertDialogDescription>
-                <span className="font-mono">{email}</span> will be removed from your profile. Your profile photo stays unchanged. Click Save changes to apply.
+                <span className="font-mono">{email}</span> will be removed from your profile. Your profile photo stays unchanged.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

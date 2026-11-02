@@ -29,6 +29,7 @@ import {
 import {
   getMyProfile,
   updateMyProfile,
+  patchMyProfile,
   type ProfileRow,
   type PaymentMethod,
 } from "@/lib/profile.functions";
@@ -216,10 +217,28 @@ function ProfileForm({
   const set = <K extends keyof ProfileRow>(k: K, v: ProfileRow[K]) =>
     setForm((prev) => ({ ...prev, [k]: v }));
 
-  const dirty = useMemo(
-    () => JSON.stringify(form) !== JSON.stringify(profile),
-    [form, profile],
-  );
+  // Avatar + Gmail save instantly and the name is admin-managed, so they
+  // never count toward the page's unsaved state.
+  const dirty = useMemo(() => {
+    const strip = (r: ProfileRow) => ({ ...r, avatar_url: null, personal_gmail: null, legal_full_name: null, full_name: null });
+    return JSON.stringify(strip(form)) !== JSON.stringify(strip(profile));
+  }, [form, profile]);
+
+  const patchFn = useServerFn(patchMyProfile);
+  const patchField = async (
+    patch: { avatar_url?: string | null; personal_gmail?: string | null },
+    okMsg: string,
+  ) => {
+    const prev = { avatar_url: form.avatar_url, personal_gmail: form.personal_gmail };
+    setForm((f) => ({ ...f, ...patch }));
+    try {
+      await patchFn({ data: patch });
+      toast.success(okMsg);
+    } catch (err) {
+      setForm((f) => ({ ...f, ...prev }));
+      toast.error("Could not save", { description: (err as Error).message });
+    }
+  };
 
   const isValidBdPhone = (v: string | null | undefined) =>
     !!v && /^01[3-9]\d{8}$/.test(v);
@@ -344,16 +363,16 @@ function ProfileForm({
           <div className="grid grid-cols-1 gap-4 md:grid-cols-[120px_1fr]">
             <AvatarUploader
               url={form.avatar_url}
-              onChange={(u) => set("avatar_url", u)}
+              onChange={(u) => void patchField({ avatar_url: u }, u ? "Profile photo saved" : "Profile photo removed")}
               presign={presign}
             />
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <Field label="Legal Full Name">
+              <Field label="Legal Full Name" hint="Set by HR / Admin · contact them to correct it">
                 <Input
-                  className="h-9 rounded-sm"
+                  className="h-9 rounded-sm bg-muted"
                   value={form.legal_full_name ?? ""}
-                  onChange={(e) => set("legal_full_name", e.target.value)}
-                  placeholder="As it appears on your NID / passport"
+                  readOnly
+                  placeholder="Not set yet"
                 />
               </Field>
               <Field
@@ -392,10 +411,11 @@ function ProfileForm({
                 <GoogleGmailConnect
                   email={gmailValid && form.personal_gmail ? form.personal_gmail : null}
                   onConnect={(mail, pic) => {
-                    set("personal_gmail", mail);
-                    if (pic && !form.avatar_url) set("avatar_url", pic);
+                    const patch: { personal_gmail: string; avatar_url?: string } = { personal_gmail: mail };
+                    if (pic && !form.avatar_url) patch.avatar_url = pic;
+                    void patchField(patch, "Gmail connected and saved");
                   }}
-                  onDisconnect={() => set("personal_gmail", null)}
+                  onDisconnect={() => void patchField({ personal_gmail: null }, "Gmail disconnected")}
                 />
               </Field>
             </div>

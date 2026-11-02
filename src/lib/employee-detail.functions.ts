@@ -226,6 +226,42 @@ export const setEmployeeJobRole = createServerFn({ method: "POST" })
     return { ok: true as const, jobRole: value };
   });
 
+// Admin-only: edit an employee's display and legal names (employees can't edit their own).
+export const setEmployeeName = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        userId: uuid,
+        fullName: z.string().trim().min(2).max(120),
+        legalFullName: z.string().trim().min(2).max(160),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: before } = await supabaseAdmin
+      .from("profiles")
+      .select("full_name, legal_full_name")
+      .eq("user_id", data.userId)
+      .maybeSingle();
+    const { error } = await supabaseAdmin
+      .from("profiles")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .update({ full_name: data.fullName, legal_full_name: data.legalFullName } as any)
+      .eq("user_id", data.userId);
+    if (error) throw dbError(error);
+    console.info("[audit] employee name changed", {
+      actor: context.userId,
+      target: data.userId,
+      before,
+      after: { full_name: data.fullName, legal_full_name: data.legalFullName },
+    });
+    { const { syncEmployeeAppsSafe } = await import("@/lib/employee-app-sync.server"); await syncEmployeeAppsSafe(data.userId); }
+    return { ok: true as const };
+  });
+
 
 // Replace the target user's roles atomically. Only super_admin can grant
 // super_admin. A super_admin cannot demote themselves (avoid lockout).

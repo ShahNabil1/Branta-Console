@@ -175,12 +175,43 @@ export const updateMyProfile = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
     );
-    // Keep display "full_name" in sync with legal_full_name — there is only
-    // one canonical name for an employee.
+    // Names are admin-managed (Employee detail → Edit name); employees can't change them.
     const payload: Record<string, unknown> = { ...data };
-    if (payload.legal_full_name) {
-      payload.full_name = payload.legal_full_name;
-    }
+    delete payload.full_name;
+    delete payload.legal_full_name;
+    const { error } = await supabaseAdmin
+      .from("profiles")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .update(payload as any)
+      .eq("user_id", context.userId);
+    if (error) throw dbError(error);
+    { const { syncEmployeeAppsSafe } = await import("@/lib/employee-app-sync.server"); await syncEmployeeAppsSafe(context.userId); }
+    return { ok: true as const };
+  });
+
+/** Instant single-field saves (avatar, personal Gmail) — no global Save needed. */
+export const patchMyProfile = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        avatar_url: z.string().trim().max(500).nullable().optional(),
+        personal_gmail: z
+          .string()
+          .trim()
+          .toLowerCase()
+          .regex(/^[a-z0-9._%+-]+@gmail\.com$/, "Must be a @gmail.com address")
+          .nullable()
+          .optional(),
+      })
+      .refine((v) => v.avatar_url !== undefined || v.personal_gmail !== undefined, "Nothing to save")
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const payload: Record<string, unknown> = {};
+    if (data.avatar_url !== undefined) payload.avatar_url = data.avatar_url || null;
+    if (data.personal_gmail !== undefined) payload.personal_gmail = data.personal_gmail || null;
     const { error } = await supabaseAdmin
       .from("profiles")
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
