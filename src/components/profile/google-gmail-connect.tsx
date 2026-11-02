@@ -36,7 +36,7 @@ function decodeJwt(token: string): Record<string, unknown> {
   return JSON.parse(json);
 }
 
-function GoogleG() {
+export function GoogleG() {
   return (
     <svg viewBox="0 0 48 48" className="h-4 w-4" aria-label="Google">
       <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.6 5.4 2.7 13.3l7.9 6.1C12.5 13.6 17.8 9.5 24 9.5z" />
@@ -47,7 +47,7 @@ function GoogleG() {
   );
 }
 
-function CloudflareLogo() {
+export function CloudflareLogo() {
   return (
     <svg viewBox="0 0 64 30" className="h-3.5 w-4" aria-label="Cloudflare">
       <path fill="#F38020" d="M44 27l.6-2c.7-2.4.4-4.6-.8-6.2-1.1-1.5-2.9-2.3-5-2.4l-20.6-.3c-.1 0-.3-.1-.3-.2-.1-.1-.1-.2 0-.4.1-.2.2-.3.4-.3l20.8-.3c2.5-.1 5.1-2.1 6-4.5l1.2-3.1c.1-.1.1-.3 0-.4C44.9 3 40 0 34.5 0 27.9 0 22.4 4.3 20.4 10.2c-1.3-1-2.9-1.5-4.7-1.3-3.1.3-5.6 2.8-5.9 5.9-.1.8 0 1.6.2 2.3C4.9 17.2 1 21.4 1 26.5c0 .5 0 .9.1 1.4 0 .2.2.4.4.4h41.9c.3 0 .5-.2.6-.4z"/>
