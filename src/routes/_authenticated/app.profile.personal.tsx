@@ -533,10 +533,14 @@ function parsePresent(raw: string | null): { same: boolean; addr: AddrFields } {
   }
   return { same: false, addr: empty };
 }
-const fmtAddr = (r: AddrFields) =>
-  [r.address_line1, r.post_office, r.upazila, r.district, r.division, r.postcode]
+// Bangladesh standard: "<address>, <PostOffice>-<Postcode>, <Upazila>, <District>, <Division>."
+const fmtAddr = (r: AddrFields) => {
+  const po = [r.post_office, r.postcode].filter(Boolean).join("-");
+  const s = [r.address_line1?.trim().replace(/[,.\s]+$/, ""), po, r.upazila, r.district, r.division]
     .filter(Boolean)
-    .join(", ") || "Not added yet";
+    .join(", ");
+  return s ? `${s}.` : "Not added yet";
+};
 
 function AddressSection({
   profile,
