@@ -363,10 +363,12 @@ export const unblockEmployeeMail = createServerFn({ method: "POST" })
     // Record the outcome so history shows block → unblock and the current state is real.
     try {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: me } = await supabaseAdmin.from("profiles").select("full_name, email").eq("id", context.userId).maybeSingle();
+      const byName = (me as any)?.full_name || (me as any)?.email || "Admin";
       await supabaseAdmin.from("email_events").insert({
         event: "unblocked", email: data.email, subject: null,
-        reason: wasBlocked ? "Removed from Brevo blocklist by admin" : "Brevo confirmed the address is not blocked",
-        occurred_at: new Date().toISOString(), raw: { source: "console_unblock", by: context.userId, wasBlocked },
+        reason: wasBlocked ? `Removed from blocklist by ${byName}` : `Checked by ${byName} · address was not blocked`,
+        occurred_at: new Date().toISOString(), raw: { source: "console_unblock", by: context.userId, by_name: byName, wasBlocked },
       });
     } catch (e) { console.error("[unblock] history insert failed", e); }
     return { ok: true as const, wasBlocked };
