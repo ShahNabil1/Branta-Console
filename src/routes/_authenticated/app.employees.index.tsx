@@ -234,6 +234,7 @@ function EmployeesPage() {
 
   const [open, setOpen] = useState(false);
   const [formKey, setFormKey] = useState(0);
+  const [startDest, setStartDest] = useState(false);
 
   const { byEmail: emailEvents } = useEmailEvents(
     !!admin.data?.isAdmin,
@@ -269,7 +270,6 @@ function EmployeesPage() {
     );
   }
 
-  const [startDest, setStartDest] = useState(false);
   const rows = employees.data ?? [];
 
   return (
