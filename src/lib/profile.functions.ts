@@ -20,7 +20,8 @@ const UpdateProfileInput = z.object({
   phone_primary: nullableString(30),
   phone_alt: nullableString(30),
   address_line1: nullableString(200),
-  address_line2: nullableString(200),
+  // Holds the present address as JSON ({ same } or address fields).
+  address_line2: nullableString(1000),
   city: nullableString(80),
   district: nullableString(80),
   division: nullableString(80),
