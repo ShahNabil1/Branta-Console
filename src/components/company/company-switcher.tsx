@@ -26,32 +26,49 @@ export function useActiveCompany() {
   return { active, list, isLoading: q.isLoading };
 }
 
-export function CompanySwitcher({ collapsed, canManage }: { collapsed: boolean; canManage: boolean }) {
+export function CompanySwitcher({ collapsed, canManage, holdingLogoUrl }: { collapsed: boolean; canManage: boolean; holdingLogoUrl?: string }) {
   const { active, list } = useActiveCompany();
   const slug = useActiveCompanySlug();
   useEffect(() => {
     if (active && slug && slug !== active.slug) setActiveCompanySlug(active.slug);
   }, [active, slug]);
   if (!active) return null;
+  const logo = (active as { logo_url?: string | null }).logo_url || (active.is_holding ? holdingLogoUrl : undefined);
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
           type="button"
+          aria-label={`Switch company (current: ${active.name})`}
           className={cn(
-            "group flex w-full items-center gap-2 rounded-md border border-border bg-card p-1.5 text-left shadow-sm transition-all hover:-translate-y-px hover:border-brand/40 hover:shadow-md active:translate-y-0 active:scale-[0.99]",
-            collapsed && "md:justify-center md:border-transparent md:shadow-none",
+            "group flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left transition-all hover:bg-muted active:scale-[0.99]",
+            collapsed && "md:justify-center md:px-0",
           )}
         >
-          <CompanyAvatar name={active.name} slug={active.slug} className="size-7" />
           <span className={cn("min-w-0 flex-1", collapsed && "md:hidden")}>
-            <span className="block truncate text-[12.5px] font-bold">{active.name}</span>
-            <span className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+            {logo ? (
+              <img src={logo} alt={active.name} className="h-6 w-auto max-w-full object-contain" />
+            ) : (
+              <span className="flex items-center gap-2">
+                <CompanyAvatar name={active.name} slug={active.slug} className="size-6" />
+                <span className="truncate text-[13px] font-bold">{active.name}</span>
+              </span>
+            )}
+            <span className="mt-0.5 block text-[9.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               {active.is_holding ? "Group · Holding" : "Company"}
             </span>
           </span>
-          <ChevronsUpDown className={cn("size-3.5 text-muted-foreground transition-transform group-hover:text-brand group-data-[state=open]:rotate-180", collapsed && "md:hidden")} />
+          {collapsed && (
+            <span className="hidden md:block">
+              {logo ? (
+                <img src={logo} alt={active.name} className="size-7 object-cover object-left" />
+              ) : (
+                <CompanyAvatar name={active.name} slug={active.slug} className="size-7" />
+              )}
+            </span>
+          )}
+          <ChevronsUpDown className={cn("size-3.5 shrink-0 text-muted-foreground transition-transform group-hover:text-brand group-data-[state=open]:rotate-180", collapsed && "md:hidden")} />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-64 p-1.5">

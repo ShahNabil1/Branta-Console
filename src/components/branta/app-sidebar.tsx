@@ -240,27 +240,23 @@ export function AppSidebar() {
         collapsed ? "md:w-14" : "md:w-60",
       )}
     >
-      {/* Logo + collapse */}
-      <div className="hairline-b flex h-14 items-center justify-between px-3">
-        <Link to="/app" className="flex items-center gap-2 overflow-hidden">
-          <img
-            src={brandLogo.url}
-            alt="Branta"
-            className={cn("h-6 w-auto shrink-0", collapsed && "md:h-7")}
+      {/* Company switcher (logo) + collapse */}
+      <div className={cn("hairline-b flex min-h-14 items-center gap-1 px-2 py-1.5", collapsed && "md:flex-col md:px-1.5")}>
+        <div className="min-w-0 flex-1 md:w-full">
+          <CompanySwitcher
+            collapsed={collapsed}
+            canManage={Boolean(permsQ.data?.isAdmin ?? permsQ.data?.isSuperAdmin)}
+            holdingLogoUrl={brandLogo.url}
           />
-        </Link>
+        </div>
         <button
           onClick={toggle}
-          className="hidden size-6 shrink-0 place-items-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground md:grid"
-          aria-label="Toggle sidebar"
+          className="hidden size-7 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:grid"
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
-          <ChevronsLeft
-            className={cn("size-3.5 transition-transform", collapsed && "rotate-180")}
-          />
+          <ChevronsLeft className={cn("size-4 transition-transform", collapsed && "rotate-180")} />
         </button>
-      </div>
-      <div className="hairline-b p-2">
-        <CompanySwitcher collapsed={collapsed} canManage={Boolean(permsQ.data?.isAdmin ?? permsQ.data?.isSuperAdmin)} />
       </div>
 
       {/* Nav */}
