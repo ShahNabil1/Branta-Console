@@ -45,6 +45,11 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import brandLogo from "@/assets/brand-logo.png.asset.json";
+import { GoogleG, CloudflareLogo } from "@/components/profile/google-gmail-connect";
+import { PLATFORM_META, type SocialPlatform } from "@/components/social/platforms";
+import { waNumberFromUrl } from "@/components/profile/social-link-rules";
+import { BadgeCheck as BadgeCheck, Phone as Phone, ExternalLink as ExternalLink } from "lucide-react";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
   assignLeadOwner,
@@ -921,20 +926,14 @@ function EditNameDialog({ e }: { e: EmployeeDetail }) {
   const fn = useServerFn(setEmployeeName);
   const [open, setOpen] = useState(false);
   const [fullName, setFullName] = useState("");
-  const [legal, setLegal] = useState("");
   const [busy, setBusy] = useState(false);
-  const init = () => {
-    setFullName(e.profile.full_name ?? "");
-    setLegal(e.profile.legal_full_name ?? "");
-  };
-  const dirty =
-    fullName.trim() !== (e.profile.full_name ?? "") ||
-    legal.trim() !== (e.profile.legal_full_name ?? "");
-  const valid = fullName.trim().length >= 2 && legal.trim().length >= 2;
+  const init = () => setFullName(e.profile.full_name ?? "");
+  const dirty = fullName.trim() !== (e.profile.full_name ?? "") || fullName.trim() !== (e.profile.legal_full_name ?? "");
+  const valid = fullName.trim().length >= 2;
   const save = async () => {
     setBusy(true);
     try {
-      await fn({ data: { userId: e.userId, fullName: fullName.trim(), legalFullName: legal.trim() } });
+      await fn({ data: { userId: e.userId, fullName: fullName.trim(), legalFullName: fullName.trim() } });
       toast.success("Name updated");
       await qc.invalidateQueries({ queryKey: ["employee.detail"] });
       setOpen(false);
@@ -955,14 +954,9 @@ function EditNameDialog({ e }: { e: EmployeeDetail }) {
         </DialogHeader>
         <div className="space-y-3">
           <label className="block space-y-1 text-[12px] font-medium">
-            <span>Display name</span>
+            <span>Full name (as on NID / passport)</span>
             <Input value={fullName} onChange={(ev) => setFullName(ev.target.value)} className="h-9 rounded-sm" />
           </label>
-          <label className="block space-y-1 text-[12px] font-medium">
-            <span>Legal full name (as on NID / passport)</span>
-            <Input value={legal} onChange={(ev) => setLegal(ev.target.value)} className="h-9 rounded-sm" />
-          </label>
-          <p className="text-[11.5px] text-muted-foreground">The employee sees this as read-only on their profile. The change is logged.</p>
           <div className="flex justify-end gap-2 pt-1">
             <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)}>Cancel</Button>
             <Button type="button" size="sm" disabled={!dirty || !valid || busy} onClick={save}>
@@ -975,15 +969,69 @@ function EditNameDialog({ e }: { e: EmployeeDetail }) {
   );
 }
 
+type AddrF = { address_line1?: string | null; division?: string | null; district?: string | null; upazila?: string | null; post_office?: string | null; postcode?: string | null };
+const fmtAddrBd = (r: AddrF) => {
+  const po = [r.post_office, r.postcode].filter(Boolean).join("-");
+  const s = [r.address_line1?.trim().replace(/[,.\s]+$/, ""), po, r.upazila, r.district, r.division].filter(Boolean).join(", ");
+  return s ? `${s}.` : null;
+};
+const VerifiedTick = () => <BadgeCheck className="size-4 shrink-0 fill-[#0866FF] text-white" aria-label="Verified" />;
+
+function BdFlagIcon() {
+  return (
+    <svg aria-hidden viewBox="0 0 20 12" className="h-3 w-[18px] shrink-0 rounded-[1px]">
+      <rect width="20" height="12" fill="#006A4E" />
+      <circle cx="9" cy="6" r="3.6" fill="#F42A41" />
+    </svg>
+  );
+}
+
+function PhoneField({ label, value }: { label: string; value: string | null }) {
+  const digits = (value ?? "").replace(/\D/g, "").replace(/^(88)?0?/, "");
+  const intl = digits ? `+880${digits}` : null;
+  return (
+    <div>
+      <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">{label}</div>
+      {intl ? (
+        <div className="mt-0.5 flex items-center gap-1.5">
+          <BdFlagIcon />
+          <span className="font-mono text-[13px] font-medium">+880 {digits.slice(0, 4)}-{digits.slice(4)}</span>
+          <CopyBtn value={intl} />
+          <a href={`tel:${intl}`} className="ml-1 inline-flex h-6 items-center gap-1 rounded-sm border border-border px-2 text-[11px] font-semibold text-brand hover:bg-brand/10">
+            <Phone className="size-3" /> Call
+          </a>
+        </div>
+      ) : (
+        <div className="mt-0.5 text-[13px] italic text-muted-foreground/60">N/A</div>
+      )}
+    </div>
+  );
+}
+
+function IconEmailField({ label, value, icon, verified }: { label: string; value: string | null; icon: React.ReactNode; verified: boolean }) {
+  return (
+    <div>
+      <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">{label}</div>
+      {value ? (
+        <div className="mt-0.5 flex items-center gap-1.5">
+          {icon}
+          <span className="min-w-0 break-all text-[13px] font-medium">{value}</span>
+          {verified && <VerifiedTick />}
+          <CopyBtn value={value} />
+        </div>
+      ) : (
+        <div className="mt-0.5 text-[13px] italic text-muted-foreground/60">N/A</div>
+      )}
+    </div>
+  );
+}
+
 function ProfileTab({ e }: { e: EmployeeDetail }) {
   const p = e.profile;
-  // address_line2 stores the present address as JSON; show the permanent line only.
-  const addressLine =
-    [p.address_line1, p.address_line2?.trim().startsWith("{") ? null : p.address_line2]
-      .filter(Boolean)
-      .join(", ") || null;
-  const region =
-    [p.upazila ?? p.city, p.district, p.division].filter(Boolean).join(" · ") || null;
+  let present: (AddrF & { same?: boolean }) | null = null;
+  try { const j = p.address_line2?.trim().startsWith("{") ? JSON.parse(p.address_line2) : null; if (j && typeof j === "object") present = j; } catch { /* legacy */ }
+  const perm = fmtAddrBd(p);
+  const pres = present?.same ? perm : present ? fmtAddrBd(present) : null;
   return (
     <section className="rounded-sm border border-border bg-card p-4 sm:p-5">
       <div className="mb-3 flex items-center gap-2">
@@ -995,17 +1043,55 @@ function ProfileTab({ e }: { e: EmployeeDetail }) {
       </div>
       <div className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
         <Field label="Full name" value={p.full_name} copy />
-        <Field label="Legal full name" value={p.legal_full_name} copy />
-        <Field label="Work email" value={e.email} copy />
-        <Field label="Personal Gmail" value={p.personal_gmail} copy />
-        <Field label="Phone" value={p.phone_primary} copy />
-        <Field label="Alt. phone" value={p.phone_alt} copy />
-        <Field label="Address" value={addressLine} copy />
-        <Field label="Area" value={region} copy />
-        <Field label="Post office" value={p.post_office} copy />
-        <Field label="Postcode" value={p.postcode} copy />
-        <Field label="Country" value={p.country} copy />
+        <IconEmailField label="Work email" value={e.email} verified={e.workEmailVerified} icon={<img src={brandLogo.url} alt="Branta" className="size-4 rounded-sm object-contain" />} />
+        <IconEmailField label="Personal Gmail" value={p.personal_gmail} verified={!!e.gmailSource} icon={e.gmailSource === "cloudflare" ? <CloudflareLogo /> : <GoogleG />} />
+        <PhoneField label="Phone" value={p.phone_primary} />
+        <PhoneField label="Alt. phone" value={p.phone_alt} />
       </div>
+
+      <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {([["Permanent", perm], ["Present", pres]] as const).map(([k, v]) => (
+          <div key={k} className="rounded-sm border border-border bg-muted/30 p-3">
+            <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+              <span>{k} address</span>
+              {k === "Present" && present?.same && <span className="normal-case tracking-normal text-[11px]">Same as permanent</span>}
+            </div>
+            <div className="mt-1 flex items-start gap-1.5">
+              <span className={cn("min-w-0 flex-1 text-[13px]", v ? "font-medium" : "italic text-muted-foreground/60")}>{v ?? "N/A"}</span>
+              {v && <CopyBtn value={v} />}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-5 mb-2 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Social profiles</div>
+      {e.socialLinks.length ? (
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {e.socialLinks.map((l) => {
+            const meta = PLATFORM_META[l.platform as SocialPlatform];
+            const wa = l.platform === "whatsapp";
+            const handle = wa ? `+88${waNumberFromUrl(l.url)}` : l.url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "");
+            return (
+              <div key={l.id} className="flex items-center gap-2.5 rounded-sm border border-border bg-card p-2.5 hover:border-brand/40">
+                <span className="grid size-8 shrink-0 place-items-center rounded-sm text-white" style={{ background: meta?.color ?? "#334155" }}>{meta?.svg}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 text-[12.5px] font-semibold">
+                    {meta?.name ?? l.platform}
+                    {l.label && <span className="rounded-sm bg-muted px-1.5 py-px text-[10px] font-medium text-muted-foreground">{l.label}</span>}
+                  </div>
+                  <div className="truncate font-mono text-[11px] text-muted-foreground" title={l.url}>{handle}</div>
+                </div>
+                <CopyBtn value={l.url} />
+                <a href={l.url} target="_blank" rel="noreferrer" className="inline-flex h-6 items-center gap-1 rounded-sm border border-border px-2 text-[11px] font-semibold text-brand hover:bg-brand/10">
+                  {wa ? "Chat" : "Open"} <ExternalLink className="size-3" />
+                </a>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="rounded-sm border border-dashed border-border p-3 text-[12px] italic text-muted-foreground">No social profiles linked yet</div>
+      )}
 
       <div className="mt-5 mb-2 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
         Documents
@@ -1639,7 +1725,7 @@ function Field({
             empty ? "italic text-muted-foreground/60" : "font-medium text-foreground",
           )}
         >
-          {empty ? "—" : value}
+          {empty ? "N/A" : value}
         </span>
         {copy && value && <CopyBtn value={value} />}
       </div>
