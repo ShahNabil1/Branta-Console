@@ -217,13 +217,6 @@ function ProfileForm({
   const set = <K extends keyof ProfileRow>(k: K, v: ProfileRow[K]) =>
     setForm((prev) => ({ ...prev, [k]: v }));
 
-  // Avatar + Gmail save instantly and the name is admin-managed, so they
-  // never count toward the page's unsaved state.
-  const dirty = useMemo(() => {
-    const strip = (r: ProfileRow) => ({ ...r, avatar_url: null, personal_gmail: null, legal_full_name: null, full_name: null });
-    return JSON.stringify(strip(form)) !== JSON.stringify(strip(profile));
-  }, [form, profile]);
-
   const patchFn = useServerFn(patchMyProfile);
   const patchField = async (
     patch: { avatar_url?: string | null; personal_gmail?: string | null },
@@ -233,10 +226,64 @@ function ProfileForm({
     setForm((f) => ({ ...f, ...patch }));
     try {
       await patchFn({ data: patch });
+      savedRef.current = { ...savedRef.current, ...patch };
       toast.success(okMsg);
     } catch (err) {
       setForm((f) => ({ ...f, ...prev }));
       toast.error("Could not save", { description: (err as Error).message });
+    }
+  };
+
+  // Every section saves on its own: merge the patch into the last saved row.
+  const savedRef = useRef<ProfileRow>(profile);
+  useEffect(() => {
+    savedRef.current = profile;
+  }, [profile]);
+  const persist = async (patch: Partial<ProfileRow>, okMsg: string): Promise<boolean> => {
+    const r = { ...savedRef.current, ...patch };
+    try {
+      await update({
+        data: {
+          full_name: r.full_name,
+          legal_full_name: r.legal_full_name,
+          phone_primary: r.phone_primary,
+          phone_alt: r.phone_alt,
+          address_line1: r.address_line1,
+          address_line2: r.address_line2,
+          division: r.division,
+          district: r.district,
+          upazila: r.upazila,
+          post_office: r.post_office,
+          city: r.upazila,
+          postcode: r.postcode,
+          country: "Bangladesh",
+          bank_name: r.bank_name,
+          bank_account_name: r.bank_account_name,
+          bank_account_number: r.bank_account_number,
+          bank_routing: r.bank_routing,
+          mfs_provider: r.mfs_provider,
+          mfs_number: r.mfs_number,
+          payment_methods: r.payment_methods,
+          avatar_url: r.avatar_url,
+          nid_url: r.nid_url,
+          cv_url: r.cv_url,
+          identity_doc_type: r.identity_doc_type,
+          nid_front_url: r.nid_front_url,
+          nid_back_url: r.nid_back_url,
+          passport_photo_url: r.passport_photo_url,
+          passport_address_url: r.passport_address_url,
+          birth_certificate_url: r.birth_certificate_url,
+          personal_gmail: r.personal_gmail,
+        },
+      });
+      savedRef.current = r;
+      setForm((f) => ({ ...f, ...patch }));
+      toast.success(okMsg);
+      onSaved();
+      return true;
+    } catch (err) {
+      toast.error("Could not save", { description: (err as Error).message });
+      return false;
     }
   };
 
@@ -248,74 +295,13 @@ function ProfileForm({
   const primaryValid = isValidBdPhone(form.phone_primary);
   const altValid = !form.phone_alt || isValidBdPhone(form.phone_alt);
   const gmailValid = isValidGmail(form.personal_gmail);
-  const addressValid =
-    !!form.address_line1?.trim() &&
-    !!form.division &&
-    !!form.district &&
-    !!form.upazila &&
-    !!form.post_office &&
-    !!form.postcode;
-  const canSave = dirty && primaryValid && altValid && gmailValid && addressValid;
-
-  const save = async () => {
-    if (!primaryValid) {
-      toast.error("Primary Contact is required and must be a valid BD number");
-      return;
-    }
-    if (!gmailValid) {
-      toast.error("Personal Gmail is required and must be a @gmail.com address");
-      return;
-    }
-    if (!altValid) {
-      toast.error("Alternative Contact must be a valid BD number");
-      return;
-    }
-    if (!addressValid) {
-      toast.error("Address is required — fill every field");
-      return;
-    }
+  const contactDirty =
+    (form.phone_primary ?? null) !== (profile.phone_primary ?? null) ||
+    (form.phone_alt ?? null) !== (profile.phone_alt ?? null);
+  const saveContact = async () => {
     setSaving(true);
-    try {
-      await update({
-        data: {
-          full_name: form.full_name,
-          legal_full_name: form.legal_full_name,
-          phone_primary: form.phone_primary,
-          phone_alt: form.phone_alt,
-          address_line1: form.address_line1,
-          address_line2: null,
-          division: form.division,
-          district: form.district,
-          upazila: form.upazila,
-          post_office: form.post_office,
-          city: form.upazila,
-          postcode: form.postcode,
-          country: "Bangladesh",
-          bank_name: null,
-          bank_account_name: null,
-          bank_account_number: null,
-          bank_routing: null,
-          mfs_provider: null,
-          mfs_number: null,
-          avatar_url: form.avatar_url,
-          nid_url: form.nid_url,
-          cv_url: form.cv_url,
-          identity_doc_type: form.identity_doc_type,
-          nid_front_url: form.nid_front_url,
-          nid_back_url: form.nid_back_url,
-          passport_photo_url: form.passport_photo_url,
-          passport_address_url: form.passport_address_url,
-          birth_certificate_url: form.birth_certificate_url,
-          personal_gmail: form.personal_gmail,
-        },
-      });
-      toast.success("Profile updated");
-      onSaved();
-    } catch (err) {
-      toast.error("Save failed", { description: (err as Error).message });
-    } finally {
-      setSaving(false);
-    }
+    await persist({ phone_primary: form.phone_primary, phone_alt: form.phone_alt }, "Contact saved");
+    setSaving(false);
   };
 
   void userId; // reserved for future use
@@ -323,35 +309,16 @@ function ProfileForm({
   return (
     <div className="mx-auto max-w-5xl px-6 py-8">
       {/* Header */}
-      <header className="mb-6 flex items-start justify-between gap-4">
-        <div>
-          <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-            Account
-          </div>
-          <h1 className="mt-1 text-[22px] font-semibold tracking-tight text-foreground">
-            Profile
-          </h1>
-          <p className="mt-1 text-[13px] text-muted-foreground">
-            Manage your personal, financial, and identity information.
-          </p>
+      <header className="mb-6">
+        <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+          Account
         </div>
-        <div className="flex items-center gap-3">
-
-          <Button
-            onClick={save}
-            disabled={!canSave || saving}
-            className="h-9 rounded-sm bg-primary text-primary-foreground hover:bg-brand-700"
-          >
-            {saving ? (
-              <>
-                <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-                Saving…
-              </>
-            ) : (
-              "Save changes"
-            )}
-          </Button>
-        </div>
+        <h1 className="mt-1 text-[22px] font-semibold tracking-tight text-foreground">
+          Profile
+        </h1>
+        <p className="mt-1 text-[13px] text-muted-foreground">
+          Manage your personal, financial, and identity information. Each section saves on its own.
+        </p>
       </header>
 
       <div className="grid gap-4">
@@ -441,22 +408,41 @@ function ProfileForm({
               />
             </Field>
           </div>
+          {contactDirty && (
+            <div className="mt-4 flex justify-end gap-2 border-t border-border pt-3">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 rounded-sm text-[12px]"
+                disabled={saving}
+                onClick={() => setForm((f) => ({ ...f, phone_primary: profile.phone_primary, phone_alt: profile.phone_alt }))}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                className="h-8 rounded-sm text-[12px] font-semibold"
+                disabled={!primaryValid || !altValid || saving}
+                onClick={saveContact}
+              >
+                {saving && <Loader2 className="mr-1 size-3.5 animate-spin" />}Save changes
+              </Button>
+            </div>
+          )}
         </Section>
 
         {/* Address */}
-        <Section title="Address" description="Bangladesh only. Select from the cascading dropdowns; postcode fills in automatically.">
-          <BdAddressBlock form={form} set={set} />
-        </Section>
+        <AddressSection profile={profile} persist={persist} />
 
 
         {/* Identity Documents */}
         <Section
           title="Identity Document"
-          description="Choose your identity document type and upload it. Files are stored privately."
+          description="Upload one identity document. Files are stored privately and save automatically."
         >
           <IdentityDocumentsBlock
             form={form}
-            onChange={(patch) => setForm((p) => ({ ...p, ...patch }))}
+            onChange={(patch) => void persist(patch, "Identity document saved")}
             presign={presign}
           />
         </Section>
@@ -464,13 +450,13 @@ function ProfileForm({
         {/* CV */}
         <Section
           title="CV / Résumé"
-          description="Upload your latest CV in PDF format."
+          description="Upload your latest CV in PDF format. It saves automatically."
         >
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <DocumentSlot
               label="CV / Résumé (PDF only)"
               url={form.cv_url}
-              onChange={(u) => set("cv_url", u)}
+              onChange={(u) => void persist({ cv_url: u }, "CV saved")}
               presign={presign}
               scope="document"
               accept="application/pdf"
@@ -481,7 +467,7 @@ function ProfileForm({
         {/* Social Links */}
         <Section
           title="Social Links"
-          description="Add your public profiles — Facebook, WhatsApp, Instagram, LinkedIn, X, YouTube, Telegram, personal website, and more."
+          description="Add your public profiles — Facebook, WhatsApp, Instagram, LinkedIn, X, Telegram, personal website, and more."
         >
           <ProfileSocialLinksSection />
         </Section>
@@ -496,10 +482,137 @@ function ProfileForm({
 type IdDocType = "nid" | "passport" | "birth_certificate";
 
 const ID_DOC_OPTIONS: { value: IdDocType; label: string }[] = [
-  { value: "nid", label: "NID (National ID)" },
-  { value: "passport", label: "Passport" },
-  { value: "birth_certificate", label: "Birth Certificate (Online)" },
+  { value: "nid", label: "NID · Recommended" },
+  { value: "passport", label: "Passport · Alternative" },
+  { value: "birth_certificate", label: "Online Birth Certificate · Last resort" },
 ];
+
+type AddrFields = Pick<
+  ProfileRow,
+  "address_line1" | "division" | "district" | "upazila" | "post_office" | "postcode"
+>;
+const pickAddr = (r: AddrFields): AddrFields => ({
+  address_line1: r.address_line1 ?? null,
+  division: r.division ?? null,
+  district: r.district ?? null,
+  upazila: r.upazila ?? null,
+  post_office: r.post_office ?? null,
+  postcode: r.postcode ?? null,
+});
+const addrValid = (r: AddrFields) =>
+  !!(r.address_line1?.trim() && r.division && r.district && r.upazila && r.post_office && r.postcode);
+/** Present address is stored as JSON in address_line2. */
+function parsePresent(raw: string | null): { same: boolean; addr: AddrFields } {
+  const empty = pickAddr({} as AddrFields);
+  try {
+    const j = raw ? JSON.parse(raw) : null;
+    if (j && typeof j === "object") return { same: !!j.same, addr: pickAddr({ ...empty, ...j }) };
+  } catch {
+    /* legacy plain text */
+  }
+  return { same: false, addr: empty };
+}
+const fmtAddr = (r: AddrFields) =>
+  [r.address_line1, r.post_office, r.upazila, r.district, r.division, r.postcode]
+    .filter(Boolean)
+    .join(", ") || "Not added yet";
+
+function AddressSection({
+  profile,
+  persist,
+}: {
+  profile: ProfileRow;
+  persist: (patch: Partial<ProfileRow>, msg: string) => Promise<boolean>;
+}) {
+  const stored = parsePresent(profile.address_line2);
+  const [editing, setEditing] = useState(false);
+  const [perm, setPerm] = useState<ProfileRow>(profile);
+  const [pres, setPres] = useState<ProfileRow>({ ...profile, ...stored.addr });
+  const [same, setSame] = useState(stored.same);
+  const [busy, setBusy] = useState(false);
+  const reset = () => {
+    const s = parsePresent(profile.address_line2);
+    setPerm(profile);
+    setPres({ ...profile, ...s.addr });
+    setSame(s.same);
+  };
+  useEffect(() => {
+    if (!editing) reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile, editing]);
+
+  const presentJson = JSON.stringify(same ? { same: true } : { same: false, ...pickAddr(pres) });
+  const dirty =
+    JSON.stringify(pickAddr(perm)) !== JSON.stringify(pickAddr(profile)) ||
+    presentJson !==
+      JSON.stringify(stored.same ? { same: true } : { same: false, ...stored.addr });
+  const valid = addrValid(perm) && (same || addrValid(pres));
+
+  const save = async () => {
+    setBusy(true);
+    const ok = await persist(
+      { ...pickAddr(perm), city: perm.upazila, address_line2: presentJson },
+      "Address saved",
+    );
+    setBusy(false);
+    if (ok) setEditing(false);
+  };
+
+  const setP = <K extends keyof ProfileRow>(k: K, v: ProfileRow[K]) => setPerm((p) => ({ ...p, [k]: v }));
+  const setR = <K extends keyof ProfileRow>(k: K, v: ProfileRow[K]) => setPres((p) => ({ ...p, [k]: v }));
+
+  return (
+    <Section
+      title="Address"
+      description="Bangladesh only. Permanent address must match your government ID exactly."
+    >
+      {!editing ? (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Permanent Address</div>
+              <div className="mt-1 text-[13px] font-medium text-foreground">{fmtAddr(profile)}</div>
+            </div>
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Present Address</div>
+              <div className="mt-1 text-[13px] font-medium text-foreground">
+                {stored.same ? "Same as permanent address" : fmtAddr(stored.addr)}
+              </div>
+            </div>
+          </div>
+          <Button variant="outline" size="sm" className="h-8 rounded-sm text-[12px] font-semibold" onClick={() => setEditing(true)}>
+            Edit address
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-5">
+          <div>
+            <div className="mb-2 text-[12px] font-semibold text-foreground">Permanent Address (as on your government ID)</div>
+            <BdAddressBlock form={perm} set={setP} />
+          </div>
+          <div className="border-t border-border pt-4">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <div className="text-[12px] font-semibold text-foreground">Present Address</div>
+              <label className="inline-flex cursor-pointer items-center gap-2 text-[12px] font-medium">
+                <input type="checkbox" className="size-4 accent-[var(--color-brand)]" checked={same} onChange={(e) => setSame(e.target.checked)} />
+                Same as Permanent Address
+              </label>
+            </div>
+            {!same && <BdAddressBlock form={pres} set={setR} />}
+          </div>
+          <div className="flex justify-end gap-2 border-t border-border pt-3">
+            <Button variant="outline" size="sm" className="h-8 rounded-sm text-[12px]" disabled={busy} onClick={() => { reset(); setEditing(false); }}>
+              Cancel
+            </Button>
+            <Button size="sm" className="h-8 rounded-sm text-[12px] font-semibold" disabled={!dirty || !valid || busy} onClick={save}>
+              {busy && <Loader2 className="mr-1 size-3.5 animate-spin" />}Save changes
+            </Button>
+          </div>
+        </div>
+      )}
+    </Section>
+  );
+}
 
 // Standard document aspect ratios for cropping
 // NID: ISO/IEC 7810 ID-1 → 85.6 × 53.98 mm ≈ 1.586
@@ -543,6 +656,18 @@ function IdentityDocumentsBlock({
           })}
         </div>
       </Field>
+
+      <div className="rounded-sm border border-border bg-muted/40 px-3 py-2.5 text-[12px] leading-relaxed text-foreground">
+        <div className="font-semibold">You only need ONE of these documents.</div>
+        <div className="text-muted-foreground">
+          Use your <strong className="text-foreground">NID</strong> if you have it. Use a Passport only if you
+          have no NID, and the online Birth Certificate only as a last resort.
+        </div>
+        <div className="mt-1.5 text-muted-foreground">
+          Photo tips: high resolution, no glare or blur, and all four corners clearly visible.
+          Files save automatically as soon as they upload.
+        </div>
+      </div>
 
       {!type && (
         <p className="text-[12px] text-muted-foreground">
@@ -628,6 +753,7 @@ function CropUploadSlot({
   const [sourceUrl, setSourceUrl] = useState<string | null>(null);
   const [sourceName, setSourceName] = useState<string>("document.jpg");
   const upload = useR2Upload(presign, "document");
+  const [ask, setAsk] = useState(false);
 
   const openPicker = () => inputRef.current?.click();
 
@@ -659,6 +785,7 @@ function CropUploadSlot({
       <Label className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
         {label}
       </Label>
+      <ReplaceConfirm open={ask} onClose={() => setAsk(false)} onConfirm={openPicker} />
 
       {url ? (
         <div className="mt-2 space-y-2">
@@ -673,7 +800,7 @@ function CropUploadSlot({
               variant="outline"
               size="sm"
               className="h-8 rounded-sm text-[12px]"
-              onClick={openPicker}
+              onClick={() => setAsk(true)}
               disabled={upload.isPending}
             >
               <Upload className="mr-1.5 size-3" />
@@ -1296,6 +1423,40 @@ function AvatarUploader({
 }
 
 
+function ReplaceConfirm({
+  open,
+  onClose,
+  onConfirm,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <AlertDialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Replace this file?</AlertDialogTitle>
+          <AlertDialogDescription>
+            The new file will be saved right away and the current one will be replaced.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => {
+              onClose();
+              onConfirm();
+            }}
+          >
+            Choose new file
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 function DocumentSlot({
   label,
   url,
@@ -1313,17 +1474,19 @@ function DocumentSlot({
 }) {
   const upload = useR2Upload(presign, scope);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [ask, setAsk] = useState(false);
   return (
     <div className="rounded-sm border border-dashed border-border bg-muted/30 p-4">
       <Label className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
         {label}
       </Label>
+      <ReplaceConfirm open={ask} onClose={() => setAsk(false)} onConfirm={() => inputRef.current?.click()} />
       <div className="mt-2 flex items-center gap-2">
         <Button
           variant="outline"
           size="sm"
           className="h-8 rounded-sm text-[12px]"
-          onClick={() => inputRef.current?.click()}
+          onClick={() => (url ? setAsk(true) : inputRef.current?.click())}
           disabled={upload.isPending}
         >
           {upload.isPending ? (
@@ -1571,11 +1734,13 @@ function BdAddressBlock({
   return (
     <div className="grid grid-cols-1 gap-4">
       <Field label="Address *" className="md:col-span-2">
-        <Input
-          className="h-9 rounded-sm"
+        <textarea
+          rows={3}
+          maxLength={200}
+          className="w-full resize-y rounded-sm border border-input bg-background px-3 py-2 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-brand"
           value={form.address_line1 ?? ""}
           onChange={(e) => set("address_line1", e.target.value)}
-          placeholder="House 12 / Road 4 / Block C / Village name"
+          placeholder="House 12, Road 4, Block C / Village name"
         />
       </Field>
 

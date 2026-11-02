@@ -977,8 +977,11 @@ function EditNameDialog({ e }: { e: EmployeeDetail }) {
 
 function ProfileTab({ e }: { e: EmployeeDetail }) {
   const p = e.profile;
+  // address_line2 stores the present address as JSON; show the permanent line only.
   const addressLine =
-    [p.address_line1, p.address_line2].filter(Boolean).join(", ") || null;
+    [p.address_line1, p.address_line2?.trim().startsWith("{") ? null : p.address_line2]
+      .filter(Boolean)
+      .join(", ") || null;
   const region =
     [p.upazila ?? p.city, p.district, p.division].filter(Boolean).join(" · ") || null;
   return (
