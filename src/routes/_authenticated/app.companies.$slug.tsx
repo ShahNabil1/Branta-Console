@@ -188,11 +188,13 @@ function View({ label, value, href, mono }: { label: string; value: ReactNode; h
 }
 
 function FieldL({ label, children, className }: { label: string; children: ReactNode; className?: string }) {
+  // div, not <label>: a wrapping <label> forwards clicks anywhere on it (including empty space)
+  // to the first labelable control inside — e.g. the "Add email"/"Add phone" buttons.
   return (
-    <label className={cn("block space-y-1.5", className)}>
+    <div className={cn("block space-y-1.5", className)}>
       <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{label}</span>
       {children}
-    </label>
+    </div>
   );
 }
 
