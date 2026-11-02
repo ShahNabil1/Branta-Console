@@ -177,6 +177,7 @@ function ProfilePage() {
     <ProfileForm
       profile={profile}
       email={email}
+      gmailSource={profileQuery.data!.gmailSource}
       onSaved={() => {
         profileQuery.refetch();
         router.invalidate();
@@ -201,6 +202,7 @@ function ProfileSkeleton() {
 interface FormProps {
   profile: ProfileRow;
   email: string;
+  gmailSource: "google" | "cloudflare" | null;
   onSaved: () => void;
   update: ReturnType<typeof useServerFn<typeof updateMyProfile>>;
   presign: ReturnType<typeof useServerFn<typeof requestR2Upload>>;
@@ -210,6 +212,7 @@ interface FormProps {
 function ProfileForm({
   profile,
   email,
+  gmailSource,
   onSaved,
   update,
   presign,
@@ -387,7 +390,7 @@ function ProfileForm({
               >
                 <GoogleGmailConnect
                   email={gmailValid && form.personal_gmail ? form.personal_gmail : null}
-                  source={profileQuery.data?.profile.personal_gmail?.toLowerCase() === form.personal_gmail?.toLowerCase() ? profileQuery.data?.gmailSource : "google"}
+                  source={profile.personal_gmail?.toLowerCase() === form.personal_gmail?.toLowerCase() ? gmailSource : "google"}
                   onConnect={(mail, pic) => {
                     const patch: { personal_gmail: string; avatar_url?: string } = { personal_gmail: mail };
                     if (pic && !form.avatar_url) patch.avatar_url = pic;
