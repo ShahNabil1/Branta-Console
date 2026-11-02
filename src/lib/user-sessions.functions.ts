@@ -34,34 +34,20 @@ function isPrivateIp(ip: string) {
   );
 }
 
-// IP geolocation is approximate by nature (ISP routing, mobile CGNAT), so we
-// prefer Cloudflare edge headers (stable, no rate limits) and fall back to ipapi.
+// IP geolocation is approximate by nature (ISP routing, mobile CGNAT). We use
+// only Cloudflare edge headers: zero latency, no rate limits, no third party.
 async function lookupGeo(ip: string | null): Promise<Geo> {
   if (!ip || isPrivateIp(ip)) return NO_GEO;
   const cfCountry = getRequestHeader("cf-ipcountry");
   const cfCity = getRequestHeader("cf-ipcity");
   const cfRegion = getRequestHeader("cf-region");
-  if (cfCity || cfRegion) {
-    let country: string | null = null;
+  let country: string | null = null;
+  if (cfCountry && cfCountry !== "XX" && cfCountry !== "T1") {
     try {
-      country = cfCountry && cfCountry !== "XX"
-        ? new Intl.DisplayNames(["en"], { type: "region" }).of(cfCountry) ?? cfCountry
-        : null;
-    } catch { country = cfCountry ?? null; }
-    return { country, region: cfRegion ?? null, city: cfCity ?? null };
+      country = new Intl.DisplayNames(["en"], { type: "region" }).of(cfCountry) ?? cfCountry;
+    } catch { country = cfCountry; }
   }
-  try {
-    const res = await fetch(`https://ipapi.co/${ip}/json/`, {
-      headers: { "User-Agent": "BrantaTech-Console/1.0" },
-      signal: AbortSignal.timeout(2500),
-    });
-    if (!res.ok) return NO_GEO;
-    const j = (await res.json()) as { country_name?: string; region?: string; city?: string; error?: boolean };
-    if (j.error) return NO_GEO;
-    return { country: j.country_name ?? null, region: j.region ?? null, city: j.city ?? null };
-  } catch {
-    return NO_GEO;
-  }
+  return { country, region: cfRegion ?? null, city: cfCity ?? null };
 }
 
 /** Windows 11 reports platformVersion major >= 13 via Client Hints. */
