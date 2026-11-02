@@ -1,6 +1,6 @@
 // Employee mail delivery history from real Brevo events (email_events), with
 // plain-language reasons and an Unblock action when Brevo blocks an address.
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { AlertTriangle, Check, Eye, Loader2, Mail, MousePointerClick, RefreshCw, Send, ShieldOff, Unlock } from "lucide-react";
@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { syncRecentEmailEvents, unblockEmployeeMail } from "@/lib/employees.functions";
 import { cn } from "@/lib/utils";
 
-interface Ev { id: string; event: string; email: string; subject: string | null; reason: string | null; message_id: string | null; occurred_at: string }
+interface Ev { id: string; event: string; email: string; subject: string | null; reason: string | null; message_id: string | null; occurred_at: string; raw?: { by_name?: string; by?: string } | null }
 
 export const MAIL_LABEL: Record<string, string> = {
   sent: "Sent", delivered: "Delivered", opened: "Opened", clicked: "Link clicked", deferred: "Delayed",
@@ -59,10 +59,17 @@ export function MailActivity({ emails }: { emails: string[] }) {
     queryFn: async () => {
       try { await syncFn(); } catch (e) { console.error("[mail-activity] Brevo sync failed", e); }
       const { data, error } = await supabase.from("email_events")
-        .select("id, event, email, subject, reason, message_id, occurred_at")
+        .select("id, event, email, subject, reason, message_id, occurred_at, raw")
         .in("email", list).order("occurred_at", { ascending: false }).limit(200);
       if (error) throw error;
-      return (data ?? []) as Ev[];
+      const rows = (data ?? []) as unknown as Ev[];
+      const ids = [...new Set(rows.filter((r) => r.event === "unblocked" && r.raw?.by && !r.raw.by_name).map((r) => r.raw!.by!))];
+      if (ids.length) {
+        const { data: ps } = await supabase.from("profiles").select("id, full_name, email").in("id", ids);
+        const nm = new Map((ps ?? []).map((p: any) => [p.id, p.full_name || p.email]));
+        rows.forEach((r) => { if (r.raw?.by && !r.raw.by_name) r.raw.by_name = nm.get(r.raw.by) ?? undefined; });
+      }
+      return rows;
     },
   });
 
@@ -82,6 +89,7 @@ export function MailActivity({ emails }: { emails: string[] }) {
   const unblocks = (q.data ?? []).filter((e) => e.event === "unblocked");
   const lastUnblock = unblocks[0];
 
+  const [shown, setShown] = useState(5);
   const unblock = useMutation({
     mutationFn: (email: string) => unblockFn({ data: { email } }),
     onSuccess: (r, email) => {
@@ -122,7 +130,7 @@ export function MailActivity({ emails }: { emails: string[] }) {
           <div className="flex gap-2"><Unlock className="mt-0.5 size-4 shrink-0" /><div><b>Not blocked — ready for mail</b> · {lastUnblock.email}<div className="mt-0.5">Brevo can deliver to this address now. Resend the onboarding or reset mail if an earlier one failed.</div></div></div>
           <details className="mt-2 text-[11px]"><summary className="cursor-pointer select-none font-semibold">Block / unblock history ({unblocks.length})</summary>
             <ul className="mt-1 space-y-0.5 font-mono">
-              {(q.data ?? []).filter((e) => e.event === "unblocked" || BAD.has(e.event)).map((e) => <li key={e.id}>{fmt(e.occurred_at)} · {e.email} · {MAIL_LABEL[e.event] ?? e.event}{e.reason ? ` · ${e.reason}` : ""}</li>)}
+              {(q.data ?? []).filter((e) => e.event === "unblocked" || BAD.has(e.event)).map((e) => <li key={e.id}>{fmt(e.occurred_at)} · {e.email} · {MAIL_LABEL[e.event] ?? e.event}{e.event === "unblocked" && e.raw?.by_name ? <b className="font-sans"> · by {e.raw.by_name}</b> : null}{e.reason ? ` · ${e.reason.replace(/Brevo/g, "Mail provider")}` : ""}</li>)}
             </ul>
           </details>
         </div>
@@ -137,7 +145,7 @@ export function MailActivity({ emails }: { emails: string[] }) {
         <div className="py-6 text-[12px] text-muted-foreground">No mail recorded for this employee yet. Welcome and password-reset mails appear here once Brevo reports them.</div>
       ) : (
         <ul className="space-y-3">
-          {messages.map((evs) => {
+          {messages.slice(0, shown).map((evs) => {
             const first = evs[0]!;
             const top = Math.max(...evs.map((e) => RANK[e.event] ?? -1));
             const problem = [...evs].reverse().find((e) => BAD.has(e.event) || WARN.has(e.event));
@@ -178,7 +186,7 @@ export function MailActivity({ emails }: { emails: string[] }) {
                 <details className="mt-2 text-[11px] text-muted-foreground">
                   <summary className="cursor-pointer select-none">All events ({evs.length})</summary>
                   <ul className="mt-1 space-y-0.5 font-mono">
-                    {evs.map((e) => <li key={e.id}>{fmt(e.occurred_at)} · {MAIL_LABEL[e.event] ?? e.event}{e.reason ? ` · ${e.reason}` : ""}</li>)}
+                    {evs.map((e) => <li key={e.id}>{fmt(e.occurred_at)} · {MAIL_LABEL[e.event] ?? e.event}{e.event === "unblocked" && e.raw?.by_name ? <b className="font-sans"> · by {e.raw.by_name}</b> : null}{e.reason ? ` · ${e.reason.replace(/Brevo/g, "Mail provider")}` : ""}</li>)}
                   </ul>
                 </details>
               </li>
