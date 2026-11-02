@@ -11,7 +11,7 @@ export type CompanyRow = {
   ceo_user_id: string | null; coo_user_id: string | null;
   is_holding: boolean; status: string; created_at: string;
 };
-export type PersonLite = { id: string; full_name: string | null; email: string | null; avatar_url: string | null };
+export type PersonLite = { id: string; full_name: string | null; avatar_url: string | null; job_role: string | null; employee_code: string | null; email?: string | null };
 
 type Sb = { from: (t: string) => any; rpc: (f: string, a: object) => Promise<{ data: unknown }> };
 
@@ -26,7 +26,7 @@ async function assertAdmin(sb: Sb, userId: string) {
 async function people(sb: Sb, ids: string[]): Promise<Record<string, PersonLite>> {
   const uniq = [...new Set(ids.filter(Boolean))];
   if (!uniq.length) return {};
-  const { data } = await sb.from("profiles").select("id, full_name, email, avatar_url").in("id", uniq);
+  const { data } = await sb.from("profiles").select("id, full_name, avatar_url, job_role, employee_code").in("id", uniq);
   return Object.fromEntries(((data ?? []) as PersonLite[]).map((p) => [p.id, p]));
 }
 
@@ -77,8 +77,12 @@ export const listCompanyLeaderOptions = createServerFn({ method: "GET" })
     const { data, error } = await sb.from("profiles")
       .select("id, full_name, email, avatar_url, job_role, employee_code, deactivated_at").order("full_name");
     if (error) throw dbError(error);
-    return ((data ?? []) as (PersonLite & { job_role: string | null; employee_code: string | null; deactivated_at: string | null })[])
-      .filter((p) => !p.deactivated_at);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: au } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+    const emails = new Map((au?.users ?? []).map((u) => [u.id, u.email ?? null]));
+    return ((data ?? []) as (PersonLite & { deactivated_at: string | null })[])
+      .filter((p) => !p.deactivated_at)
+      .map(({ deactivated_at: _d, ...p }) => ({ ...p, email: emails.get(p.id) ?? null }));
   });
 
 const opt = (max: number) => z.string().trim().max(max).optional().transform((v) => (v ? v : null));
