@@ -75,10 +75,10 @@ export const listCompanyLeaderOptions = createServerFn({ method: "GET" })
     const sb = context.supabase as unknown as Sb;
     await assertAdmin(sb, context.userId);
     const { data, error } = await sb.from("profiles")
-      .select("id, full_name, email, avatar_url, designation, is_active").order("full_name");
+      .select("id, full_name, email, avatar_url, job_role, employee_code, deactivated_at").order("full_name");
     if (error) throw dbError(error);
-    return ((data ?? []) as (PersonLite & { designation?: string | null; is_active?: boolean | null })[])
-      .filter((p) => p.is_active !== false);
+    return ((data ?? []) as (PersonLite & { job_role: string | null; employee_code: string | null; deactivated_at: string | null })[])
+      .filter((p) => !p.deactivated_at);
   });
 
 const opt = (max: number) => z.string().trim().max(max).optional().transform((v) => (v ? v : null));
