@@ -272,10 +272,9 @@ const cleanDomain = (v: string) => v.trim().replace(/^https?:\/\//i, "").replace
 const domainOk = (v: string) => !v || /^[a-z0-9-]+(\.[a-z0-9-]+)+(\/\S*)?$/i.test(v);
 
 function LabelPicker({ value, options, onChange }: { value: string; options: string[]; onChange: (v: string) => void }) {
-  const custom = !!value && !options.includes(value);
   return (
     <div className="flex w-40 shrink-0 gap-1">
-      <select value={custom ? "Other" : value} onChange={(e) => onChange(e.target.value === "Other" ? "" : e.target.value)}
+      <select value={value} onChange={(e) => onChange(e.target.value)}
         className="h-9 min-w-0 flex-1 rounded-sm border border-input bg-background px-2 text-[12.5px] font-semibold outline-none focus-visible:ring-2 focus-visible:ring-brand">
         <option value="" disabled>Label</option>{options.map((o) => <option key={o}>{o}</option>)}
       </select>
@@ -291,7 +290,7 @@ function LabeledList({ items, onChange, options, kind, addText }: { items: Item[
         const bad = it.value && (kind === "email" ? !emailOk(it.value) : !phoneValid(it.value));
         return (
           <div key={i} className="flex animate-in fade-in slide-in-from-top-1 items-start gap-2">
-            <LabelPicker value={it.label} options={options.filter((o) => o !== "Other")} onChange={(v) => upd(i, { label: v })} />
+            <LabelPicker value={it.label} options={options} onChange={(v) => upd(i, { label: v })} />
             <div className="min-w-0 flex-1">
               {kind === "email"
                 ? <Input type="email" value={it.value} placeholder="name@company.com" onChange={(e) => upd(i, { value: e.target.value.trim() })} className={cn(bad && "border-destructive")} />
@@ -397,7 +396,7 @@ function AddressSection({ c, accent }: { c: Company; accent: string }) {
           {list.map((o, i) => (
             <div key={i} className="animate-in fade-in slide-in-from-top-1 space-y-3 rounded-lg border border-border/80 bg-muted/10 p-4">
               <div className="flex items-center gap-2">
-                <LabelPicker value={o.label} options={OFFICE_LABELS.filter((x) => x !== "Other")} onChange={(v) => upd(i, "label", v)} />
+                <LabelPicker value={o.label} options={OFFICE_LABELS} onChange={(v) => upd(i, "label", v)} />
                 {i === 0 && <span className="rounded-full bg-brand/10 px-2 py-0.5 text-[10px] font-bold text-brand">Primary</span>}
                 {i > 0 && <Button type="button" size="icon" variant="ghost" onClick={() => setList(list.filter((_, j) => j !== i))} className="ml-auto size-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive active:scale-90"><Trash2 className="size-3.5" /></Button>}
               </div>
