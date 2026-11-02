@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   checkInboundRouting, connectBrevoWebhook, disconnectProvider, getEmailIntegrations, sendProviderTest,
-  setDefaultProvider, verifyEmailProvider, startInboxVerification, checkInboxVerification, verifyResendWebhook, type Check as CheckT, type ProviderView,
+  setDefaultProvider, verifyEmailProvider, sendInboxProbe, pollInboxProbe, verifyResendWebhook, type Check as CheckT, type ProviderView,
 } from "@/lib/company-email.functions";
 import { cn } from "@/lib/utils";
 
@@ -395,18 +395,63 @@ function Tile({ icon: I, title, body, children }: { icon: LucideIcon; title: str
 }
 
 function InboxAddress({ slug, accent, inbox, gmail }: { slug: string; accent: string; inbox: Data["inbox"]; gmail: string }) {
-  const start = useServerFn(startInboxVerification);
-  const check = useServerFn(checkInboxVerification);
+  const send = useServerFn(sendInboxProbe);
+  const poll = useServerFn(pollInboxProbe);
   const refresh = useRefresh(slug);
   const [editing, setEditing] = useState(!inbox);
   const [email, setEmail] = useState(inbox?.email ?? "");
-  const [busy, setBusy] = useState<string | null>(null);
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [run, setRun] = useState<{ id: string | null; stage: "sending" | "sent" | "delivered" | "forwarded" | "verified" | "failed"; msg: string; t0: number } | null>(null);
+  const [pct, setPct] = useState(0);
   const valid = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
-  const pending = !!inbox?.probe_code && !inbox.verified_at;
-  const act = async (id: string, f: () => Promise<void>) => { setBusy(id); try { await f(); } catch (e) { toast.error(err(e)); } finally { setBusy(null); } };
-  const begin = () => act("start", async () => { await start({ data: { slug, email: email.trim().toLowerCase() } }); setEditing(false); setMsg(null); await refresh(); });
-  const verify = () => act("check", async () => { const r = await check({ data: { slug } }); setMsg({ ok: r.ok, text: r.message }); if (r.ok) { toast.success("Inbox address verified"); await refresh(); } });
+  const busy = !!run && !["verified", "failed"].includes(run.stage);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  const STAGE_PCT = { sending: 10, sent: 35, delivered: 60, forwarded: 85, verified: 100, failed: 100 } as const;
+  useEffect(() => {
+    if (!run) return;
+    const floor = STAGE_PCT[run.stage];
+    const ceil = run.stage === "sending" ? 25 : run.stage === "sent" ? 55 : run.stage === "delivered" ? 80 : run.stage === "forwarded" ? 95 : 100;
+    setPct((p) => Math.max(p, floor));
+    if (!busy) return;
+    const iv = setInterval(() => setPct((p) => Math.min(ceil, p + (ceil - p) * 0.08)), 400);
+    return () => clearInterval(iv);
+  }, [run?.stage, busy]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const tick = (id: string, t0: number) => {
+    timer.current = setTimeout(async () => {
+      try {
+        const r = await poll({ data: { slug, emailId: id } });
+        if (r.stage === "verified") { setRun({ id, stage: "verified", msg: r.message, t0 }); toast.success("Inbox address verified"); await refresh(); return; }
+        if (r.stage === "failed") { setRun({ id, stage: "failed", msg: r.message, t0 }); return; }
+        if (Date.now() - t0 > 90_000) {
+          setRun({ id, stage: "failed", t0, msg: r.stage === "delivered"
+            ? `The receiving server accepted the email, but it never reached ${gmail}. Add a Cloudflare Email Routing rule that forwards this address to ${gmail}, then Retry.`
+            : "No delivery confirmation after 90 seconds. Press Retry." });
+          return;
+        }
+        setRun({ id, stage: r.stage, msg: r.message, t0 }); tick(id, t0);
+      } catch (e) { setRun({ id, stage: "failed", msg: err(e), t0 }); }
+    }, 3000);
+  };
+  const begin = async (addr: string) => {
+    if (timer.current) clearTimeout(timer.current);
+    const t0 = Date.now(); setPct(0); setEditing(false);
+    setRun({ id: null, stage: "sending", msg: "Sending an automatic test email via Branta Tech's Resend…", t0 });
+    try {
+      const r = await send({ data: { slug, email: addr } });
+      await refresh();
+      setRun({ id: r.emailId, stage: "sent", msg: "Sent by Branta Tech's Resend. Waiting for the receiving server…", t0 });
+      tick(r.emailId, t0);
+    } catch (e) { setRun({ id: null, stage: "failed", msg: err(e), t0 }); }
+  };
+  const STEPS = [
+    { k: "sent", label: "Sent via Resend" },
+    { k: "delivered", label: "Accepted by domain" },
+    { k: "forwarded", label: `Arrived in ${gmail}` },
+    { k: "verified", label: "Routing verified" },
+  ] as const;
+  const order = ["sending", "sent", "delivered", "forwarded", "verified"];
+  const reached = (k: string) => run && run.stage !== "failed" ? order.indexOf(run.stage) >= order.indexOf(k) : false;
 
   return (
     <div className="relative mt-4 overflow-hidden rounded-xl border border-border bg-background p-4">
@@ -418,13 +463,13 @@ function InboxAddress({ slug, accent, inbox, gmail }: { slug: string; accent: st
           <div className="text-[11.5px] font-semibold text-muted-foreground">Mail sent to this address shows in this company's Inbox. It must forward to {gmail}.</div>
         </div>
         {inbox?.verified_at && !editing && <span className="flex items-center gap-1 rounded-full bg-status-converted/15 px-2 py-0.5 text-[10.5px] font-bold text-status-converted"><CheckCircle2 className="size-3" /> Verified</span>}
-        {pending && !editing && <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10.5px] font-bold text-amber-600">Waiting for test email</span>}
+        {!inbox?.verified_at && inbox && !editing && !run && <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10.5px] font-bold text-amber-600">Not verified</span>}
       </div>
 
       {editing ? (
         <div className="mt-3 flex flex-wrap gap-2 animate-in fade-in">
           <Input value={email} onChange={(e) => setEmail(e.target.value.toLowerCase())} placeholder="info@admakai.com" className="max-w-sm" />
-          <Button disabled={!valid || !!busy} onClick={begin}>{busy === "start" ? <Loader2 className="size-4 animate-spin" /> : <ShieldCheck className="size-4" />} Save & verify</Button>
+          <Button disabled={!valid || !!busy} onClick={() => begin(email.trim().toLowerCase())}><ShieldCheck className="size-4" /> Save & verify</Button>
           {inbox && <Button variant="ghost" onClick={() => { setEmail(inbox.email); setEditing(false); }}>Cancel</Button>}
         </div>
       ) : inbox && (
@@ -434,15 +479,33 @@ function InboxAddress({ slug, accent, inbox, gmail }: { slug: string; accent: st
             <span className="flex-1 truncate text-[13px] font-semibold">{inbox.email}</span>
             <Button size="sm" variant="ghost" onClick={() => setEditing(true)}><Pencil className="size-3.5" /> Change</Button>
           </div>
-          {pending && (
-            <div className="space-y-2 rounded-lg border border-dashed border-border bg-muted/30 p-3 text-[12.5px] font-semibold">
-              <div><b>1.</b> From any other mailbox (e.g. your personal Gmail), send an email to <b>{inbox.email}</b> with this code in the subject:</div>
-              <CopyRow value={inbox.probe_code!} />
-              <div><b>2.</b> Wait a few seconds, then press Verify. We look for it in {gmail}.</div>
-              <Button size="sm" disabled={!!busy} onClick={verify}>{busy === "check" ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />} Verify</Button>
+          {!inbox.verified_at && !run && (
+            <Button size="sm" onClick={() => begin(inbox.email)}><ShieldCheck className="size-3.5" /> Verify automatically</Button>
+          )}
+          {run && (
+            <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-3 animate-in fade-in">
+              <div className="flex items-center justify-between text-[12px] font-bold">
+                <span className="flex items-center gap-1.5">
+                  {busy ? <Loader2 className="size-3.5 animate-spin" style={{ color: accent }} /> : run.stage === "verified" ? <CheckCircle2 className="size-3.5 text-status-converted" /> : <XCircle className="size-3.5 text-destructive" />}
+                  {run.stage === "verified" ? "Verified" : run.stage === "failed" ? "Verification failed" : "Verifying…"}
+                </span>
+                <span className="font-mono tabular-nums">{Math.round(pct)}%</span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-border">
+                <div className="h-full rounded-full transition-all duration-500 ease-out" style={{ width: `${pct}%`, background: run.stage === "failed" ? "var(--color-destructive)" : run.stage === "verified" ? "var(--color-status-converted)" : accent }} />
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {STEPS.map((st) => (
+                  <div key={st.k} className={cn("flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-[11px] font-bold transition-colors", reached(st.k) ? "border-status-converted/30 bg-status-converted/10 text-status-converted" : "border-border text-muted-foreground")}>
+                    {reached(st.k) ? <Check className="size-3" /> : <span className="size-3 rounded-full border border-current" />}
+                    <span className="truncate">{st.label}</span>
+                  </div>
+                ))}
+              </div>
+              <div className={cn("text-[12px] font-semibold", run.stage === "failed" ? "text-destructive" : "text-muted-foreground")}>{run.msg}</div>
+              {run.stage === "failed" && <Button size="sm" variant="outline" onClick={() => begin(inbox.email)}><RefreshCw className="size-3.5" /> Retry</Button>}
             </div>
           )}
-          {msg && <div className={cn("rounded-md px-3 py-2 text-[12px] font-bold animate-in fade-in", msg.ok ? "bg-status-converted/10 text-status-converted" : "bg-amber-500/10 text-amber-700")}>{msg.text}</div>}
           {inbox.verified_at && <div className="text-[11.5px] font-semibold text-muted-foreground">Changing this address requires verifying again and re-verifying Resend/Brevo with the new sender.</div>}
         </div>
       )}
