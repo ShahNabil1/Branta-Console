@@ -363,16 +363,16 @@ function ProfileForm({
           <div className="grid grid-cols-1 gap-4 md:grid-cols-[120px_1fr]">
             <AvatarUploader
               url={form.avatar_url}
-              onChange={(u) => set("avatar_url", u)}
+              onChange={(u) => void patchField({ avatar_url: u }, u ? "Profile photo saved" : "Profile photo removed")}
               presign={presign}
             />
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <Field label="Legal Full Name">
+              <Field label="Legal Full Name" hint="Set by HR / Admin · contact them to correct it">
                 <Input
-                  className="h-9 rounded-sm"
+                  className="h-9 rounded-sm bg-muted"
                   value={form.legal_full_name ?? ""}
-                  onChange={(e) => set("legal_full_name", e.target.value)}
-                  placeholder="As it appears on your NID / passport"
+                  readOnly
+                  placeholder="Not set yet"
                 />
               </Field>
               <Field
@@ -411,10 +411,11 @@ function ProfileForm({
                 <GoogleGmailConnect
                   email={gmailValid && form.personal_gmail ? form.personal_gmail : null}
                   onConnect={(mail, pic) => {
-                    set("personal_gmail", mail);
-                    if (pic && !form.avatar_url) set("avatar_url", pic);
+                    const patch: { personal_gmail: string; avatar_url?: string } = { personal_gmail: mail };
+                    if (pic && !form.avatar_url) patch.avatar_url = pic;
+                    void patchField(patch, "Gmail connected and saved");
                   }}
-                  onDisconnect={() => set("personal_gmail", null)}
+                  onDisconnect={() => void patchField({ personal_gmail: null }, "Gmail disconnected")}
                 />
               </Field>
             </div>
