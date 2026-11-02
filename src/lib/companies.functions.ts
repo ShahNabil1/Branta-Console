@@ -75,14 +75,14 @@ export const listCompanyLeaderOptions = createServerFn({ method: "GET" })
     const sb = context.supabase as unknown as Sb;
     await assertAdmin(sb, context.userId);
     const { data, error } = await sb.from("profiles")
-      .select("id, full_name, avatar_url, job_role, employee_code, deactivated_at").order("full_name");
+      .select("id, user_id, full_name, avatar_url, job_role, employee_code, deactivated_at").order("full_name");
     if (error) throw dbError(error);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: au } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
     const emails = new Map((au?.users ?? []).map((u) => [u.id, u.email ?? null]));
-    return ((data ?? []) as (PersonLite & { deactivated_at: string | null })[])
+    return ((data ?? []) as (PersonLite & { user_id: string | null; deactivated_at: string | null })[])
       .filter((p) => !p.deactivated_at)
-      .map(({ deactivated_at: _d, ...p }) => ({ ...p, email: emails.get(p.id) ?? null }));
+      .map(({ deactivated_at: _d, user_id: uid, ...p }) => ({ ...p, email: emails.get(uid ?? p.id) ?? null }));
   });
 
 const opt = (max: number) => z.string().trim().max(max).optional().transform((v) => (v ? v : null));
