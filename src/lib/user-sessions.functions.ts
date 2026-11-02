@@ -9,38 +9,69 @@ import { UAParser } from "ua-parser-js";
 
 const RegisterInput = z.object({
   session_key: z.string().min(8).max(128),
+  hints: z
+    .object({
+      model: z.string().max(80).optional(),
+      platform: z.string().max(40).optional(),
+      platformVersion: z.string().max(20).optional(),
+      mobile: z.boolean().optional(),
+      ipad: z.boolean().optional(),
+    })
+    .optional(),
 });
 
 const RevokeInput = z.object({
   session_id: z.string().uuid(),
 });
 
-async function lookupGeo(ip: string | null): Promise<{
-  country: string | null;
-  region: string | null;
-  city: string | null;
-}> {
-  if (!ip || ip === "127.0.0.1" || ip === "::1" || ip.startsWith("10.") || ip.startsWith("192.168.")) {
-    return { country: null, region: null, city: null };
+type Geo = { country: string | null; region: string | null; city: string | null };
+const NO_GEO: Geo = { country: null, region: null, city: null };
+
+function isPrivateIp(ip: string) {
+  return (
+    ip === "127.0.0.1" || ip === "::1" || ip.startsWith("10.") ||
+    ip.startsWith("192.168.") || /^172\.(1[6-9]|2\d|3[01])\./.test(ip)
+  );
+}
+
+// IP geolocation is approximate by nature (ISP routing, mobile CGNAT), so we
+// prefer Cloudflare edge headers (stable, no rate limits) and fall back to ipapi.
+async function lookupGeo(ip: string | null): Promise<Geo> {
+  if (!ip || isPrivateIp(ip)) return NO_GEO;
+  const cfCountry = getRequestHeader("cf-ipcountry");
+  const cfCity = getRequestHeader("cf-ipcity");
+  const cfRegion = getRequestHeader("cf-region");
+  if (cfCity || cfRegion) {
+    let country: string | null = null;
+    try {
+      country = cfCountry && cfCountry !== "XX"
+        ? new Intl.DisplayNames(["en"], { type: "region" }).of(cfCountry) ?? cfCountry
+        : null;
+    } catch { country = cfCountry ?? null; }
+    return { country, region: cfRegion ?? null, city: cfCity ?? null };
   }
   try {
     const res = await fetch(`https://ipapi.co/${ip}/json/`, {
       headers: { "User-Agent": "BrantaTech-Console/1.0" },
+      signal: AbortSignal.timeout(2500),
     });
-    if (!res.ok) return { country: null, region: null, city: null };
-    const j = (await res.json()) as {
-      country_name?: string;
-      region?: string;
-      city?: string;
-    };
-    return {
-      country: j.country_name ?? null,
-      region: j.region ?? null,
-      city: j.city ?? null,
-    };
+    if (!res.ok) return NO_GEO;
+    const j = (await res.json()) as { country_name?: string; region?: string; city?: string; error?: boolean };
+    if (j.error) return NO_GEO;
+    return { country: j.country_name ?? null, region: j.region ?? null, city: j.city ?? null };
   } catch {
-    return { country: null, region: null, city: null };
+    return NO_GEO;
   }
+}
+
+/** Windows 11 reports platformVersion major >= 13 via Client Hints. */
+function hintedOs(platform: string, version: string | undefined, fallback: string) {
+  if (!version) return fallback;
+  const major = Number(version.split(".")[0]);
+  if (platform === "Windows") return major >= 13 ? "Windows 11" : major > 0 ? "Windows 10" : fallback;
+  if (platform === "Android" || platform === "macOS" || platform === "Chrome OS")
+    return `${platform} ${version.replace(/(\.0)+$/, "")}`;
+  return fallback;
 }
 
 function extractIp(): string | null {
@@ -68,13 +99,22 @@ export const registerSession = createServerFn({ method: "POST" })
     const parsed = new UAParser(ua).getResult();
     const ip = extractIp();
     const geo = await lookupGeo(ip);
-    const device =
-      parsed.device.type === "mobile" || parsed.device.type === "tablet"
-        ? `${parsed.device.vendor ?? ""} ${parsed.device.model ?? ""}`.trim() ||
-          "Mobile"
-        : `Desktop`;
+    const h = data.hints ?? {};
+    const uaOs = `${parsed.os.name ?? ""} ${parsed.os.version ?? ""}`.trim();
+    const isMobile = h.ipad || h.mobile || parsed.device.type === "mobile" || parsed.device.type === "tablet";
+    // Chrome's reduced UA sends model "K" and "Android 10"; never trust those.
+    const uaModel = parsed.device.model && parsed.device.model !== "K" ? parsed.device.model : "";
+    let device: string;
+    if (h.ipad) device = "iPad";
+    else if (h.model) device = h.model;
+    else if (isMobile) device = `${parsed.device.vendor ?? ""} ${uaModel}`.trim() || (parsed.os.name === "Android" ? "Android phone" : "Mobile");
+    else device = "Desktop";
     const browser = `${parsed.browser.name ?? "Browser"} ${parsed.browser.version?.split(".")[0] ?? ""}`.trim();
-    const os = `${parsed.os.name ?? ""} ${parsed.os.version ?? ""}`.trim();
+    const os = h.ipad
+      ? "iPadOS"
+      : h.platform
+        ? hintedOs(h.platform, h.platformVersion, uaOs)
+        : uaOs;
 
     // Detect first-time session_key for this user → new-device notification.
     const { data: existing } = await supabaseAdmin
@@ -122,7 +162,7 @@ export const registerSession = createServerFn({ method: "POST" })
           recipients: [context.userId],
           vars: {
             device: `${device} · ${browser}`.trim(),
-            ip: `${ip ?? "unknown"}${location ? ` (${location})` : ""}`,
+            ip: `${ip ?? "unknown"}${location ? ` (approx. ${location})` : ""}`,
             when: `${when} (BDT)`,
           },
           dedupeKey: `session:${context.userId}:${data.session_key}:new`,
