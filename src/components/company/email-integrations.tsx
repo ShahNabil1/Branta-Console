@@ -83,6 +83,19 @@ function ProviderCard({ p, v, on, onClick }: { p: P; v: ProviderView | null; on:
   );
 }
 
+function ProviderLogo({ p }: { p: P }) {
+  if (p === "resend") return (
+    <svg viewBox="0 0 24 24" className="size-5 fill-primary-foreground" aria-label="Resend">
+      <path d="M14.68 3H4v18h4.03v-6.43h2.96L14.94 21H19.5l-4.33-6.95A5.6 5.6 0 0 0 14.68 3Zm-.3 7.86H8.03V6.7h6.35a2.08 2.08 0 0 1 0 4.16Z" />
+    </svg>
+  );
+  return (
+    <svg viewBox="0 0 24 24" className="size-5 fill-primary-foreground" aria-label="Brevo">
+      <path d="M6 3h6.6c3.2 0 5.2 1.7 5.2 4.3 0 1.6-.8 2.9-2.2 3.6 2 .7 3.2 2.3 3.2 4.3 0 3.4-2.6 5.8-6.4 5.8H6V3Zm3.4 3v4.3h2.9c1.4 0 2.2-.8 2.2-2.1 0-1.4-.8-2.2-2.2-2.2H9.4Zm0 7.2V18h3.5c1.7 0 2.7-.9 2.7-2.4s-1-2.4-2.7-2.4H9.4Z" />
+    </svg>
+  );
+}
+
 type Data = Awaited<ReturnType<typeof getEmailIntegrations>>;
 
 function Setup({ p, slug, v, data, both }: { p: P; slug: string; v: ProviderView | null; data: Data; both: boolean }) {
