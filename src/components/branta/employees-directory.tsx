@@ -143,7 +143,7 @@ export function EmployeesDirectory({
           </div>
           <h1 className="mt-1 text-xl font-bold tracking-tight sm:text-2xl">Employees</h1>
           <p className="mt-1 max-w-2xl text-[13px] font-medium text-muted-foreground">
-            Team members, roles and live activity. Accounts require @brantatech.com identities.
+            {""}
           </p>
         </div>
         <div className="flex gap-2">
