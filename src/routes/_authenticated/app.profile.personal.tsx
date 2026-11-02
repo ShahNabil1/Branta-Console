@@ -216,10 +216,28 @@ function ProfileForm({
   const set = <K extends keyof ProfileRow>(k: K, v: ProfileRow[K]) =>
     setForm((prev) => ({ ...prev, [k]: v }));
 
-  const dirty = useMemo(
-    () => JSON.stringify(form) !== JSON.stringify(profile),
-    [form, profile],
-  );
+  // Avatar + Gmail save instantly and the name is admin-managed, so they
+  // never count toward the page's unsaved state.
+  const dirty = useMemo(() => {
+    const strip = (r: ProfileRow) => ({ ...r, avatar_url: null, personal_gmail: null, legal_full_name: null, full_name: null });
+    return JSON.stringify(strip(form)) !== JSON.stringify(strip(profile));
+  }, [form, profile]);
+
+  const patchFn = useServerFn(patchMyProfile);
+  const patchField = async (
+    patch: { avatar_url?: string | null; personal_gmail?: string | null },
+    okMsg: string,
+  ) => {
+    const prev = { avatar_url: form.avatar_url, personal_gmail: form.personal_gmail };
+    setForm((f) => ({ ...f, ...patch }));
+    try {
+      await patchFn({ data: patch });
+      toast.success(okMsg);
+    } catch (err) {
+      setForm((f) => ({ ...f, ...prev }));
+      toast.error("Could not save", { description: (err as Error).message });
+    }
+  };
 
   const isValidBdPhone = (v: string | null | undefined) =>
     !!v && /^01[3-9]\d{8}$/.test(v);
