@@ -233,6 +233,8 @@ export const listMySessions = createServerFn({ method: "GET" })
       "@/integrations/supabase/client.server"
     );
     await expireStale(supabaseAdmin, context.userId);
+    const admin = supabaseAdmin; const cutoff = new Date(Date.now() - 7 * 864e5).toISOString();
+    void admin.from("user_sessions").delete().not("revoked_at", "is", null).lt("revoked_at", cutoff).then(() => {});
     const cols =
       "id,session_key,device,browser,os,ip,country,city,region,created_at,last_seen_at,revoked_at,logout_reason";
     const { data: rows, error } = await supabaseAdmin
@@ -247,6 +249,7 @@ export const listMySessions = createServerFn({ method: "GET" })
       .select(cols)
       .eq("user_id", context.userId)
       .not("revoked_at", "is", null)
+      .gte("revoked_at", cutoff)
       .order("revoked_at", { ascending: false })
       .limit(20);
     if (e2) throw dbError(e2);

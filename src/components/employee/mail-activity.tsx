@@ -17,13 +17,13 @@ export const MAIL_LABEL: Record<string, string> = {
   invalid_email: "Invalid address", error: "Send error", unsubscribed: "Unsubscribed", unblocked: "Unblocked",
 };
 const EXPLAIN: Record<string, string> = {
-  deferred: "The receiving mail server asked the mail service to try again later. the mail service retries automatically — usually it arrives within minutes.",
-  soft_bounce: "Temporary problem at the receiver (mailbox full, server busy). the mail service will retry; if it repeats, check the mailbox.",
-  hard_bounce: "The address does not exist or permanently refused mail. the mail service then blocks it. Check the address, Unblock, then resend.",
-  blocked: "the mail service stopped sending to this address because of an earlier bounce or spam report. Press Unblock, then resend.",
+  deferred: "The receiving mail server asked the mail service to try again later. The mail service retries automatically — usually it arrives within minutes.",
+  soft_bounce: "Temporary problem at the receiver (mailbox full, server busy). The mail service will retry; if it repeats, check the mailbox.",
+  hard_bounce: "The address does not exist or permanently refused mail. The mail service then blocks it. Check the address, Unblock, then resend.",
+  blocked: "The mail service stopped sending to this address because of an earlier bounce or spam report. Press Unblock, then resend.",
   spam: "The recipient (or their mail provider) reported this mail as spam, so the mail service blocks further mail. Unblock only if this was a mistake.",
   invalid_email: "The address format is not valid, so it was never sent. Fix the email address.",
-  error: "the mail service could not process the message. Retry; if it repeats, check the mail service settings.",
+  error: "The mail service could not process the message. Retry; if it repeats, check the mail service settings.",
   unsubscribed: "The recipient unsubscribed. Transactional mail may be blocked until unblocked.",
 };
 const BAD = new Set(["hard_bounce", "blocked", "spam", "invalid_email", "error", "unsubscribed"]);
@@ -177,7 +177,7 @@ export function MailActivity({ emails }: { emails: string[] }) {
                     <div className={cn("mt-2 rounded-sm border px-2 py-1.5 text-[11.5px]", fix ? "border-border bg-muted/40 text-muted-foreground" : mailTone(problem.event))}>
                       <div className="flex gap-1.5">
                         <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
-                        <div><b>{fix ? "Earlier: " : ""}{MAIL_LABEL[problem.event] ?? problem.event}</b> · {fmt(problem.occurred_at)} — {fix ? "This was the problem at that time." : EXPLAIN[problem.event] ?? "the mail service reported a problem."}{problem.reason && <div className="font-mono text-[10.5px]">Provider says: {problem.reason}</div>}</div>
+                        <div><b>{fix ? "Earlier: " : ""}{MAIL_LABEL[problem.event] ?? problem.event}</b> · {fmt(problem.occurred_at)} — {fix ? "This was the problem at that time." : EXPLAIN[problem.event] ?? "The mail service reported a problem."}{problem.reason && <div className="font-mono text-[10.5px]">Provider says: {problem.reason}</div>}</div>
                       </div>
                       {fix && <div className="mt-1 flex gap-1.5 font-semibold text-emerald-700"><Check className="mt-0.5 size-3.5 shrink-0" /> Resolved · unblocked on {fmt(fix.occurred_at)}. Resend to deliver it now.</div>}
                     </div>
