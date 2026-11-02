@@ -37,6 +37,7 @@ import brandLogo from "@/assets/brand-logo.png.asset.json";
 import type { LucideIcon } from "lucide-react";
 import { getMyPermissions } from "@/lib/permissions.functions";
 import { Button } from "@/components/ui/button";
+import { CompanySwitcher } from "@/components/company/company-switcher";
 
 type NavItem = { label: string; to: string; icon: LucideIcon };
 type NavGroup = { label: string; items: NavItem[] };
@@ -69,6 +70,7 @@ const NAV: NavGroup[] = [
   {
     label: "Admin",
     items: [
+      { label: "Companies", to: "/app/companies", icon: Building2 },
       { label: "Employees", to: "/app/employees", icon: UserPlus },
       { label: "Transfers", to: "/app/transfers", icon: ArrowLeftRight },
       { label: "Mail queue", to: "/app/mail-queue", icon: Send },
@@ -256,6 +258,9 @@ export function AppSidebar() {
             className={cn("size-3.5 transition-transform", collapsed && "rotate-180")}
           />
         </button>
+      </div>
+      <div className="hairline-b p-2">
+        <CompanySwitcher collapsed={collapsed} canManage={Boolean(permsQ.data?.isAdmin ?? permsQ.data?.isSuperAdmin)} />
       </div>
 
       {/* Nav */}
