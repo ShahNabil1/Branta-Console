@@ -68,6 +68,9 @@ export interface EmployeeDetail {
   mustLinkTelegram: boolean;
   passwordResetPending: boolean;
   allowedApps: string[];
+  workEmailVerified: boolean;
+  gmailSource: "google" | "cloudflare" | null;
+  socialLinks: { id: string; platform: string; url: string; label: string | null }[];
   profile: {
     full_name: string | null;
     legal_full_name: string | null;
@@ -143,7 +146,29 @@ export const getEmployeeDetail = createServerFn({ method: "GET" })
       ((u as any).banned_until as string | null | undefined) ?? null;
     const isBanned = !!bannedUntil && new Date(bannedUntil).getTime() > Date.now();
 
+    const gmail = ((prof.data as any)?.personal_gmail as string | null)?.toLowerCase() ?? null;
+    const meta = u.app_metadata as { gmail_source?: { email: string; via: "google" | "cloudflare" } } | undefined;
+    let gmailSource: "google" | "cloudflare" | null = null;
+    let workEmailVerified = false;
+    const [social, delivered] = await Promise.all([
+      supabaseAdmin.from("profile_social_links").select("id, platform, url, label").eq("user_id", data.userId).order("sort_order", { ascending: true }),
+      supabaseAdmin.from("email_events").select("id").eq("email", email).eq("event", "delivered").limit(1),
+    ]);
+    if ((delivered.data ?? []).length) workEmailVerified = true;
+    try {
+      const cf = await import("@/lib/cloudflare-email.server");
+      if (cf.cloudflareConfigured()) {
+        const [dests, rules] = await Promise.all([cf.listDestinations(), cf.listForwardRules()]);
+        if (!workEmailVerified) workEmailVerified = rules.some((r) => r.from.toLowerCase() === email && r.enabled && r.to.some((t) => dests.some((d) => d.verified && d.email === t.toLowerCase())));
+        if (gmail && meta?.gmail_source?.email !== gmail && dests.some((d) => d.email === gmail && d.verified)) gmailSource = "cloudflare";
+      }
+    } catch { /* Cloudflare unavailable */ }
+    if (gmail) gmailSource = meta?.gmail_source?.email === gmail ? meta.gmail_source.via : (gmailSource ?? "google");
     return {
+      workEmailVerified,
+      gmailSource,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      socialLinks: ((social.data ?? []) as any[]).map((r) => ({ id: r.id, platform: r.platform, url: r.url, label: r.label ?? null })),
       userId: u.id,
       email,
       brantaId: email.split("@")[0] ?? "",
