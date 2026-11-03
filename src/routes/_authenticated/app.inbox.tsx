@@ -410,7 +410,9 @@ function ThreadView({ threadId, company }: { threadId: string; company?: string 
     );
 
   const thread = q.data;
-  const last = thread.messages[thread.messages.length - 1];
+  // Reply to the latest message received from the other side, not our own sent copy.
+  const incoming = thread.messages.filter((m) => !m.id.startsWith("reply:"));
+  const last = incoming[incoming.length - 1] ?? thread.messages[thread.messages.length - 1];
   const replyTo = last ? [last.from_email] : [];
   const replySubject = last?.subject
     ? last.subject.startsWith("Re:")
