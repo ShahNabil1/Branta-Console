@@ -1,5 +1,5 @@
 import { createFileRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
-import { User, Wallet, ShieldCheck, Activity } from "lucide-react";
+import { User, Wallet, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/app/profile")({
@@ -11,7 +11,6 @@ const TABS = [
   { to: "/app/profile/personal", label: "Personal Information", icon: User },
   { to: "/app/profile/finance", label: "Finance & Payment", icon: Wallet },
   { to: "/app/profile/security", label: "Security & Notification", icon: ShieldCheck },
-  { to: "/app/profile/activity", label: "My Activity", icon: Activity },
 ] as const;
 
 function ProfileLayout() {
