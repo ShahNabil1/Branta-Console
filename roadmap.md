@@ -90,4 +90,4 @@
 - [x] Phase 1: expenses.company_id, versioned fund configs/buckets, append-only company wallet ledger, loan requests, RPCs + server functions
 - [ ] Phase 2: Company Settings → Fund Allocation sub-tab (100% validator, live simulator, history)
 - [ ] Phase 3: invoices/expenses company filter, live allocation preview, auto credit on paid installment, expense debit
-- [ ] Phase 4: Company Wallet page (hero, bucket grid, KPIs, statement, Export statement, Request loan)
+- [x] Phase 4: Company Wallet page (hero, bucket grid, KPIs, statement, Export statement, Request loan)

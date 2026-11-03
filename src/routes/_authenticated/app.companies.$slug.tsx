@@ -5,7 +5,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import {
   ArrowLeft, Building2, Check, Globe, Loader2, Lock, Mail, MapPin, Pencil, Phone, Plug, Settings2,
-  ShieldCheck, Sparkles, Users, X, Plus, Trash2, LayoutGrid, type LucideIcon,
+  ShieldCheck, Sparkles, Users, X, Plus, Trash2, LayoutGrid, Wallet, type LucideIcon,
 } from "lucide-react";
 import { RequireSuperAdmin } from "@/components/branta/require-super-admin";
 import { CompanyAvatar, PersonChip } from "@/components/company/company-avatar";
@@ -19,6 +19,7 @@ import {
 import { cn } from "@/lib/utils";
 import { EmailIntegrations } from "@/components/company/email-integrations";
 import { CompanySettings } from "@/components/company/company-settings";
+import { CompanyWallet } from "@/components/company/company-wallet";
 import { companyIdentity } from "@/lib/company-identity";
 
 export const Route = createFileRoute("/_authenticated/app/companies/$slug")({
@@ -44,6 +45,7 @@ type Patch = Record<string, unknown>;
 
 const TABS: { id: string; label: string; icon: LucideIcon }[] = [
   { id: "info", label: "Company Info", icon: Building2 },
+  { id: "wallet", label: "Wallet", icon: Wallet },
   { id: "people", label: "People & Access", icon: Users },
   { id: "workspace", label: "Workspace", icon: LayoutGrid },
   { id: "integrations", label: "Integrations", icon: Plug },
@@ -117,7 +119,7 @@ function CompanyProfile() {
       </section>
 
       <div key={tab} className="animate-in fade-in slide-in-from-bottom-1 duration-300">
-        {tab === "info" ? <InfoTab c={c} accent={accent} /> : tab === "integrations" ? <EmailIntegrations slug={c.slug} accent={accent} /> : tab === "settings" ? <CompanySettings c={c} accent={accent} /> : <ComingSoon tab={TABS.find((t) => t.id === tab) ?? TABS[0]} accent={accent} />}
+        {tab === "info" ? <InfoTab c={c} accent={accent} /> : tab === "wallet" ? <CompanyWallet companyId={c.id} companyName={c.name} accent={accent} /> : tab === "integrations" ? <EmailIntegrations slug={c.slug} accent={accent} /> : tab === "settings" ? <CompanySettings c={c} accent={accent} /> : <ComingSoon tab={TABS.find((t) => t.id === tab) ?? TABS[0]} accent={accent} />}
       </div>
     </div>
   );
