@@ -14,7 +14,7 @@ import {
   setDefaultProvider, setFinanceSender, verifyEmailProvider, sendInboxProbe, pollInboxProbe, type Check as CheckT, type ProviderView,
 } from "@/lib/company-email.functions";
 import { cn } from "@/lib/utils";
-import { DiscardCancelButton } from "@/components/company/danger-confirm";
+import { DangerConfirm, DiscardCancelButton } from "@/components/company/danger-confirm";
 import { GoogleAccountCard, GoogleMark, GmailMark } from "@/components/company/google-account-card";
 import resendLogo from "@/assets/email/resend.webp.asset.json";
 import brevoLogo from "@/assets/email/brevo.webp.asset.json";
@@ -442,37 +442,25 @@ function StepFinish({ p, slug, v, both }: { p: P; slug: string; v: ProviderView 
 
       <Tile icon={Unplug} title="Disconnect" body="Removes this company's Branta webhook from the provider and erases the stored key and secret. Other webhooks and history stay intact.">
         <Button size="sm" variant="destructive" disabled={!!busy} onClick={() => { setConfirm(true); void loadPreview(); }}><Unplug className="size-3.5" /> Disconnect</Button>
-        <AlertDialog open={confirm} onOpenChange={(open) => { if (!open && !busy) setConfirm(false); }}>
-          <AlertDialogContent className="overflow-hidden p-0 sm:max-w-lg">
-            <div className="flex items-center gap-3 bg-destructive/5 px-6 py-5">
-              <span className="grid size-11 shrink-0 place-items-center rounded-lg border border-destructive/30 bg-card text-destructive"><Unplug className="size-5" /></span>
-              <div>
-                <AlertDialogTitle>Disconnect {META[p].name}?</AlertDialogTitle>
-                <AlertDialogDescription className="mt-1">Only this company's Branta Tech webhooks will be removed.</AlertDialogDescription>
-              </div>
-            </div>
-            <div className="space-y-3 px-6 py-4">
-              {busy === "preview" && <div role="status" className="flex items-center gap-2 text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Checking {META[p].name} webhooks…</div>}
-              {previewError && <div role="alert" className="space-y-2 text-[12px] text-destructive"><p>{previewError}</p><Button size="sm" variant="outline" onClick={() => void loadPreview()}><RefreshCw className="size-3.5" /> Retry</Button></div>}
-              {hooks !== null && <>
-                <div className="flex items-center justify-between text-[13px] font-semibold"><span>Branta Tech webhooks to remove</span><span className="font-mono text-destructive">{hooks.length}</span></div>
-                {hooks.length ? <ul className="max-h-60 divide-y divide-border overflow-y-auto rounded-md border border-border">{hooks.map((hook) => <li key={hook.id} className="space-y-1 p-3"><span className="text-[11px] text-muted-foreground">Webhook #{hook.id}</span><code className="block break-all text-[12px]">{hook.address}</code></li>)}</ul> : <p className="text-[12px] text-muted-foreground">No matching Branta Tech webhooks found. Only the Console connection will be removed.</p>}
-                {p === "brevo" && hooks.length > 0 && <p className="text-[11px] text-muted-foreground">Private authentication tokens are hidden.</p>}
-                <p className="text-[12px] text-muted-foreground">The stored API key and secret will be erased. Other systems' webhooks and past email history stay unchanged.</p>
-              </>}
-            </div>
-            <div className="flex justify-end gap-2 border-t border-border bg-muted/30 px-6 py-3">
-              <Button size="sm" variant="outline" disabled={!!busy} onClick={() => setConfirm(false)}>Cancel</Button>
-              <Button size="sm" variant="destructive" disabled={!!busy || hooks === null || !!previewError} onClick={() => {
-                if (hooks === null) return;
-                void act("dc", async () => {
-                  const r = await disc({ data: { slug, provider: p, confirmedHookIds: hooks.map((hook) => hook.id) } });
-                  setConfirm(false); await refresh(); toast.success(`Disconnected · removed ${r.removed} Branta Tech webhook(s)`);
-                });
-              }}>{busy === "dc" ? <Loader2 className="size-3.5 animate-spin" /> : <Unplug className="size-3.5" />} Confirm disconnect</Button>
-            </div>
-          </AlertDialogContent>
-        </AlertDialog>
+        <DangerConfirm open={confirm} icon={Unplug} title={`Disconnect ${META[p].name}?`} subject={`${v.sender_name} <${v.sender_email}>`}
+          busy={busy === "dc"} confirmLabel="Disconnect" cancelLabel="Keep it"
+          points={busy === "preview" ? [`Checking ${META[p].name} webhooks…`]
+            : previewError ? [previewError]
+            : hooks === null ? [`Checking ${META[p].name} webhooks…`]
+            : [
+              hooks.length ? `Removes ${hooks.length} Branta Tech webhook(s): ${hooks.map((h) => h.address).join(", ")}` : "No Branta Tech webhooks found — only the Console connection is removed.",
+              "Erases the stored API key and webhook secret.",
+              p === "resend" ? "Invoice emails and reminders switch to Brevo if it's connected, otherwise they stop." : "Lead, Inbox and invoice mail stop unless Resend is connected.",
+              "Other systems' webhooks and past email history stay unchanged.",
+            ]}
+          onCancel={() => setConfirm(false)}
+          onConfirm={() => {
+            if (hooks === null || previewError) { void loadPreview(); return; }
+            void act("dc", async () => {
+              const r = await disc({ data: { slug, provider: p, confirmedHookIds: hooks.map((hook) => hook.id) } });
+              setConfirm(false); await refresh(); toast.success(`Disconnected · removed ${r.removed} Branta Tech webhook(s)`);
+            });
+          }} />
       </Tile>
     </div>
   );
@@ -611,44 +599,66 @@ function InboxAddress({ slug, accent, inbox, gmail }: { slug: string; accent: st
 
 function FinanceSender({ slug, v }: { slug: string; v: ProviderView }) {
   const domain = (v.domain || v.sender_email.split("@")[1]).toLowerCase();
-  const current = v.finance_sender_email || v.sender_email;
+  const curEmail = v.finance_sender_email || v.sender_email;
+  const curLocal = curEmail.split("@")[0];
+  const curName = v.finance_sender_name || v.sender_name;
   const [editing, setEditing] = useState(false);
-  const [email, setEmail] = useState(current);
+  const [local, setLocal] = useState(curLocal);
+  const [name, setName] = useState(curName);
   const [busy, setBusy] = useState(false);
   const save = useServerFn(setFinanceSender);
   const refresh = useRefresh(slug);
-  const val = email.trim().toLowerCase();
-  const valid = /^[^\s@]+@[^\s@]+$/.test(val) && val.endsWith(`@${domain}`);
+  const l = local.trim().toLowerCase();
+  const n = name.trim();
+  const localOk = /^[a-z0-9](?:[a-z0-9._+-]{0,62}[a-z0-9])?$/.test(l) && !l.includes("..");
+  const nameOk = n.length >= 1 && n.length <= 80 && !/[<>"\r\n]/.test(n);
+  const dirty = l !== curLocal || n !== curName;
+  const reset = () => { setLocal(curLocal); setName(curName); };
   const submit = async () => {
     setBusy(true);
-    try { await save({ data: { slug, email: val } }); await refresh(); toast.success("Finance email saved"); setEditing(false); }
+    try { await save({ data: { slug, email: `${l}@${domain}`, name: n } }); await refresh(); toast.success("Finance sender saved"); setEditing(false); }
     catch (e) { toast.error(err(e)); } finally { setBusy(false); }
   };
+  const isDefault = !v.finance_sender_email && !v.finance_sender_name;
   return (
     <div className="relative mt-4 overflow-hidden rounded-xl border border-border bg-background p-4">
       <span className="absolute inset-y-0 left-0 w-1" style={{ background: META.resend.color }} />
       <div className="flex flex-wrap items-center gap-3">
         <span className="grid size-9 shrink-0 place-items-center rounded-md border border-border bg-card"><ProviderLogo p="resend" /></span>
         <div className="min-w-0 flex-1">
-          <h3 className="text-[13.5px] font-bold">Finance email (Invoices & reminders)</h3>
-          <div className="text-[11.5px] font-semibold text-muted-foreground">Sent through Resend. Must use @{domain}.</div>
+          <h3 className="text-[13.5px] font-bold">Finance sender (Invoices & reminders)</h3>
+          <div className="text-[11.5px] font-semibold text-muted-foreground">Every invoice email and reminder is sent through Resend from this name and address.</div>
         </div>
-        {!v.finance_sender_email && !editing && <span className="rounded-full bg-muted px-2 py-0.5 text-[10.5px] font-bold text-muted-foreground">Default</span>}
+        {isDefault && !editing && <span className="rounded-full bg-muted px-2 py-0.5 text-[10.5px] font-bold text-muted-foreground">Default</span>}
       </div>
       {editing ? (
-        <div className="mt-3 space-y-1.5 animate-in fade-in">
-          <div className="flex flex-wrap gap-2">
-            <Input value={email} onChange={(e) => setEmail(e.target.value.toLowerCase())} placeholder={`finance@${domain}`} className="max-w-sm" />
-            <Button disabled={!valid || busy || val === current} onClick={submit}>{busy ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />} Save</Button>
-            <DiscardCancelButton dirty={val !== current} className="h-9 gap-1 font-bold" onCancel={() => { setEmail(current); setEditing(false); }} />
+        <div className="mt-3 grid gap-3 animate-in fade-in sm:grid-cols-2">
+          <label className="space-y-1">
+            <span className="text-[11.5px] font-bold text-muted-foreground">Sender name</span>
+            <Input value={name} maxLength={80} onChange={(e) => setName(e.target.value.replace(/[<>"\r\n]/g, ""))} placeholder={v.sender_name} />
+            {!nameOk && <span className="block text-[11.5px] font-semibold text-destructive">Enter a name (up to 80 characters).</span>}
+          </label>
+          <label className="space-y-1">
+            <span className="text-[11.5px] font-bold text-muted-foreground">Sender email</span>
+            <div className={cn("flex h-9 overflow-hidden rounded-md border bg-background", l && !localOk ? "border-destructive" : "border-input")}>
+              <input value={local} maxLength={64} aria-label="Sender email name"
+                onChange={(e) => setLocal(e.target.value.toLowerCase().replace(/[^a-z0-9._+-]/g, ""))}
+                placeholder="finance" className="min-w-0 flex-1 bg-transparent px-3 font-mono text-[13px] outline-none focus:ring-1 focus:ring-inset focus:ring-brand" />
+              <div aria-hidden className="grid shrink-0 select-none place-items-center border-l border-border bg-muted px-3 font-mono text-[13px] font-semibold text-brand">@{domain}</div>
+            </div>
+            {l && !localOk && <span className="block text-[11.5px] font-semibold text-destructive">Use letters, numbers, dot, dash or plus.</span>}
+          </label>
+          <div className="flex items-center gap-2 sm:col-span-2">
+            <Button size="sm" className="h-9" disabled={!localOk || !nameOk || busy || !dirty} onClick={submit}>{busy ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />} Save</Button>
+            <DiscardCancelButton dirty={dirty} disabled={busy} className="h-9 gap-1 font-bold" onCancel={() => { reset(); setEditing(false); }} />
+            <span className="ml-auto truncate text-[11.5px] font-semibold text-muted-foreground">Preview: {n || "…"} &lt;{l || "…"}@{domain}&gt;</span>
           </div>
-          {val && !valid && <div className="text-[11.5px] font-semibold text-destructive">Use an address on @{domain}.</div>}
         </div>
       ) : (
         <div className="mt-3 flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2">
           <Send className="size-3.5 text-muted-foreground" />
-          <span className="flex-1 truncate text-[13px] font-semibold">{current}</span>
-          <Button size="sm" variant="ghost" onClick={() => { setEmail(current); setEditing(true); }}><Pencil className="size-3.5" /> Change</Button>
+          <span className="flex-1 truncate text-[13px] font-semibold">{curName} <span className="font-mono text-muted-foreground">&lt;{curEmail}&gt;</span></span>
+          <Button size="sm" variant="ghost" onClick={() => { reset(); setEditing(true); }}><Pencil className="size-3.5" /> Change</Button>
         </div>
       )}
     </div>
