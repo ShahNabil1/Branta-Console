@@ -519,7 +519,9 @@ export type Database = {
           address: string | null
           address_label: string | null
           address_line1: string | null
+          brand_kit: Json
           ceo_user_id: string | null
+          code_prefixes: Json
           company_type: string | null
           coo_user_id: string | null
           created_at: string
@@ -553,7 +555,9 @@ export type Database = {
           address?: string | null
           address_label?: string | null
           address_line1?: string | null
+          brand_kit?: Json
           ceo_user_id?: string | null
+          code_prefixes?: Json
           company_type?: string | null
           coo_user_id?: string | null
           created_at?: string
@@ -587,7 +591,9 @@ export type Database = {
           address?: string | null
           address_label?: string | null
           address_line1?: string | null
+          brand_kit?: Json
           ceo_user_id?: string | null
+          code_prefixes?: Json
           company_type?: string | null
           coo_user_id?: string | null
           created_at?: string
@@ -5328,6 +5334,10 @@ export type Database = {
         Returns: boolean
       }
       code_pad: { Args: { _n: number; _w: number }; Returns: string }
+      company_code_prefix: {
+        Args: { _company: string; _fallback: string; _kind: string }
+        Returns: string
+      }
       correct_allocation_base: {
         Args: { _allocation_id: string; _reason: string }
         Returns: string
