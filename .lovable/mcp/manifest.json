@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "sdk_version": "3.4.0",
+  "path": "/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://ervxlczoyiwafmgshbfd.supabase.co/auth/v1",
+    "require_oauth_client_claim": true,
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "branta-hub",
+      "version": "0.1.0",
+      "title": "Branta Hub"
+    },
+    "tools": [
+      {
+        "name": "list_leads",
+        "title": "List company leads",
+        "description": "Read non-draft, unconverted leads for one permitted company, without contact details or financial values.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "company_slug": {
+              "type": "string",
+              "pattern": "^[a-z0-9-]{1,80}$",
+              "description": "Company workspace slug, such as branta-tech or admakai."
+            },
+            "limit": {
+              "default": 50,
+              "description": "Maximum leads to return, from 1 to 100.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          "required": [
+            "company_slug"
+          ],
+          "additionalProperties": false
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_customers",
+        "title": "List company customers",
+        "description": "Read a permitted company's active customer directory, respecting customer access and ownership without contact or finance fields.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "company_slug": {
+              "type": "string",
+              "pattern": "^[a-z0-9-]{1,80}$",
+              "description": "Company workspace slug."
+            },
+            "limit": {
+              "default": 50,
+              "description": "Maximum customers to return, from 1 to 100.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          "required": [
+            "company_slug"
+          ],
+          "additionalProperties": false
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}

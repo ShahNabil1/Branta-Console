@@ -19,6 +19,7 @@ import { registerSession } from "@/lib/user-sessions.functions";
 import { beginPasskeyLogin, finishPasskeyLogin } from "@/lib/passkeys.functions";
 import { ensureSessionKey } from "@/hooks/use-session-watcher";
 import { claimPasskeySession } from "@/lib/session-assurance.functions";
+import { oauthReturnPath } from "@/lib/oauth-return-path";
 
 
 const TURNSTILE_SITE_KEY = "0x4AAAAAACNbiRh7P7qtgkXG";
@@ -26,6 +27,7 @@ const TURNSTILE_SITE_KEY = "0x4AAAAAACNbiRh7P7qtgkXG";
 const searchSchema = z.object({
   reason: z.enum(["idle", "signed_out"]).optional(),
   redirect: z.string().optional(),
+  next: z.string().optional(),
 });
 
 // TOTP anti-abuse tuning
@@ -35,17 +37,22 @@ const ENROLL_REGEN_COOLDOWN_MS = 60_000;
 const CHALLENGE_REFRESH_COOLDOWN_MS = 30_000;
 
 const sanitizeRedirect = (r: string | undefined): string => {
-  if (!r) return "/app";
-  if (!r.startsWith("/") || r.startsWith("//")) return "/app";
-  if (r.startsWith("/login")) return "/app";
-  return r;
+  const safe = oauthReturnPath(r);
+  if (safe === "/" || safe.startsWith("/login")) return "/app";
+  return safe;
 };
 
 
 export const Route = createFileRoute("/login")({
   ssr: false,
   validateSearch: searchSchema,
-  head: () => ({ meta: [{ title: "Sign in · Branta Tech" }] }),
+  head: () => ({ meta: [
+    { title: "Sign in · Branta Tech" },
+    { name: "description", content: "Secure employee sign-in and two-factor verification for Branta Hub." },
+    { property: "og:title", content: "Sign in · Branta Tech" },
+    { property: "og:description", content: "Secure employee access to Branta Hub." },
+    { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" },
+  ] }),
   component: LoginPage,
 });
 
@@ -95,7 +102,8 @@ function detectSsoApp(redirect: string | undefined): { name: string; logo: strin
 
 function LoginPage() {
   const navigate = useNavigate();
-  const { reason, redirect: redirectParam } = useSearch({ from: "/login" });
+  const { reason, redirect: legacyRedirect, next } = useSearch({ from: "/login" });
+  const redirectParam = sanitizeRedirect(next ?? legacyRedirect);
   const ssoApp = detectSsoApp(redirectParam);
   const registerSessionFn = useServerFn(registerSession);
   const beginPasskey = useServerFn(beginPasskeyLogin);
@@ -114,7 +122,7 @@ function LoginPage() {
     } catch {
       /* non-fatal */
     }
-    navigate({ href: sanitizeRedirect(redirectParam), replace: true });
+    navigate({ href: redirectParam, replace: true });
   };
 
   const passkeyCancelledRef = useRef(false);
