@@ -303,8 +303,10 @@ export const connectBrevoWebhook = createServerFn({ method: "POST" })
     const url = m.webhookUrl("brevo", co.slug, token);
     const base = m.webhookUrl("brevo", co.slug);
     const list = await m.brevo(key, "/webhooks?type=transactional");
-    if (!list.ok) return fail("list", "Read webhooks", list);
-    const hooks = (list.body?.webhooks ?? []) as W[];
+    // Brevo answers 400 document_not_found when the account has no webhooks yet — that means "empty list".
+    const none = !list.ok && list.status === 400 && list.body?.code === "document_not_found";
+    if (!list.ok && !none) return fail("list", "Read webhooks", list);
+    const hooks = (none ? [] : (list.body?.webhooks ?? [])) as W[];
     const hook = hooks.find((w) => w.url === url);
 
     if (data.stage === "clean") {
@@ -411,7 +413,7 @@ export const disconnectProvider = createServerFn({ method: "POST" })
         }
       } else {
         const list = await m.brevo(key, "/webhooks?type=transactional");
-        if (!list.ok) hookError = `Brevo error ${list.status}: ${list.body?.message ?? "could not read webhooks"}`;
+        if (!list.ok && list.body?.code !== "document_not_found") hookError = `Brevo error ${list.status}: ${list.body?.message ?? "could not read webhooks"}`;
         for (const w of (list.body?.webhooks ?? []) as { id: number; url: string }[]) {
           if (!(w.url ?? "").startsWith(base)) continue;
           const d = await m.brevo(key, `/webhooks/${w.id}`, { method: "DELETE" });
