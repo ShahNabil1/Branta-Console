@@ -37,6 +37,7 @@ import {
 import { type AddrFields, pickAddr, isEnglishAddr, addrValid, fmtAddr, OTHER_PO, BdPhoneInput, BdFlag, BdAddressBlock, normalizeBdDigits } from "@/components/profile/bd-fields";
 import { BD_BANKS, BD_MFS_PROVIDERS } from "@/lib/bd-banks";
 import { ProfileSocialLinksSection } from "@/components/profile/profile-social-links-section";
+import { PaymentMethodsSection } from "@/components/profile/payment-methods-section";
 import { GoogleGmailConnect } from "@/components/profile/google-gmail-connect";
 
 
@@ -488,6 +489,9 @@ function ProfileForm({
         >
           <ProfileSocialLinksSection />
         </Section>
+
+        {/* Payment Methods */}
+        <PaymentMethodsSection />
       </div>
     </div>
   );
