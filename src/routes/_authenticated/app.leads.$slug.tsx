@@ -1,3 +1,4 @@
+import { useActiveCompany } from "@/components/company/company-switcher";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -36,13 +37,14 @@ function LeadDetailPage() {
   const isNew = isNewFlag === 1;
   const navigate = useNavigate();
   const getFn = useServerFn(getLeadBySlug);
+  const workspace = useActiveCompany().active?.slug ?? null;
   const listUsers = useServerFn(listAssignableUsers);
   const logView = useServerFn(logLeadView);
   const qc = useQueryClient();
 
   const leadQ = useQuery({
-    queryKey: ["leads", "by-slug", slug],
-    queryFn: () => getFn({ data: { slug } }),
+    queryKey: ["leads", "by-slug", slug, workspace],
+    queryFn: () => getFn({ data: { slug, workspace } }),
     staleTime: 10_000,
   });
   const usersQ = useQuery({

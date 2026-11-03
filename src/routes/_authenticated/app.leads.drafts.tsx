@@ -1,3 +1,4 @@
+import { useActiveCompany } from "@/components/company/company-switcher";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
@@ -38,6 +39,7 @@ function DraftsPage() {
 
   const permsFn = useServerFn(getMyPermissions);
   const listFn = useServerFn(listDraftLeads);
+  const workspace = useActiveCompany().active?.slug ?? null;
   const usersFn = useServerFn(listAssignableUsers);
   const delFn = useServerFn(deleteLead);
 
@@ -59,12 +61,12 @@ function DraftsPage() {
   });
 
   const draftsQ = useQuery({
-    queryKey: ["leads", "drafts", isSuperAdmin ? ownerFilter : "me"],
+    queryKey: ["leads", "drafts", isSuperAdmin ? ownerFilter : "me", workspace],
     queryFn: () =>
       listFn({
         data: isSuperAdmin
-          ? { ownerFilter: ownerFilter as "all" | "me" | string }
-          : {},
+          ? { ownerFilter: ownerFilter as "all" | "me" | string, workspace }
+          : { workspace },
       }),
     enabled: permsQ.isSuccess,
   });

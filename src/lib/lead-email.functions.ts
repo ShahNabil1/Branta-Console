@@ -99,19 +99,30 @@ type ProcessableRow = {
   sent_by: string | null;
 };
 
+type OwnSender = { provider: string; fromName: string; fromEmail: string; apiKey: string } | null;
+
+async function sendVia<T>(own: OwnSender, connector: "resend" | "brevo", path: string, body: unknown): Promise<T> {
+  if (!own) {
+    const { callGateway } = await import("@/lib/connector-gateway.server");
+    return callGateway<T>({ connector, path, method: "POST", body });
+  }
+  const m = await import("@/lib/company-email.server");
+  const r = connector === "resend"
+    ? await m.resend(own.apiKey, path, { method: "POST", body })
+    : await m.brevo(own.apiKey, path, { method: "POST", body });
+  if (!r.ok) throw new Error(`${connector} rejected the email [${r.status}]: ${JSON.stringify(r.body).slice(0, 300)}`);
+  return r.body as T;
+}
+
 async function deliverViaResend(
   row: ProcessableRow,
   leadSlug: string,
+  own: OwnSender = null,
 ): Promise<{ ok: true; messageId: string } | { ok: false; error: string }> {
-  const { callGateway } = await import("@/lib/connector-gateway.server");
   const recipient = row.to_emails[0];
   try {
-    const resp = await callGateway<{ id: string }>({
-      connector: "resend",
-      path: "/emails",
-      method: "POST",
-      body: {
-        from: RESEND_FROM,
+    const resp = await sendVia<{ id: string }>(own, "resend", "/emails", {
+        from: own ? `${own.fromName} <${own.fromEmail}>` : RESEND_FROM,
         to: [recipient],
         cc: row.cc_emails.length ? row.cc_emails : undefined,
         subject: row.subject ?? "",
@@ -122,7 +133,6 @@ async function deliverViaResend(
           { name: "lead_slug", value: leadSlug },
           { name: "lead_email_id", value: row.id },
         ],
-      },
     });
     return { ok: true, messageId: resp.id };
   } catch (e) {
@@ -133,17 +143,13 @@ async function deliverViaResend(
 async function deliverViaBrevo(
   row: ProcessableRow,
   leadSlug: string,
+  own: OwnSender = null,
 ): Promise<{ ok: true; messageId: string } | { ok: false; error: string }> {
-  const { callGateway } = await import("@/lib/connector-gateway.server");
   const recipient = row.to_emails[0];
   try {
     // Brevo returns { messageId: "<...@smtp-relay.mailin.fr>" }
-    const resp = await callGateway<{ messageId?: string }>({
-      connector: "brevo",
-      path: "/smtp/email",
-      method: "POST",
-      body: {
-        sender: { name: LEAD_FROM_NAME, email: LEAD_FROM_EMAIL },
+    const resp = await sendVia<{ messageId?: string }>(own, "brevo", "/smtp/email", {
+        sender: own ? { name: own.fromName, email: own.fromEmail } : { name: LEAD_FROM_NAME, email: LEAD_FROM_EMAIL },
         to: [{ email: recipient }],
         cc: row.cc_emails.length
           ? row.cc_emails.map((e) => ({ email: e }))
@@ -157,7 +163,6 @@ async function deliverViaBrevo(
           `lead_slug:${leadSlug}`,
           `lead_email_id:${row.id}`,
         ],
-      },
     });
     return { ok: true, messageId: resp.messageId ?? "" };
   } catch (e) {
@@ -173,10 +178,21 @@ async function deliverQueuedRow(
   leadSlug: string,
 ): Promise<{ ok: boolean; error?: string }> {
   const recipient = row.to_emails[0];
-  const result =
-    row.provider === "brevo"
-      ? await deliverViaBrevo(row, leadSlug)
-      : await deliverViaResend(row, leadSlug);
+  // Sister-company leads send only through that company's own verified provider.
+  const { data: lc } = await adminClient.from("leads").select("company_id, companies:company_id(is_holding, name)")
+    .eq("id", row.lead_id).maybeSingle();
+  let own: OwnSender = null;
+  let result: { ok: true; messageId: string } | { ok: false; error: string };
+  if (lc?.company_id && lc.companies && !lc.companies.is_holding) {
+    const { resolveCompanySender } = await import("@/lib/company-email.server");
+    own = await resolveCompanySender(lc.company_id, row.provider === "brevo" ? "brevo" : "resend");
+  }
+  if (lc?.companies && !lc.companies.is_holding && !own) {
+    result = { ok: false, error: `${lc.companies.name} has no verified email provider yet.` };
+  } else {
+    const via = (own?.provider ?? row.provider) === "brevo" ? deliverViaBrevo : deliverViaResend;
+    result = await via(row, leadSlug, own);
+  }
 
   if (result.ok) {
     await adminClient
