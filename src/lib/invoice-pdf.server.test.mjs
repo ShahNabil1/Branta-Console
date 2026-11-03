@@ -33,6 +33,7 @@ describe("invoice PDF pagination", () => {
     const settings = { ...fixture.settings, use_branta_assets: false, company_name: "Admakai",
       company_email: "info@admakai.com", company_phone: null, company_website: "admakai.com",
       payment_info: "Account Name: Admakai", payment_note: "Pay to this account.", payment_intro: "Bank transfer",
+      signature_name: "Admakai - Finance", signature_title: "Authorized Signature",
       logo_url: null, logo_inverse_url: null, font_family: "TimesRoman", signature_align: "left" };
     const bytes = await renderInvoicePdf({ ...fixture, settings });
     const doc = await PDFDocument.load(bytes);
