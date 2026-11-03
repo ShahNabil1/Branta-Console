@@ -446,7 +446,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
   const initial = (p.full_name ?? e.brantaId).slice(0, 1).toUpperCase();
 
   return (
-    <div key={segment} className="mx-auto flex w-full max-w-screen-xl flex-col gap-4 p-3 animate-in fade-in slide-in-from-bottom-1 duration-300 sm:p-5 lg:p-6 2xl:max-w-screen-2xl">
+    <div key={userId} className="mx-auto flex w-full max-w-screen-xl flex-col gap-4 p-3 animate-in fade-in slide-in-from-bottom-1 duration-300 sm:p-5 lg:p-6 2xl:max-w-screen-2xl">
       {/* Header */}
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 lg:flex lg:justify-between">
         <div className="flex min-w-0 items-center gap-3">
@@ -465,7 +465,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
             </h1>
           </div>
         </div>
-        <div className="col-span-2 row-start-2 lg:order-none"><EmployeePager segment={segment} /></div>
+        <div className="col-span-2 row-start-2 lg:order-none"><EmployeePager segment={userId} /></div>
         <div className="hidden flex-wrap items-center gap-2 lg:flex">
           {onboardingPending && (
             <button
