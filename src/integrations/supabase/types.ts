@@ -708,6 +708,65 @@ export type Database = {
           },
         ]
       }
+      company_google_accounts: {
+        Row: {
+          company_id: string
+          connected_at: string
+          connected_by: string | null
+          created_at: string
+          disconnected_at: string | null
+          google_email: string
+          google_name: string | null
+          id: string
+          is_active: boolean
+          last_checked_at: string | null
+          last_error: string | null
+          refresh_token_enc: string | null
+          scopes: string[]
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          connected_at?: string
+          connected_by?: string | null
+          created_at?: string
+          disconnected_at?: string | null
+          google_email: string
+          google_name?: string | null
+          id?: string
+          is_active?: boolean
+          last_checked_at?: string | null
+          last_error?: string | null
+          refresh_token_enc?: string | null
+          scopes?: string[]
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          connected_at?: string
+          connected_by?: string | null
+          created_at?: string
+          disconnected_at?: string | null
+          google_email?: string
+          google_name?: string | null
+          id?: string
+          is_active?: boolean
+          last_checked_at?: string | null
+          last_error?: string | null
+          refresh_token_enc?: string | null
+          scopes?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_google_accounts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_inbox_addresses: {
         Row: {
           company_id: string
