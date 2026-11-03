@@ -21,12 +21,12 @@ function timeAgo(ts: number) {
 
 function visualFor(n: { kind: string; title: string }) {
   const t = n.title.toLowerCase();
-  if (n.kind === "email_failed") return { Icon: MailX, cls: "bg-muted text-muted-foreground ring-rose-500/20", gmail: false };
+  if (n.kind === "email_failed") return { Icon: MailX, cls: "bg-muted text-muted-foreground", gmail: false };
   if (/repl|email|mail/.test(t)) return { Icon: Bell, cls: "bg-card ring-border", gmail: true };
-  if (/transfer/.test(t)) return { Icon: ArrowLeftRight, cls: "bg-muted text-muted-foreground ring-amber-500/20", gmail: false };
-  if (/assign/.test(t)) return { Icon: UserCheck, cls: "bg-muted text-muted-foreground ring-sky-500/20", gmail: false };
-  if (n.kind === "success") return { Icon: CheckCircle2, cls: "bg-muted text-muted-foreground ring-emerald-500/20", gmail: false };
-  return { Icon: Bell, cls: "bg-muted text-muted-foreground ring-violet-500/20", gmail: false };
+  if (/transfer/.test(t)) return { Icon: ArrowLeftRight, cls: "bg-muted text-muted-foreground", gmail: false };
+  if (/assign/.test(t)) return { Icon: UserCheck, cls: "bg-muted text-muted-foreground", gmail: false };
+  if (n.kind === "success") return { Icon: CheckCircle2, cls: "bg-muted text-muted-foreground", gmail: false };
+  return { Icon: Bell, cls: "bg-muted text-muted-foreground", gmail: false };
 }
 
 export function NotificationsBell() {
@@ -64,11 +64,11 @@ export function NotificationsBell() {
           </div>
           <div className="relative flex items-center gap-1">
             <button type="button" onClick={() => notifications.markAllRead()} disabled={unread === 0} title="Mark all as read"
-              className="flex cursor-pointer items-center gap-1 rounded-full border border-border px-2 py-1 text-[11px] font-medium text-muted-foreground transition-all hover:border-emerald-500/40 hover:bg-emerald-500/10 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-40">
+              className="flex cursor-pointer items-center gap-1 rounded-full border border-border px-2 py-1 text-[11px] font-medium text-muted-foreground transition-all hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40">
               <Check className="size-3" /> Read
             </button>
             <button type="button" onClick={() => notifications.clear()} disabled={list.length === 0} title="Clear all"
-              className="flex cursor-pointer items-center gap-1 rounded-full border border-border px-2 py-1 text-[11px] font-medium text-muted-foreground transition-all hover:border-rose-500/40 hover:bg-rose-500/10 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-40">
+              className="flex cursor-pointer items-center gap-1 rounded-full border border-border px-2 py-1 text-[11px] font-medium text-muted-foreground transition-all hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40">
               <Trash2 className="size-3" /> Clear
             </button>
           </div>
