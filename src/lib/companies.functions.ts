@@ -218,9 +218,13 @@ export const listEmployeeWorkspaces = createServerFn({ method: "GET" })
     ]);
     if (error) throw dbError(error);
     const byCo = new Map(((mem ?? []) as { company_id: string; role: string; is_active: boolean }[]).map((m) => [m.company_id, m]));
-    return ((cos ?? []) as CompanyRow[]).map((c) => {
+    const list = (cos ?? []) as CompanyRow[];
+    const hold = list.find((c) => c.is_holding);
+    const hm = hold ? byCo.get(hold.id) : undefined;
+    const groupAdmin = !!hm?.is_active && hm.role === "super_admin";
+    return list.map((c) => {
       const m = byCo.get(c.id);
-      const leader = c.ceo_user_id === pid ? "CEO" : c.coo_user_id === pid ? "COO" : null;
+      const leader = c.ceo_user_id === pid ? "CEO" : c.coo_user_id === pid ? "COO" : groupAdmin && !c.is_holding ? "Group admin" : null;
       return { ...c, role: m?.is_active ? (m.role as WorkspaceRole) : null, leader };
     });
   });
@@ -237,10 +241,16 @@ export const setEmployeeWorkspace = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as unknown as Sb;
     const pid = await profileIdFor(admin, data.userId);
-    const { data: co } = await admin.from("companies").select("ceo_user_id, coo_user_id").eq("id", data.companyId).maybeSingle();
+    const { data: co } = await admin.from("companies").select("ceo_user_id, coo_user_id, is_holding").eq("id", data.companyId).maybeSingle();
     if (!co) throw new Error("Company not found.");
     if ((co.ceo_user_id === pid || co.coo_user_id === pid) && data.role !== "super_admin")
       throw new Error("CEO/COO always keep full access. Change the company leadership first.");
+    if (!co.is_holding && data.role !== "super_admin") {
+      const { data: h } = await admin.from("companies").select("id").eq("is_holding", true).maybeSingle();
+      const { data: hm } = h ? await admin.from("company_members").select("role, is_active").eq("company_id", h.id).eq("user_id", pid).maybeSingle() : { data: null };
+      if (hm?.is_active && hm.role === "super_admin")
+        throw new Error("Branta Tech company admins always have full access to every workspace.");
+    }
     const row = data.role
       ? { company_id: data.companyId, user_id: pid, role: data.role, is_active: true }
       : { company_id: data.companyId, user_id: pid, role: "member", is_active: false };
