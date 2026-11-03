@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   connectBrevoWebhook, connectResendWebhook, disconnectProvider, previewProviderDisconnect, getEmailIntegrations,
-  setDefaultProvider, verifyEmailProvider, sendInboxProbe, pollInboxProbe, type Check as CheckT, type ProviderView,
+  setDefaultProvider, setFinanceSender, verifyEmailProvider, sendInboxProbe, pollInboxProbe, type Check as CheckT, type ProviderView,
 } from "@/lib/company-email.functions";
 import { cn } from "@/lib/utils";
 import { DiscardCancelButton } from "@/components/company/danger-confirm";
@@ -100,6 +100,7 @@ export function EmailIntegrations({ slug, accent }: { slug: string; accent: stri
             <ProviderCard key={p} p={p} v={d[p]} on={open === p} onClick={() => setOpen(open === p ? null : p)} />
           ))}
         </div>
+        {d.resend?.domain_verified_at && d.resend.webhook_verified_at && <FinanceSender slug={slug} v={d.resend} />}
       </section>
 
       {open && d.inbox?.verified_at && (
@@ -602,6 +603,52 @@ function InboxAddress({ slug, accent, inbox, gmail }: { slug: string; accent: st
             </div>
           )}
           {inbox.verified_at && <div className="text-[11.5px] font-semibold text-muted-foreground">Changing this address requires verifying again and re-verifying Resend/Brevo with the new sender.</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FinanceSender({ slug, v }: { slug: string; v: ProviderView }) {
+  const domain = (v.domain || v.sender_email.split("@")[1]).toLowerCase();
+  const current = v.finance_sender_email || v.sender_email;
+  const [editing, setEditing] = useState(false);
+  const [email, setEmail] = useState(current);
+  const [busy, setBusy] = useState(false);
+  const save = useServerFn(setFinanceSender);
+  const refresh = useRefresh(slug);
+  const val = email.trim().toLowerCase();
+  const valid = /^[^\s@]+@[^\s@]+$/.test(val) && val.endsWith(`@${domain}`);
+  const submit = async () => {
+    setBusy(true);
+    try { await save({ data: { slug, email: val } }); await refresh(); toast.success("Finance email saved"); setEditing(false); }
+    catch (e) { toast.error(err(e)); } finally { setBusy(false); }
+  };
+  return (
+    <div className="relative mt-4 overflow-hidden rounded-xl border border-border bg-background p-4">
+      <span className="absolute inset-y-0 left-0 w-1" style={{ background: META.resend.color }} />
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="grid size-9 shrink-0 place-items-center rounded-md border border-border bg-card"><ProviderLogo p="resend" /></span>
+        <div className="min-w-0 flex-1">
+          <h3 className="text-[13.5px] font-bold">Finance email (Invoices & reminders)</h3>
+          <div className="text-[11.5px] font-semibold text-muted-foreground">Sent through Resend. Must use @{domain}.</div>
+        </div>
+        {!v.finance_sender_email && !editing && <span className="rounded-full bg-muted px-2 py-0.5 text-[10.5px] font-bold text-muted-foreground">Default</span>}
+      </div>
+      {editing ? (
+        <div className="mt-3 space-y-1.5 animate-in fade-in">
+          <div className="flex flex-wrap gap-2">
+            <Input value={email} onChange={(e) => setEmail(e.target.value.toLowerCase())} placeholder={`finance@${domain}`} className="max-w-sm" />
+            <Button disabled={!valid || busy || val === current} onClick={submit}>{busy ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />} Save</Button>
+            <DiscardCancelButton dirty={val !== current} className="h-9 gap-1 font-bold" onCancel={() => { setEmail(current); setEditing(false); }} />
+          </div>
+          {val && !valid && <div className="text-[11.5px] font-semibold text-destructive">Use an address on @{domain}.</div>}
+        </div>
+      ) : (
+        <div className="mt-3 flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2">
+          <Send className="size-3.5 text-muted-foreground" />
+          <span className="flex-1 truncate text-[13px] font-semibold">{current}</span>
+          <Button size="sm" variant="ghost" onClick={() => { setEmail(current); setEditing(true); }}><Pencil className="size-3.5" /> Change</Button>
         </div>
       )}
     </div>
