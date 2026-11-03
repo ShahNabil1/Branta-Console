@@ -156,7 +156,6 @@ function extractBody(payload: GmailPart | undefined): ExtractedBody {
 
 async function fetchMessageMetadata(id: string, mb: Mailbox): Promise<GmailMessage> {
   return callGateway<GmailMessage>({
-    ...googleScope(mb),
     connector: "google_mail",
     ...googleScope(mb),
     path: `/gmail/v1/users/me/messages/${encodeURIComponent(id)}`,
@@ -282,7 +281,8 @@ export const syncInbox = createServerFn({ method: "POST" })
       .join(",");
     const { data: contacts } = await supabaseAdmin
       .from("lead_contacts")
-      .select("id, lead_id, email, alt_email");
+      .select("id, lead_id, email, alt_email, leads!inner(company_id)")
+      .eq("leads.company_id", mb.companyId);
     // Filter locally (Supabase or() has length limits with many emails).
     const byEmail = new Map<string, { leadId: string; contactId: string }>();
     for (const c of contacts ?? []) {
@@ -424,7 +424,8 @@ export const listInbox = createServerFn({ method: "GET" })
     if (fromEmails.length > 0) {
       const { data: contacts } = await context.supabase
         .from("lead_contacts")
-        .select("id, lead_id, email, alt_email");
+        .select("id, lead_id, email, alt_email, leads!inner(company_id)")
+        .eq("leads.company_id", mb.companyId);
       for (const c of contacts ?? []) {
         const emails = [c.email as string | null, c.alt_email as string | null]
           .filter(Boolean)
@@ -600,7 +601,8 @@ export const getInboxThread = createServerFn({ method: "GET" })
     if (firstFrom) {
       const { data: contact } = await context.supabase
         .from("lead_contacts")
-        .select("lead_id")
+        .select("lead_id, leads!inner(company_id)")
+        .eq("leads.company_id", mb.companyId)
         .or(`email.eq.${firstFrom},alt_email.eq.${firstFrom}`)
         .limit(1)
         .maybeSingle();
