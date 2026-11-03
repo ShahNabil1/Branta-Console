@@ -28,11 +28,12 @@ async function canUseCompany(sb: Sb, userId: string, companyId: string) {
   return Boolean((m as { data: unknown }).data) || Boolean((a as { data: unknown }).data);
 }
 
-async function inboxAddressFor(companyId: string, fallback: string) {
+/** The company's verified in-app inbox address, or null — never a fallback. */
+async function verifiedInboxAddress(companyId: string): Promise<string | null> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const sb = supabaseAdmin as unknown as { from: (t: string) => any }; // eslint-disable-line @typescript-eslint/no-explicit-any
   const { data } = await sb.from("company_inbox_addresses").select("email, verified_at").eq("company_id", companyId).maybeSingle();
-  return data?.verified_at && data.email ? String(data.email).toLowerCase() : fallback.toLowerCase();
+  return data?.verified_at && data.email ? String(data.email).toLowerCase() : null;
 }
 
 async function hasOwnGoogle(companyId: string) {
@@ -59,7 +60,9 @@ export async function resolveMailbox(sb: Sb, userId: string, slug?: string | nul
   if (!(await canUseCompany(sb, userId, row.id))) throw new Error(`You don't have access to ${row.name}'s inbox.`);
   if (!(await hasOwnGoogle(row.id)))
     throw new Error(`${row.name} has no Gmail connected yet. Connect it in the company's Integrations tab.`);
-  return build(row, await inboxAddressFor(row.id, row.email));
+  const addr = await verifiedInboxAddress(row.id);
+  if (!addr) throw new Error(`${row.name}'s inbox address isn't verified yet. Verify it in the company's Integrations tab.`);
+  return build(row, addr);
 }
 
 /** Mailbox that owns a lead (used by meetings). Access to the lead is checked by the caller via RLS. */
@@ -72,7 +75,8 @@ export async function mailboxForCompanyId(companyId: string | null | undefined):
   if (!row) return null;
   if (!row.is_holding && !(await hasOwnGoogle(row.id)))
     throw new Error(`${row.name} has no Google Calendar connected yet. Connect it in the company's Integrations tab.`);
-  return build(row, row.is_holding ? HOLDING_INBOX : await inboxAddressFor(row.id, row.email));
+  // Calendar only needs the company's own Google account; the address is informational here.
+  return build(row, row.is_holding ? HOLDING_INBOX : (await verifiedInboxAddress(row.id)) ?? row.email.toLowerCase());
 }
 
 /** Options to spread into callGateway for Gmail / Calendar calls. */
