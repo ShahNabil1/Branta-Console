@@ -1,7 +1,7 @@
 import { DiscardCancelButton } from "@/components/company/danger-confirm";
 // Social Links section for a lead — icon dropdown + URL + label.
 // After adding, the URL collapses into a clickable icon chip with its label.
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";

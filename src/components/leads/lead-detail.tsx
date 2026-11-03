@@ -1,3 +1,4 @@
+import { DiscardCancelButton } from "@/components/company/danger-confirm";
 // Full-page Lead detail with Overview / Emails / Meetings tabs.
 // Extracted from the former drawer so it can be mounted at /app/leads/$slug.
 import { useServerFn } from "@tanstack/react-start";
@@ -680,6 +681,9 @@ export function LeadDetail({
   });
   // Details section lock — read-only by default, unlocks on Edit click.
   const [editing, setEditing] = useState(initialEdit);
+  const [formSnap, setFormSnap] = useState("");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (editing) setFormSnap(JSON.stringify(form)); }, [editing]);
   const [transferOpen, setTransferOpen] = useState(false);
   const listMineFn = useServerFn(listMyTransferRequests);
   const myTransfersQ = useQuery({
@@ -1063,11 +1067,10 @@ export function LeadDetail({
                   Edit
                 </Button>
               ) : (
-                <Button
-                  variant="ghost"
-                  size="sm"
+                <DiscardCancelButton
+                  dirty={JSON.stringify(form) !== formSnap}
                   className="h-7 rounded-sm text-[11.5px] text-muted-foreground"
-                  onClick={() => {
+                  onCancel={() => {
                     // Reset form to lead's persisted values
                     setForm({
                       name: lead.name,
@@ -1093,9 +1096,7 @@ export function LeadDetail({
                     });
                     setEditing(false);
                   }}
-                >
-                  Cancel
-                </Button>
+                />
               )}
             </div>
             {editing ? (
