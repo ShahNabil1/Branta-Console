@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { CalendarDays, CheckCircle2, Inbox, Loader2, RefreshCw, Unplug, XCircle } from "lucide-react";
+import { ArrowLeftRight, CheckCircle2, Loader2, RefreshCw, Unplug, XCircle } from "lucide-react";
+import { AlertDialog, AlertDialogContent, AlertDialogTitle, AlertDialogDescription } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { disconnectGoogle, getGoogleConnection, startGoogleConnect, testGoogleConnection } from "@/lib/company-google.functions";
 import { cn } from "@/lib/utils";
@@ -32,7 +33,7 @@ export function GoogleAccountCard({ slug, accent, fallback }: { slug: string; ac
   const q = useQuery({ queryKey: ["company-google", slug], queryFn: () => get({ data: { slug } }) });
   const [busy, setBusy] = useState<"connect" | "test" | "disc" | null>(null);
   const [checks, setChecks] = useState<Check[] | null>(null);
-  const [confirm, setConfirm] = useState(false);
+  const [confirm, setConfirm] = useState<"switch" | "disc" | null>(null);
   const refresh = () => Promise.all([
     qc.invalidateQueries({ queryKey: ["company-google", slug] }),
     qc.invalidateQueries({ queryKey: ["company-email", slug] }),
@@ -50,7 +51,7 @@ export function GoogleAccountCard({ slug, accent, fallback }: { slug: string; ac
   };
   const runDisc = async () => {
     setBusy("disc");
-    try { await disc({ data: { slug } }); setChecks(null); setConfirm(false); toast.success("Google account disconnected."); await refresh(); }
+    try { await disc({ data: { slug } }); setChecks(null); setConfirm(null); toast.success("Google account disconnected."); await refresh(); }
     catch (e) { toast.error(err(e)); } finally { setBusy(null); }
   };
 
@@ -74,12 +75,8 @@ export function GoogleAccountCard({ slug, accent, fallback }: { slug: string; ac
         ) : a ? (
           <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="outline" onClick={runTest} disabled={!!busy}>{busy === "test" ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />} Test</Button>
-            <Button size="sm" variant="outline" onClick={connect} disabled={!!busy}>Switch account</Button>
-            {confirm ? (
-              <Button size="sm" variant="destructive" onClick={runDisc} disabled={!!busy}>{busy === "disc" && <Loader2 className="size-3.5 animate-spin" />} Confirm disconnect</Button>
-            ) : (
-              <Button size="sm" variant="ghost" onClick={() => setConfirm(true)} disabled={!!busy}><Unplug className="size-3.5" /> Disconnect</Button>
-            )}
+            <Button size="sm" variant="outline" onClick={() => setConfirm("switch")} disabled={!!busy}><ArrowLeftRight className="size-3.5" /> Switch account</Button>
+            <Button size="sm" variant="destructive" onClick={() => setConfirm("disc")} disabled={!!busy}><Unplug className="size-3.5" /> Disconnect</Button>
           </div>
         ) : (
           <Button size="sm" onClick={connect} disabled={!!busy} className="gap-2 border border-border bg-card text-foreground shadow-sm hover:bg-muted">
@@ -90,12 +87,21 @@ export function GoogleAccountCard({ slug, accent, fallback }: { slug: string; ac
 
       {a && (
         <div className="relative mt-3 flex flex-wrap gap-2">
-          <Chip ok={a.gmail} icon={Inbox} label="Gmail inbox (read)" />
-          <Chip ok={a.calendar} icon={CalendarDays} label="Calendar meetings" />
+          <Chip ok={a.gmail} icon={GmailMark} label="Gmail" />
+          <Chip ok={a.calendar} icon={CalendarMark} label="Calendar" />
           {a.last_error && <span className="rounded-full bg-destructive/10 px-2.5 py-1 text-[11px] font-bold text-destructive">{a.last_error}</span>}
         </div>
       )}
       {a && <p className="relative mt-2 text-[11px] font-semibold text-muted-foreground">Route the company address to {a.email} so incoming mail lands here. Then verify the Inbox address below.</p>}
+
+      <ConfirmDialog
+        kind={confirm}
+        email={a?.email ?? ""}
+        fallback={fallback}
+        busy={busy === "disc" || busy === "connect"}
+        onCancel={() => setConfirm(null)}
+        onConfirm={() => (confirm === "switch" ? connect() : runDisc())}
+      />
 
       {checks && (
         <div className="relative mt-3 space-y-1.5 animate-in fade-in slide-in-from-top-1">
@@ -111,10 +117,92 @@ export function GoogleAccountCard({ slug, accent, fallback }: { slug: string; ac
   );
 }
 
-function Chip({ ok, icon: Icon, label }: { ok: boolean; icon: typeof Inbox; label: string }) {
+export function GmailMark({ className }: { className?: string }) {
   return (
-    <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold", ok ? "bg-status-converted/10 text-status-converted" : "bg-destructive/10 text-destructive")}>
-      <Icon className="size-3" /> {label} {ok ? "✓" : "— not granted"}
+    <svg viewBox="52 42 88 66" className={className} aria-hidden>
+      <path fill="#4285f4" d="M58 108h14V74L52 59v43c0 3.32 2.69 6 6 6" />
+      <path fill="#34a853" d="M120 108h14c3.32 0 6-2.69 6-6V59l-20 15" />
+      <path fill="#fbbc04" d="M120 48v26l20-15v-8c0-7.42-8.47-11.65-14.4-7.2" />
+      <path fill="#ea4335" d="M72 74V48l24 18 24-18v26L96 92" />
+      <path fill="#c5221f" d="M52 51v8l20 15V48l-5.6-4.2c-5.94-4.45-14.4-.22-14.4 7.2" />
+    </svg>
+  );
+}
+
+export function CalendarMark({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 200 200" className={className} aria-hidden>
+      <path fill="#fff" d="M152.6 47.4H47.4v105.2h105.2z" />
+      <path fill="#ea4335" d="M152.6 200 200 152.6h-47.4z" />
+      <path fill="#fbbc04" d="M200 47.4h-47.4v105.2H200z" />
+      <path fill="#34a853" d="M152.6 152.6H47.4V200h105.2z" />
+      <path fill="#188038" d="M0 152.6v31.6A15.8 15.8 0 0 0 15.8 200h31.6v-47.4z" />
+      <path fill="#1967d2" d="M200 47.4V15.8A15.8 15.8 0 0 0 184.2 0h-31.6v47.4z" />
+      <path fill="#4285f4" d="M152.6 0H15.8A15.8 15.8 0 0 0 0 15.8v136.8h47.4V47.4h105.2z" />
+      <text x="100" y="128" textAnchor="middle" fontSize="72" fontWeight="700" fill="#4285f4" fontFamily="Arial, sans-serif">31</text>
+    </svg>
+  );
+}
+
+function ConfirmDialog({ kind, email, fallback, busy, onCancel, onConfirm }: {
+  kind: "switch" | "disc" | null; email: string; fallback: string; busy: boolean; onCancel: () => void; onConfirm: () => void;
+}) {
+  const sw = kind === "switch";
+  const points = sw
+    ? [
+        `You'll pick a different Google account on Google's sign-in page.`,
+        `${email || "The current account"} stops being used once the new one connects.`,
+        "Gmail inbox and Calendar meetings move to the new account.",
+        "Past mail history and sent records stay unchanged.",
+      ]
+    : [
+        `Gmail inbox and Calendar meetings stop using ${email || "this account"}.`,
+        `Mail falls back to the shared ${fallback} until you connect again.`,
+        "Saved access is removed from the Console right away.",
+        "Past mail history and sent records stay unchanged.",
+      ];
+  return (
+    <AlertDialog open={!!kind} onOpenChange={(o) => !o && !busy && onCancel()}>
+      <AlertDialogContent className="overflow-hidden p-0 sm:max-w-md">
+        <div className={cn("relative px-6 pb-4 pt-6", sw ? "bg-primary/5" : "bg-destructive/5")}>
+          <span className={cn("pointer-events-none absolute -right-10 -top-12 size-36 rounded-full blur-3xl", sw ? "bg-primary/25" : "bg-destructive/25")} />
+          <div className="relative flex items-center gap-3">
+            <span className={cn("grid size-11 place-items-center rounded-xl border bg-card shadow-sm animate-in zoom-in-75 duration-300", sw ? "border-primary/30 text-primary" : "border-destructive/30 text-destructive")}>
+              {sw ? <ArrowLeftRight className="size-5" /> : <Unplug className="size-5" />}
+            </span>
+            <div className="min-w-0">
+              <AlertDialogTitle className="text-[15px] font-bold">{sw ? "Switch Google account?" : "Disconnect Google account?"}</AlertDialogTitle>
+              <AlertDialogDescription className="mt-0.5 flex items-center gap-1.5 truncate text-[12px] font-semibold">
+                <GoogleMark className="size-3.5 shrink-0" /> {email}
+              </AlertDialogDescription>
+            </div>
+          </div>
+        </div>
+        <ul className="space-y-2 px-6 py-4">
+          {points.map((t, i) => (
+            <li key={t} style={{ animationDelay: `${i * 70}ms` }} className="flex items-start gap-2 text-[12.5px] font-semibold text-foreground animate-in fade-in slide-in-from-left-2 fill-mode-both">
+              <span className={cn("mt-1.5 size-1.5 shrink-0 rounded-full", i === points.length - 1 ? "bg-status-converted" : sw ? "bg-primary" : "bg-destructive")} />
+              {t}
+            </li>
+          ))}
+        </ul>
+        <div className="flex justify-end gap-2 border-t border-border bg-muted/30 px-6 py-3">
+          <Button size="sm" variant="outline" onClick={onCancel} disabled={busy}>Cancel</Button>
+          <Button size="sm" variant={sw ? "default" : "destructive"} onClick={onConfirm} disabled={busy} className="transition-transform active:scale-95">
+            {busy ? <Loader2 className="size-3.5 animate-spin" /> : sw ? <ArrowLeftRight className="size-3.5" /> : <Unplug className="size-3.5" />}
+            {sw ? "Continue to Google" : "Disconnect"}
+          </Button>
+        </div>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+function Chip({ ok, icon: Icon, label }: { ok: boolean; icon: typeof GmailMark; label: string }) {
+  return (
+    <span className={cn("inline-flex items-center gap-1.5 rounded-full border bg-card px-2.5 py-1 text-[12px] font-bold shadow-sm", ok ? "border-border text-foreground" : "border-destructive/30 text-destructive")}>
+      <Icon className="size-3.5" /> {label}
+      {ok ? <CheckCircle2 className="size-3 text-status-converted" /> : <span className="text-[11px]">— not granted</span>}
     </span>
   );
 }
