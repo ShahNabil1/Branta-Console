@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { SearchableSelect, type SearchableItem } from "@/components/finance/searchable-select";
 import { QuickCustomerDialog } from "@/components/finance/quick-customer-dialog";
 import { ProjectCostEditor, sumProjectCosts, toCostPayload, type ProjectCost } from "@/components/finance/project-cost-editor";
+import { CompanyFundPreview, useCustomerFundContext } from "@/components/finance/company-fund-preview";
 import { EmployeeFundPlanner, planAmount, toPlanPayload, EXCEEDS_MSG, type EmployeePlan } from "@/components/finance/employee-fund-planner";
 
 type Installment = { label: string; amount: number; due_date: string };
@@ -90,6 +91,8 @@ function NewInvoicePage() {
   const instSum = useMemo(() => installments.reduce((a, i) => a + Number(i.amount || 0), 0), [installments]);
   const costSum = useMemo(() => sumProjectCosts(projectCosts), [projectCosts]);
   const netAmount = Math.max(totalNum - costSum, 0);
+  const fundCtx = useCustomerFundContext(customerId || null);
+  const sisterCtx = fundCtx.data?.sister ? fundCtx.data : null;
   const pctSum = useMemo(() => stakeholders.reduce((a, s) => a + Number(s.percent || 0), 0), [stakeholders]);
 
   const submit = useMutation({
@@ -282,7 +285,8 @@ function NewInvoicePage() {
       </section>
 
       <section className="rounded-md border border-border bg-card p-5">
-        <EmployeeFundPlanner net={netAmount} currency={currency} projectId={projectId || null} plans={plans} onChange={setPlans} onPoolChange={(p) => p !== empPool && setEmpPool(p)} />
+        {sisterCtx ? <CompanyFundPreview ctx={sisterCtx} amount={totalNum} currency={currency} />
+          : <EmployeeFundPlanner net={netAmount} currency={currency} projectId={projectId || null} plans={plans} onChange={setPlans} onPoolChange={(p) => p !== empPool && setEmpPool(p)} />}
       </section>
 
       <section className="rounded-md border border-border bg-card p-5">

@@ -61,6 +61,7 @@ const ROLE_COLORS: Record<string, string> = {
 };
 
 import { ProjectCostEditor, sumProjectCosts, toEditorCost, toCostPayload, costTypeLabel, type ProjectCost } from "@/components/finance/project-cost-editor";
+import { CompanyFundPreview, useCustomerFundContext } from "@/components/finance/company-fund-preview";
 import { EmployeeFundPlanner, planAmount, toPlanPayload, EXCEEDS_MSG, type EmployeePlan } from "@/components/finance/employee-fund-planner";
 import { getInvoiceEmployeePlan } from "@/lib/fund-ledger.functions";
 
@@ -659,6 +660,8 @@ function EditInvoiceDialog({
   onSave: (payload: UpdateInvoicePayload) => void;
 }) {
   const [customerId, setCustomerId] = useState(invoice.customer_id);
+  const fundCtx = useCustomerFundContext(customerId || null);
+  const sisterCtx = fundCtx.data?.sister ? fundCtx.data : null;
   const [title, setTitle] = useState(invoice.title);
   const [description, setDescription] = useState(invoice.description ?? "");
   const [projectType, setProjectType] = useState<"one_time" | "monthly_retainer">(invoice.project_type);
@@ -810,7 +813,12 @@ function EditInvoiceDialog({
             <ProjectCostEditor costs={editCosts} onChange={setEditCosts} total={totalNum} currency={currency} compact />
           </section>
 
-          {fundLedger && plans && (
+          {sisterCtx && (
+            <section className="rounded-sm border border-border p-3">
+              <CompanyFundPreview ctx={sisterCtx} amount={totalNum} currency={currency} />
+            </section>
+          )}
+          {!sisterCtx && fundLedger && plans && (
             <section className="rounded-sm border border-border p-3">
               <EmployeeFundPlanner net={Math.max(totalNum - costSum, 0)} currency={currency} projectId={(invoice as { project_id?: string | null }).project_id ?? null} plans={plans} onChange={setPlans} onPoolChange={(p) => p !== empPool && setEmpPool(p)} />
               {planOver && <span className="sr-only">{EXCEEDS_MSG}</span>}
