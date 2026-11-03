@@ -14,6 +14,49 @@ import {
 } from "@/lib/company-email.functions";
 import { cn } from "@/lib/utils";
 import { GoogleAccountCard } from "@/components/company/google-account-card";
+import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogTitle } from "@/components/ui/alert-dialog";
+
+function ChangeInboxDialog({ open, email, verified, onCancel, onConfirm }: { open: boolean; email: string; verified: boolean; onCancel: () => void; onConfirm: () => void }) {
+  const points = [
+    `${email} stops being the company Inbox address as soon as you save a new one.`,
+    ...(verified ? ["The new address must pass automatic verification before mail works again."] : []),
+    "Sender Email for Resend and Brevo switches to the new address — re-verify the sender and domain there.",
+    "Leads and Invoice emails stay paused for this company until the new sender is verified.",
+    "Update your email routing so the new address forwards to the connected Gmail, or replies won't arrive.",
+    "Past mail, replies and delivery history stay unchanged.",
+  ];
+  return (
+    <AlertDialog open={open} onOpenChange={(o) => !o && onCancel()}>
+      <AlertDialogContent className="overflow-hidden p-0 sm:max-w-md">
+        <div className="relative bg-primary/5 px-6 pb-4 pt-6">
+          <span className="pointer-events-none absolute -right-10 -top-12 size-36 rounded-full bg-primary/25 blur-3xl" />
+          <div className="relative flex items-center gap-3">
+            <span className="grid size-11 place-items-center rounded-xl border border-primary/30 bg-card text-primary shadow-sm animate-in zoom-in-75 duration-300"><Mail className="size-5" /></span>
+            <div className="min-w-0">
+              <AlertDialogTitle className="text-[15px] font-bold">Change Inbox address?</AlertDialogTitle>
+              <AlertDialogDescription className="mt-0.5 flex items-center gap-1.5 truncate text-[12px] font-semibold">
+                <Inbox className="size-3.5 shrink-0" /> {email}
+                {verified && <CheckCircle2 className="size-3.5 shrink-0 text-status-converted" />}
+              </AlertDialogDescription>
+            </div>
+          </div>
+        </div>
+        <ul className="space-y-2 px-6 py-4">
+          {points.map((t, i) => (
+            <li key={t} style={{ animationDelay: `${i * 70}ms` }} className="flex items-start gap-2 text-[12.5px] font-semibold text-foreground animate-in fade-in slide-in-from-left-2 fill-mode-both">
+              <span className={cn("mt-1.5 size-1.5 shrink-0 rounded-full", i === points.length - 1 ? "bg-status-converted" : "bg-primary")} />
+              {t}
+            </li>
+          ))}
+        </ul>
+        <div className="flex justify-end gap-2 border-t border-border bg-muted/30 px-6 py-3">
+          <Button size="sm" variant="outline" onClick={onCancel}>Cancel</Button>
+          <Button size="sm" onClick={onConfirm} className="transition-transform active:scale-95"><Pencil className="size-3.5" /> Change address</Button>
+        </div>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
 
 type P = "resend" | "brevo";
 const META: Record<P, { name: string; color: string; tag: string; keyPh: string; keyHelp: string }> = {
@@ -401,6 +444,7 @@ function InboxAddress({ slug, accent, inbox, gmail }: { slug: string; accent: st
   const poll = useServerFn(pollInboxProbe);
   const refresh = useRefresh(slug);
   const [editing, setEditing] = useState(!inbox);
+  const [askChange, setAskChange] = useState(false);
   const [email, setEmail] = useState(inbox?.email ?? "");
   const [run, setRun] = useState<{ id: string | null; stage: "sending" | "sent" | "delivered" | "forwarded" | "verified" | "failed"; msg: string; t0: number } | null>(null);
   const [pct, setPct] = useState(0);
@@ -479,7 +523,8 @@ function InboxAddress({ slug, accent, inbox, gmail }: { slug: string; accent: st
           <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2">
             <Mail className="size-3.5 text-muted-foreground" />
             <span className="flex-1 truncate text-[13px] font-semibold">{inbox.email}</span>
-            <Button size="sm" variant="ghost" onClick={() => setEditing(true)}><Pencil className="size-3.5" /> Change</Button>
+            <Button size="sm" variant="ghost" onClick={() => setAskChange(true)}><Pencil className="size-3.5" /> Change</Button>
+            <ChangeInboxDialog open={askChange} email={inbox.email} verified={!!inbox.verified_at} onCancel={() => setAskChange(false)} onConfirm={() => { setAskChange(false); setEditing(true); }} />
           </div>
           {!inbox.verified_at && !run && (
             <Button size="sm" onClick={() => begin(inbox.email)}><ShieldCheck className="size-3.5" /> Verify automatically</Button>
