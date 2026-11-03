@@ -43,6 +43,7 @@ import {
   Handshake,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { resolveActivePath } from "@/lib/nav-active";
 import brandLogo from "@/assets/brand-logo.png.asset.json";
 import { getMyPermissions } from "@/lib/permissions.functions";
 import { CompanySwitcher } from "@/components/company/company-switcher";
@@ -169,16 +170,6 @@ const ALL_PATHS = [
   ...FINANCE_NAV.flatMap((g) => g.items.map((i) => i.to)),
 ];
 
-/** Longest matching nav path wins, so /app/leads/dashboard never also lights up /app/leads. */
-export function resolveActivePath(pathname: string, paths: string[] = ALL_PATHS): string | null {
-  let best: string | null = null;
-  for (const p of paths) {
-    const match = pathname === p || (p !== "/app" && pathname.startsWith(`${p}/`));
-    if (match && (!best || p.length > best.length)) best = p;
-  }
-  return best;
-}
-
 const COLLAPSE_KEY = "branta.sidebar.collapsed";
 
 function IconTile({ icon: Icon, tone, active, brand, small }: { icon: IconType; tone: Tone; active: boolean; brand?: boolean; small?: boolean }) {
@@ -220,7 +211,7 @@ export function AppSidebar() {
     setMobileOpen(false);
   }, [pathname]);
 
-  const activePath = resolveActivePath(pathname);
+  const activePath = resolveActivePath(pathname, ALL_PATHS);
   const isRouteActive = (to: string) => activePath === to;
   const expanded = !collapsed || peek;
 
