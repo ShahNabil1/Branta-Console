@@ -10,7 +10,6 @@ import { Progress } from "@/components/ui/progress";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Trash2 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
-import { supabase } from "@/integrations/supabase/client";
 import {
   AlertCircle,
   AtSign,
@@ -117,14 +116,6 @@ const EVENT_STYLES: Record<
   unsubscribed: { label: "Unsubscribed", className: "border-violet-300 bg-violet-50 text-violet-700", tone: "warn" },
 };
 
-interface EmailEventRow {
-  id: string;
-  event: string;
-  email: string;
-  subject: string | null;
-  reason: string | null;
-  occurred_at: string;
-}
 
 function EmployeesPage() {
   const navigate = useNavigate();
