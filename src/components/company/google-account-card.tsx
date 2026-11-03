@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -30,7 +30,17 @@ export function GoogleAccountCard({ slug, accent, fallback }: { slug: string; ac
   const test = useServerFn(testGoogleConnection);
   const disc = useServerFn(disconnectGoogle);
   const qc = useQueryClient();
-  const q = useQuery({ queryKey: ["company-google", slug], queryFn: () => get({ data: { slug } }) });
+  const cacheKey = `branta.google-conn.${slug}`;
+  const q = useQuery({
+    queryKey: ["company-google", slug],
+    queryFn: async () => { const d = await get({ data: { slug } }); try { localStorage.setItem(cacheKey, JSON.stringify(d)); } catch { /* ignore */ } return d; },
+    staleTime: 5 * 60_000,
+  });
+  // Show the last known state instantly (no "Loading…" flash) while the live state refreshes.
+  const [cached, setCached] = useState<typeof q.data>(undefined);
+  useEffect(() => { try { const raw = localStorage.getItem(cacheKey); if (raw) setCached(JSON.parse(raw)); } catch { /* ignore */ } }, [cacheKey]);
+  const data = q.data ?? cached;
+  const loading = !data && q.isLoading;
   const [busy, setBusy] = useState<"connect" | "test" | "disc" | null>(null);
   const [checks, setChecks] = useState<Check[] | null>(null);
   const [confirm, setConfirm] = useState<"switch" | "disc" | null>(null);
@@ -55,7 +65,14 @@ export function GoogleAccountCard({ slug, accent, fallback }: { slug: string; ac
     catch (e) { toast.error(err(e)); } finally { setBusy(null); }
   };
 
-  const a = q.data?.account ?? null;
+  const a = data?.account ?? null;
+  // Silent health check on open: stays quiet when everything works, surfaces issues only.
+  const autoRan = useRef(false);
+  useEffect(() => {
+    if (autoRan.current || !q.data?.account) return;
+    autoRan.current = true;
+    void test({ data: { slug } }).then((r) => { if (!r.ok) { setChecks(r.checks); void refresh(); } }).catch(() => { /* manual Test shows errors */ });
+  }, [q.data?.account]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div className="relative mt-4 overflow-hidden rounded-xl border border-border bg-background p-4 transition-shadow hover:shadow-md">
       <span className="pointer-events-none absolute -right-14 -top-16 size-40 rounded-full blur-3xl" style={{ background: a ? "color-mix(in oklab, #34A853 18%, transparent)" : `color-mix(in oklab, ${accent} 12%, transparent)` }} />
@@ -67,10 +84,10 @@ export function GoogleAccountCard({ slug, accent, fallback }: { slug: string; ac
             {a && <span className="inline-flex items-center gap-1 rounded-full bg-status-converted/10 px-2 py-0.5 text-[11px] font-bold text-status-converted animate-in fade-in zoom-in-90"><CheckCircle2 className="size-3" /> Connected</span>}
           </div>
           <p className="truncate text-[12px] font-semibold text-muted-foreground">
-            {q.isLoading ? "Loading…" : a ? <>Mail and meetings use <b className="text-foreground">{a.email}</b></> : <>Not connected — using the shared <b className="text-foreground">{fallback}</b></>}
+            {loading ? "Loading…" : a ? <>Mail and meetings use <b className="text-foreground">{a.email}</b></> : <>Not connected — using the shared <b className="text-foreground">{fallback}</b></>}
           </p>
         </div>
-        {q.isLoading ? <Loader2 className="size-4 animate-spin text-muted-foreground" /> : !q.data?.configured ? (
+        {loading ? <Loader2 className="size-4 animate-spin text-muted-foreground" /> : !data?.configured ? (
           <span className="text-[12px] font-semibold text-destructive">Google sign-in isn't configured</span>
         ) : a ? (
           <div className="flex flex-wrap gap-2">
