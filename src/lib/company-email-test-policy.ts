@@ -1,4 +1,5 @@
-export type TestEvent = { id: string; event: string; occurred_at: string; details: Record<string, unknown> };
+export type EventValue = string | number | boolean | null | EventValue[] | { [key: string]: EventValue };
+export type TestEvent = { id: string; event: string; occurred_at: string; details: Record<string, EventValue> };
 
 export function deliveryProgress(accepted: boolean, events: Pick<TestEvent, "event">[]) {
   const names = events.map((e) => e.event.replace(/^email\./, "").toLowerCase().replace(/[_\s-]/g, ""));

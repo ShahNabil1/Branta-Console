@@ -167,9 +167,6 @@ export const verifyResendWebhook = createServerFn({ method: "POST" })
     if (!r?.is_active || !r.domain_verified_at) throw new Error("Verify the API key first.");
     const key = await m.open(r.api_key_enc);
     if (!key) throw new Error("Provider credentials are missing.");
-    const testId = crypto.randomUUID();
-    const { error: createError } = await admin.from("company_email_tests").insert({ id: testId, company_id: co.id, provider: data.provider, recipient: to, created_by: context.userId });
-    if (createError) throw new Error("Could not start delivery tracking.");
     const secret = data.secret || (await m.open(r.webhook_secret_enc));
     const url = m.webhookUrl("resend", co.slug);
     const checks: Check[] = [];
@@ -374,7 +371,11 @@ export const sendProviderTest = createServerFn({ method: "POST" })
     if (!r?.is_active || !r.domain_verified_at) throw new Error("Verify the provider first.");
     const to = (context.claims as { email?: string })?.email;
     if (!to) throw new Error("Your account has no email address.");
-    const key = (await m.open(r.api_key_enc))!;
+    const key = await m.open(r.api_key_enc);
+    if (!key) throw new Error("Provider credentials are missing.");
+    const testId = crypto.randomUUID();
+    const { error: createError } = await admin.from("company_email_tests").insert({ id: testId, company_id: co.id, provider: data.provider, recipient: to, created_by: context.userId });
+    if (createError) throw new Error("Could not start delivery tracking.");
     const subject = `${co.name} · ${data.provider === "resend" ? "Resend" : "Brevo"} test`;
     const html = `<p>This is a test from <b>${co.name}</b> via ${data.provider}. Delivery and webhook events will appear in the Console.</p>`;
     const res = data.provider === "resend"
