@@ -5794,6 +5794,14 @@ export type Database = {
       }
     }
     Functions: {
+      _company_wallet_credit: {
+        Args: { _actor: string; _installment: string }
+        Returns: number
+      }
+      _company_wallet_reverse_installment: {
+        Args: { _actor: string; _installment: string; _reason: string }
+        Returns: number
+      }
       _fund_guard: {
         Args: { _amount: number; _fund: string }
         Returns: undefined
@@ -6009,6 +6017,10 @@ export type Database = {
         Returns: number
       }
       invoice_delete_blockers: { Args: { _invoice_id: string }; Returns: Json }
+      invoice_installment_company: {
+        Args: { _installment: string }
+        Returns: string
+      }
       is_active_employee: { Args: { _user: string }; Returns: boolean }
       is_company_member: {
         Args: { _company: string; _user: string }
