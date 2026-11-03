@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { assertGroupAdmin, isGroupAdmin } from "./group-admin";
 
 const sb = (roles: string[]) => ({
