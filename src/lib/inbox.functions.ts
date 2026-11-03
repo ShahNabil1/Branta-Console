@@ -593,6 +593,39 @@ export const getInboxThread = createServerFn({ method: "GET" })
       };
     });
 
+    // Merge replies sent from the Console via Resend/Brevo — they never reach
+    // the connected Gmail's Sent folder, so Gmail alone misses them.
+    {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const admin = supabaseAdmin as unknown as { from: (t: string) => any }; // eslint-disable-line @typescript-eslint/no-explicit-any
+      const { data: sent } = await admin
+        .from("inbox_replies")
+        .select("id, from_email, from_name, to_emails, cc_emails, subject, body_text, body_html, sent_at")
+        .eq("company_id", mb.companyId)
+        .eq("gmail_thread_id", data.threadId)
+        .order("sent_at");
+      for (const r of (sent ?? []) as Array<Record<string, any>>) { // eslint-disable-line @typescript-eslint/no-explicit-any
+        messages.push({
+          id: `reply:${r.id}`,
+          from_email: r.from_email,
+          from_name: r.from_name ?? null,
+          to: (r.to_emails ?? []).join(", ") || null,
+          cc: (r.cc_emails ?? []).join(", ") || null,
+          subject: r.subject ?? null,
+          date: new Date(r.sent_at).toISOString(),
+          message_id_header: null,
+          in_reply_to: null,
+          references: null,
+          html: r.body_html ?? null,
+          text: r.body_text ?? null,
+          snippet: String(r.body_text ?? "").slice(0, 200),
+          attachments: [],
+          labelIds: ["SENT"],
+        });
+      }
+      messages.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    }
+
     // Live lead lookup from the first message's from_email — no DB cache read.
     let lead_id: string | null = null;
     let lead_slug: string | null = null;
