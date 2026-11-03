@@ -1,3 +1,4 @@
+import { useIntegrationGate } from "@/components/company/setup-required";
 import { DiscardCancelButton } from "@/components/company/danger-confirm";
 import { useActiveCompany } from "@/components/company/company-switcher";
 import { useParams, useNavigate } from "@tanstack/react-router";
@@ -99,6 +100,7 @@ export function InvoiceDetail() {
   const listCust = useServerFn(listCustomersForPicker);
   const listEmp = useServerFn(listEmployeesForFinance);
   const sendEmail = useServerFn(sendInvoiceEmail);
+  const mailGate = useIntegrationGate("email");
   const getPdfUrl = useServerFn(getSignedInvoicePdfUrl);
 
   const q = useQuery({
@@ -285,6 +287,8 @@ export function InvoiceDetail() {
 
             <Button
               size="sm"
+              disabled={mailGate.items.length > 0}
+              title={mailGate.items.length ? `${mailGate.companyName} has no verified Resend or Brevo sender yet` : undefined}
               onClick={() => {
                 const map: Record<string, boolean> = {};
                 (recipients.data ?? []).forEach((r) => { if (r.is_primary) map[r.email] = true; });
