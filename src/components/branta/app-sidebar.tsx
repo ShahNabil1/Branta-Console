@@ -103,6 +103,13 @@ const NAV: NavGroup[] = [
   },
 ];
 
+/** Each sister company's own finance pages. */
+const SISTER_FINANCE = [
+  { label: "Invoice", to: "/app/org/$org/finance/invoices", plain: "/app/finance/invoices", icon: FileText },
+  { label: "Expense", to: "/app/org/$org/finance/expenses", plain: "/app/finance/expenses", icon: Receipt },
+  { label: "Wallet", to: "/app/org/$org/finance/wallet", plain: "/app/finance/wallet", icon: Wallet },
+] as const;
+
 const FINANCE_NAV: FinanceNavGroup[] = [
   {
     label: "Overview",
@@ -383,7 +390,18 @@ export function AppSidebar() {
                 {exp ? group.label : <span className="h-px w-5 bg-border" />}
               </div>
               {group.label === "Finance" && activeCompany && !activeCompany.is_holding ? (
-                exp ? <div className="px-2 py-1 text-[11.5px] font-medium text-muted-foreground">Invoice, Expense and Wallet open here soon.</div> : null
+                <div className="space-y-0.5">
+                  {SISTER_FINANCE.map((item) => {
+                    const active = isRouteActive(item.plain) || (item.plain === "/app/finance/invoices" && activePath.startsWith("/app/finance/invoices"));
+                    return (
+                      <Link key={item.to} to={item.to} params={{ org: activeCompany.slug }} title={!exp ? item.label : undefined} className={itemClass(active)}>
+                        <ActiveBar show={active} />
+                        <IconTile icon={item.icon} tone="brand" active={active} />
+                        {exp && <span className="min-w-0 flex-1 truncate">{item.label}</span>}
+                      </Link>
+                    );
+                  })}
+                </div>
               ) : group.label === "Finance" ? (
                 <div className="space-y-0.5">
                   {FINANCE_NAV.map((fg) => {
