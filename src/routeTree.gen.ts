@@ -87,6 +87,14 @@ import { Route as AuthenticatedAppFinanceFundsCodeRouteImport } from './routes/_
 import { Route as AuthenticatedAppFinanceInvoicesIndexRouteImport } from './routes/_authenticated/app.finance.invoices.index'
 import { Route as AuthenticatedAppFinanceInvoicesSlugRouteImport } from './routes/_authenticated/app.finance.invoices.$slug'
 import { Route as AuthenticatedAppFinanceInvoicesNewRouteImport } from './routes/_authenticated/app.finance.invoices.new'
+import { Route as AuthenticatedAppOrgOrgIndexRouteImport } from './routes/_authenticated/app.org.$org.index'
+import { Route as AuthenticatedAppOrgOrgInboxRouteImport } from './routes/_authenticated/app.org.$org.inbox'
+import { Route as AuthenticatedAppOrgOrgCustomersIndexRouteImport } from './routes/_authenticated/app.org.$org.customers.index'
+import { Route as AuthenticatedAppOrgOrgCustomersCodeRouteImport } from './routes/_authenticated/app.org.$org.customers.$code'
+import { Route as AuthenticatedAppOrgOrgLeadsIndexRouteImport } from './routes/_authenticated/app.org.$org.leads.index'
+import { Route as AuthenticatedAppOrgOrgLeadsSlugRouteImport } from './routes/_authenticated/app.org.$org.leads.$slug'
+import { Route as AuthenticatedAppOrgOrgLeadsDashboardRouteImport } from './routes/_authenticated/app.org.$org.leads.dashboard'
+import { Route as AuthenticatedAppOrgOrgLeadsDraftsRouteImport } from './routes/_authenticated/app.org.$org.leads.drafts'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -538,6 +546,54 @@ const AuthenticatedAppFinanceInvoicesNewRoute =
     path: '/invoices/new',
     getParentRoute: () => AuthenticatedAppFinanceRoute,
   } as any)
+const AuthenticatedAppOrgOrgIndexRoute =
+  AuthenticatedAppOrgOrgIndexRouteImport.update({
+    id: '/org/$org/',
+    path: '/org/$org/',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppOrgOrgInboxRoute =
+  AuthenticatedAppOrgOrgInboxRouteImport.update({
+    id: '/org/$org/inbox',
+    path: '/org/$org/inbox',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppOrgOrgCustomersIndexRoute =
+  AuthenticatedAppOrgOrgCustomersIndexRouteImport.update({
+    id: '/org/$org/customers/',
+    path: '/org/$org/customers/',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppOrgOrgCustomersCodeRoute =
+  AuthenticatedAppOrgOrgCustomersCodeRouteImport.update({
+    id: '/org/$org/customers/$code',
+    path: '/org/$org/customers/$code',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppOrgOrgLeadsIndexRoute =
+  AuthenticatedAppOrgOrgLeadsIndexRouteImport.update({
+    id: '/org/$org/leads/',
+    path: '/org/$org/leads/',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppOrgOrgLeadsSlugRoute =
+  AuthenticatedAppOrgOrgLeadsSlugRouteImport.update({
+    id: '/org/$org/leads/$slug',
+    path: '/org/$org/leads/$slug',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppOrgOrgLeadsDashboardRoute =
+  AuthenticatedAppOrgOrgLeadsDashboardRouteImport.update({
+    id: '/org/$org/leads/dashboard',
+    path: '/org/$org/leads/dashboard',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppOrgOrgLeadsDraftsRoute =
+  AuthenticatedAppOrgOrgLeadsDraftsRouteImport.update({
+    id: '/org/$org/leads/drafts',
+    path: '/org/$org/leads/drafts',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -615,8 +671,16 @@ export interface FileRoutesByFullPath {
   '/app/finance/funds/$code': typeof AuthenticatedAppFinanceFundsCodeRoute
   '/app/finance/invoices/$slug': typeof AuthenticatedAppFinanceInvoicesSlugRoute
   '/app/finance/invoices/new': typeof AuthenticatedAppFinanceInvoicesNewRoute
+  '/app/org/$org/inbox': typeof AuthenticatedAppOrgOrgInboxRoute
   '/app/finance/funds/': typeof AuthenticatedAppFinanceFundsIndexRoute
   '/app/finance/invoices/': typeof AuthenticatedAppFinanceInvoicesIndexRoute
+  '/app/org/$org/': typeof AuthenticatedAppOrgOrgIndexRoute
+  '/app/org/$org/customers/$code': typeof AuthenticatedAppOrgOrgCustomersCodeRoute
+  '/app/org/$org/leads/$slug': typeof AuthenticatedAppOrgOrgLeadsSlugRoute
+  '/app/org/$org/leads/dashboard': typeof AuthenticatedAppOrgOrgLeadsDashboardRoute
+  '/app/org/$org/leads/drafts': typeof AuthenticatedAppOrgOrgLeadsDraftsRoute
+  '/app/org/$org/customers/': typeof AuthenticatedAppOrgOrgCustomersIndexRoute
+  '/app/org/$org/leads/': typeof AuthenticatedAppOrgOrgLeadsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -688,8 +752,16 @@ export interface FileRoutesByTo {
   '/app/finance/funds/$code': typeof AuthenticatedAppFinanceFundsCodeRoute
   '/app/finance/invoices/$slug': typeof AuthenticatedAppFinanceInvoicesSlugRoute
   '/app/finance/invoices/new': typeof AuthenticatedAppFinanceInvoicesNewRoute
+  '/app/org/$org/inbox': typeof AuthenticatedAppOrgOrgInboxRoute
   '/app/finance/funds': typeof AuthenticatedAppFinanceFundsIndexRoute
   '/app/finance/invoices': typeof AuthenticatedAppFinanceInvoicesIndexRoute
+  '/app/org/$org': typeof AuthenticatedAppOrgOrgIndexRoute
+  '/app/org/$org/customers/$code': typeof AuthenticatedAppOrgOrgCustomersCodeRoute
+  '/app/org/$org/leads/$slug': typeof AuthenticatedAppOrgOrgLeadsSlugRoute
+  '/app/org/$org/leads/dashboard': typeof AuthenticatedAppOrgOrgLeadsDashboardRoute
+  '/app/org/$org/leads/drafts': typeof AuthenticatedAppOrgOrgLeadsDraftsRoute
+  '/app/org/$org/customers': typeof AuthenticatedAppOrgOrgCustomersIndexRoute
+  '/app/org/$org/leads': typeof AuthenticatedAppOrgOrgLeadsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -769,8 +841,16 @@ export interface FileRoutesById {
   '/_authenticated/app/finance/funds/$code': typeof AuthenticatedAppFinanceFundsCodeRoute
   '/_authenticated/app/finance/invoices/$slug': typeof AuthenticatedAppFinanceInvoicesSlugRoute
   '/_authenticated/app/finance/invoices/new': typeof AuthenticatedAppFinanceInvoicesNewRoute
+  '/_authenticated/app/org/$org/inbox': typeof AuthenticatedAppOrgOrgInboxRoute
   '/_authenticated/app/finance/funds/': typeof AuthenticatedAppFinanceFundsIndexRoute
   '/_authenticated/app/finance/invoices/': typeof AuthenticatedAppFinanceInvoicesIndexRoute
+  '/_authenticated/app/org/$org/': typeof AuthenticatedAppOrgOrgIndexRoute
+  '/_authenticated/app/org/$org/customers/$code': typeof AuthenticatedAppOrgOrgCustomersCodeRoute
+  '/_authenticated/app/org/$org/leads/$slug': typeof AuthenticatedAppOrgOrgLeadsSlugRoute
+  '/_authenticated/app/org/$org/leads/dashboard': typeof AuthenticatedAppOrgOrgLeadsDashboardRoute
+  '/_authenticated/app/org/$org/leads/drafts': typeof AuthenticatedAppOrgOrgLeadsDraftsRoute
+  '/_authenticated/app/org/$org/customers/': typeof AuthenticatedAppOrgOrgCustomersIndexRoute
+  '/_authenticated/app/org/$org/leads/': typeof AuthenticatedAppOrgOrgLeadsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -850,8 +930,16 @@ export interface FileRouteTypes {
     | '/app/finance/funds/$code'
     | '/app/finance/invoices/$slug'
     | '/app/finance/invoices/new'
+    | '/app/org/$org/inbox'
     | '/app/finance/funds/'
     | '/app/finance/invoices/'
+    | '/app/org/$org/'
+    | '/app/org/$org/customers/$code'
+    | '/app/org/$org/leads/$slug'
+    | '/app/org/$org/leads/dashboard'
+    | '/app/org/$org/leads/drafts'
+    | '/app/org/$org/customers/'
+    | '/app/org/$org/leads/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -923,8 +1011,16 @@ export interface FileRouteTypes {
     | '/app/finance/funds/$code'
     | '/app/finance/invoices/$slug'
     | '/app/finance/invoices/new'
+    | '/app/org/$org/inbox'
     | '/app/finance/funds'
     | '/app/finance/invoices'
+    | '/app/org/$org'
+    | '/app/org/$org/customers/$code'
+    | '/app/org/$org/leads/$slug'
+    | '/app/org/$org/leads/dashboard'
+    | '/app/org/$org/leads/drafts'
+    | '/app/org/$org/customers'
+    | '/app/org/$org/leads'
   id:
     | '__root__'
     | '/'
@@ -1003,8 +1099,16 @@ export interface FileRouteTypes {
     | '/_authenticated/app/finance/funds/$code'
     | '/_authenticated/app/finance/invoices/$slug'
     | '/_authenticated/app/finance/invoices/new'
+    | '/_authenticated/app/org/$org/inbox'
     | '/_authenticated/app/finance/funds/'
     | '/_authenticated/app/finance/invoices/'
+    | '/_authenticated/app/org/$org/'
+    | '/_authenticated/app/org/$org/customers/$code'
+    | '/_authenticated/app/org/$org/leads/$slug'
+    | '/_authenticated/app/org/$org/leads/dashboard'
+    | '/_authenticated/app/org/$org/leads/drafts'
+    | '/_authenticated/app/org/$org/customers/'
+    | '/_authenticated/app/org/$org/leads/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1575,6 +1679,62 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppFinanceInvoicesNewRouteImport
       parentRoute: typeof AuthenticatedAppFinanceRoute
     }
+    '/_authenticated/app/org/$org/': {
+      id: '/_authenticated/app/org/$org/'
+      path: '/org/$org'
+      fullPath: '/app/org/$org/'
+      preLoaderRoute: typeof AuthenticatedAppOrgOrgIndexRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/org/$org/inbox': {
+      id: '/_authenticated/app/org/$org/inbox'
+      path: '/org/$org/inbox'
+      fullPath: '/app/org/$org/inbox'
+      preLoaderRoute: typeof AuthenticatedAppOrgOrgInboxRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/org/$org/customers/': {
+      id: '/_authenticated/app/org/$org/customers/'
+      path: '/org/$org/customers'
+      fullPath: '/app/org/$org/customers/'
+      preLoaderRoute: typeof AuthenticatedAppOrgOrgCustomersIndexRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/org/$org/customers/$code': {
+      id: '/_authenticated/app/org/$org/customers/$code'
+      path: '/org/$org/customers/$code'
+      fullPath: '/app/org/$org/customers/$code'
+      preLoaderRoute: typeof AuthenticatedAppOrgOrgCustomersCodeRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/org/$org/leads/': {
+      id: '/_authenticated/app/org/$org/leads/'
+      path: '/org/$org/leads'
+      fullPath: '/app/org/$org/leads/'
+      preLoaderRoute: typeof AuthenticatedAppOrgOrgLeadsIndexRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/org/$org/leads/$slug': {
+      id: '/_authenticated/app/org/$org/leads/$slug'
+      path: '/org/$org/leads/$slug'
+      fullPath: '/app/org/$org/leads/$slug'
+      preLoaderRoute: typeof AuthenticatedAppOrgOrgLeadsSlugRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/org/$org/leads/dashboard': {
+      id: '/_authenticated/app/org/$org/leads/dashboard'
+      path: '/org/$org/leads/dashboard'
+      fullPath: '/app/org/$org/leads/dashboard'
+      preLoaderRoute: typeof AuthenticatedAppOrgOrgLeadsDashboardRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/org/$org/leads/drafts': {
+      id: '/_authenticated/app/org/$org/leads/drafts'
+      path: '/org/$org/leads/drafts'
+      fullPath: '/app/org/$org/leads/drafts'
+      preLoaderRoute: typeof AuthenticatedAppOrgOrgLeadsDraftsRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
   }
 }
 
@@ -1749,6 +1909,14 @@ interface AuthenticatedAppRouteChildren {
   AuthenticatedAppProjectsIdRoute: typeof AuthenticatedAppProjectsIdRoute
   AuthenticatedAppEmployeesIndexRoute: typeof AuthenticatedAppEmployeesIndexRoute
   AuthenticatedAppProjectsIndexRoute: typeof AuthenticatedAppProjectsIndexRoute
+  AuthenticatedAppOrgOrgInboxRoute: typeof AuthenticatedAppOrgOrgInboxRoute
+  AuthenticatedAppOrgOrgIndexRoute: typeof AuthenticatedAppOrgOrgIndexRoute
+  AuthenticatedAppOrgOrgCustomersCodeRoute: typeof AuthenticatedAppOrgOrgCustomersCodeRoute
+  AuthenticatedAppOrgOrgLeadsSlugRoute: typeof AuthenticatedAppOrgOrgLeadsSlugRoute
+  AuthenticatedAppOrgOrgLeadsDashboardRoute: typeof AuthenticatedAppOrgOrgLeadsDashboardRoute
+  AuthenticatedAppOrgOrgLeadsDraftsRoute: typeof AuthenticatedAppOrgOrgLeadsDraftsRoute
+  AuthenticatedAppOrgOrgCustomersIndexRoute: typeof AuthenticatedAppOrgOrgCustomersIndexRoute
+  AuthenticatedAppOrgOrgLeadsIndexRoute: typeof AuthenticatedAppOrgOrgLeadsIndexRoute
 }
 
 const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
@@ -1770,6 +1938,18 @@ const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
   AuthenticatedAppProjectsIdRoute: AuthenticatedAppProjectsIdRoute,
   AuthenticatedAppEmployeesIndexRoute: AuthenticatedAppEmployeesIndexRoute,
   AuthenticatedAppProjectsIndexRoute: AuthenticatedAppProjectsIndexRoute,
+  AuthenticatedAppOrgOrgInboxRoute: AuthenticatedAppOrgOrgInboxRoute,
+  AuthenticatedAppOrgOrgIndexRoute: AuthenticatedAppOrgOrgIndexRoute,
+  AuthenticatedAppOrgOrgCustomersCodeRoute:
+    AuthenticatedAppOrgOrgCustomersCodeRoute,
+  AuthenticatedAppOrgOrgLeadsSlugRoute: AuthenticatedAppOrgOrgLeadsSlugRoute,
+  AuthenticatedAppOrgOrgLeadsDashboardRoute:
+    AuthenticatedAppOrgOrgLeadsDashboardRoute,
+  AuthenticatedAppOrgOrgLeadsDraftsRoute:
+    AuthenticatedAppOrgOrgLeadsDraftsRoute,
+  AuthenticatedAppOrgOrgCustomersIndexRoute:
+    AuthenticatedAppOrgOrgCustomersIndexRoute,
+  AuthenticatedAppOrgOrgLeadsIndexRoute: AuthenticatedAppOrgOrgLeadsIndexRoute,
 }
 
 const AuthenticatedAppRouteWithChildren =
