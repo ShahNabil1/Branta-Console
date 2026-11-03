@@ -132,7 +132,9 @@ export const listCustomers = createServerFn({ method: "GET" })
  */
 export const listCustomersForPicker = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<CustomerPickerItem[]> => {
+  .inputValidator((d: unknown) => z.object({ workspace: z.string().regex(/^[a-z0-9-]{1,80}$/).optional().nullable() }).parse(d ?? {}))
+  .handler(async ({ data: input, context }): Promise<CustomerPickerItem[]> => {
+    const co = await (await import("@/lib/lead-company.server")).resolveLeadCompany(context.supabase, context.userId, input.workspace);
     const { data: isFinance, error: roleErr } = await context.supabase.rpc(
       "is_finance_admin",
       { _user_id: context.userId },
@@ -144,6 +146,7 @@ export const listCustomersForPicker = createServerFn({ method: "GET" })
     const { data, error } = await client
       .from("customers")
       .select("id, customer_code, name, company, email, phone, currency")
+      .eq("company_id" as never, co.id as never)
       .is("archived_at" as never, null)
       .order("created_at", { ascending: false })
       .limit(1000);
