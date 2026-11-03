@@ -17,6 +17,7 @@ import {
   BdAddressBlock, BdFlag, BdPhoneInput, addrValid, fmtAddr, isEnglishAddr, pickAddr, type AddrFields,
 } from "@/components/profile/bd-fields";
 import { cn } from "@/lib/utils";
+import { DiscardCancelButton } from "@/components/company/danger-confirm";
 import { EmailIntegrations } from "@/components/company/email-integrations";
 import { CompanySettings } from "@/components/company/company-settings";
 import { CompanyWallet } from "@/components/company/company-wallet";
@@ -163,7 +164,7 @@ function Section({ title, icon: Icon, accent, canEdit, editing, onEdit, onCancel
         <h2 className="flex-1 text-[13px] font-bold tracking-tight">{title}</h2>
         {!canEdit ? <Lock className="size-3.5 text-muted-foreground" /> : editing ? (
           <div className="flex gap-1.5">
-            <Button size="sm" variant="ghost" onClick={onCancel} disabled={saving} className="h-7 gap-1 text-[12px] font-bold"><X className="size-3.5" /> Cancel</Button>
+            <DiscardCancelButton dirty={dirty} onCancel={onCancel} disabled={saving} />
             <Button size="sm" onClick={onSave} disabled={saving || !dirty} className="h-7 gap-1 text-[12px] font-bold shadow-sm shadow-brand/30 active:scale-95">
               {saving ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />} Save
             </Button>

@@ -14,6 +14,7 @@ import {
   setDefaultProvider, verifyEmailProvider, sendInboxProbe, pollInboxProbe, type Check as CheckT, type ProviderView,
 } from "@/lib/company-email.functions";
 import { cn } from "@/lib/utils";
+import { DiscardCancelButton } from "@/components/company/danger-confirm";
 import { GoogleAccountCard, GoogleMark, GmailMark } from "@/components/company/google-account-card";
 import resendLogo from "@/assets/email/resend.webp.asset.json";
 import brevoLogo from "@/assets/email/brevo.webp.asset.json";
@@ -563,7 +564,7 @@ function InboxAddress({ slug, accent, inbox, gmail }: { slug: string; accent: st
         <div className="mt-3 flex flex-wrap gap-2 animate-in fade-in">
           <Input value={email} onChange={(e) => setEmail(e.target.value.toLowerCase())} placeholder="info@admakai.com" className="max-w-sm" />
           <Button disabled={!valid || !!busy} onClick={() => begin(email.trim().toLowerCase())}><ShieldCheck className="size-4" /> Save & verify</Button>
-          {inbox && <Button variant="ghost" onClick={() => { setEmail(inbox.email); setEditing(false); }}>Cancel</Button>}
+          {inbox && <DiscardCancelButton dirty={email.trim() !== inbox.email} className="h-9 gap-1 font-bold" onCancel={() => { setEmail(inbox.email); setEditing(false); }} />}
         </div>
       ) : inbox && (
         <div className="mt-3 space-y-3 animate-in fade-in">

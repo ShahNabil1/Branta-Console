@@ -11,6 +11,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { DiscardCancelButton } from "@/components/company/danger-confirm";
 import { updateCompanyPrefixes } from "@/lib/companies.functions";
 import {
   getCompanyFundConfig, saveCompanyFundConfig,
@@ -86,7 +87,7 @@ function Panel({ title, sub, icon: Icon, accent, canEdit = true, editing, saving
         </div>
         {!canEdit ? <Lock className="size-3.5 text-muted-foreground" /> : editing ? (
           <div className="flex gap-1.5">
-            <Button size="sm" variant="ghost" onClick={onCancel} disabled={saving} className="h-7 gap-1 text-[12px] font-bold"><X className="size-3.5" /> Cancel</Button>
+            <DiscardCancelButton dirty={dirty} onCancel={onCancel} disabled={saving} />
             <Button size="sm" onClick={onSave} disabled={saving || !dirty || invalid} className="h-7 gap-1 text-[12px] font-bold shadow-sm shadow-brand/30 active:scale-95">
               {saving ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />} Save
             </Button>
@@ -183,12 +184,14 @@ type Bucket = { uid: string; key: string; label: string; mode: "percent" | "fixe
 function ModeToggle({ mode, onChange }: { mode: Bucket["mode"]; onChange: (m: Bucket["mode"]) => void }) {
   const fixed = mode === "fixed";
   return (
-    <button type="button" role="switch" aria-checked={fixed} aria-label="Fixed amount instead of percentage"
+    <button type="button" role="switch" aria-checked={fixed} aria-label={fixed ? "Fixed amount (switch to percentage)" : "Percentage (switch to fixed amount)"}
+      title={fixed ? "Fixed ৳ amount — click for %" : "Percentage — click for fixed ৳"}
       onClick={() => onChange(fixed ? "percent" : "fixed")}
-      className="relative inline-flex h-8 w-[76px] shrink-0 items-center rounded-full border border-border bg-muted/60 p-0.5 text-[11px] font-bold transition-colors hover:border-brand/40">
-      <span className={cn("absolute top-0.5 h-[26px] w-[36px] rounded-full bg-card shadow-sm ring-1 ring-border transition-transform duration-300 ease-out", fixed ? "translate-x-[36px]" : "translate-x-0")} />
-      <span className={cn("relative z-10 w-[36px] text-center transition-colors", !fixed ? "text-brand" : "text-muted-foreground")}>%</span>
-      <span className={cn("relative z-10 w-[36px] text-center transition-colors", fixed ? "text-brand" : "text-muted-foreground")}>৳</span>
+      className="relative inline-flex h-9 w-[92px] shrink-0 items-center rounded-full border border-border bg-muted p-1 font-mono text-[15px] font-extrabold shadow-inner transition-colors hover:border-brand/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/30">
+      <span className={cn("absolute top-1 h-7 w-[42px] rounded-full shadow-md transition-all duration-300 ease-out",
+        fixed ? "translate-x-[42px] bg-status-converted" : "translate-x-0 bg-brand")} />
+      <span className={cn("relative z-10 w-[42px] text-center transition-colors duration-300", !fixed ? "text-primary-foreground" : "text-muted-foreground")}>%</span>
+      <span className={cn("relative z-10 w-[42px] text-center transition-colors duration-300", fixed ? "text-primary-foreground" : "text-muted-foreground")}>৳</span>
     </button>
   );
 }
@@ -247,7 +250,7 @@ function FundPanel({ c, accent }: { c: Co; accent: string }) {
           ) : (
             <SortList items={list} editing={ed.editing} onReorder={(b) => ed.setForm((f) => ({ ...f, buckets: b }))} render={(b) => ed.editing ? (
               <>
-                <Input value={b.label} onChange={(e) => set(b.uid, { label: e.target.value })} placeholder="e.g. Employee Fund, Gateway fee, TDS" maxLength={60} className={cn(fieldCls, "min-w-0 flex-1")} />
+                <Input value={b.label} onChange={(e) => set(b.uid, { label: e.target.value })} placeholder="e.g. Employee Fund, Gateway fee, TDS" maxLength={60} title={b.label} className={cn(fieldCls, "min-w-[8rem] flex-1 truncate")} />
                 <ModeToggle mode={b.mode} onChange={(m) => set(b.uid, { mode: m })} />
                 <div className="relative w-28">
                   {b.mode === "fixed" && <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[12px] font-bold text-muted-foreground">৳</span>}
@@ -261,7 +264,7 @@ function FundPanel({ c, accent }: { c: Co; accent: string }) {
               </>
             ) : (
               <>
-                <span className="min-w-0 flex-1 truncate text-[13px] font-bold">{b.label}</span>
+                <span title={b.label} className="min-w-0 flex-1 truncate text-[13px] font-bold">{b.label}</span>
                 <span className="rounded-full bg-muted px-2 py-0.5 text-[10.5px] font-bold text-muted-foreground">{b.mode === "fixed" ? "Fixed" : "Percent"}</span>
                 <span className="w-24 text-right font-mono text-[13px] font-bold">{b.mode === "fixed" ? fmt(b.fixed_amount) : `${b.percent}%`}</span>
               </>
@@ -270,7 +273,7 @@ function FundPanel({ c, accent }: { c: Co; accent: string }) {
           {ed.editing && (
             <div className="mt-3 space-y-3">
               <Button size="sm" variant="outline" className="gap-1 text-[12px] font-bold" onClick={() => ed.setForm((f) => ({ ...f, buckets: [...f.buckets, { uid: uid(), key: "", label: "", mode: "percent", percent: 0, fixed_amount: 0 }] }))}>
-                <Plus className="size-3.5" /> Add fund
+                <Plus className="size-3.5" /> Add rule
               </Button>
               {dupes && <p className="text-[12px] font-semibold text-destructive">Two funds have the same name.</p>}
               <Input value={ed.form.note} onChange={(e) => ed.setForm((f) => ({ ...f, note: e.target.value }))} placeholder="What changed? (optional, shown in history)" className={fieldCls} maxLength={300} />
