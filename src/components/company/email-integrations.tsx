@@ -30,6 +30,10 @@ function ChangeInboxDialog({ open, email, verified, onCancel, onConfirm }: { ope
     "Update your email routing so the new address forwards to the connected Gmail, or replies won't arrive.",
     "Past mail, replies and delivery history stay unchanged.",
   ];
+  return <ChangeConfirm open={open} title="Change Inbox address?" icon={Inbox} subject={email} verified={verified} points={points} confirmLabel="Change address" onCancel={onCancel} onConfirm={onConfirm} />;
+}
+
+function ChangeConfirm({ open, title, icon: Icon, subject, verified, points, confirmLabel, onCancel, onConfirm }: { open: boolean; title: string; icon: typeof Mail; subject: string; verified?: boolean; points: string[]; confirmLabel: string; onCancel: () => void; onConfirm: () => void }) {
   return (
     <AlertDialog open={open} onOpenChange={(o) => !o && onCancel()}>
       <AlertDialogContent className="overflow-hidden p-0 sm:max-w-md">
@@ -38,9 +42,9 @@ function ChangeInboxDialog({ open, email, verified, onCancel, onConfirm }: { ope
           <div className="relative flex items-center gap-3">
             <span className="grid size-11 place-items-center rounded-xl border border-primary/30 bg-card text-primary shadow-sm animate-in zoom-in-75 duration-300"><Mail className="size-5" /></span>
             <div className="min-w-0">
-              <AlertDialogTitle className="text-[15px] font-bold">Change Inbox address?</AlertDialogTitle>
+              <AlertDialogTitle className="text-[15px] font-bold">{title}</AlertDialogTitle>
               <AlertDialogDescription className="mt-0.5 flex items-center gap-1.5 truncate text-[12px] font-semibold">
-                <Inbox className="size-3.5 shrink-0" /> {email}
+                <Icon className="size-3.5 shrink-0" /> <span className="truncate">{subject}</span>
                 {verified && <CheckCircle2 className="size-3.5 shrink-0 text-status-converted" />}
               </AlertDialogDescription>
             </div>
@@ -56,7 +60,7 @@ function ChangeInboxDialog({ open, email, verified, onCancel, onConfirm }: { ope
         </ul>
         <div className="flex justify-end gap-2 border-t border-border bg-muted/30 px-6 py-3">
           <Button size="sm" variant="outline" onClick={onCancel}>Cancel</Button>
-          <Button size="sm" onClick={onConfirm} className="transition-transform active:scale-95"><Pencil className="size-3.5" /> Change address</Button>
+          <Button size="sm" onClick={onConfirm} className="transition-transform active:scale-95"><Pencil className="size-3.5" /> {confirmLabel}</Button>
         </div>
       </AlertDialogContent>
     </AlertDialog>
@@ -450,7 +454,7 @@ function StepFinish({ p, slug, v, both }: { p: P; slug: string; v: ProviderView 
             : [
               hooks.length ? `Removes ${hooks.length} Branta Tech webhook(s): ${hooks.map((h) => h.address).join(", ")}` : "No Branta Tech webhooks found — only the Console connection is removed.",
               "Erases the stored API key and webhook secret.",
-              p === "resend" ? "Invoice emails and reminders switch to Brevo if it's connected, otherwise they stop." : "Lead, Inbox and invoice mail stop unless Resend is connected.",
+              p === "resend" ? `The finance sender ${v.finance_sender_name || v.sender_name} <${v.finance_sender_email || v.sender_email}> is removed too; invoice emails and reminders switch to Brevo if it's connected, otherwise they stop.` : "Lead, Inbox and invoice mail stop unless Resend is connected.",
               "Other systems' webhooks and past email history stay unchanged.",
             ]}
           onCancel={() => setConfirm(false)}
@@ -606,6 +610,7 @@ function FinanceSender({ slug, v }: { slug: string; v: ProviderView }) {
   const [local, setLocal] = useState(curLocal);
   const [name, setName] = useState(curName);
   const [busy, setBusy] = useState(false);
+  const [ask, setAsk] = useState(false);
   const save = useServerFn(setFinanceSender);
   const refresh = useRefresh(slug);
   const l = local.trim().toLowerCase();
@@ -616,7 +621,7 @@ function FinanceSender({ slug, v }: { slug: string; v: ProviderView }) {
   const reset = () => { setLocal(curLocal); setName(curName); };
   const submit = async () => {
     setBusy(true);
-    try { await save({ data: { slug, email: `${l}@${domain}`, name: n } }); await refresh(); toast.success("Finance sender saved"); setEditing(false); }
+    try { await save({ data: { slug, email: `${l}@${domain}`, name: n } }); await refresh(); toast.success(`From now on invoices are sent from ${n} <${l}@${domain}>`); setEditing(false); }
     catch (e) { toast.error(err(e)); } finally { setBusy(false); }
   };
   const isDefault = !v.finance_sender_email && !v.finance_sender_name;
@@ -640,25 +645,40 @@ function FinanceSender({ slug, v }: { slug: string; v: ProviderView }) {
           </label>
           <label className="space-y-1">
             <span className="text-[11.5px] font-bold text-muted-foreground">Sender email</span>
-            <div className={cn("flex h-9 overflow-hidden rounded-md border bg-background", l && !localOk ? "border-destructive" : "border-input")}>
+            <div className={cn("flex h-9 overflow-hidden rounded-md border bg-background shadow-sm transition-colors focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/20", l && !localOk ? "border-destructive" : "border-input")}>
               <input value={local} maxLength={64} aria-label="Sender email name"
                 onChange={(e) => setLocal(e.target.value.toLowerCase().replace(/[^a-z0-9._+-]/g, ""))}
                 placeholder="finance" className="min-w-0 flex-1 bg-transparent px-3 font-mono text-[13px] outline-none focus:ring-1 focus:ring-inset focus:ring-brand" />
-              <div aria-hidden className="grid shrink-0 select-none place-items-center border-l border-border bg-muted px-3 font-mono text-[13px] font-semibold text-brand">@{domain}</div>
+              <div aria-hidden className="flex shrink-0 select-none items-center gap-1.5 border-l border-brand/20 bg-brand/10 px-3 font-mono text-[13px] font-bold text-brand"><ShieldCheck className="size-3.5" />@{domain}</div>
             </div>
             {l && !localOk && <span className="block text-[11.5px] font-semibold text-destructive">Use letters, numbers, dot, dash or plus.</span>}
           </label>
           <div className="flex items-center gap-2 sm:col-span-2">
             <Button size="sm" className="h-9" disabled={!localOk || !nameOk || busy || !dirty} onClick={submit}>{busy ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />} Save</Button>
             <DiscardCancelButton dirty={dirty} disabled={busy} className="h-9 gap-1 font-bold" onCancel={() => { reset(); setEditing(false); }} />
-            <span className="ml-auto truncate text-[11.5px] font-semibold text-muted-foreground">Preview: {n || "…"} &lt;{l || "…"}@{domain}&gt;</span>
+          </div>
+          <div className="flex items-center gap-3 rounded-lg border border-brand/25 bg-brand/5 px-3 py-2.5 sm:col-span-2 animate-in fade-in">
+            <span className="grid size-8 shrink-0 place-items-center rounded-full bg-brand text-[13px] font-bold text-primary-foreground">{(n || "?").charAt(0).toUpperCase()}</span>
+            <div className="min-w-0">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Clients will see</div>
+              <div className="truncate text-[14px] font-bold">{n || "…"} <span className="font-mono text-[12.5px] text-brand">&lt;{l || "…"}@{domain}&gt;</span></div>
+            </div>
           </div>
         </div>
       ) : (
         <div className="mt-3 flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2">
           <Send className="size-3.5 text-muted-foreground" />
           <span className="flex-1 truncate text-[13px] font-semibold">{curName} <span className="font-mono text-muted-foreground">&lt;{curEmail}&gt;</span></span>
-          <Button size="sm" variant="ghost" onClick={() => { reset(); setEditing(true); }}><Pencil className="size-3.5" /> Change</Button>
+          <Button size="sm" variant="ghost" onClick={() => setAsk(true)}><Pencil className="size-3.5" /> Change</Button>
+          <ChangeConfirm open={ask} title="Change finance sender?" icon={Send} subject={`${curName} <${curEmail}>`} confirmLabel="Change sender"
+            points={[
+              `${curName} <${curEmail}> stops sending invoices as soon as you save.`,
+              `From that moment every invoice email and reminder goes out from the new name and address.`,
+              `The address always stays on the Resend-verified domain @${domain}.`,
+              "Lead and Inbox mail keep using the default sender.",
+              "Invoices already sent and their delivery history stay unchanged.",
+            ]}
+            onCancel={() => setAsk(false)} onConfirm={() => { setAsk(false); reset(); setEditing(true); }} />
         </div>
       )}
     </div>
