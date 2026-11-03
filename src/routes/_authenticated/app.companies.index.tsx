@@ -38,9 +38,9 @@ function CompaniesPage() {
   const [term, setTerm] = useState("");
   const list = useMemo(() => {
     const t = term.trim().toLowerCase();
-    return (q.data ?? []).filter((c) => !t || `${c.name} ${c.email}`.toLowerCase().includes(t));
+    return (q.data ?? []).filter((c) => !c.is_holding && (!t || `${c.name} ${c.email}`.toLowerCase().includes(t)));
   }, [q.data, term]);
-  const all = q.data ?? [];
+  const all = (q.data ?? []).filter((c) => !c.is_holding);
   const stats = [
     { label: "Companies", value: all.length, icon: Building2, color: "var(--color-brand)" },
     { label: "Active", value: all.filter((c) => c.status === "active").length, icon: Globe, color: "var(--color-status-converted)" },
