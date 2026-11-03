@@ -79,6 +79,7 @@ function LeadDashboardPage() {
   const [service, setService] = useState("");
   const [priority, setPriority] = useState("");
 
+  const workspace = useActiveCompany().active?.slug ?? null;
   const range = rangeFor(preset, custom);
   const input: LeadDashboardInput = {
     ...range,
