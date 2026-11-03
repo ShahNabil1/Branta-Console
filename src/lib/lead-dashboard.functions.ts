@@ -12,6 +12,7 @@ const Input = z.object({
   status: z.string().max(80).nullable(),
   service: z.string().max(80).nullable(),
   priority: z.string().max(20).nullable(),
+  workspace: z.string().regex(/^[a-z0-9-]{1,80}$/).nullable().optional(),
 });
 export type LeadDashboardInput = z.infer<typeof Input>;
 
@@ -36,9 +37,12 @@ export const getLeadDashboard = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => Input.parse(d))
   .handler(async ({ data, context }): Promise<LeadDashboardData> => {
+    const { resolveLeadCompany } = await import("@/lib/lead-company.server");
+    const co = await resolveLeadCompany(context.supabase, context.userId, data.workspace);
     let q = context.supabase
       .from("leads")
       .select("id,status,source,service,priority,owner_id,next_follow_up_at,created_at")
+      .eq("company_id" as never, co.id as never)
       .eq("is_draft", false)
       .limit(10000);
     if (data.from) q = q.gte("created_at", new Date(`${data.from}T00:00:00+06:00`).toISOString());

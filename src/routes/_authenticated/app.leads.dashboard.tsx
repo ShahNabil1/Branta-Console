@@ -1,3 +1,4 @@
+import { useActiveCompany } from "@/components/company/company-switcher";
 import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -86,6 +87,7 @@ function LeadDashboardPage() {
     status: status || null,
     service: service || null,
     priority: priority || null,
+    workspace,
   };
 
   const fetchDash = useServerFn(getLeadDashboard);
