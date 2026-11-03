@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  checkInboundRouting, connectBrevoWebhook, connectResendWebhook, disconnectProvider, getEmailIntegrations, sendProviderTest,
+  checkInboundRouting, connectBrevoWebhook, connectResendWebhook, disconnectProvider, previewProviderDisconnect, getEmailIntegrations, sendProviderTest,
   setDefaultProvider, verifyEmailProvider, sendInboxProbe, pollInboxProbe, type Check as CheckT, type ProviderView,
 } from "@/lib/company-email.functions";
 import { cn } from "@/lib/utils";
@@ -418,13 +418,22 @@ function StepFinish({ p, slug, v, both, inbox }: { p: P; slug: string; v: Provid
   const route = useServerFn(checkInboundRouting);
   const def = useServerFn(setDefaultProvider);
   const disc = useServerFn(disconnectProvider);
+  const previewDisconnect = useServerFn(previewProviderDisconnect);
   const refresh = useRefresh(slug);
   const [busy, setBusy] = useState<string | null>(null);
   const [routing, setRouting] = useState<{ state: string; message: string } | null>(null);
   const [confirm, setConfirm] = useState(false);
+  const [hooks, setHooks] = useState<{ id: string; address: string }[] | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
   if (!v) return null;
   const act = async (id: string, f: () => Promise<unknown>) => { setBusy(id); try { await f(); } catch (e) { toast.error(err(e)); } finally { setBusy(null); } };
   const routed = routing?.state === "routed";
+  const loadPreview = async () => {
+    setBusy("preview"); setHooks(null); setPreviewError(null);
+    try { setHooks((await previewDisconnect({ data: { slug, provider: p } })).hooks); }
+    catch (e) { setPreviewError(err(e)); }
+    finally { setBusy(null); }
+  };
 
   return (
     <div className="grid gap-4 md:grid-cols-2">
@@ -462,12 +471,38 @@ function StepFinish({ p, slug, v, both, inbox }: { p: P; slug: string; v: Provid
       )}
 
       <Tile icon={Unplug} title="Disconnect" body="Removes this company's Branta webhook from the provider and erases the stored key and secret. Other webhooks and history stay intact.">
-        {confirm ? (
-          <div className="flex gap-2">
-            <Button size="sm" variant="destructive" disabled={!!busy} onClick={() => act("dc", async () => { const r = await disc({ data: { slug, provider: p } }); await refresh(); if (r.hookError) toast.warning(`Disconnected, but the ${META[p].name} webhook could not be removed — ${r.hookError}`); else toast.success(r.removed ? `Disconnected · removed ${r.removed} Branta webhook from ${META[p].name}` : "Disconnected"); })}>Confirm</Button>
-            <Button size="sm" variant="ghost" onClick={() => setConfirm(false)}>Cancel</Button>
-          </div>
-        ) : <Button size="sm" variant="outline" onClick={() => setConfirm(true)}><Unplug className="size-3.5" /> Disconnect</Button>}
+        <Button size="sm" variant="destructive" disabled={!!busy} onClick={() => { setConfirm(true); void loadPreview(); }}><Unplug className="size-3.5" /> Disconnect</Button>
+        <AlertDialog open={confirm} onOpenChange={(open) => { if (!open && !busy) setConfirm(false); }}>
+          <AlertDialogContent className="overflow-hidden p-0 sm:max-w-lg">
+            <div className="flex items-center gap-3 bg-destructive/5 px-6 py-5">
+              <span className="grid size-11 shrink-0 place-items-center rounded-lg border border-destructive/30 bg-card text-destructive"><Unplug className="size-5" /></span>
+              <div>
+                <AlertDialogTitle>Disconnect {META[p].name}?</AlertDialogTitle>
+                <AlertDialogDescription className="mt-1">Only this company's Branta Tech webhooks will be removed.</AlertDialogDescription>
+              </div>
+            </div>
+            <div className="space-y-3 px-6 py-4">
+              {busy === "preview" && <div role="status" className="flex items-center gap-2 text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Checking {META[p].name} webhooks…</div>}
+              {previewError && <div role="alert" className="space-y-2 text-[12px] text-destructive"><p>{previewError}</p><Button size="sm" variant="outline" onClick={() => void loadPreview()}><RefreshCw className="size-3.5" /> Retry</Button></div>}
+              {hooks !== null && <>
+                <div className="flex items-center justify-between text-[13px] font-semibold"><span>Branta Tech webhooks to remove</span><span className="font-mono text-destructive">{hooks.length}</span></div>
+                {hooks.length ? <ul className="max-h-60 divide-y divide-border overflow-y-auto rounded-md border border-border">{hooks.map((hook) => <li key={hook.id} className="space-y-1 p-3"><span className="text-[11px] text-muted-foreground">Webhook #{hook.id}</span><code className="block break-all text-[12px]">{hook.address}</code></li>)}</ul> : <p className="text-[12px] text-muted-foreground">No matching Branta Tech webhooks found. Only the Console connection will be removed.</p>}
+                {p === "brevo" && hooks.length > 0 && <p className="text-[11px] text-muted-foreground">Private authentication tokens are hidden.</p>}
+                <p className="text-[12px] text-muted-foreground">The stored API key and secret will be erased. Other systems' webhooks and past email history stay unchanged.</p>
+              </>}
+            </div>
+            <div className="flex justify-end gap-2 border-t border-border bg-muted/30 px-6 py-3">
+              <Button size="sm" variant="outline" disabled={!!busy} onClick={() => setConfirm(false)}>Cancel</Button>
+              <Button size="sm" variant="destructive" disabled={!!busy || hooks === null || !!previewError} onClick={() => {
+                if (hooks === null) return;
+                void act("dc", async () => {
+                  const r = await disc({ data: { slug, provider: p, confirmedHookIds: hooks.map((hook) => hook.id) } });
+                  setConfirm(false); await refresh(); toast.success(`Disconnected · removed ${r.removed} Branta Tech webhook(s)`);
+                });
+              }}>{busy === "dc" ? <Loader2 className="size-3.5 animate-spin" /> : <Unplug className="size-3.5" />} Confirm disconnect</Button>
+            </div>
+          </AlertDialogContent>
+        </AlertDialog>
       </Tile>
     </div>
   );
