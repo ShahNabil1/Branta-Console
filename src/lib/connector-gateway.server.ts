@@ -39,6 +39,8 @@ export interface GatewayCallOptions {
   headers?: Record<string, string>;
   /** Use this company's own connected Google account (Gmail/Calendar) when one exists. */
   companyId?: string | null;
+  /** Never fall back to the shared Google account (sister companies). */
+  companyOnly?: boolean;
 }
 
 // Direct API mode: when the provider's own credentials are stored as project
@@ -79,11 +81,13 @@ async function resolveTarget(
   connector: ConnectorId,
   path: string,
   companyId?: string | null,
+  companyOnly?: boolean,
 ): Promise<{ base: string; auth: Record<string, string> }> {
   if (companyId && (connector === "google_mail" || connector === "google_calendar")) {
     const { companyGoogleToken } = await import("@/lib/company-google.server");
     const t = await companyGoogleToken(companyId);
     if (t) return { base: GOOGLE_BASE[connector]!, auth: { Authorization: `Bearer ${t}` } };
+    if (companyOnly) throw new Error("This company's Google account isn't connected (or its access expired). Reconnect it in Integrations.");
   }
   if (connector === "telegram" && process.env.TELEGRAM_BOT_TOKEN) {
     return { base: `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}`, auth: {} };
@@ -118,7 +122,7 @@ async function resolveTarget(
 export async function callGateway<T = unknown>(
   opts: GatewayCallOptions,
 ): Promise<T> {
-  const target = await resolveTarget(opts.connector, opts.path, opts.companyId);
+  const target = await resolveTarget(opts.connector, opts.path, opts.companyId, opts.companyOnly);
   const url = new URL(`${target.base}${opts.path}`);
   if (opts.query) {
     for (const [k, v] of Object.entries(opts.query)) {
