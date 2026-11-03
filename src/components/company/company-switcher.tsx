@@ -1,7 +1,8 @@
 import { useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { toCompanyPath } from "@/lib/org-path";
 import { Check, ChevronsUpDown, Plus } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
@@ -31,6 +32,8 @@ export function useActiveCompany() {
 export function CompanySwitcher({ collapsed, canManage, holdingLogoUrl }: { collapsed: boolean; canManage: boolean; holdingLogoUrl?: string }) {
   const { active, list } = useActiveCompany();
   const slug = useActiveCompanySlug();
+  const navigate = useNavigate();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
   useEffect(() => {
     if (active && slug && slug !== active.slug) setActiveCompanySlug(active.slug);
   }, [active, slug]);
@@ -74,7 +77,7 @@ export function CompanySwitcher({ collapsed, canManage, holdingLogoUrl }: { coll
         {list.map((c) => (
           <DropdownMenuItem
             key={c.id}
-            onSelect={() => setActiveCompanySlug(c.slug)}
+            onSelect={() => { setActiveCompanySlug(c.slug); navigate({ href: toCompanyPath(pathname, c.slug, c.is_holding) }); }}
             className="gap-2.5 rounded-md py-2 transition-colors"
           >
             <CompanyAvatar name={c.name} slug={c.slug} iconUrl={companyIdentity(c.slug, c).icon} className="size-7" />
