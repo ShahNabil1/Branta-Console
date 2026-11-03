@@ -315,7 +315,10 @@ async function ensureFinanceAdmin(supabase: {
 }, userId: string) {
   const { data, error } = await supabase.rpc("is_finance_admin", { _user_id: userId });
   if (error) throw dbError(error);
-  if (!data) throw new Error("Forbidden — finance role required");
+  if (data) return;
+  // Company CEOs pass here; row-level rules limit them to their own company.
+  const { data: ceo } = await supabase.rpc("is_any_company_manager", { _user: userId });
+  if (!ceo) throw new Error("Forbidden — finance role required");
 }
 
 // Log an activity on the lead that backs an invoice's customer, so all
