@@ -247,19 +247,42 @@ function StepKey({ p, slug, v, inboxEmail, onDone }: { p: P; slug: string; v: Pr
   const verify = useServerFn(verifyEmailProvider);
   const refresh = useRefresh(slug);
   const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
-  const can = name.trim() && emailOk && (key.trim() || v?.api_key_hint);
+  const brevo = p === "brevo";
+  const can = (brevo || name.trim()) && emailOk && (key.trim() || v?.api_key_hint);
   const run = async () => {
     setBusy(true); setChecks(null);
     try {
-      const r = await verify({ data: { slug, provider: p, senderName: name.trim(), senderEmail: email.trim(), apiKey: key.trim() || undefined } });
+      const r = await verify({ data: { slug, provider: p, senderName: brevo ? "" : name.trim(), senderEmail: email.trim(), apiKey: key.trim() || undefined } });
       setChecks(r.checks);
-      if (r.ok) { setKey(""); await refresh(); toast.success(`${m.name} verified & saved`); setTimeout(onDone, 700); }
+      if (r.senderName) setName(r.senderName);
+      if (r.ok) { setKey(""); await refresh(); toast.success(`${m.name} verified & saved`); setTimeout(onDone, 900); }
     } catch (e) { toast.error(err(e)); } finally { setBusy(false); }
   };
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr_300px]">
       <div className="space-y-4">
-        <Field label="Sender name" hint="Shown as the From name, e.g. Admakai"><Input value={name} maxLength={80} onChange={(e) => setName(e.target.value)} placeholder="Admakai" /></Field>
+        {brevo ? (
+          <Field label="Sender name">
+            {name ? (
+              <div className="flex items-center gap-2 rounded-md border border-status-converted/30 bg-status-converted/5 px-3 py-2 animate-in fade-in zoom-in-95">
+                <Lock className="size-3.5 text-status-converted" />
+                <span className="flex-1 truncate text-[13px] font-semibold">{name}</span>
+                <span className="flex items-center gap-1 rounded-full bg-status-converted/15 px-2 py-0.5 text-[10.5px] font-bold text-status-converted"><CheckCircle2 className="size-3" /> Verified in Brevo</span>
+              </div>
+            ) : (
+              <div className="relative overflow-hidden rounded-md border px-3 py-2.5" style={{ borderColor: `color-mix(in oklab, ${m.color} 35%, transparent)`, background: `linear-gradient(110deg, color-mix(in oklab, ${m.color} 10%, transparent), color-mix(in oklab, var(--color-primary) 8%, transparent))` }}>
+                <div className="flex items-start gap-2">
+                  {busy ? <Loader2 className="mt-0.5 size-3.5 shrink-0 animate-spin" style={{ color: m.color }} /> : <Sparkles className="mt-0.5 size-3.5 shrink-0" style={{ color: m.color }} />}
+                  <span className="text-[12.5px] font-semibold">
+                    <b style={{ color: m.color }}>Auto-filled from Brevo.</b> Once the API key is verified, the sender name saved in your Brevo account appears here automatically.
+                  </span>
+                </div>
+              </div>
+            )}
+          </Field>
+        ) : (
+          <Field label="Sender name" hint="Shown as the From name, e.g. Admakai"><Input value={name} maxLength={80} onChange={(e) => setName(e.target.value)} placeholder="Admakai" /></Field>
+        )}
         <Field label="Sender email address" hint="Locked to the verified Inbox address so client replies always land in the Inbox.">
           <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2">
             <Lock className="size-3.5 text-status-converted" />
@@ -281,7 +304,7 @@ function StepKey({ p, slug, v, inboxEmail, onDone }: { p: P; slug: string; v: Pr
 function Tips({ p }: { p: P }) {
   const items = p === "resend"
     ? ["Create a Full access key — sending-only keys can't confirm domains or webhooks.", "The sender's domain must be Verified in Resend → Domains.", "Key is checked live, then encrypted. You'll only see a masked hint."]
-    : ["Create a v3 API key (xkeysib-…).", "Sender must be active and its domain authenticated in Brevo.", "If you use Authorised IPs in Brevo, deactivate the restriction for API keys."];
+    : ["Brevo → Settings → SMTP & API → API keys → Generate a v3 key (xkeysib-…) with No expiration and Full access.", "The Inbox address must be an active sender in Brevo, with its domain authenticated (DKIM/DMARC).", "The sender name is read from Brevo — set it there.", "If you use Authorised IPs in Brevo, deactivate the restriction for API keys."];
   return (
     <aside className="space-y-2 rounded-xl border border-dashed border-border bg-muted/30 p-4">
       <div className="text-[12px] font-bold">Before you verify</div>
@@ -338,33 +361,84 @@ function StepResendHook({ slug, v, data, onDone }: { slug: string; v: ProviderVi
   );
 }
 
+const BREVO_STAGES = [
+  { k: "account", label: "Brevo account", pct: 25 },
+  { k: "clean", label: "Clean old hooks", pct: 50 },
+  { k: "register", label: "Register events", pct: 75 },
+  { k: "verify", label: "Read back & verify", pct: 100 },
+] as const;
+
 function StepBrevoHook({ slug, v, data, onDone }: { slug: string; v: ProviderView | null; data: Data; onDone: () => void }) {
-  const [checks, setChecks] = useState<CheckT[] | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [checks, setChecks] = useState<CheckT[]>([]);
+  const [done, setDone] = useState(-1); // index of last completed stage
+  const [active, setActive] = useState<number | null>(null);
+  const [failed, setFailed] = useState<string | null>(null);
+  const [pct, setPct] = useState(0);
   const fn = useServerFn(connectBrevoWebhook);
   const refresh = useRefresh(slug);
+  const accent = META.brevo.color;
+  const busy = active !== null;
   const run = async () => {
-    setBusy(true); setChecks(null);
-    try {
-      const r = await fn({ data: { slug } });
-      setChecks(r.checks);
-      if (r.ok) { await refresh(); toast.success("Brevo webhook connected"); setTimeout(onDone, 700); }
-    } catch (e) { toast.error(err(e)); } finally { setBusy(false); }
+    setChecks([]); setDone(-1); setFailed(null); setPct(2);
+    for (let i = 0; i < BREVO_STAGES.length; i++) {
+      const st = BREVO_STAGES[i];
+      setActive(i);
+      setPct((BREVO_STAGES[i - 1]?.pct ?? 0) + 8);
+      try {
+        const r = await fn({ data: { slug, stage: st.k } });
+        setChecks((c) => [...c, ...r.checks]);
+        if (!r.ok) {
+          setFailed(r.checks.filter((c) => !c.ok).map((c) => `${c.label}: ${c.detail}`).join(" · ") || `${st.label} failed.`);
+          setActive(null); return;
+        }
+        setDone(i); setPct(st.pct);
+      } catch (e) { setFailed(`${st.label}: ${err(e)}`); setActive(null); return; }
+    }
+    setActive(null);
+    await refresh(); toast.success("Brevo webhook connected"); setTimeout(onDone, 900);
   };
+  const ok = done === BREVO_STAGES.length - 1;
   return (
     <div className="space-y-4">
       <p className="text-[12.5px] font-semibold text-muted-foreground">
-        Brevo doesn't issue signing secrets, so the Console creates the transactional webhook for you through the API with a private, encrypted token — nothing to copy or paste.
+        One click: the Console uses your Brevo API key to create this company's private webhook with every event, removes old ones, then reads it back from Brevo to confirm — nothing to copy or paste.
       </p>
       <div className="flex flex-wrap gap-1.5">
         {data.brevoEvents.map((e) => (
-          <span key={e} className={cn("rounded-full px-2 py-0.5 font-mono text-[11px] font-bold", v?.webhook_events.includes(e) ? "bg-status-converted/15 text-status-converted" : "bg-muted")}>{e}</span>
+          <span key={e} className={cn("rounded-full px-2 py-0.5 font-mono text-[11px] font-bold transition-colors", ok || v?.webhook_events.includes(e) ? "bg-status-converted/15 text-status-converted" : "bg-muted")}>{e}</span>
         ))}
       </div>
-      <Button disabled={busy} onClick={run} className="shadow-md transition-all hover:-translate-y-0.5 active:scale-95" style={{ background: META.brevo.color }}>
-        {busy ? <Loader2 className="size-4 animate-spin" /> : <Webhook className="size-4" />} {v?.webhook_verified_at ? "Re-check webhook" : "Create & verify webhook"}
+      <Button disabled={busy} onClick={run} className="shadow-md transition-all hover:-translate-y-0.5 active:scale-95" style={{ background: accent }}>
+        {busy ? <Loader2 className="size-4 animate-spin" /> : <Webhook className="size-4" />} {v?.webhook_verified_at ? "Re-check webhook" : "Connect webhook"}
       </Button>
-      <Checks list={checks} />
+      {(busy || done >= 0 || failed) && (
+        <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-3 animate-in fade-in">
+          <div className="flex items-center justify-between text-[12px] font-bold">
+            <span className="flex items-center gap-1.5">
+              {busy ? <Loader2 className="size-3.5 animate-spin" style={{ color: accent }} /> : ok ? <CheckCircle2 className="size-3.5 text-status-converted" /> : <XCircle className="size-3.5 text-destructive" />}
+              {busy ? `${BREVO_STAGES[active!].label}…` : ok ? "Webhook connected & verified" : "Setup failed"}
+            </span>
+            <span className="font-mono tabular-nums">{Math.round(pct)}%</span>
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-border">
+            <div className="h-full rounded-full transition-all duration-700 ease-out" style={{ width: `${pct}%`, background: failed ? "var(--color-destructive)" : ok ? "var(--color-status-converted)" : accent }} />
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {BREVO_STAGES.map((st, i) => (
+              <div key={st.k} className={cn("flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-[11px] font-bold transition-colors",
+                i <= done ? "border-status-converted/30 bg-status-converted/10 text-status-converted"
+                  : failed && i === done + 1 ? "border-destructive/30 bg-destructive/10 text-destructive"
+                  : active === i ? "border-border bg-background" : "border-border text-muted-foreground")}>
+                {i <= done ? <Check className="size-3" /> : active === i ? <Loader2 className="size-3 animate-spin" style={{ color: accent }} /> : failed && i === done + 1 ? <XCircle className="size-3" /> : <span className="size-3 rounded-full border border-current" />}
+                <span className="truncate">{st.label}</span>
+              </div>
+            ))}
+          </div>
+          {failed && <div className="text-[12px] font-semibold text-destructive">{failed}</div>}
+          {failed && <Button size="sm" variant="outline" onClick={run}><RefreshCw className="size-3.5" /> Retry</Button>}
+        </div>
+      )}
+      {checks.length > 0 && <Checks list={checks} />}
     </div>
   );
 }

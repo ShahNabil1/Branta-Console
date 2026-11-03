@@ -152,7 +152,7 @@ export const verifyEmailProvider = createServerFn({ method: "POST" })
       const { error } = await admin.from("company_email_providers").upsert(patch, { onConflict: "company_id,provider" });
       if (error) throw new Error("Could not save the integration.");
     }
-    return { ok, checks };
+    return { ok, checks, senderName: senderName || null };
   });
 
 /** Step 2 (Resend): verify the endpoint + events exist and save the signing secret. */
