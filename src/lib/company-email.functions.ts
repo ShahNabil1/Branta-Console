@@ -423,7 +423,6 @@ export const disconnectProvider = createServerFn({ method: "POST" })
     const { co, admin } = await gate(context, data.slug);
     const m = await import("@/lib/company-email.server");
     let removed = 0;
-    let hookError: string | null = null;
     const r = await row(admin, co.id, data.provider);
     const key = r?.api_key_enc ? await m.open(r.api_key_enc) : null;
     if (!key) throw new Error("No stored API key available. Verify the API key first.");
@@ -443,7 +442,7 @@ export const disconnectProvider = createServerFn({ method: "POST" })
     }).eq("company_id", co.id).eq("provider", data.provider);
     const { data: left } = await admin.from("company_email_providers").select("id").eq("company_id", co.id).eq("is_active", true).limit(1);
     if (left?.[0]) await admin.from("company_email_providers").update({ is_default: true }).eq("id", left[0].id);
-    return { ok: true, removed, hookError };
+    return { ok: true, removed };
   });
 
 // ---------- Inbox address (routed to the shared Gmail) ----------
