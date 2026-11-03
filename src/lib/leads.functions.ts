@@ -524,10 +524,13 @@ export const checkLeadDuplicates = createServerFn({ method: "POST" })
 
 export const listLeads = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<LeadRow[]> => {
+  .inputValidator((d: unknown) => z.object({ workspace: z.string().regex(/^[a-z0-9-]{1,80}$/).optional().nullable() }).parse(d ?? {}))
+  .handler(async ({ data: input, context }): Promise<LeadRow[]> => {
+    const co = await (await LC()).resolveLeadCompany(context.supabase, context.userId, input.workspace);
     const { data, error } = await context.supabase
       .from("leads")
       .select("*")
+      .eq("company_id" as never, co.id as never)
       .neq("status", "converted")
       .eq("is_draft", false)
       .order("last_activity_at", { ascending: false })
@@ -560,12 +563,14 @@ export const getLead = createServerFn({ method: "GET" })
 export const getLeadBySlug = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { slug: string }) =>
-    z.object({ slug: z.string().trim().min(1).max(40) }).parse(data),
+    z.object({ slug: z.string().trim().min(1).max(40), workspace: z.string().regex(/^[a-z0-9-]{1,80}$/).optional().nullable() }).parse(data),
   )
   .handler(async ({ data, context }): Promise<LeadRow | null> => {
+    const co = await (await LC()).resolveLeadCompany(context.supabase, context.userId, data.workspace);
     const { data: row, error } = await context.supabase
       .from("leads")
       .select("*")
+      .eq("company_id" as never, co.id as never)
       .ilike("slug", data.slug)
       .maybeSingle();
     if (error) throw dbError(error);
@@ -578,8 +583,9 @@ export const getLeadBySlug = createServerFn({ method: "GET" })
 
 export const createLead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => CreateInput.parse(data))
+  .inputValidator((data: unknown) => CreateInput.extend({ workspace: z.string().regex(/^[a-z0-9-]{1,80}$/).optional().nullable() }).parse(data))
   .handler(async ({ data, context }): Promise<LeadRow> => {
+    const co = await (await LC()).resolveLeadCompany(context.supabase, context.userId, data.workspace);
     const email = data.email === "" ? null : data.email ?? null;
     const altEmail = data.alt_email === "" ? null : data.alt_email ?? null;
     await throwIfDuplicate(
@@ -620,6 +626,7 @@ export const createLead = createServerFn({ method: "POST" })
         priority: data.priority ?? "medium",
         next_follow_up_at: data.next_follow_up_at ?? null,
         created_by: context.userId,
+        company_id: co.id,
         is_draft: false,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any)
@@ -643,7 +650,7 @@ export const createLead = createServerFn({ method: "POST" })
       });
     }
     await context.supabase.from("lead_activities").insert(createdActs as never);
-    try {
+    if (co.isHolding) try {
       const { autoSyncLead } = await import("@/lib/leads-sheets.server");
       await autoSyncLead(context.supabase, row.id);
     } catch (e) {
@@ -677,11 +684,14 @@ export const createLead = createServerFn({ method: "POST" })
 
 // Draft lead — placeholder row created when clicking "New lead".
 // Slug (BT-XX) is assigned automatically by the assign_lead_slug trigger.
+const LC = () => import("@/lib/lead-company.server");
 export const DRAFT_LEAD_NAME = "Untitled lead";
 
 export const createDraftLead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<LeadRow> => {
+  .inputValidator((d: unknown) => z.object({ workspace: z.string().regex(/^[a-z0-9-]{1,80}$/).optional().nullable() }).parse(d ?? {}))
+  .handler(async ({ data: input, context }): Promise<LeadRow> => {
+    const co = await (await LC()).resolveLeadCompany(context.supabase, context.userId, input.workspace);
     const { data: row, error } = await context.supabase
       .from("leads")
       .insert({
@@ -690,6 +700,7 @@ export const createDraftLead = createServerFn({ method: "POST" })
         currency: "BDT",
         owner_id: context.userId,
         created_by: context.userId,
+        company_id: co.id,
         is_draft: true,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any)
@@ -753,8 +764,10 @@ export const finalizeLead = createServerFn({ method: "POST" })
       body: "Lead created",
     });
 
-    // Auto-push to Google Sheet — never blocks lead creation.
-    try {
+    // Auto-push to Google Sheet (holding only) — never blocks lead creation.
+    const { data: coRow } = await context.supabase.from("companies").select("is_holding")
+      .eq("id", (curRow as unknown as { company_id: string }).company_id).maybeSingle();
+    if (coRow?.is_holding) try {
       const { autoSyncLead } = await import("@/lib/leads-sheets.server");
       await autoSyncLead(context.supabase, data.id);
     } catch (e) {
@@ -780,6 +793,7 @@ export const listDraftLeads = createServerFn({ method: "GET" })
         ownerFilter: z
           .union([z.literal("me"), z.literal("all"), z.string().uuid()])
           .optional(),
+        workspace: z.string().regex(/^[a-z0-9-]{1,80}$/).optional().nullable(),
       })
       .parse(data ?? {}),
   )
@@ -789,10 +803,12 @@ export const listDraftLeads = createServerFn({ method: "GET" })
       _role: "super_admin",
     });
     const isSuperAdmin = !!isSA;
+    const co = await (await LC()).resolveLeadCompany(context.supabase, context.userId, data.workspace);
 
     let q = context.supabase
       .from("leads")
       .select("*")
+      .eq("company_id" as never, co.id as never)
       .eq("is_draft", true)
       .order("updated_at", { ascending: false })
       .limit(500);
