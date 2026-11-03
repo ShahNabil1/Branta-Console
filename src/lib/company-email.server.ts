@@ -9,6 +9,7 @@ export const INBOX_GMAIL = "brantatech@gmail.com";
 export const RESEND_EVENTS = [
   "email.sent", "email.delivered", "email.delivery_delayed", "email.bounced",
   "email.complained", "email.opened", "email.clicked", "email.failed",
+  "email.scheduled", "email.received", "email.suppressed",
 ] as const;
 export const BREVO_EVENTS = [
   "request", "delivered", "opened", "click", "hardBounce", "softBounce",

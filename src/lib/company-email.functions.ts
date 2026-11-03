@@ -393,13 +393,39 @@ export const disconnectProvider = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => z.object({ slug: Slug, provider: Provider }).parse(i))
   .handler(async ({ data, context }) => {
     const { co, admin } = await gate(context, data.slug);
+    const m = await import("@/lib/company-email.server");
+    // Remove ONLY this company's Branta webhook(s) from the provider account; other hooks are untouched.
+    let removed = 0;
+    let hookError: string | null = null;
+    const r = await row(admin, co.id, data.provider);
+    const key = r?.api_key_enc ? await m.open(r.api_key_enc).catch(() => null) : null;
+    if (key) {
+      const base = m.webhookUrl(data.provider, co.slug).replace(/\/+$/, "");
+      if (data.provider === "resend") {
+        const list = await m.resend(key, "/webhooks");
+        if (!list.ok) hookError = `Resend error ${list.status}: ${list.body?.message ?? "could not read webhooks"}`;
+        for (const w of (list.body?.data ?? []) as { id: string; endpoint: string }[]) {
+          if ((w.endpoint ?? "").replace(/\/+$/, "") !== base) continue;
+          const d = await m.resend(key, `/webhooks/${w.id}`, { method: "DELETE" });
+          if (d.ok || d.status === 404) removed++; else hookError = `Resend error ${d.status}: ${d.body?.message ?? "delete failed"}`;
+        }
+      } else {
+        const list = await m.brevo(key, "/webhooks?type=transactional");
+        if (!list.ok) hookError = `Brevo error ${list.status}: ${list.body?.message ?? "could not read webhooks"}`;
+        for (const w of (list.body?.webhooks ?? []) as { id: number; url: string }[]) {
+          if (!(w.url ?? "").startsWith(base)) continue;
+          const d = await m.brevo(key, `/webhooks/${w.id}`, { method: "DELETE" });
+          if (d.ok || d.status === 404) removed++; else hookError = `Brevo error ${d.status}: ${d.body?.message ?? "delete failed"}`;
+        }
+      }
+    }
     await admin.from("company_email_providers").update({
       is_active: false, is_default: false, api_key_enc: null, api_key_hint: null, webhook_secret_enc: null,
       webhook_secret_hint: null, domain_verified_at: null, webhook_verified_at: null, updated_by: context.userId,
     }).eq("company_id", co.id).eq("provider", data.provider);
     const { data: left } = await admin.from("company_email_providers").select("id").eq("company_id", co.id).eq("is_active", true).limit(1);
     if (left?.[0]) await admin.from("company_email_providers").update({ is_default: true }).eq("id", left[0].id);
-    return { ok: true };
+    return { ok: true, removed, hookError };
   });
 
 // ---------- Inbox address (routed to the shared Gmail) ----------
