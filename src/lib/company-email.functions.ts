@@ -304,7 +304,7 @@ export const startInboxVerification = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { co, admin } = await gate(context, data.slug);
     const m = await import("@/lib/company-email.server");
-    if (data.email === m.INBOX_GMAIL) throw new Error("Use the company address that forwards to the Inbox, not the Inbox Gmail itself.");
+    if (data.email === m.INBOX_GMAIL || data.email === (await inboxTarget(co.id))) throw new Error("Use the company address that forwards to the Inbox, not the Inbox Gmail itself.");
     const cur = await inboxView(admin, co.id);
     const code = `BRANTA-${m.randomToken(6).toUpperCase()}`;
     const patch: Any = { company_id: co.id, email: data.email, probe_code: code, probe_started_at: new Date().toISOString(), updated_by: context.userId };
@@ -356,7 +356,7 @@ export const sendInboxProbe = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { co, admin } = await gate(context, data.slug);
     const m = await import("@/lib/company-email.server");
-    if (data.email === m.INBOX_GMAIL) throw new Error("Use the company address that forwards to the Inbox, not the Inbox Gmail itself.");
+    if (data.email === m.INBOX_GMAIL || data.email === (await inboxTarget(co.id))) throw new Error("Use the company address that forwards to the Inbox, not the Inbox Gmail itself.");
     const cur = await inboxView(admin, co.id);
     const code = `BRANTA-${m.randomToken(6).toUpperCase()}`;
     const patch: Any = { company_id: co.id, email: data.email, probe_code: code, probe_started_at: new Date().toISOString(), updated_by: context.userId };
