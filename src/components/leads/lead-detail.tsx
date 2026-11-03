@@ -1,4 +1,4 @@
-// Full-page Lead detail with Overview / Emails / Meetings / Docs tabs.
+// Full-page Lead detail with Overview / Emails / Meetings tabs.
 // Extracted from the former drawer so it can be mounted at /app/leads/$slug.
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
@@ -14,7 +14,6 @@ import {
   Send,
   Mail,
   CalendarPlus,
-  FileText,
   Video,
   ExternalLink,
   Copy,
@@ -95,12 +94,6 @@ import {
   type RsvpStatus,
 } from "@/lib/lead-meetings.functions";
 
-import {
-  deleteLeadDoc,
-  generateLeadDoc,
-  listLeadDocs,
-  type LeadDocumentRow,
-} from "@/lib/lead-docs.functions";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SocialLinksSection } from "@/components/leads/social-links-section";
 import { ActivityLinkPreview } from "@/components/leads/activity-link-preview";
@@ -659,7 +652,7 @@ export function LeadDetail({
   const serviceOptions: LeadServiceOption[] = serviceOptsQ.data ?? SERVICE_FALLBACK;
 
 
-  const [tab, setTab] = useState<"overview" | "emails" | "meetings" | "docs">(
+  const [tab, setTab] = useState<"overview" | "emails" | "meetings">(
     "overview",
   );
 
@@ -685,8 +678,6 @@ export function LeadDetail({
     next_action: lead.next_action ?? "",
     notes: lead.notes ?? "",
   });
-  // Optional note captured when status changes; cleared after save.
-  const [statusChangeNote, setStatusChangeNote] = useState("");
   // Details section lock — read-only by default, unlocks on Edit click.
   const [editing, setEditing] = useState(initialEdit);
   const [transferOpen, setTransferOpen] = useState(false);
@@ -725,7 +716,6 @@ export function LeadDetail({
       next_action: lead.next_action ?? "",
       notes: lead.notes ?? "",
     });
-    setStatusChangeNote("");
   }, [lead.id, lead.status, lead.owner_id, lead.updated_at]);
 
 
@@ -735,7 +725,6 @@ export function LeadDetail({
     staleTime: 10_000,
   });
 
-  const statusChanged = form.status !== lead.status;
   const activeSource = sourceOptions.find((s) => s.key === form.source);
   const sourceNeedsDetail = activeSource?.requires_detail ?? false;
   const activeService = serviceOptions.find((s) => s.key === form.service);
@@ -854,17 +843,12 @@ export function LeadDetail({
             next_action: form.next_action.trim() || null,
             notes: form.notes.trim() || null,
           },
-          statusChangeNote:
-            statusChanged && statusChangeNote.trim()
-              ? statusChangeNote.trim()
-              : undefined,
         },
       }),
 
     onSuccess: () => {
       toast.success("Lead updated");
-      setStatusChangeNote("");
-      setEditing(false);
+        setEditing(false);
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["leads", "activities", lead.id] });
     },
@@ -933,29 +917,6 @@ export function LeadDetail({
   });
 
 
-  // Dedicated quick-update for the header Status control.
-  // Persists only status (+ optional note → Activity Logs), independent of form edits.
-  const statusUpdateM = useMutation({
-    mutationFn: () =>
-      update({
-        data: {
-          id: lead.id,
-          patch: { status: form.status },
-          statusChangeNote: statusChangeNote.trim() || undefined,
-        },
-      }),
-    onSuccess: () => {
-      toast.success("Status updated");
-      setStatusChangeNote("");
-      qc.invalidateQueries({ queryKey: ["leads"] });
-      qc.invalidateQueries({ queryKey: ["leads", "activities", lead.id] });
-    },
-    onError: (e: unknown) =>
-      toast.error(e instanceof Error ? e.message : "Status update failed"),
-  });
-
-
-
   const delM = useMutation({
     mutationFn: () => del({ data: { id: lead.id } }),
     onSuccess: () => {
@@ -1007,35 +968,9 @@ export function LeadDetail({
           </p>
         </div>
 
-        {/* Top-right: Status + Owner quick controls */}
+        {/* Owner control; status is managed in the workspace header. */}
         <div className="flex flex-col gap-2 sm:min-w-[360px]">
-          <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1">
-              <div className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                Status
-              </div>
-              <Select
-                value={form.status}
-                onValueChange={(v) => setForm({ ...form, status: v })}
-              >
-                <SelectTrigger className="h-9 rounded-sm text-[12.5px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {statusOptions.map((s) => (
-                    <SelectItem key={s.key} value={s.key}>
-                      <span className="inline-flex items-center gap-2">
-                        <span
-                          className="size-1.5 rounded-full"
-                          style={{ background: `var(${s.color_var ?? "--color-status-contacted"})` }}
-                        />
-                        {s.label}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="grid gap-2">
             <div className="space-y-1">
               <div className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
                 ASSIGNED TO&nbsp;
@@ -1090,36 +1025,7 @@ export function LeadDetail({
               )}
             </div>
           </div>
-          {statusChanged && (
-            <div className="space-y-2">
-              <Textarea
-                value={statusChangeNote}
-                onChange={(e) => setStatusChangeNote(e.target.value)}
-                placeholder={`Why moving to "${statusLabel(form.status, statusOptions)}"? (added to Activity Logs)`}
-                className="min-h-[56px] rounded-sm text-[12px]"
-              />
-              <div className="flex justify-end">
-                <Button
-                  size="sm"
-                  disabled={statusUpdateM.isPending}
-                  onClick={() => statusUpdateM.mutate()}
-                  className="h-8 rounded-sm bg-primary px-3 text-[12px] font-medium text-primary-foreground hover:bg-primary/90"
-                >
-                  {statusUpdateM.isPending ? (
-                    <>
-                      <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-                      Updating…
-                    </>
-                  ) : (
-                    <>
-                      <RefreshCw className="mr-1.5 size-3.5" />
-                      Update status
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          )}
+
         </div>
       </div>
 
@@ -1128,7 +1034,7 @@ export function LeadDetail({
         onValueChange={(v) => setTab(v as typeof tab)}
         className="flex min-h-0 flex-1 flex-col"
       >
-        <TabsList className="grid h-9 w-full max-w-md grid-cols-4 rounded-sm bg-muted p-0.5">
+        <TabsList className="grid h-9 w-full max-w-md grid-cols-3 rounded-sm bg-muted p-0.5">
           <TabsTrigger value="overview" className="h-8 rounded-sm text-[12px]">
             Overview
           </TabsTrigger>
@@ -1137,9 +1043,6 @@ export function LeadDetail({
           </TabsTrigger>
           <TabsTrigger value="meetings" className="h-8 rounded-sm text-[12px]">
             <CalendarPlus className="mr-1 size-3.5" /> Meetings
-          </TabsTrigger>
-          <TabsTrigger value="docs" className="h-8 rounded-sm text-[12px]">
-            <FileText className="mr-1 size-3.5" /> Docs
           </TabsTrigger>
         </TabsList>
 
@@ -1751,9 +1654,6 @@ export function LeadDetail({
         </TabsContent>
         <TabsContent value="meetings" className="m-0 mt-4">
           <MeetingsTab lead={lead} users={users} />
-        </TabsContent>
-        <TabsContent value="docs" className="m-0 mt-4">
-          <DocumentsTab lead={lead} />
         </TabsContent>
       </Tabs>
       <RequestTransferDialog
@@ -3991,127 +3891,6 @@ function EmailMultiSelect({
           ))}
         </div>
       )}
-    </div>
-  );
-}
-
-
-// ---------- Documents tab ----------
-function DocumentsTab({ lead }: { lead: LeadRow }) {
-  const listFn = useServerFn(listLeadDocs);
-  const genFn = useServerFn(generateLeadDoc);
-  const delFn = useServerFn(deleteLeadDoc);
-  const qc = useQueryClient();
-  const docs = useQuery({
-    queryKey: ["lead-docs", lead.id],
-    queryFn: () => listFn({ data: { leadId: lead.id } }),
-    staleTime: 10_000,
-  });
-  const genM = useMutation({
-    mutationFn: (kind: "proposal" | "contract" | "nda") =>
-      genFn({ data: { leadId: lead.id, templateKind: kind } }),
-    onSuccess: (row) => {
-      toast.success(`Created ${row.template_kind}`);
-      qc.invalidateQueries({ queryKey: ["lead-docs", lead.id] });
-      window.open(row.doc_url, "_blank");
-    },
-    onError: (e) =>
-      toast.error(e instanceof Error ? e.message : "Generation failed"),
-  });
-  const delM = useMutation({
-    mutationFn: (id: string) => delFn({ data: { id } }),
-    onSuccess: () => {
-      toast.success("Removed from list");
-      qc.invalidateQueries({ queryKey: ["lead-docs", lead.id] });
-    },
-  });
-
-  return (
-    <div className="grid gap-4">
-      <section className="rounded-sm border border-border bg-card">
-        <div className="border-b border-border px-3 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-          Generate document
-        </div>
-        <div className="grid grid-cols-3 gap-2 p-3">
-          {(["proposal", "contract", "nda"] as const).map((k) => (
-            <Button
-              key={k}
-              variant="outline"
-              size="sm"
-              className="h-9 rounded-sm text-[12px] capitalize"
-              disabled={genM.isPending}
-              onClick={() => genM.mutate(k)}
-            >
-              {genM.isPending && genM.variables === k ? (
-                <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-              ) : (
-                <FileText className="mr-1.5 size-3.5" />
-              )}
-              {k}
-            </Button>
-          ))}
-        </div>
-      </section>
-
-      <section className="rounded-sm border border-border bg-card">
-        <div className="border-b border-border px-3 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-          Documents ({docs.data?.length ?? 0})
-        </div>
-        <ul className="divide-y divide-border">
-          {docs.isLoading && (
-            <li className="p-3 text-[12px] text-muted-foreground">Loading…</li>
-          )}
-          {docs.data?.length === 0 && !docs.isLoading && (
-            <li className="p-3 text-[12px] text-muted-foreground">
-              No documents yet.
-            </li>
-          )}
-          {docs.data?.map((d: LeadDocumentRow) => (
-            <li key={d.id} className="grid gap-1 p-3">
-              <div className="flex items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="truncate text-[12.5px] font-medium">
-                    {d.title}
-                  </div>
-                  <div className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
-                    {d.template_kind} · {relTime(d.created_at)}
-                  </div>
-                </div>
-                <div className="flex shrink-0 items-center gap-1">
-                  <a
-                    href={d.doc_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex h-7 items-center gap-1 rounded-sm border border-border px-2 text-[11.5px] hover:bg-muted"
-                  >
-                    <ExternalLink className="size-3.5" /> Open
-                  </a>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 w-7 rounded-sm p-0 text-muted-foreground hover:text-foreground"
-                    onClick={() => {
-                      navigator.clipboard.writeText(d.doc_url);
-                      toast.success("Link copied");
-                    }}
-                  >
-                    <Copy className="size-3.5" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 w-7 rounded-sm p-0 text-red-600 hover:bg-red-50"
-                    onClick={() => delM.mutate(d.id)}
-                    disabled={delM.isPending}
-                  >
-                    <Trash2 className="size-3.5" />
-                  </Button>
-                </div>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </section>
     </div>
   );
 }
