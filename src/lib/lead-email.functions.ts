@@ -249,6 +249,26 @@ async function deliverQueuedRow(
  * queued and are drained by `drainEmailQueue` (called by the client on a poll
  * / realtime tick).
  */
+/** Sender a lead's emails really go out from (company's own verified provider for sisters). */
+async function senderForLead(leadId: string): Promise<{ name: string; email: string; ready: boolean }> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data } = await (supabaseAdmin as any).from("leads").select("company_id, companies:company_id(is_holding, name)").eq("id", leadId).maybeSingle();
+  if (!data?.companies || data.companies.is_holding) return { name: LEAD_FROM_NAME, email: LEAD_FROM_EMAIL, ready: true };
+  const { resolveCompanySender } = await import("@/lib/company-email.server");
+  const own = await resolveCompanySender(data.company_id);
+  return own ? { name: own.fromName, email: own.fromEmail, ready: true } : { name: data.companies.name, email: "", ready: false };
+}
+
+export const getLeadSender = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ leadId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: lead } = await context.supabase.from("leads").select("id").eq("id", data.leadId).maybeSingle();
+    if (!lead) throw new Error("Lead not found");
+    return senderForLead(data.leadId);
+  });
+
 export const sendLeadEmail = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => SendInput.parse(d))
@@ -357,7 +377,7 @@ export const sendLeadEmail = createServerFn({ method: "POST" })
           subject: renderedSubject,
           body_html: html,
           body_text: text ?? renderedBody,
-          from_email: LEAD_FROM_EMAIL,
+          from_email: sender.email || LEAD_FROM_EMAIL,
           to_emails: [recipient.email],
           cc_emails: data.cc,
           status: "queued" as const,
