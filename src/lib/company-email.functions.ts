@@ -484,7 +484,7 @@ async function inboxView(admin: Any, companyId: string): Promise<InboxView | nul
 /** Save the Inbox address and issue a one-time code for the probe email. */
 export const startInboxVerification = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => z.object({ slug: Slug, email: z.string().trim().toLowerCase().email().max(254), name: z.string().trim().min(1).max(80).regex(/^[^<>"\r\n]+$/, "Name can't contain < > \" or line breaks.") }).parse(i))
+  .inputValidator((i: unknown) => z.object({ slug: Slug, email: z.string().trim().toLowerCase().email().max(254) }).parse(i))
   .handler(async ({ data, context }) => {
     const { co, admin } = await gate(context, data.slug);
     const m = await import("@/lib/company-email.server");
@@ -536,7 +536,7 @@ export type ProbeStage = "sent" | "delivered" | "forwarded" | "verified" | "fail
 /** Issues a fresh code and emails it from the global Branta Tech Resend sender to the Inbox address. */
 export const sendInboxProbe = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => z.object({ slug: Slug, email: z.string().trim().toLowerCase().email().max(254), name: z.string().trim().min(1).max(80).regex(/^[^<>"\r\n]+$/, "Name can't contain < > \" or line breaks.") }).parse(i))
+  .inputValidator((i: unknown) => z.object({ slug: Slug, email: z.string().trim().toLowerCase().email().max(254) }).parse(i))
   .handler(async ({ data, context }) => {
     const { co, admin } = await gate(context, data.slug);
     const m = await import("@/lib/company-email.server");
