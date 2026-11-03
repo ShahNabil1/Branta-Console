@@ -1,0 +1,1 @@
+ALTER TABLE public.company_email_providers ADD COLUMN IF NOT EXISTS finance_sender_email text CHECK (finance_sender_email IS NULL OR char_length(finance_sender_email) BETWEEN 3 AND 254);
