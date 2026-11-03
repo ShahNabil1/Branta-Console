@@ -104,13 +104,38 @@ export function GoogleAccountCard({ slug, accent, fallback }: { slug: string; ac
       />
 
       {checks && (
-        <div className="relative mt-3 space-y-1.5 animate-in fade-in slide-in-from-top-1">
-          {checks.map((c) => (
-            <div key={c.id} className={cn("flex items-start gap-2 rounded-lg border px-3 py-2 text-[12px]", c.ok ? "border-status-converted/30 bg-status-converted/5" : "border-destructive/30 bg-destructive/5")}>
-              {c.ok ? <CheckCircle2 className="mt-0.5 size-3.5 text-status-converted" /> : <XCircle className="mt-0.5 size-3.5 text-destructive" />}
-              <span className="font-bold">{c.label}</span><span className="font-semibold text-muted-foreground">{c.detail}</span>
-            </div>
-          ))}
+        <div className="relative mt-3 grid gap-2 sm:grid-cols-3">
+          {checks.map((c, i) => {
+            const Icon = /gmail/i.test(c.label) ? GmailMark : /calendar/i.test(c.label) ? CalendarMark : GoogleMark;
+            const name = /gmail/i.test(c.label) ? "Gmail" : /calendar/i.test(c.label) ? "Calendar" : "Google";
+            return (
+              <div
+                key={c.id}
+                style={{ animationDelay: `${i * 80}ms` }}
+                className={cn(
+                  "group relative overflow-hidden rounded-xl border bg-card p-3 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md animate-in fade-in slide-in-from-bottom-2 fill-mode-both",
+                  c.ok ? "border-status-converted/30" : "border-destructive/30",
+                )}
+              >
+                <span className={cn("pointer-events-none absolute -right-8 -top-8 size-20 rounded-full blur-2xl", c.ok ? "bg-status-converted/15" : "bg-destructive/15")} />
+                <div className="relative flex items-center gap-2.5">
+                  <span className="grid size-9 shrink-0 place-items-center rounded-lg border border-border bg-background shadow-sm transition-transform group-hover:scale-110">
+                    <Icon className="size-5" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 text-[13px] font-bold">
+                      {name}
+                      {c.ok ? <CheckCircle2 className="size-3.5 text-status-converted" /> : <XCircle className="size-3.5 text-destructive" />}
+                    </div>
+                    <div className={cn("text-[10.5px] font-bold uppercase tracking-wide", c.ok ? "text-status-converted" : "text-destructive")}>
+                      {c.ok ? "Working" : "Failed"}
+                    </div>
+                  </div>
+                </div>
+                <p className="relative mt-2 break-words text-[11.5px] font-semibold text-muted-foreground">{c.detail}</p>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
