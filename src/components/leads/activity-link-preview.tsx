@@ -56,9 +56,10 @@ function money(n: number | null | undefined, currency: string | null | undefined
 
 function InvoicePreview({ slug, onClose }: { slug: string; onClose: () => void }) {
   const fn = useServerFn(getInvoiceBySlug);
+  const workspace = useActiveCompany().active?.slug ?? null;
   const q = useQuery({
-    queryKey: ["preview", "invoice", slug],
-    queryFn: () => fn({ data: { slug } }),
+    queryKey: ["preview", "invoice", slug, workspace],
+    queryFn: () => fn({ data: { slug, workspace } }),
     staleTime: 15_000,
   });
 

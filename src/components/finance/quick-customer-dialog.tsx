@@ -1,3 +1,4 @@
+import { useActiveCompany } from "@/components/company/company-switcher";
 import { DiscardCancelButton } from "@/components/company/danger-confirm";
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -20,6 +21,7 @@ interface Props {
 
 export function QuickCustomerDialog({ open, onOpenChange, defaultCurrency = "BDT", onCreated }: Props) {
   const create = useServerFn(createCustomer);
+  const workspace = useActiveCompany().active?.slug ?? null;
   const qc = useQueryClient();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -33,7 +35,7 @@ export function QuickCustomerDialog({ open, onOpenChange, defaultCurrency = "BDT
 
   const submit = useMutation({
     mutationFn: async () => {
-      return await create({ data: {
+      return await create({ data: { workspace,
         name: name.trim(),
         email: email.trim() || null,
         phone: phone.trim() || null,

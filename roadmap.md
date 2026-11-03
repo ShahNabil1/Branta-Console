@@ -91,3 +91,10 @@
 - [ ] Phase 2: Company Settings → Fund Allocation sub-tab (100% validator, live simulator, history)
 - [ ] Phase 3: invoices/expenses company filter, live allocation preview, auto credit on paid installment, expense debit
 - [x] Phase 4: Company Wallet page (hero, bucket grid, KPIs, statement, Export statement, Request loan)
+
+## Company finance (Phases A–D)
+- [x] Phase A — setup gates; Phase B — /app/org/<slug> routing.
+- [x] Phase C — per-company Invoice, Expense, Wallet pages in the sidebar; invoices/expenses/customers filtered by company; sister expenses pay from their own wallet.
+- [ ] Sister-company Finance staff (not Branta Finance) managing their own finance — needs company-level finance permission.
+- [ ] Phase D — integration gating with zero fallback.
+- [ ] Signed-in browser test (external auth has no test session).
