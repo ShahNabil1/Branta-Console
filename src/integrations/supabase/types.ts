@@ -640,6 +640,82 @@ export type Database = {
           },
         ]
       }
+      company_deduction_configs: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          note: string | null
+          version: number
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          note?: string | null
+          version: number
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          note?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_deduction_configs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_deduction_rules: {
+        Row: {
+          config_id: string
+          created_at: string
+          id: string
+          label: string
+          mode: string
+          sort: number
+          value: number
+        }
+        Insert: {
+          config_id: string
+          created_at?: string
+          id?: string
+          label: string
+          mode: string
+          sort?: number
+          value: number
+        }
+        Update: {
+          config_id?: string
+          created_at?: string
+          id?: string
+          label?: string
+          mode?: string
+          sort?: number
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_deduction_rules_config_id_fkey"
+            columns: ["config_id"]
+            isOneToOne: false
+            referencedRelation: "company_deduction_configs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_email_providers: {
         Row: {
           api_key_enc: string | null
@@ -5990,6 +6066,10 @@ export type Database = {
       revert_installment_payment: {
         Args: { _installment_id: string; _reason: string }
         Returns: undefined
+      }
+      save_company_deduction_config: {
+        Args: { _company: string; _note: string; _rules: Json }
+        Returns: string
       }
       save_company_fund_config: {
         Args: { _buckets: Json; _company: string; _note: string }
