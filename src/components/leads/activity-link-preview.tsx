@@ -1,5 +1,4 @@
 import { useActiveCompany } from "@/components/company/company-switcher";
-import { useActiveCompany } from "@/components/company/company-switcher";
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";

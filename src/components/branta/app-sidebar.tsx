@@ -392,7 +392,7 @@ export function AppSidebar() {
               {group.label === "Finance" && activeCompany && !activeCompany.is_holding ? (
                 <div className="space-y-0.5">
                   {SISTER_FINANCE.map((item) => {
-                    const active = isRouteActive(item.plain) || (item.plain === "/app/finance/invoices" && activePath.startsWith("/app/finance/invoices"));
+                    const active = isRouteActive(item.plain) || (item.plain === "/app/finance/invoices" && (activePath ?? "").startsWith("/app/finance/invoices"));
                     return (
                       <Link key={item.to} to={item.to} params={{ org: activeCompany.slug }} title={!exp ? item.label : undefined} className={itemClass(active)}>
                         <ActiveBar show={active} />
