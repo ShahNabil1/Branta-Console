@@ -40,6 +40,7 @@ import { FundSelect, InsufficientFundDialog, useFundOptions } from "@/components
 import { parseInsufficient } from "@/lib/fund-ops.functions";
 import { defaultFilters, type ReportFilters } from "@/lib/report-filters";
 import { Loader2, Plus, Trash2, Receipt, Eye, Download, X, FileText, Printer, Stamp, Pencil, Link2, History } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const DEPARTMENTS = ["Management", "Finance", "Sales & Outreach", "Marketing", "Production", "Development", "HR & Admin", "Operations", "Other"];
 const PAYMENT_METHODS = ["Cash", "bKash", "Nagad", "Rocket", "Bank Transfer", "Card", "Cheque", "Other"];
