@@ -63,7 +63,8 @@ function CompanyProfile() {
   useEffect(() => {
     const sp = new URLSearchParams(window.location.search);
     const g = sp.get("google");
-    if (sp.get("tab") === "integrations") setTab("integrations");
+    const wanted = sp.get("tab");
+    if (wanted && TABS.some((t) => t.id === wanted)) setTab(wanted);
     if (g === "ok") toast.success("Google account connected for Inbox & Calendar.");
     else if (g === "error") toast.error(sp.get("google_msg") || "Google connection failed.");
     if (sp.has("tab") || g) window.history.replaceState(null, "", window.location.pathname);
