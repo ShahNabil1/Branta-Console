@@ -48,7 +48,7 @@ export interface EventDef {
 export const EVENT_CATALOG: readonly EventDef[] = [
   // Leads
   { key: "lead.created", group: "leads", label: "New lead created",
-    description: "A new lead is added manually or pulled from Google Sheets.",
+    description: "A new lead is added.",
     template: "🆕 <b>New lead</b>: {name} ({slug})\nSource: {source}" },
   { key: "lead.assigned", group: "leads", label: "Lead assigned to you",
     description: "A lead was assigned to you as the owner.",
