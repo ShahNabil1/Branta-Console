@@ -650,12 +650,6 @@ export const createLead = createServerFn({ method: "POST" })
       });
     }
     await context.supabase.from("lead_activities").insert(createdActs as never);
-    if (co.isHolding) try {
-      const { autoSyncLead } = await import("@/lib/leads-sheets.server");
-      await autoSyncLead(context.supabase, row.id);
-    } catch (e) {
-      console.warn("[createLead] auto-sync failed", e);
-    }
     try {
       const { notify } = await import("@/lib/notify.server");
       const ownerId = (row as { owner_id: string | null }).owner_id ?? null;
@@ -764,15 +758,6 @@ export const finalizeLead = createServerFn({ method: "POST" })
       body: "Lead created",
     });
 
-    // Auto-push to Google Sheet (holding only) — never blocks lead creation.
-    const { data: coRow } = await context.supabase.from("companies").select("is_holding")
-      .eq("id", (curRow as unknown as { company_id: string }).company_id).maybeSingle();
-    if (coRow?.is_holding) try {
-      const { autoSyncLead } = await import("@/lib/leads-sheets.server");
-      await autoSyncLead(context.supabase, data.id);
-    } catch (e) {
-      console.warn("[finalizeLead] auto-sync failed", e);
-    }
 
     const { data: fresh } = await context.supabase
       .from("leads").select("*").eq("id", data.id).maybeSingle();
