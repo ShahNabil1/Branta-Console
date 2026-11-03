@@ -1,5 +1,9 @@
 # Roadmap
 
+## Provider disconnect confirmation
+- [x] Show live company-owned webhook addresses/count for Resend and Brevo; hide private tokens, require confirmation and recheck IDs; ownership tests pass.
+- [ ] Verify authenticated provider preview in the company page; blocked by external unmanaged auth without an available session.
+
 ## Company People & Access
 - [ ] Build company-scoped teams, member assignments, reporting hierarchy and protected access management.
 - [ ] Build the interactive organization chart, people directory and team editors using real employees.

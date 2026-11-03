@@ -389,37 +389,52 @@ export const setDefaultProvider = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-/** Disconnect: wipes stored secrets, keeps the row for audit (never hard-delete). */
-export const disconnectProvider = createServerFn({ method: "POST" })
+async function disconnectHooks(provider: P, slug: string, key: string) {
+  const m = await import("@/lib/company-email.server");
+  const { ownedWebhookAddress } = await import("@/lib/company-webhook-policy");
+  const list = provider === "resend" ? await m.resend(key, "/webhooks") : await m.brevo(key, "/webhooks?type=transactional");
+  const empty = provider === "brevo" && list.body?.code === "document_not_found";
+  if (!list.ok && !empty) throw new Error(`${provider === "resend" ? "Resend" : "Brevo"} error ${list.status}: ${list.body?.message ?? "could not read webhooks"}`);
+  const hooks = (empty ? [] : provider === "resend" ? list.body?.data ?? [] : list.body?.webhooks ?? []) as { id: string | number; endpoint?: string; url?: string }[];
+  return hooks.flatMap((hook) => {
+    const address = ownedWebhookAddress(hook.endpoint ?? hook.url ?? "", m.webhookUrl(provider, slug));
+    return address ? [{ id: String(hook.id), address }] : [];
+  });
+}
+
+/** Live, read-only preview; never returns Brevo's authentication token. */
+export const previewProviderDisconnect = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => z.object({ slug: Slug, provider: Provider }).parse(i))
   .handler(async ({ data, context }) => {
     const { co, admin } = await gate(context, data.slug);
     const m = await import("@/lib/company-email.server");
-    // Remove ONLY this company's Branta webhook(s) from the provider account; other hooks are untouched.
-    let removed = 0;
-    let hookError: string | null = null;
     const r = await row(admin, co.id, data.provider);
-    const key = r?.api_key_enc ? await m.open(r.api_key_enc).catch(() => null) : null;
-    if (key) {
-      const base = m.webhookUrl(data.provider, co.slug).replace(/\/+$/, "");
-      if (data.provider === "resend") {
-        const list = await m.resend(key, "/webhooks");
-        if (!list.ok) hookError = `Resend error ${list.status}: ${list.body?.message ?? "could not read webhooks"}`;
-        for (const w of (list.body?.data ?? []) as { id: string; endpoint: string }[]) {
-          if ((w.endpoint ?? "").replace(/\/+$/, "") !== base) continue;
-          const d = await m.resend(key, `/webhooks/${w.id}`, { method: "DELETE" });
-          if (d.ok || d.status === 404) removed++; else hookError = `Resend error ${d.status}: ${d.body?.message ?? "delete failed"}`;
-        }
-      } else {
-        const list = await m.brevo(key, "/webhooks?type=transactional");
-        if (!list.ok && list.body?.code !== "document_not_found") hookError = `Brevo error ${list.status}: ${list.body?.message ?? "could not read webhooks"}`;
-        for (const w of (list.body?.webhooks ?? []) as { id: number; url: string }[]) {
-          if (!(w.url ?? "").startsWith(base)) continue;
-          const d = await m.brevo(key, `/webhooks/${w.id}`, { method: "DELETE" });
-          if (d.ok || d.status === 404) removed++; else hookError = `Brevo error ${d.status}: ${d.body?.message ?? "delete failed"}`;
-        }
-      }
+    const key = r?.api_key_enc ? await m.open(r.api_key_enc) : null;
+    if (!key) throw new Error("No stored API key available to check the provider's webhooks. Verify the API key first.");
+    return { hooks: await disconnectHooks(data.provider, co.slug, key) };
+  });
+
+/** Disconnect only the confirmed set; keeps the row for audit (never hard-delete). */
+export const disconnectProvider = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({ slug: Slug, provider: Provider, confirmedHookIds: z.array(z.string()).max(100) }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { co, admin } = await gate(context, data.slug);
+    const m = await import("@/lib/company-email.server");
+    let removed = 0;
+    const r = await row(admin, co.id, data.provider);
+    const key = r?.api_key_enc ? await m.open(r.api_key_enc) : null;
+    if (!key) throw new Error("No stored API key available. Verify the API key first.");
+    const hooks = await disconnectHooks(data.provider, co.slug, key);
+    const { sameWebhookIds } = await import("@/lib/company-webhook-policy");
+    if (!sameWebhookIds(hooks.map((hook) => hook.id), data.confirmedHookIds)) throw new Error("The webhook list changed. Cancel and review the current list before disconnecting.");
+    for (const hook of hooks) {
+      const result = data.provider === "resend"
+        ? await m.resend(key, `/webhooks/${encodeURIComponent(hook.id)}`, { method: "DELETE" })
+        : await m.brevo(key, `/webhooks/${encodeURIComponent(hook.id)}`, { method: "DELETE" });
+      if (result.ok || result.status === 404) removed++;
+      else throw new Error(`${data.provider} error ${result.status}: ${result.body?.message ?? "Webhook deletion failed"}. Connection retained; review the list and retry.`);
     }
     await admin.from("company_email_providers").update({
       is_active: false, is_default: false, api_key_enc: null, api_key_hint: null, webhook_secret_enc: null,
@@ -427,7 +442,7 @@ export const disconnectProvider = createServerFn({ method: "POST" })
     }).eq("company_id", co.id).eq("provider", data.provider);
     const { data: left } = await admin.from("company_email_providers").select("id").eq("company_id", co.id).eq("is_active", true).limit(1);
     if (left?.[0]) await admin.from("company_email_providers").update({ is_default: true }).eq("id", left[0].id);
-    return { ok: true, removed, hookError };
+    return { ok: true, removed };
   });
 
 // ---------- Inbox address (routed to the shared Gmail) ----------
