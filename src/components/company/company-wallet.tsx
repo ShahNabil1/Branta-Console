@@ -33,7 +33,7 @@ export function CompanyWallet({ companyId, companyName, accent }: { companyId: s
   const name = (k: string) => labels.get(k)?.label ?? k.replace(/_/g, " ");
 
   const buckets = useMemo(() => {
-    const bal = new Map((w.data?.buckets ?? []).map((b: any) => [b.bucket_key, b.balance as number]));
+    const bal = new Map<string, number>((w.data?.buckets ?? []).map((b: any) => [b.bucket_key as string, Number(b.balance)]));
     const active = ((cfg.data?.active as any)?.company_fund_buckets ?? []) as any[];
     const keys = new Set<string>([...active.map((b) => b.key), ...bal.keys()]);
     return [...keys]
