@@ -28,7 +28,6 @@ import {
   Landmark,
   FileStack,
   HandCoins,
-  Plug,
   FolderKanban,
   PieChart,
   Gauge,
@@ -39,7 +38,6 @@ import {
   Puzzle,
   Pin,
   PinOff,
-  FileSpreadsheet,
   Handshake,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -156,12 +154,6 @@ const FINANCE_NAV: FinanceNavGroup[] = [
     icon: Receipt,
     tone: "rose",
     items: [{ label: "Expenses", to: "/app/finance/expenses", icon: Receipt, tone: "rose" }],
-  },
-  {
-    label: "Integrations",
-    icon: Plug,
-    tone: "teal",
-    items: [{ label: "Finance Sheets", to: "/app/finance/sheets", icon: FileSpreadsheet, tone: "emerald" }],
   },
 ];
 
