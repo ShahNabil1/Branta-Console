@@ -37,7 +37,8 @@ describe("invoice PDF pagination", () => {
     const bytes = await renderInvoicePdf({ ...fixture, settings });
     const doc = await PDFDocument.load(bytes);
     expect(doc.getPageCount()).toBe(1);
-    expect(doc.getPages()[0].node.Resources().lookupMaybe((await import("pdf-lib")).PDFName.of("XObject"), (await import("pdf-lib")).PDFDict)).toBeUndefined();
+    const images = doc.getPages()[0].node.Resources().lookupMaybe((await import("pdf-lib")).PDFName.of("XObject"), (await import("pdf-lib")).PDFDict);
+    expect(images?.keys().length ?? 0).toBe(0);
     if (process.env.INVOICE_PDF_QA_DIR) await Bun.write(`${process.env.INVOICE_PDF_QA_DIR}/admakai.pdf`, bytes);
   });
   for (const mode of ["digital", "print"]) {

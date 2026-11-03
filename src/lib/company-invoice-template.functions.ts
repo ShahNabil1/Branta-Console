@@ -28,8 +28,10 @@ export const getCompanyInvoiceStudio = createServerFn({ method: "GET" })
       sb.from("invoices").select("id,slug,title,customers!inner(companies!inner(is_holding))").eq("customers.companies.is_holding", true).is("archived_at", null).neq("status", "void").order("created_at", { ascending: false }).limit(1).maybeSingle(),
     ]);
     for (const r of [versions, invoices, reference]) if (r.error) throw dbError(r.error);
-    return { ...template, isHolding: Boolean(company.is_holding), versions: (versions.data ?? []).map((v: { revision: number; created_at: string; settings: Record<string, unknown> }) => ({ revision: v.revision, created_at: v.created_at, settings: completeInvoiceTemplate(v.settings) })),
-      invoices: (invoices.data ?? []).map((r: any) => ({ id: r.id as string, slug: r.slug as string, title: r.title as string })),
+    const versionRows = (versions.data ?? []) as { revision: number; created_at: string; settings: Record<string, unknown> }[];
+    const invoiceRows = (invoices.data ?? []) as { id: string; slug: string; title: string }[];
+    return { ...template, isHolding: Boolean(company.is_holding), versions: versionRows.map(v => ({ revision: v.revision, created_at: v.created_at, settings: completeInvoiceTemplate(v.settings) })),
+      invoices: invoiceRows.map(r => ({ id: r.id, slug: r.slug, title: r.title })),
       reference: reference.data ? { id: reference.data.id as string, slug: reference.data.slug as string, title: reference.data.title as string } : null };
   });
 
