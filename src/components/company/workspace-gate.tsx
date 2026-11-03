@@ -5,7 +5,7 @@ import { CompanyAvatar } from "./company-avatar";
 import { companyAccent, setActiveCompanySlug } from "@/lib/active-company";
 
 // Group-wide pages stay reachable from every company workspace.
-const SHARED = ["/app/companies", "/app/employees", "/app/profile", "/app/settings"];
+const SHARED = ["/app/companies", "/app/employees", "/app/profile", "/app/settings", "/app/inbox"];
 
 /**
  * Existing modules hold Branta Tech (holding) data only, so a sister company's

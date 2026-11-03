@@ -24,6 +24,7 @@ import {
 } from "@/lib/inbox.functions";
 import { sendInboxReply } from "@/lib/inbox-reply.functions";
 import { cn } from "@/lib/utils";
+import { useActiveCompany } from "@/components/company/company-switcher";
 
 export const Route = createFileRoute("/_authenticated/app/inbox")({
   head: () => ({
@@ -66,19 +67,24 @@ function InboxPage() {
   const listFn = useServerFn(listInbox);
   const syncFn = useServerFn(syncInbox);
   const markReadFn = useServerFn(markThreadRead);
+  const { active } = useActiveCompany();
+  const company = active?.slug;
+  const inboxAddr = active && !active.is_holding ? null : "hello@brantatech.com";
 
   const [filter, setFilter] = useState<FilterKey>("all");
   const [selectedThread, setSelectedThread] = useState<string | null>(null);
+  useEffect(() => setSelectedThread(null), [company]);
 
   const listQ = useQuery({
-    queryKey: ["inbox", "list", filter],
-    queryFn: () => listFn({ data: { filter, limit: 50 } }),
+    queryKey: ["inbox", "list", company, filter],
+    queryFn: () => listFn({ data: { filter, limit: 50, company } }),
+    enabled: !!company,
     staleTime: 30_000,
     retry: 1,
   });
 
   const syncMut = useMutation({
-    mutationFn: () => syncFn({ data: { maxResults: 50 } }),
+    mutationFn: () => syncFn({ data: { maxResults: 50, company } }),
     onSuccess: (r) => {
       if (r.newLinked > 0) toast.success(`${r.newLinked} new lead reply`);
       qc.invalidateQueries({ queryKey: ["inbox"] });
@@ -142,7 +148,7 @@ function InboxPage() {
     setSelectedThread(threadId);
     // Mark read optimistically after opening.
     setTimeout(() => {
-      markReadFn({ data: { threadId } })
+      markReadFn({ data: { threadId, company } })
         .then(() => qc.invalidateQueries({ queryKey: ["inbox"] }))
         .catch(() => null);
     }, 400);
@@ -158,7 +164,7 @@ function InboxPage() {
             <div>
               <div className="text-[13px] font-semibold">Inbox</div>
               <div className="text-[11px] text-muted-foreground">
-                hello@brantatech.com
+                {inboxAddr ?? `${active?.name ?? ""} · own Gmail`}
               </div>
             </div>
           </div>
@@ -294,7 +300,7 @@ function InboxPage() {
       {/* Right pane: thread */}
       <div className="min-w-0 flex-1 overflow-y-auto bg-background">
         {selectedThread ? (
-          <ThreadView threadId={selectedThread} />
+          <ThreadView threadId={selectedThread} company={company} />
         ) : (
           <div className="grid h-full place-items-center text-center text-[12.5px] text-muted-foreground">
             <div>
@@ -308,14 +314,14 @@ function InboxPage() {
   );
 }
 
-function ThreadView({ threadId }: { threadId: string }) {
+function ThreadView({ threadId, company }: { threadId: string; company?: string }) {
   const getFn = useServerFn(getInboxThread);
   const replyFn = useServerFn(sendInboxReply);
   const qc = useQueryClient();
 
   const q = useQuery({
-    queryKey: ["inbox", "thread", threadId],
-    queryFn: () => getFn({ data: { threadId } }),
+    queryKey: ["inbox", "thread", company, threadId],
+    queryFn: () => getFn({ data: { threadId, company } }),
     staleTime: 10_000,
   });
 
@@ -343,6 +349,7 @@ function ThreadView({ threadId }: { threadId: string }) {
           inReplyTo: payload.inReplyTo,
           references: payload.references,
           leadId: payload.leadId,
+          company,
         },
       }),
     onSuccess: (r) => {

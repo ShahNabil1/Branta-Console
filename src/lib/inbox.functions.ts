@@ -7,6 +7,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { callGateway } from "@/lib/connector-gateway.server";
+import { COMPANY_SLUG_RE, googleScope, resolveMailbox, type Mailbox } from "@/lib/company-mailbox.server";
 
 const INBOX_ADDR = "hello@brantatech.com";
 
@@ -153,9 +154,10 @@ function extractBody(payload: GmailPart | undefined): ExtractedBody {
   return out;
 }
 
-async function fetchMessageMetadata(id: string): Promise<GmailMessage> {
+async function fetchMessageMetadata(id: string, mb: Mailbox): Promise<GmailMessage> {
   return callGateway<GmailMessage>({
     connector: "google_mail",
+    ...googleScope(mb),
     path: `/gmail/v1/users/me/messages/${encodeURIComponent(id)}`,
     query: {
       format: "metadata",
@@ -201,17 +203,18 @@ const NOISE_FROM_PATTERNS = [
   "security",
 ];
 
-function buildInboxQuery(): string {
-  const to = `(to:${INBOX_ADDR} OR deliveredto:${INBOX_ADDR} OR cc:${INBOX_ADDR})`;
+function buildInboxQuery(addr: string): string {
+  const to = `(to:${addr} OR deliveredto:${addr} OR cc:${addr})`;
   const noise = NOISE_FROM_PATTERNS.map((p) => `-from:${p}@`).join(" ");
   // Also exclude Gmail's built-in Promotions/Updates/Forums/Social categories
   // (transactional/marketing mail lands in these) and anything from ourselves.
   return `in:inbox ${to} -from:me -category:promotions -category:updates -category:forums -category:social ${noise}`;
 }
 
-async function fetchInboxGmail(wanted: number): Promise<GmailMessage[]> {
+async function fetchInboxGmail(wanted: number, mb: Mailbox): Promise<GmailMessage[]> {
   const ownMailboxPromise = callGateway<GmailProfile>({
     connector: "google_mail",
+    ...googleScope(mb),
     path: "/gmail/v1/users/me/profile",
   })
     .then((p) => p.emailAddress?.toLowerCase() ?? null)
@@ -221,10 +224,11 @@ async function fetchInboxGmail(wanted: number): Promise<GmailMessage[]> {
   // NOT sent by the connected mailbox itself.
   const list = await callGateway<GmailListResponse>({
     connector: "google_mail",
+    ...googleScope(mb),
     path: "/gmail/v1/users/me/messages",
     query: {
       maxResults: Math.min(100, wanted),
-      q: buildInboxQuery(),
+      q: buildInboxQuery(mb.inboxAddr),
     },
   });
   const items = list.messages ?? [];
@@ -232,7 +236,7 @@ async function fetchInboxGmail(wanted: number): Promise<GmailMessage[]> {
 
   // Parallel metadata fetch — Gmail already filtered, so this is a small set.
   const fetched = await Promise.all(
-    items.slice(0, wanted).map((x) => fetchMessageMetadata(x.id).catch(() => null)),
+    items.slice(0, wanted).map((x) => fetchMessageMetadata(x.id, mb).catch(() => null)),
   );
   const ownMailbox = await ownMailboxPromise;
   return fetched.filter((m): m is GmailMessage => {
@@ -254,11 +258,12 @@ void isDeliveredToInboxAddress;
 export const syncInbox = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
-    z.object({ maxResults: z.number().min(1).max(100).default(50) }).parse(d ?? {}),
+    z.object({ maxResults: z.number().min(1).max(100).default(50), company: z.string().regex(COMPANY_SLUG_RE).optional(), }).parse(d ?? {}),
   )
-  .handler(async ({ data }): Promise<{ synced: number; newLinked: number }> => {
+  .handler(async ({ data, context }): Promise<{ synced: number; newLinked: number }> => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const messages = await fetchInboxGmail(data.maxResults);
+    const mb = await resolveMailbox(context.supabase, context.userId, data.company);
+    const messages = await fetchInboxGmail(data.maxResults, mb);
     if (messages.length === 0) return { synced: 0, newLinked: 0 };
 
     // Batch: find lead links for all unique from_emails at once.
@@ -276,7 +281,8 @@ export const syncInbox = createServerFn({ method: "POST" })
       .join(",");
     const { data: contacts } = await supabaseAdmin
       .from("lead_contacts")
-      .select("id, lead_id, email, alt_email");
+      .select("id, lead_id, email, alt_email, leads!inner(company_id)")
+      .eq("leads.company_id", mb.companyId);
     // Filter locally (Supabase or() has length limits with many emails).
     const byEmail = new Map<string, { leadId: string; contactId: string }>();
     for (const c of contacts ?? []) {
@@ -306,6 +312,7 @@ export const syncInbox = createServerFn({ method: "POST" })
     const { data: existing } = await supabaseAdmin
       .from("inbox_messages")
       .select("gmail_message_id")
+      .eq("company_id", mb.companyId)
       .in("gmail_message_id", ids);
     const seen = new Set((existing ?? []).map((r) => r.gmail_message_id as string));
     const fresh = linkedMsgs.filter((x) => !seen.has(x.m.id));
@@ -332,7 +339,8 @@ export const syncInbox = createServerFn({ method: "POST" })
         gmail_thread_id: m.threadId,
         from_email: from.email,
         from_name: from.name,
-        to_email: INBOX_ADDR,
+        to_email: mb.inboxAddr,
+        company_id: mb.companyId,
         subject: subject ?? null,
         snippet: m.snippet ?? null,
         received_at: received,
@@ -395,11 +403,13 @@ export const listInbox = createServerFn({ method: "GET" })
       .object({
         filter: z.enum(["all", "unread", "mine", "linked", "unlinked"]).default("all"),
         limit: z.number().min(1).max(200).default(100),
+        company: z.string().regex(COMPANY_SLUG_RE).optional(),
       })
       .parse(d ?? {}),
   )
   .handler(async ({ data, context }): Promise<InboxRow[]> => {
-    const messages = await fetchInboxGmail(data.limit);
+    const mb = await resolveMailbox(context.supabase, context.userId, data.company);
+    const messages = await fetchInboxGmail(data.limit, mb);
     if (messages.length === 0) return [];
 
     // Build lead-link map from lead_contacts (single query).
@@ -414,7 +424,8 @@ export const listInbox = createServerFn({ method: "GET" })
     if (fromEmails.length > 0) {
       const { data: contacts } = await context.supabase
         .from("lead_contacts")
-        .select("id, lead_id, email, alt_email");
+        .select("id, lead_id, email, alt_email, leads!inner(company_id)")
+        .eq("leads.company_id", mb.companyId);
       for (const c of contacts ?? []) {
         const emails = [c.email as string | null, c.alt_email as string | null]
           .filter(Boolean)
@@ -470,7 +481,7 @@ export const listInbox = createServerFn({ method: "GET" })
         gmail_thread_id: m.threadId,
         from_email: from.email,
         from_name: from.name,
-        to_email: to.email || INBOX_ADDR,
+        to_email: to.email || mb.inboxAddr,
         subject: headerValue(headers, "Subject"),
         snippet: m.snippet ?? null,
         received_at: m.internalDate
@@ -533,10 +544,12 @@ export interface InboxThread {
 /** Full-format fetch of a Gmail thread. */
 export const getInboxThread = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({ threadId: z.string().min(1) }).parse(d))
+  .inputValidator((d: unknown) => z.object({ threadId: z.string().min(1), company: z.string().regex(COMPANY_SLUG_RE).optional(), }).parse(d))
   .handler(async ({ data, context }): Promise<InboxThread> => {
+    const mb = await resolveMailbox(context.supabase, context.userId, data.company);
     const thread = await callGateway<{ id: string; messages?: GmailMessage[] }>({
       connector: "google_mail",
+    ...googleScope(mb),
       path: `/gmail/v1/users/me/threads/${encodeURIComponent(data.threadId)}`,
       query: { format: "full" },
     }).catch(async (error) => {
@@ -547,6 +560,7 @@ export const getInboxThread = createServerFn({ method: "GET" })
       ) {
         return callGateway<{ id: string; messages?: GmailMessage[] }>({
           connector: "google_mail",
+    ...googleScope(mb),
           path: `/gmail/v1/users/me/threads/${encodeURIComponent(data.threadId)}`,
           query: { format: "metadata", metadataHeaders: THREAD_METADATA_HEADERS },
         });
@@ -587,7 +601,8 @@ export const getInboxThread = createServerFn({ method: "GET" })
     if (firstFrom) {
       const { data: contact } = await context.supabase
         .from("lead_contacts")
-        .select("lead_id")
+        .select("lead_id, leads!inner(company_id)")
+        .eq("leads.company_id", mb.companyId)
         .or(`email.eq.${firstFrom},alt_email.eq.${firstFrom}`)
         .limit(1)
         .maybeSingle();
@@ -620,13 +635,15 @@ export const getInboxThread = createServerFn({ method: "GET" })
 /** Mark an entire Gmail thread as read directly in Gmail (no DB write). */
 export const markThreadRead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({ threadId: z.string().min(1) }).parse(d))
+  .inputValidator((d: unknown) => z.object({ threadId: z.string().min(1), company: z.string().regex(COMPANY_SLUG_RE).optional(), }).parse(d))
   .handler(async ({ data, context }): Promise<{ ok: true }> => {
+    const mb = await resolveMailbox(context.supabase, context.userId, data.company);
     // Only threads that exist in the shared inbox may be modified.
     const { data: known } = await context.supabase
       .from("inbox_messages")
       .select("id")
       .eq("gmail_thread_id", data.threadId)
+      .eq("company_id", mb.companyId)
       .limit(1);
     if (!known || known.length === 0)
       throw new Error("Thread not found in the shared inbox");
@@ -634,6 +651,7 @@ export const markThreadRead = createServerFn({ method: "POST" })
     // Fetch message IDs for the thread from Gmail.
     const thread = await callGateway<{ messages?: Array<{ id: string }> }>({
       connector: "google_mail",
+    ...googleScope(mb),
       path: `/gmail/v1/users/me/threads/${encodeURIComponent(data.threadId)}`,
       query: { format: "minimal" },
     }).catch(() => ({ messages: [] as Array<{ id: string }> }));
@@ -642,6 +660,7 @@ export const markThreadRead = createServerFn({ method: "POST" })
       ids.map((id) =>
         callGateway({
           connector: "google_mail",
+    ...googleScope(mb),
           path: `/gmail/v1/users/me/messages/${encodeURIComponent(id)}/modify`,
           method: "POST",
           body: { removeLabelIds: ["UNREAD"] },

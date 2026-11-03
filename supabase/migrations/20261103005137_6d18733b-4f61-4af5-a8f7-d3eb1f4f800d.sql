@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.holding_company_id() FROM authenticated;

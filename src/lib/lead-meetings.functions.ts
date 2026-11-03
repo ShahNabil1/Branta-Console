@@ -4,6 +4,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { leadRecipientEmails } from "@/lib/lead-recipient-policy";
+import { googleScope, mailboxForCompanyId } from "@/lib/company-mailbox.server";
 
 export const BD_TIMEZONE = "Asia/Dhaka";
 
@@ -96,7 +97,7 @@ export const scheduleLeadMeeting = createServerFn({ method: "POST" })
     // Only the lead owner or a privileged role may schedule meetings for a lead.
     const { data: leadRow } = await context.supabase
       .from("leads")
-      .select("owner_id, alt_email")
+      .select("owner_id, alt_email, company_id")
       .eq("id", data.leadId)
       .maybeSingle();
     if (!leadRow) throw new Error("Lead not found");
@@ -141,9 +142,11 @@ export const scheduleLeadMeeting = createServerFn({ method: "POST" })
       throw new Error(`${outsider} is not a contact of this lead. Add them as a lead contact first.`);
 
     const { callGateway } = await import("@/lib/connector-gateway.server");
+    const mb = await mailboxForCompanyId((leadRow as { company_id?: string | null }).company_id);
     const requestId = crypto.randomUUID();
     const ev = await callGateway<GCalEvent>({
       connector: "google_calendar",
+      ...googleScope(mb),
       path: "/calendar/v3/calendars/primary/events",
       method: "POST",
       query: { conferenceDataVersion: 1, sendUpdates: "all" },
@@ -237,7 +240,7 @@ export const cancelLeadMeeting = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<{ ok: true }> => {
     const { data: mtg, error: fErr } = await context.supabase
       .from("lead_meetings")
-      .select("google_event_id, lead_id, title")
+      .select("google_event_id, lead_id, title, company_id")
       .eq("id", data.id)
       .maybeSingle();
     if (fErr) throw new Error(fErr.message);
@@ -247,6 +250,7 @@ export const cancelLeadMeeting = createServerFn({ method: "POST" })
       try {
         await callGateway({
           connector: "google_calendar",
+          ...googleScope(await mailboxForCompanyId(mtg.company_id)),
           path: `/calendar/v3/calendars/primary/events/${mtg.google_event_id}`,
           method: "DELETE",
           query: { sendUpdates: "all" },
@@ -301,6 +305,7 @@ export const rescheduleLeadMeeting = createServerFn({ method: "POST" })
       const { callGateway } = await import("@/lib/connector-gateway.server");
       await callGateway({
         connector: "google_calendar",
+        ...googleScope(await mailboxForCompanyId((mtg as { company_id?: string | null }).company_id)),
         path: `/calendar/v3/calendars/primary/events/${mtg.google_event_id}`,
         method: "PATCH",
         query: { sendUpdates: "all" },
@@ -349,11 +354,23 @@ export const checkMeetingConflicts = createServerFn({ method: "POST" })
       .object({
         startsAt: z.string(),
         endsAt: z.string(),
+        leadId: z.string().uuid().optional(),
       })
       .parse(d),
   )
-  .handler(async ({ data }): Promise<MeetingConflict[]> => {
+  .handler(async ({ data, context }): Promise<MeetingConflict[]> => {
     const { callGateway } = await import("@/lib/connector-gateway.server");
+    let companyId: string | null = null;
+    if (data.leadId) {
+      const { data: l } = await context.supabase.from("leads").select("company_id").eq("id", data.leadId).maybeSingle();
+      companyId = (l as { company_id?: string } | null)?.company_id ?? null;
+    }
+    let mb: Awaited<ReturnType<typeof mailboxForCompanyId>> = null;
+    try {
+      mb = await mailboxForCompanyId(companyId);
+    } catch {
+      return []; // company calendar not connected — never check the shared one
+    }
     try {
       const res = await callGateway<{
         items?: Array<{
@@ -367,6 +384,7 @@ export const checkMeetingConflicts = createServerFn({ method: "POST" })
         }>;
       }>({
         connector: "google_calendar",
+        ...googleScope(mb),
         path: "/calendar/v3/calendars/primary/events",
         method: "GET",
         query: {
@@ -412,7 +430,7 @@ export const syncMeetingRsvp = createServerFn({ method: "POST" })
     }): Promise<{ updated: number; syncedAt: string }> => {
       const { data: rows, error } = await context.supabase
         .from("lead_meetings")
-        .select("id, google_event_id, attendee_responses, status")
+        .select("id, google_event_id, attendee_responses, status, company_id")
         .eq("lead_id", data.leadId)
         .neq("status", "cancelled");
       if (error) throw dbError(error);
@@ -424,6 +442,7 @@ export const syncMeetingRsvp = createServerFn({ method: "POST" })
         return { updated: 0, syncedAt: new Date().toISOString() };
 
       const { callGateway } = await import("@/lib/connector-gateway.server");
+      const mb = await mailboxForCompanyId((targets[0] as { company_id?: string }).company_id);
       const now = new Date().toISOString();
       let updated = 0;
 
@@ -432,6 +451,7 @@ export const syncMeetingRsvp = createServerFn({ method: "POST" })
           try {
             const ev = await callGateway<GCalEvent>({
               connector: "google_calendar",
+              ...googleScope(mb),
               path: `/calendar/v3/calendars/primary/events/${r.google_event_id}`,
               method: "GET",
             });

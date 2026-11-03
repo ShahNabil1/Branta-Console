@@ -188,10 +188,17 @@ function ConfirmDialog({ kind, email, fallback, busy, onCancel, onConfirm }: {
         </ul>
         <div className="flex justify-end gap-2 border-t border-border bg-muted/30 px-6 py-3">
           <Button size="sm" variant="outline" onClick={onCancel} disabled={busy}>Cancel</Button>
-          <Button size="sm" variant={sw ? "default" : "destructive"} onClick={onConfirm} disabled={busy} className="transition-transform active:scale-95">
-            {busy ? <Loader2 className="size-3.5 animate-spin" /> : sw ? <ArrowLeftRight className="size-3.5" /> : <Unplug className="size-3.5" />}
-            {sw ? "Continue to Google" : "Disconnect"}
-          </Button>
+          {sw ? (
+            <Button size="sm" variant="outline" onClick={onConfirm} disabled={busy} className="gap-2 rounded-full bg-card px-4 font-medium text-foreground shadow-sm transition-all hover:bg-muted hover:shadow-md active:scale-95">
+              {busy ? <Loader2 className="size-4 animate-spin" /> : <GoogleMark className="size-4" />}
+              Continue to Google
+            </Button>
+          ) : (
+            <Button size="sm" variant="destructive" onClick={onConfirm} disabled={busy} className="transition-transform active:scale-95">
+              {busy ? <Loader2 className="size-3.5 animate-spin" /> : <Unplug className="size-3.5" />}
+              Disconnect
+            </Button>
+          )}
         </div>
       </AlertDialogContent>
     </AlertDialog>
