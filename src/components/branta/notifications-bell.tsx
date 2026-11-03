@@ -32,12 +32,12 @@ export function NotificationsBell() {
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="relative grid size-8 cursor-pointer place-items-center rounded-full border border-border bg-card text-muted-foreground transition-colors hover:text-foreground active:scale-95"
+          className="group relative grid size-9 cursor-pointer place-items-center rounded-full border border-border bg-card text-muted-foreground transition-all hover:-translate-y-px hover:border-brand/40 hover:bg-brand/10 hover:text-brand hover:shadow-md hover:shadow-brand/15 active:scale-90"
           aria-label="Notifications"
         >
-          <Bell className="size-3.5" strokeWidth={1.75} />
+          <Bell className="size-4 transition-transform group-hover:rotate-12" strokeWidth={1.75} />
           {unread > 0 && (
-            <span className="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-brand ring-2 ring-card" />
+            <span className="absolute right-1.5 top-1.5 size-2 animate-pulse rounded-full bg-brand ring-2 ring-card" />
           )}
         </button>
       </PopoverTrigger>

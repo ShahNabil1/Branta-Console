@@ -37,25 +37,25 @@ export function TopBar() {
       {/* Breadcrumbs */}
       <nav className="flex min-w-0 items-center gap-2 overflow-hidden text-[13px]" aria-label="Breadcrumb">
         {crumbs.length === 0 ? (
-          <span className="font-medium text-foreground">Workspace</span>
+          <span className="rounded-full bg-brand/10 px-2.5 py-1 font-semibold text-brand">Workspace</span>
         ) : (
           crumbs.map((c, i) => {
             const isLast = i === crumbs.length - 1;
             return (
               <span key={i} className={i < crumbs.length - 2 ? "hidden items-center gap-2 sm:flex" : "flex min-w-0 items-center gap-2"}>
                 {isLast ? (
-                  <span className="truncate font-semibold text-foreground">
+                  <span className="truncate rounded-full bg-brand/10 px-2.5 py-1 font-semibold text-brand ring-1 ring-inset ring-brand/20 animate-in fade-in slide-in-from-left-1">
                     {labelFor(c.seg)}
                   </span>
                 ) : (
                   <Link
                     to={c.href as unknown as "/app"}
-                    className="cursor-pointer text-muted-foreground transition-colors hover:text-foreground hover:underline"
+                    className="cursor-pointer rounded-full px-2 py-1 font-medium text-muted-foreground transition-all hover:bg-muted hover:text-foreground"
                   >
                     {labelFor(c.seg)}
                   </Link>
                 )}
-                {!isLast && <span className="text-border">/</span>}
+                {!isLast && <span className="text-muted-foreground/40">›</span>}
               </span>
             );
           })
@@ -76,12 +76,12 @@ export function TopBar() {
             });
             window.dispatchEvent(evt);
           }}
-          className="hairline grid size-8 cursor-pointer place-items-center rounded-sm border border-border bg-muted text-[12px] text-muted-foreground transition-colors hover:border-brand/30 hover:text-foreground active:scale-[0.98] sm:flex sm:w-auto sm:gap-3 sm:rounded-full sm:px-3"
+          className="group grid size-8 cursor-pointer place-items-center rounded-full border border-border bg-muted/60 text-[12px] text-muted-foreground transition-all hover:-translate-y-px hover:border-brand/40 hover:bg-card hover:text-foreground hover:shadow-md hover:shadow-brand/10 active:scale-95 sm:flex sm:h-9 sm:w-56 sm:justify-between sm:gap-3 sm:px-3"
           aria-label="Search"
         >
           <Search className="size-4 sm:hidden" />
-          <span className="hidden sm:inline">Search…</span>
-          <kbd className="hidden rounded-sm border border-border bg-card px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground sm:inline">
+          <span className="hidden items-center gap-2 sm:inline-flex"><Search className="size-3.5 transition-colors group-hover:text-brand" />Search…</span>
+          <kbd className="hidden rounded-md border border-border bg-card px-1.5 py-0.5 font-mono shadow-sm transition-colors group-hover:border-brand/40 group-hover:text-brand text-[10px] text-muted-foreground sm:inline">
             ⌘K
           </kbd>
         </button>

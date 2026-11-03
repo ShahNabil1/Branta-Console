@@ -76,7 +76,7 @@ export function ProfileMenu() {
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
-          className="grid size-8 place-items-center overflow-hidden rounded-full border border-border bg-card text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+          className="grid size-9 place-items-center overflow-hidden rounded-full border-2 border-card bg-card text-muted-foreground shadow-sm ring-2 ring-brand/30 transition-all hover:-translate-y-px hover:ring-brand hover:shadow-md hover:shadow-brand/20 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
           aria-label="Open profile menu"
         >
           {profile?.avatarUrl ? (
