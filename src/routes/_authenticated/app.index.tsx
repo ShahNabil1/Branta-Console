@@ -25,6 +25,8 @@ import {
   Mail, MessageCircle, Clock, CheckCircle2, UserPlus, ExternalLink, Video,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useActiveCompany } from "@/components/company/company-switcher";
+import { CompanyOverview } from "@/components/company/company-overview";
 import { formatDistanceToNow, format } from "date-fns";
 
 const searchSchema = z.object({
@@ -57,6 +59,12 @@ function greeting() {
 }
 
 function OverviewPage() {
+  const { active } = useActiveCompany();
+  if (active && !active.is_holding) return <CompanyOverview key={active.slug} slug={active.slug} name={active.name} />;
+  return <HoldingOverview />;
+}
+
+function HoldingOverview() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const qc = useQueryClient();
