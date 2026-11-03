@@ -1,4 +1,4 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Sparkles } from "lucide-react";
 import { useActiveCompany } from "./company-switcher";
 import { CompanyAvatar } from "./company-avatar";
@@ -14,6 +14,7 @@ const SHARED = ["/app/companies", "/app/employees", "/app/profile", "/app/settin
  * workspace starts empty instead of showing another company's records.
  */
 export function WorkspaceGate({ children }: { children: React.ReactNode }) {
+  const navigate = useNavigate();
   const pathname = stripOrg(useRouterState({ select: (s) => s.location.pathname }));
   const { active, list } = useActiveCompany();
   const isLoading = useActiveCompany().isLoading;
@@ -48,7 +49,7 @@ export function WorkspaceGate({ children }: { children: React.ReactNode }) {
             <Sparkles className="size-4" /> Company profile
           </Link>
           {holding && (
-            <button type="button" onClick={() => { setActiveCompanySlug(holding.slug); window.location.assign("/app"); }} className="rounded-md border border-border px-3 py-2 text-[12.5px] font-bold transition-all hover:border-brand/40 active:scale-95">
+            <button type="button" onClick={() => { setActiveCompanySlug(holding.slug); navigate({ to: "/app" }); }} className="rounded-md border border-border px-3 py-2 text-[12.5px] font-bold transition-all hover:border-brand/40 active:scale-95">
               Back to {holding.name}
             </button>
           )}
