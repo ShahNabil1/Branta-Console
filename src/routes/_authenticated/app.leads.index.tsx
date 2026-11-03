@@ -76,6 +76,8 @@ import { useConfirm } from "@/components/ui/confirm-dialog";
 import { LeadCard } from "@/components/leads/lead-card";
 import { LeadFormSheet } from "@/components/leads/lead-form-sheet";
 import { followUpState } from "@/components/leads/lead-meta";
+import { useWebMCP } from "use-webmcp-tool";
+import { runWebMCPTool } from "@/lib/webmcp-telemetry";
 
 const PAGE_SIZE_OPTIONS = [50, 100, 150, 200] as const;
 const leadsSearchSchema = z.object({
@@ -90,6 +92,10 @@ export const Route = createFileRoute("/_authenticated/app/leads/")({
   head: () => ({
     meta: [
       { title: "Leads · Branta Tech Console" },
+      { property: "og:title", content: "Leads · Branta Tech Console" },
+      { property: "og:description", content: "Company-scoped leads and follow-up workspace for Branta Hub." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       {
         name: "description",
         content:
@@ -311,6 +317,31 @@ function LeadsPage() {
   const pageStart = (page - 1) * pageSize;
   const paged = filtered.slice(pageStart, pageStart + pageSize);
 
+  function changeLeadSearch(value: string) {
+    if (typeof value !== "string") throw new Error("Search must be text.");
+    setSearch(value);
+  }
+
+  useWebMCP({
+    name: "read_visible_leads",
+    description: "Read lead names, IDs and statuses on the current company page, respecting search, filters and pagination.",
+    enabled: !leadsQuery.isError,
+    annotations: { readOnlyHint: true, untrustedContentHint: true },
+    execute: () => runWebMCPTool("read_visible_leads", () => {
+      if (leadsQuery.isLoading) return "Leads are loading.";
+      return paged.length === 0 ? "No leads shown." : paged.map((r) => `${r.id}: ${r.slug ?? r.lead_code} — ${r.name} — ${r.status}`).join("\n");
+    }),
+  });
+  useWebMCP({
+    name: "search_visible_leads",
+    description: "Set the Leads screen's text search without changing the company or other filters; an empty string clears search.",
+    inputSchema: { type: "object", properties: { search: { type: "string", description: "The text to put in the existing lead search control." } }, required: ["search"], additionalProperties: false },
+    execute: ({ search: value }: { search: string }) => runWebMCPTool("search_visible_leads", () => {
+      changeLeadSearch(value);
+      return "Lead search updated.";
+    }),
+  });
+
   // Reset to page 1 when filters/search change the result set below current page
   useEffect(() => {
     if (rawSearch.page > totalPages) {
@@ -401,7 +432,7 @@ function LeadsPage() {
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => changeLeadSearch(e.target.value)}
             placeholder="Search name, company, phone…"
             className="h-11 rounded-full pl-9 text-[15px] md:h-9 md:rounded-sm md:pl-8 md:text-[12.5px]"
           />
