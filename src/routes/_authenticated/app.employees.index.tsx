@@ -10,9 +10,10 @@ import { Progress } from "@/components/ui/progress";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Trash2 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
-import { supabase } from "@/integrations/supabase/client";
 import {
   AlertCircle,
+  AtSign,
+  KeyRound,
   Check,
   Copy,
   Eye,
@@ -45,12 +46,13 @@ import {
   prepareEmailRouting,
   deleteEmployee,
   listEmployees,
-  syncRecentEmailEvents,
 } from "@/lib/employees.functions";
 import { cn } from "@/lib/utils";
 
 import { RequireSuperAdmin } from "@/components/branta/require-super-admin";
 import { EmployeesDirectory } from "@/components/branta/employees-directory";
+import { CloudflareMark, DrawerHero, StepPills } from "@/components/branta/page-hero";
+import { Button } from "@/components/ui/button";
 import { MailActivity } from "@/components/employee/mail-activity";
 
 export const Route = createFileRoute("/_authenticated/app/employees/")({
@@ -114,93 +116,6 @@ const EVENT_STYLES: Record<
   unsubscribed: { label: "Unsubscribed", className: "border-violet-300 bg-violet-50 text-violet-700", tone: "warn" },
 };
 
-interface EmailEventRow {
-  id: string;
-  event: string;
-  email: string;
-  subject: string | null;
-  reason: string | null;
-  occurred_at: string;
-}
-
-// Realtime hook: pulls the 500 most recent email_events, subscribes to inserts,
-// and returns the latest event per lower-cased email + full timeline per email.
-function useEmailEvents(enabled: boolean, syncRecent: () => Promise<unknown>) {
-  const qc = useQueryClient();
-
-  const query = useQuery({
-    queryKey: ["email_events.recent"],
-    enabled,
-    refetchInterval: enabled ? 30_000 : false,
-    queryFn: async () => {
-      try {
-        await syncRecent();
-      } catch (error) {
-        console.error("[email-events] Brevo sync failed", error);
-      }
-      const { data, error } = await supabase
-        .from("email_events")
-        .select("id, event, email, subject, reason, occurred_at")
-        .order("occurred_at", { ascending: false })
-        .limit(500);
-      if (error) throw error;
-      return (data ?? []) as EmailEventRow[];
-    },
-  });
-
-  useEffect(() => {
-    if (!enabled) return;
-    const channel = supabase
-      .channel("email_events:stream")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "email_events" },
-        (payload) => {
-          const row = payload.new as EmailEventRow;
-          qc.setQueryData<EmailEventRow[]>(
-            ["email_events.recent"],
-            (prev) => {
-              const next = [row, ...(prev ?? [])];
-              // Keep list bounded so browser memory doesn't grow forever.
-              return next.slice(0, 500);
-            },
-          );
-        },
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [enabled, qc]);
-
-  const byEmail = useMemo(() => {
-    const map = new Map<string, EmailEventRow[]>();
-    (query.data ?? []).forEach((row) => {
-      const key = row.email.toLowerCase();
-      const list = map.get(key);
-      if (list) list.push(row);
-      else map.set(key, [row]);
-    });
-    return map;
-  }, [query.data]);
-
-  return { byEmail, isLoading: query.isLoading };
-}
-
-const timeAgo = (iso: string): string => {
-  const d = new Date(iso).getTime();
-  if (!Number.isFinite(d)) return "";
-  const diff = Math.max(0, Date.now() - d);
-  const s = Math.floor(diff / 1000);
-  if (s < 60) return `${s}s ago`;
-  const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  const days = Math.floor(h / 24);
-  if (days < 7) return `${days}d ago`;
-  return new Date(iso).toLocaleDateString();
-};
 
 function EmployeesPage() {
   const navigate = useNavigate();
@@ -209,7 +124,6 @@ function EmployeesPage() {
   const isAdminFn = useServerFn(checkIsAdmin);
   const listFn = useServerFn(listEmployees);
   const deleteFn = useServerFn(deleteEmployee);
-  const syncEmailEventsFn = useServerFn(syncRecentEmailEvents);
 
   const admin = useQuery({
     queryKey: ["employees.admin"],
@@ -236,10 +150,6 @@ function EmployeesPage() {
   const [formKey, setFormKey] = useState(0);
   const [startDest, setStartDest] = useState(false);
 
-  const { byEmail: emailEvents } = useEmailEvents(
-    !!admin.data?.isAdmin,
-    () => syncEmailEventsFn(),
-  );
 
   if (admin.isLoading) {
     return (
@@ -276,10 +186,9 @@ function EmployeesPage() {
     <EmployeesDirectory
       rows={rows}
       loading={employees.isLoading}
-      emailEvents={emailEvents}
       onOpen={(userId) => navigate({ to: "/app/employees/$userId", params: { userId } })}
       onCreate={() => { setStartDest(false); setOpen(true); }}
-      onDestinations={() => { setStartDest(true); setOpen(true); }}
+      onRouting={() => { setStartDest(true); setOpen(true); }}
     >
       {del.isError && (
         <div className="rounded-sm border border-rose-200 bg-rose-50 px-3 py-2 text-[12px] text-rose-700">
@@ -475,17 +384,12 @@ function CreateEmployeeModal({
     create.mutate();
   };
 
-  const stepMeta = [
-    { n: 1, title: "Destination", sub: "Personal Gmail" },
-    { n: 2, title: "Branta ID", sub: "Email routing" },
-    { n: 3, title: "Access", sub: "Password & role" },
-  ];
   const step1Done = manualRouting || gmailStatus === "verified";
   const step2Done = !localError && local.length >= LOCAL_MIN && (manualRouting || routeStage === "active");
 
   return (
     <Sheet open={open} onOpenChange={(o) => { if (!o) { if (created) onCreated(); else onClose(); } }}>
-      <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-[500px]">
+      <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-[560px]">
         {created && (
           <div className="absolute inset-0 z-20 flex flex-col overflow-y-auto bg-card p-4 pr-12 sm:p-5">
             <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Account ready · 100%</div>
@@ -506,46 +410,31 @@ function CreateEmployeeModal({
             <button type="button" onClick={onCreated} className="mt-4 inline-flex h-9 shrink-0 items-center justify-center rounded-sm bg-brand px-4 text-[13px] font-semibold text-primary-foreground hover:bg-brand-700">Done</button>
           </div>
         )}
-        <div className="shrink-0 border-b border-border px-4 pb-3 pt-4 pr-12 sm:px-5">
-          <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">New employee</div>
-          <div className="mt-0.5 flex items-center justify-between gap-2">
-            <SheetTitle className="text-[15px] font-semibold">{showDest ? "Email destinations" : "Create Console access"}</SheetTitle>
-            {showDest && (
-              <button type="button" onClick={() => setShowDest(false)} className="inline-flex h-7 items-center gap-1 rounded-sm border border-border px-2 text-[11px] font-semibold transition-colors hover:border-brand hover:text-brand">
-                <Plus className="size-3.5" /> Create employee
-              </button>
-            )}
-          </div>
+        <DrawerHero
+          title={showDest ? "Email Routing" : "Create employee"}
+          subtitle={showDest ? "Cloudflare destinations and forwarding rules for Branta addresses." : "Set up Console access, a Branta address and mail forwarding."}
+          aside={showDest ? (
+            <Button size="sm" variant="outline" onClick={() => setShowDest(false)} className="gap-1 active:scale-95">
+              <Plus className="size-3.5" /> Create employee
+            </Button>
+          ) : <CloudflareMark className="mt-1 size-6 shrink-0" />}
+        >
           {!showDest && (
-            <ol className="mt-3 grid grid-cols-3 gap-1.5">
-              {stepMeta.map((m) => {
-                const done = m.n === 1 ? step1Done && step > 1 : m.n === 2 ? step2Done && step > 2 : false;
-                const active = step === m.n;
-                const reachable = m.n === 1 || (m.n === 2 && step1Done) || (m.n === 3 && step1Done && step2Done);
-                return (
-                  <li key={m.n}>
-                    <button type="button" disabled={!reachable} onClick={() => setStep(m.n)} className="group w-full text-left disabled:cursor-not-allowed">
-                      <div className={cn("h-1 rounded-full transition-all duration-500", active ? "bg-brand" : done ? "bg-emerald-500" : "bg-muted")} />
-                      <div className="mt-1.5 flex items-center gap-1.5">
-                        <span className={cn("grid size-4 shrink-0 place-items-center rounded-full font-mono text-[9px] font-bold transition-colors", active ? "bg-brand text-white" : done ? "bg-emerald-500 text-white" : "bg-muted text-muted-foreground")}>
-                          {done ? <Check className="size-2.5" strokeWidth={3} /> : m.n}
-                        </span>
-                        <span className={cn("truncate text-[11.5px] font-semibold", active ? "text-foreground" : "text-muted-foreground group-hover:text-foreground")}>{m.title}</span>
-                      </div>
-                      <div className="hidden pl-[22px] text-[10px] text-muted-foreground sm:block">{m.sub}</div>
-                    </button>
-                  </li>
-                );
-              })}
-            </ol>
+            <StepPills
+              steps={[{ label: "Destination", icon: Mail }, { label: "Branta ID", icon: AtSign }, { label: "Access", icon: KeyRound }]}
+              step={step - 1}
+              isDone={(i) => (i === 0 ? step1Done && step > 1 : i === 1 ? step2Done && step > 2 : false)}
+              canGo={(i) => i === 0 || (i === 1 && step1Done) || (i === 2 && step1Done && step2Done)}
+              onGo={(i) => setStep(i + 1)}
+            />
           )}
-        </div>
+        </DrawerHero>
 
         {showDest ? (
           <DestinationsPanel />
         ) : (
         <form onSubmit={onSubmit} className="min-h-0 flex-1 overflow-y-auto" noValidate>
-          <div key={step} className="space-y-4 px-4 py-4 animate-in fade-in-0 slide-in-from-right-4 duration-300 sm:px-5">
+          <div key={step} className="space-y-4 px-6 py-5 animate-in fade-in-0 slide-in-from-right-4 duration-300">
           {step === 1 && (<>
             <StepGuide title="Step 1 · Check the destination Gmail" items={[
               "Enter the employee's personal Gmail and press Verify. Console checks it in Cloudflare.",
@@ -886,7 +775,7 @@ function CreateEmployeeModal({
         )}
 
         {!showDest && (
-          <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border bg-card px-4 py-3 sm:px-5">
+          <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border bg-card px-6 py-4">
             <button type="button" onClick={() => (step === 1 ? onClose() : setStep(step - 1))} className="h-9 rounded-sm border border-border bg-card px-4 text-[13px] font-medium text-foreground transition-colors hover:bg-muted">
               {step === 1 ? "Close" : "Back"}
             </button>
