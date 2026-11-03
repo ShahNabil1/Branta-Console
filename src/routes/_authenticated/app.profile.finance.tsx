@@ -1,4 +1,3 @@
-import { createFileRoute } from '@tanstack/react-router'
 import { createFileRoute } from "@tanstack/react-router";
 import { MyWalletPanel } from "@/components/profile/my-wallet-panel";
 import { PaymentMethodsSection } from "@/components/profile/payment-methods-section";
