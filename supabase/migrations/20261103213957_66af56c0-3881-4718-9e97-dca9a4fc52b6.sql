@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.company_setup_missing(uuid) FROM authenticated;
