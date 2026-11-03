@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { z } from "zod";
-import { ArrowUpRight, Plus, Users } from "lucide-react";
+import { ArrowUpRight, Building2, Plus, Users } from "lucide-react";
 import { RequireSuperAdmin } from "@/components/branta/require-super-admin";
 import { CreateCompanyWizard } from "@/components/company/create-company-wizard";
 import { CompanyAvatar, PersonChip } from "@/components/company/company-avatar";
@@ -39,14 +39,27 @@ function CompaniesPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-4 md:p-8">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <div className="text-[10.5px] font-bold uppercase tracking-[0.16em] text-brand">Branta Tech Group</div>
-          <h1 className="mt-1 text-[24px] font-bold tracking-tight">Companies</h1>
+      <header className="relative overflow-hidden rounded-xl border border-border bg-card p-6 shadow-sm md:p-8">
+        <span className="pointer-events-none absolute -right-16 -top-20 size-64 rounded-full bg-brand/15 blur-3xl" />
+        <span className="pointer-events-none absolute -bottom-24 left-1/3 size-56 rounded-full bg-status-viewed/10 blur-3xl" />
+        <span className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-brand via-status-viewed to-status-converted" />
+        <div className="relative flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <span className="grid size-12 place-items-center rounded-xl bg-brand/10 text-brand ring-1 ring-inset ring-brand/20">
+              <Building2 className="size-6" />
+            </span>
+            <div>
+              <div className="text-[10.5px] font-bold uppercase tracking-[0.16em] text-brand">Branta Tech Group</div>
+              <h1 className="mt-0.5 text-[26px] font-bold tracking-tight">Companies</h1>
+              <p className="mt-1 text-[13px] text-muted-foreground">
+                Sister concerns of the group{q.isLoading ? "" : ` · ${list.length} ${list.length === 1 ? "company" : "companies"}`}
+              </p>
+            </div>
+          </div>
+          <Button onClick={() => setOpen(true)} className="gap-1.5 shadow-md shadow-brand/25 transition-all hover:-translate-y-0.5 hover:shadow-lg active:scale-95">
+            <Plus className="size-4" /> Create company
+          </Button>
         </div>
-        <Button onClick={() => setOpen(true)} className="gap-1.5 shadow-md shadow-brand/25 transition-all hover:-translate-y-0.5 hover:shadow-lg active:scale-95">
-          <Plus className="size-4" /> Create company
-        </Button>
       </header>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
