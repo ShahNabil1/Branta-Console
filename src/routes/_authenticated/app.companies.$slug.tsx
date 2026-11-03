@@ -1,3 +1,4 @@
+import { useNavigate } from "@tanstack/react-router";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -53,6 +54,7 @@ const TABS: { id: string; label: string; icon: LucideIcon }[] = [
 const COMPANY_TYPES = ["Holding", "Sister concern", "Subsidiary", "Product", "Division"];
 
 function CompanyProfile() {
+  const navigate = useNavigate();
   const { slug } = Route.useParams();
   const fn = useServerFn(getCompany);
   const q = useQuery({ queryKey: ["company", slug], queryFn: () => fn({ data: { slug } }) });
