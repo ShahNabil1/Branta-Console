@@ -5,7 +5,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { callGateway } from "@/lib/connector-gateway.server";
-import { COMPANY_SLUG_RE, resolveMailbox } from "@/lib/company-mailbox.server";
+import { COMPANY_SLUG_RE, googleScope, resolveMailbox } from "@/lib/company-mailbox.server";
 
 const FROM_NAME = "Branta Tech";
 const FROM_EMAIL = "hello@brantatech.com";
@@ -65,23 +65,36 @@ export const sendInboxReply = createServerFn({ method: "POST" })
         own = { provider: s.provider, apiKey: s.apiKey };
       }
       const provider = own?.provider ?? data.provider;
-      // The thread must exist in the shared inbox, and every recipient must
-      // be a participant of that thread — no arbitrary outbound addresses.
-      const { data: threadMsgs } = await context.supabase
-        .from("inbox_messages")
-        .select("from_email, lead_id")
-        .eq("gmail_thread_id", data.threadId)
-        .eq("company_id", mb.companyId)
-        .limit(100);
-      if (!threadMsgs || threadMsgs.length === 0)
-        throw new Error("Thread not found in the shared inbox");
-      const msgs = threadMsgs as Array<{ from_email: string; lead_id: string | null }>;
-      const participants = new Set<string>(
-        msgs.map((m) => m.from_email.trim().toLowerCase()),
-      );
+      // The thread must exist in this company's connected Gmail mailbox, and
+      // every recipient must be a participant of that thread — no arbitrary
+      // outbound addresses. Gmail is the source of truth (the DB ledger only
+      // holds lead-linked messages).
+      type Hdr = { name: string; value: string };
+      const thread = await callGateway<{ messages?: Array<{ payload?: { headers?: Hdr[] } }> }>({
+        connector: "google_mail",
+        ...googleScope(mb),
+        path: `/gmail/v1/users/me/threads/${encodeURIComponent(data.threadId)}`,
+        query: { format: "metadata", metadataHeaders: ["From", "To", "Cc", "Reply-To"] },
+      }).catch(() => null);
+      const gmailMsgs = thread?.messages ?? [];
+      if (gmailMsgs.length === 0) throw new Error("Thread not found in this company's inbox");
+      const participants = new Set<string>();
+      const addrRe = /[A-Z0-9._%+'-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
+      for (const m of gmailMsgs)
+        for (const h of m.payload?.headers ?? [])
+          if (/^(from|to|cc|reply-to)$/i.test(h.name))
+            for (const a of h.value.match(addrRe) ?? []) participants.add(a.toLowerCase());
       // A lead can only be tagged/logged when the thread is linked to it.
-      if (data.leadId && !msgs.some((m) => m.lead_id === data.leadId))
-        throw new Error("This thread is not linked to that lead");
+      if (data.leadId) {
+        const { data: linked } = await context.supabase
+          .from("inbox_messages")
+          .select("gmail_message_id")
+          .eq("gmail_thread_id", data.threadId)
+          .eq("company_id", mb.companyId)
+          .eq("lead_id", data.leadId)
+          .limit(1);
+        if (!linked || linked.length === 0) throw new Error("This thread is not linked to that lead");
+      }
       participants.add(fromEmail);
       participants.add(mb.inboxAddr);
       const outsider = [...data.to, ...data.cc].find(

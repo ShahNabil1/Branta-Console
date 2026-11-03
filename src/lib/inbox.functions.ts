@@ -638,17 +638,7 @@ export const markThreadRead = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ threadId: z.string().min(1), company: z.string().regex(COMPANY_SLUG_RE).optional(), }).parse(d))
   .handler(async ({ data, context }): Promise<{ ok: true }> => {
     const mb = await resolveMailbox(context.supabase, context.userId, data.company);
-    // Only threads that exist in the shared inbox may be modified.
-    const { data: known } = await context.supabase
-      .from("inbox_messages")
-      .select("id")
-      .eq("gmail_thread_id", data.threadId)
-      .eq("company_id", mb.companyId)
-      .limit(1);
-    if (!known || known.length === 0)
-      throw new Error("Thread not found in the shared inbox");
-
-    // Fetch message IDs for the thread from Gmail.
+    // Only threads that exist in this company's Gmail mailbox are touched.
     const thread = await callGateway<{ messages?: Array<{ id: string }> }>({
       connector: "google_mail",
     ...googleScope(mb),
@@ -656,6 +646,7 @@ export const markThreadRead = createServerFn({ method: "POST" })
       query: { format: "minimal" },
     }).catch(() => ({ messages: [] as Array<{ id: string }> }));
     const ids = (thread.messages ?? []).map((m) => m.id);
+    if (ids.length === 0) throw new Error("Thread not found in this company's inbox");
     await Promise.all(
       ids.map((id) =>
         callGateway({
