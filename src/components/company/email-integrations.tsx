@@ -13,6 +13,7 @@ import {
   setDefaultProvider, verifyEmailProvider, sendInboxProbe, pollInboxProbe, verifyResendWebhook, type Check as CheckT, type ProviderView,
 } from "@/lib/company-email.functions";
 import { cn } from "@/lib/utils";
+import { GoogleAccountCard } from "@/components/company/google-account-card";
 
 type P = "resend" | "brevo";
 const META: Record<P, { name: string; color: string; tag: string; keyPh: string; keyHelp: string }> = {
