@@ -42,7 +42,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { resolveActivePath } from "@/lib/nav-active";
-import { stripOrg } from "@/lib/org-path";
+import { stripOrg, isOrgScoped, toCompanyPath } from "@/lib/org-path";
 import brandLogo from "@/assets/brand-logo.png.asset.json";
 import { getMyPermissions } from "@/lib/permissions.functions";
 import { CompanySwitcher, useActiveCompany } from "@/components/company/company-switcher";
@@ -271,7 +271,10 @@ export function AppSidebar() {
           return true;
         }),
       };
-    }).filter((g) => (g.label === "Finance" ? isFinance : g.items.length > 0));
+    })
+      // Sister workspaces only list pages that exist per company (no Branta data inside Admakai).
+      .map((g) => (sister && g.label !== "Admin" && g.label !== "Finance" ? { ...g, items: g.items.filter((it) => isOrgScoped(it.to)) } : g))
+      .filter((g) => (g.label === "Finance" ? isFinance : g.items.length > 0));
   }, [permsQ.data, activeCompany]);
 
   const toggleFinanceGroup = (label: string) => {
@@ -455,7 +458,7 @@ export function AppSidebar() {
                   {group.items.map((item) => {
                     const active = isRouteActive(item.to);
                     return (
-                      <Link key={item.label + item.to} to={item.to} title={!exp ? item.label : undefined} className={itemClass(active)}>
+                      <Link key={item.label + item.to} to={(activeCompany && !activeCompany.is_holding && group.label !== "Admin" ? toCompanyPath(item.to, activeCompany.slug, false) : item.to) as typeof item.to} title={!exp ? item.label : undefined} className={itemClass(active)}>
                         <ActiveBar show={active} />
                         <IconTile icon={item.icon} tone={item.tone} active={active} brand={item.brand} />
                         {exp && <span className="truncate">{item.label}</span>}
