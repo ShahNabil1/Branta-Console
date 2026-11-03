@@ -714,6 +714,91 @@ export type Database = {
           },
         ]
       }
+      company_email_test_events: {
+        Row: {
+          created_at: string
+          details: Json
+          event: string
+          event_key: string
+          id: string
+          occurred_at: string
+          test_id: string
+        }
+        Insert: {
+          created_at?: string
+          details?: Json
+          event: string
+          event_key: string
+          id?: string
+          occurred_at: string
+          test_id: string
+        }
+        Update: {
+          created_at?: string
+          details?: Json
+          event?: string
+          event_key?: string
+          id?: string
+          occurred_at?: string
+          test_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_email_test_events_test_id_fkey"
+            columns: ["test_id"]
+            isOneToOne: false
+            referencedRelation: "company_email_tests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_email_tests: {
+        Row: {
+          accepted_at: string | null
+          company_id: string
+          created_at: string
+          created_by: string
+          id: string
+          message_id: string | null
+          provider: string
+          recipient: string
+          send_error: string | null
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          company_id: string
+          created_at?: string
+          created_by: string
+          id?: string
+          message_id?: string | null
+          provider: string
+          recipient: string
+          send_error?: string | null
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          message_id?: string | null
+          provider?: string
+          recipient?: string
+          send_error?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_email_tests_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_google_accounts: {
         Row: {
           company_id: string
@@ -5568,6 +5653,10 @@ export type Database = {
           _settings: Json
         }
         Returns: number
+      }
+      set_company_default_email_provider: {
+        Args: { _actor: string; _company: string; _provider: string }
+        Returns: undefined
       }
       validate_branta_email: { Args: { _email: string }; Returns: boolean }
       verify_cron_token: {

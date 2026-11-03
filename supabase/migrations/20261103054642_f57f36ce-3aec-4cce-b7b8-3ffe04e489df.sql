@@ -1,0 +1,2 @@
+CREATE POLICY company_email_tests_no_browser_access ON public.company_email_tests FOR ALL TO authenticated USING (false) WITH CHECK (false);
+CREATE POLICY company_email_test_events_no_browser_access ON public.company_email_test_events FOR ALL TO authenticated USING (false) WITH CHECK (false);

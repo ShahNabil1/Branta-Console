@@ -4,6 +4,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { deliveryProgress, type TestEvent } from "./company-email-test-policy";
 
 const Provider = z.enum(["resend", "brevo"]);
 type P = z.infer<typeof Provider>;
@@ -164,7 +165,8 @@ export const verifyResendWebhook = createServerFn({ method: "POST" })
     const m = await import("@/lib/company-email.server");
     const r = await row(admin, co.id, "resend");
     if (!r?.is_active || !r.domain_verified_at) throw new Error("Verify the API key first.");
-    const key = (await m.open(r.api_key_enc))!;
+    const key = await m.open(r.api_key_enc);
+    if (!key) throw new Error("Provider credentials are missing.");
     const secret = data.secret || (await m.open(r.webhook_secret_enc));
     const url = m.webhookUrl("resend", co.slug);
     const checks: Check[] = [];
@@ -369,14 +371,36 @@ export const sendProviderTest = createServerFn({ method: "POST" })
     if (!r?.is_active || !r.domain_verified_at) throw new Error("Verify the provider first.");
     const to = (context.claims as { email?: string })?.email;
     if (!to) throw new Error("Your account has no email address.");
-    const key = (await m.open(r.api_key_enc))!;
+    const key = await m.open(r.api_key_enc);
+    if (!key) throw new Error("Provider credentials are missing.");
+    const testId = crypto.randomUUID();
+    const { error: createError } = await admin.from("company_email_tests").insert({ id: testId, company_id: co.id, provider: data.provider, recipient: to, created_by: context.userId });
+    if (createError) throw new Error("Could not start delivery tracking.");
     const subject = `${co.name} · ${data.provider === "resend" ? "Resend" : "Brevo"} test`;
     const html = `<p>This is a test from <b>${co.name}</b> via ${data.provider}. Delivery and webhook events will appear in the Console.</p>`;
     const res = data.provider === "resend"
-      ? await m.resend(key, "/emails", { method: "POST", body: { from: `${r.sender_name} <${r.sender_email}>`, to: [to], reply_to: r.sender_email, subject, html } })
-      : await m.brevo(key, "/smtp/email", { method: "POST", body: { sender: { name: r.sender_name, email: r.sender_email }, to: [{ email: to }], replyTo: { email: r.sender_email }, subject, htmlContent: html } });
-    if (!res.ok) throw new Error(`${data.provider} error ${res.status}: ${res.body?.message ?? ""}`);
-    return { to };
+      ? await m.resend(key, "/emails", { method: "POST", body: { from: `${r.sender_name} <${r.sender_email}>`, to: [to], reply_to: r.sender_email, subject, html, tags: [{ name: "console_test", value: testId }] } })
+      : await m.brevo(key, "/smtp/email", { method: "POST", body: { sender: { name: r.sender_name, email: r.sender_email }, to: [{ email: to }], replyTo: { email: r.sender_email }, subject, htmlContent: html, tags: [`console_test:${testId}`] } });
+    const sendError = res.ok ? null : `${data.provider} error ${res.status}: ${res.body?.message ?? ""}`;
+    const messageId = data.provider === "resend" ? res.body?.id : res.body?.messageId;
+    const { error: saveError } = await admin.from("company_email_tests").update({ message_id: typeof messageId === "string" ? messageId : null, accepted_at: res.ok ? new Date().toISOString() : null, send_error: sendError }).eq("id", testId);
+    if (saveError) throw new Error("Email request completed, but tracking could not be saved. Do not resend until checked.");
+    if (sendError) throw new Error(sendError);
+    return { to, testId, messageId: typeof messageId === "string" ? messageId : null };
+  });
+
+export const getProviderTestStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({ slug: Slug, provider: Provider, testId: z.string().uuid() }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { co, admin } = await gate(context, data.slug);
+    const { data: test, error } = await admin.from("company_email_tests").select("id,recipient,message_id,accepted_at,send_error,created_at").eq("id", data.testId).eq("company_id", co.id).eq("provider", data.provider).maybeSingle();
+    if (error) throw new Error("Could not read delivery tracking.");
+    if (!test) throw new Error("Test email not found for this company and provider.");
+    const { data: rows, error: eventsError } = await admin.from("company_email_test_events").select("id,event,occurred_at,details").eq("test_id", test.id).order("occurred_at").order("id").limit(500);
+    if (eventsError) throw new Error("Could not read webhook events.");
+    const events = (rows ?? []) as TestEvent[];
+    return { ...deliveryProgress(!!test.accepted_at, events), events, to: test.recipient as string, messageId: test.message_id as string | null, acceptedAt: test.accepted_at as string | null, sendError: test.send_error as string | null };
   });
 
 export const setDefaultProvider = createServerFn({ method: "POST" })
@@ -384,8 +408,11 @@ export const setDefaultProvider = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => z.object({ slug: Slug, provider: Provider }).parse(i))
   .handler(async ({ data, context }) => {
     const { co, admin } = await gate(context, data.slug);
-    await admin.from("company_email_providers").update({ is_default: false }).eq("company_id", co.id);
-    await admin.from("company_email_providers").update({ is_default: true, updated_by: context.userId }).eq("company_id", co.id).eq("provider", data.provider).eq("is_active", true);
+    const target = await row(admin, co.id, data.provider);
+    if (!target?.is_active || !target.domain_verified_at) throw new Error("Verify this provider before making it the default.");
+    // One statement prevents a partially saved default switch.
+    const { error: switchError } = await admin.rpc("set_company_default_email_provider", { _company: co.id, _provider: data.provider, _actor: context.userId });
+    if (switchError) throw new Error("Could not change the default provider.");
     return { ok: true };
   });
 
