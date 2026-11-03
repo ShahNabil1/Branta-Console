@@ -98,7 +98,10 @@ async function ensureFinance(
 ) {
   const { data, error } = await supabase.rpc("is_finance_admin", { _user_id: userId });
   if (error) throw dbError(error);
-  if (!data) throw new Error("Forbidden — finance role required");
+  if (data) return;
+  // Company CEOs pass; RLS limits them to their own company's expense logs.
+  const { data: ceo } = await supabase.rpc("is_any_company_manager", { _user: userId });
+  if (!ceo) throw new Error("Forbidden — finance role required");
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -123,7 +123,7 @@ export function ExpensesPage() {
   const confirm = useConfirm();
   const { highlight } = useSearch({ strict: false }) as { highlight?: string };
   const [highlightId, setHighlightId] = useState<string | null>(null);
-  const isAdmin = useQuery({ queryKey: ["is-finance-admin"], queryFn: () => check(), staleTime: 60_000 });
+  const isAdmin = useQuery({ queryKey: ["is-finance-admin", workspace], queryFn: () => check({ data: { workspace } }), staleTime: 60_000 });
   const q = useQuery({
     queryKey: ["expenses", workspace], queryFn: () => listFn({ data: { workspace } }), staleTime: 15_000,
     enabled: !!isAdmin.data?.isAdmin,

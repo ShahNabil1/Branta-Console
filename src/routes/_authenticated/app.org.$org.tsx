@@ -1,8 +1,6 @@
 import { createFileRoute, Link, Navigate, Outlet } from "@tanstack/react-router";
-import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { useCompanies } from "@/components/company/company-switcher";
-import { setActiveCompanySlug, useActiveCompanySlug } from "@/lib/active-company";
 
 export const Route = createFileRoute("/_authenticated/app/org/$org")({
   head: () => ({ meta: [{ title: "Company workspace · Branta Console" }, { name: "robots", content: "noindex" }] }),
@@ -13,11 +11,7 @@ export const Route = createFileRoute("/_authenticated/app/org/$org")({
 function OrgLayout() {
   const { org } = Route.useParams();
   const q = useCompanies();
-  const activeSlug = useActiveCompanySlug();
   const company = (q.data ?? []).find((c) => c.slug === org);
-  useEffect(() => {
-    if (company && !company.is_holding && activeSlug !== org) setActiveCompanySlug(org);
-  }, [company, activeSlug, org]);
 
   if (q.isLoading) return <div className="grid h-full place-items-center text-muted-foreground"><Loader2 className="size-4 animate-spin" /></div>;
   if (!company) {
@@ -32,6 +26,5 @@ function OrgLayout() {
     );
   }
   if (company.is_holding) return <Navigate to="/app" replace />;
-  if (activeSlug !== org) return null;
   return <Outlet />;
 }

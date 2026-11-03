@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { toCompanyPath } from "@/lib/org-path";
+import { orgFromPath, toCompanyPath } from "@/lib/org-path";
 import { Check, ChevronsUpDown, Plus } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
@@ -20,12 +20,17 @@ export function useCompanies() {
   return useQuery({ queryKey: ["companies"], queryFn: () => fn(), staleTime: 60_000 });
 }
 
-/** Resolves the active company (falls back to the holding company). */
+/** The URL decides the company: /app/org/<slug>/... = that sister, plain /app/... = the holding
+ * (sister-only staff fall back to their remembered/first company). */
 export function useActiveCompany() {
   const q = useCompanies();
-  const slug = useActiveCompanySlug();
+  const stored = useActiveCompanySlug();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
   const list = q.data ?? [];
-  const active = list.find((c) => c.slug === slug) ?? list.find((c) => c.is_holding) ?? list[0] ?? null;
+  const org = orgFromPath(pathname);
+  const holding = list.find((c) => c.is_holding);
+  const active = (org ? list.find((c) => c.slug === org) : holding)
+    ?? list.find((c) => c.slug === stored) ?? list[0] ?? null;
   return { active, list, isLoading: q.isLoading };
 }
 
@@ -35,7 +40,7 @@ export function CompanySwitcher({ collapsed, canManage, holdingLogoUrl }: { coll
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   useEffect(() => {
-    if (active && slug && slug !== active.slug) setActiveCompanySlug(active.slug);
+    if (active && slug !== active.slug) setActiveCompanySlug(active.slug);
   }, [active, slug]);
   if (!active) return null;
   const identity = companyIdentity(active.slug, active);
