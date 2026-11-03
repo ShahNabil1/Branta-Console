@@ -67,16 +67,20 @@ async function hasManagementRole(sb: any, userId: string) {
 
 export const getTodayOperations = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<OperationsDashboard> => {
+  .inputValidator((d: unknown) => z.object({ workspace: z.string().regex(/^[a-z0-9-]{1,80}$/).optional().nullable() }).default({}).parse(d ?? {}))
+  .handler(async ({ data, context }): Promise<OperationsDashboard> => {
     const sb = context.supabase as any;
     const day = dhakaDay();
     const generatedAt = new Date().toISOString();
-    if (!(await hasManagementRole(sb, context.userId))) {
+    const { resolveLeadCompany } = await import("@/lib/lead-company.server");
+    const co = await resolveLeadCompany(sb, context.userId, data.workspace ?? null);
+    const ceo = !co.isHolding && (await sb.rpc("can_manage_company", { _company: co.id, _user: context.userId })).data === true;
+    if (!ceo && !(await hasManagementRole(sb, context.userId))) {
       return { allowed: false, date_key: day.key, date_label: day.label, generated_at: generatedAt, metrics: EMPTY_METRICS, tasks: [] };
     }
 
     const [tasksRes, assignmentsRes, eventsRes, updatesRes, submissionsRes] = await Promise.all([
-      sb.from("client_tasks").select("*").is("archived_at", null),
+      sb.from("client_tasks").select("*").is("archived_at", null).eq("company_id", co.id),
       sb.from("client_task_assignees").select("*").lte("created_at", day.end),
       sb.from("client_task_events").select("task_id, status, created_at").gte("created_at", day.start).lte("created_at", day.end),
       sb.from("client_task_updates").select("task_id, body, items_done, created_at").gte("created_at", day.start).lte("created_at", day.end),
