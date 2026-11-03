@@ -1,3 +1,4 @@
+import { DiscardCancelButton } from "@/components/company/danger-confirm";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -219,7 +220,8 @@ function EditDialog({ p, onClose }: { p: HubProjectDetail; onClose: () => void }
           ))}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <DiscardCancelButton className="h-9" onCancel={onClose}
+            dirty={track !== (p.service_track ?? "other") || status !== p.status || due !== (p.due_on ?? "") || sow !== (p.sow_doc_url ?? "") || req !== (p.requirements_doc_url ?? "") || JSON.stringify(meta) !== JSON.stringify(p.track_meta)} />
           <Button disabled={m.isPending} onClick={() => m.mutate()}>{m.isPending && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}Save</Button>
         </DialogFooter>
       </DialogContent>

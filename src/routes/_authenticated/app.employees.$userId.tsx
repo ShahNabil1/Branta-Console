@@ -1,3 +1,4 @@
+import { DiscardCancelButton } from "@/components/company/danger-confirm";
 import { TrackerScheduleTab } from "@/components/employee/tracker-schedule-tab";
 import { MailActivity } from "@/components/employee/mail-activity";
 import admakaiLogo from "@/assets/apps/admakai.png";
@@ -976,7 +977,7 @@ function EditNameDialog({ e }: { e: EmployeeDetail }) {
             <Input value={fullName} onChange={(ev) => setFullName(ev.target.value)} className="h-9 rounded-sm" />
           </label>
           <div className="flex justify-end gap-2 pt-1">
-            <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)}>Cancel</Button>
+            <DiscardCancelButton dirty={dirty} className="h-8" onCancel={() => setOpen(false)} />
             <Button type="button" size="sm" disabled={!dirty || !valid || busy} onClick={save}>
               {busy ? "Saving…" : "Save changes"}
             </Button>

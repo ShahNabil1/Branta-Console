@@ -1,3 +1,4 @@
+import { DiscardCancelButton } from "@/components/company/danger-confirm";
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -92,7 +93,7 @@ export function QuickCustomerDialog({ open, onOpenChange, defaultCurrency = "BDT
           </div>
         </div>
         <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)} className="h-9 rounded-sm">Cancel</Button>
+          <DiscardCancelButton dirty={!!(name.trim() || email.trim() || phone.trim() || company.trim() || currency !== defaultCurrency)} className="h-9 rounded-sm" onCancel={() => { reset(); onOpenChange(false); }} />
           <Button onClick={() => submit.mutate()} disabled={!canSubmit}
             className="h-9 rounded-sm bg-primary hover:bg-brand-700">
             {submit.isPending && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}

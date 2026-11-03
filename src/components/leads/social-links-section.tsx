@@ -1,6 +1,7 @@
+import { DiscardCancelButton } from "@/components/company/danger-confirm";
 // Social Links section for a lead — icon dropdown + URL + label.
 // After adding, the URL collapses into a clickable icon chip with its label.
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -198,6 +199,9 @@ export function SocialLinksSection({
     url: string;
     label: string;
   } | null>(null);
+  const [editBase, setEditBase] = useState<string | null>(null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { setEditBase(editDraft ? JSON.stringify(editDraft) : null); }, [editingId]);
 
   const addM = useMutation({
     mutationFn: () =>
@@ -330,19 +334,8 @@ export function SocialLinksSection({
                       )}
                     </Button>
 
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 rounded-sm"
-                      onClick={() => {
-                        setEditingId(null);
-                        setEditDraft(null);
-                      }}
-                      aria-label="Cancel"
-                    >
-                      <X className="size-3.5" />
-                    </Button>
+                    <DiscardCancelButton dirty={JSON.stringify(editDraft) !== editBase} label="" className="h-8 w-8 rounded-sm p-0"
+                      onCancel={() => { setEditingId(null); setEditDraft(null); }} />
                   </div>
                 );
               }

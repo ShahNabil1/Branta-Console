@@ -1,3 +1,4 @@
+import { DiscardCancelButton } from "@/components/company/danger-confirm";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -403,9 +404,7 @@ function PaymentMethodCard({
               </Button>
             ) : <span />}
             <div className="flex items-center gap-2">
-              <Button type="button" variant="outline" size="sm" onClick={cancel} disabled={saving} className="h-8 rounded-sm text-[12px]">
-                Cancel
-              </Button>
+              <DiscardCancelButton dirty={dirty} onCancel={cancel} disabled={saving} className="h-8 rounded-sm text-[12px]" />
               <Button type="button" size="sm" onClick={save} disabled={!dirty || !pmValid(d) || saving} className="h-8 rounded-sm text-[12px] font-semibold">
                 {saving ? <Loader2 className="mr-1 size-3.5 animate-spin" /> : null}
                 {isNew ? "Save" : "Save changes"}
