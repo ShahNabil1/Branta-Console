@@ -799,6 +799,85 @@ export type Database = {
           },
         ]
       }
+      company_fund_buckets: {
+        Row: {
+          config_id: string
+          created_at: string
+          id: string
+          key: string
+          kind: string
+          label: string
+          percent: number
+          sort: number
+        }
+        Insert: {
+          config_id: string
+          created_at?: string
+          id?: string
+          key: string
+          kind: string
+          label: string
+          percent: number
+          sort?: number
+        }
+        Update: {
+          config_id?: string
+          created_at?: string
+          id?: string
+          key?: string
+          kind?: string
+          label?: string
+          percent?: number
+          sort?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_fund_buckets_config_id_fkey"
+            columns: ["config_id"]
+            isOneToOne: false
+            referencedRelation: "company_fund_configs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_fund_configs: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          note: string | null
+          version: number
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          note?: string | null
+          version: number
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          note?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_fund_configs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_google_accounts: {
         Row: {
           company_id: string
@@ -973,6 +1052,79 @@ export type Database = {
         }
         Relationships: []
       }
+      company_loan_requests: {
+        Row: {
+          amount: number
+          company_id: string
+          created_at: string
+          currency: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          id: string
+          ledger_entry_id: string | null
+          purpose: string
+          requested_by: string
+          status: string
+          tenure_months: number | null
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          company_id: string
+          created_at?: string
+          currency?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          id?: string
+          ledger_entry_id?: string | null
+          purpose: string
+          requested_by: string
+          status?: string
+          tenure_months?: number | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          company_id?: string
+          created_at?: string
+          currency?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          id?: string
+          ledger_entry_id?: string | null
+          purpose?: string
+          requested_by?: string
+          status?: string
+          tenure_months?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_loan_requests_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_loan_requests_ledger_entry_id_fkey"
+            columns: ["ledger_entry_id"]
+            isOneToOne: false
+            referencedRelation: "company_wallet_ledger"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_loan_requests_ledger_entry_id_fkey"
+            columns: ["ledger_entry_id"]
+            isOneToOne: false
+            referencedRelation: "company_wallet_running"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_members: {
         Row: {
           company_id: string
@@ -1014,6 +1166,88 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_wallet_ledger: {
+        Row: {
+          amount: number
+          bucket_key: string
+          bucket_kind: string
+          company_id: string
+          created_at: string
+          created_by: string | null
+          currency: string
+          description: string | null
+          direction: string
+          entry_type: string
+          id: string
+          movement_id: string | null
+          occurred_at: string
+          record_ref: string | null
+          reverses_id: string | null
+          source_id: string | null
+          source_type: string
+        }
+        Insert: {
+          amount: number
+          bucket_key: string
+          bucket_kind: string
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          description?: string | null
+          direction: string
+          entry_type: string
+          id?: string
+          movement_id?: string | null
+          occurred_at?: string
+          record_ref?: string | null
+          reverses_id?: string | null
+          source_id?: string | null
+          source_type: string
+        }
+        Update: {
+          amount?: number
+          bucket_key?: string
+          bucket_kind?: string
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          description?: string | null
+          direction?: string
+          entry_type?: string
+          id?: string
+          movement_id?: string | null
+          occurred_at?: string
+          record_ref?: string | null
+          reverses_id?: string | null
+          source_id?: string | null
+          source_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_wallet_ledger_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_wallet_ledger_reverses_id_fkey"
+            columns: ["reverses_id"]
+            isOneToOne: false
+            referencedRelation: "company_wallet_ledger"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_wallet_ledger_reverses_id_fkey"
+            columns: ["reverses_id"]
+            isOneToOne: false
+            referencedRelation: "company_wallet_running"
             referencedColumns: ["id"]
           },
         ]
@@ -1458,6 +1692,7 @@ export type Database = {
         Row: {
           amount: number
           category: Database["public"]["Enums"]["expense_category"]
+          company_id: string | null
           created_at: string
           created_by: string | null
           currency: string
@@ -1492,6 +1727,7 @@ export type Database = {
         Insert: {
           amount: number
           category: Database["public"]["Enums"]["expense_category"]
+          company_id?: string | null
           created_at?: string
           created_by?: string | null
           currency?: string
@@ -1526,6 +1762,7 @@ export type Database = {
         Update: {
           amount?: number
           category?: Database["public"]["Enums"]["expense_category"]
+          company_id?: string | null
           created_at?: string
           created_by?: string | null
           currency?: string
@@ -1558,6 +1795,13 @@ export type Database = {
           voucher_no?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "expenses_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "expenses_fund_id_fkey"
             columns: ["fund_id"]
@@ -5307,6 +5551,68 @@ export type Database = {
       }
     }
     Views: {
+      company_wallet_balances: {
+        Row: {
+          balance: number | null
+          bucket_key: string | null
+          bucket_kind: string | null
+          company_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_wallet_ledger_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_wallet_running: {
+        Row: {
+          amount: number | null
+          bucket_key: string | null
+          bucket_kind: string | null
+          company_id: string | null
+          created_at: string | null
+          created_by: string | null
+          currency: string | null
+          description: string | null
+          direction: string | null
+          entry_type: string | null
+          id: string | null
+          movement_id: string | null
+          occurred_at: string | null
+          record_ref: string | null
+          reverses_id: string | null
+          running_balance: number | null
+          source_id: string | null
+          source_type: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_wallet_ledger_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_wallet_ledger_reverses_id_fkey"
+            columns: ["reverses_id"]
+            isOneToOne: false
+            referencedRelation: "company_wallet_ledger"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_wallet_ledger_reverses_id_fkey"
+            columns: ["reverses_id"]
+            isOneToOne: false
+            referencedRelation: "company_wallet_running"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fund_balances: {
         Row: {
           allocation_total: number | null
@@ -5447,6 +5753,10 @@ export type Database = {
         Args: { _task_id: string; _user: string }
         Returns: boolean
       }
+      can_view_company_finance: {
+        Args: { _company: string; _user: string }
+        Returns: boolean
+      }
       can_view_customer: {
         Args: { _customer_id: string; _user: string }
         Returns: boolean
@@ -5467,6 +5777,42 @@ export type Database = {
       company_invoice_base_settings: {
         Args: { _company: string }
         Returns: Json
+      }
+      company_loan_cancel: { Args: { _loan: string }; Returns: undefined }
+      company_loan_decide: {
+        Args: { _approve: boolean; _loan: string; _note: string }
+        Returns: undefined
+      }
+      company_loan_request: {
+        Args: {
+          _amount: number
+          _company: string
+          _purpose: string
+          _tenure: number
+        }
+        Returns: string
+      }
+      company_wallet_credit_installment: {
+        Args: { _installment: string }
+        Returns: number
+      }
+      company_wallet_debit_expense: {
+        Args: { _bucket: string; _expense: string }
+        Returns: string
+      }
+      company_wallet_move: {
+        Args: {
+          _amount: number
+          _company: string
+          _from: string
+          _reason: string
+          _to: string
+        }
+        Returns: string
+      }
+      company_wallet_reverse: {
+        Args: { _entry: string; _reason: string }
+        Returns: string
       }
       correct_allocation_base: {
         Args: { _allocation_id: string; _reason: string }
@@ -5644,6 +5990,10 @@ export type Database = {
       revert_installment_payment: {
         Args: { _installment_id: string; _reason: string }
         Returns: undefined
+      }
+      save_company_fund_config: {
+        Args: { _buckets: Json; _company: string; _note: string }
+        Returns: string
       }
       save_company_invoice_template: {
         Args: {
