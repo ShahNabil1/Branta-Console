@@ -57,16 +57,16 @@ type FinanceNavGroup = NavGroup & { icon: IconType; tone: Tone };
 
 // Icon tile color per tone (soft tinted background + saturated glyph).
 const TONE: Record<Tone, string> = {
-  brand: "bg-brand/10 text-brand",
-  orange: "bg-orange-500/10 text-orange-600",
-  sky: "bg-sky-500/10 text-sky-600",
-  violet: "bg-violet-500/10 text-violet-600",
-  emerald: "bg-emerald-500/10 text-emerald-600",
-  amber: "bg-amber-500/10 text-amber-600",
-  rose: "bg-rose-500/10 text-rose-600",
-  indigo: "bg-indigo-500/10 text-indigo-600",
-  teal: "bg-teal-500/10 text-teal-600",
-  slate: "bg-slate-500/10 text-slate-600",
+  brand: "text-muted-foreground",
+  orange: "text-muted-foreground",
+  sky: "text-muted-foreground",
+  violet: "text-muted-foreground",
+  emerald: "text-muted-foreground",
+  amber: "text-muted-foreground",
+  rose: "text-muted-foreground",
+  indigo: "text-muted-foreground",
+  teal: "text-muted-foreground",
+  slate: "text-muted-foreground",
 };
 
 const GmailIcon: IconType = ({ className }) => <GmailMark className={className} />;
@@ -176,10 +176,9 @@ function IconTile({ icon: Icon, tone, active, brand, small }: { icon: IconType; 
   return (
     <span
       className={cn(
-        "grid shrink-0 place-items-center rounded-md transition-all duration-200 group-hover/item:scale-110 group-hover/item:-rotate-3",
+        "grid shrink-0 place-items-center rounded-md transition-colors duration-150 group-hover/item:text-foreground",
         small ? "size-6" : "size-7",
-        brand ? "bg-card ring-1 ring-border" : TONE[tone],
-        active && !brand && "shadow-sm ring-1 ring-current/20",
+        brand ? "" : active ? "text-brand" : TONE[tone],
       )}
     >
       <Icon className={small ? "size-3.5" : "size-4"} strokeWidth={2} />
@@ -284,16 +283,16 @@ export function AppSidebar() {
 
   const itemClass = (active: boolean) =>
     cn(
-      "group/item relative flex items-center gap-2.5 rounded-lg px-1.5 py-1 text-[13px] font-medium transition-all duration-150 active:scale-[0.98]",
+      "group/item relative flex items-center gap-2.5 rounded-lg px-1.5 py-1 text-[13px] font-medium transition-all duration-150 ",
       active
-        ? "bg-gradient-to-r from-brand/15 via-brand/5 to-transparent text-foreground"
-        : "text-muted-foreground hover:translate-x-0.5 hover:bg-muted/80 hover:text-foreground",
+        ? "bg-muted text-foreground"
+        : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
       !expanded && "md:justify-center md:px-0",
     );
 
   const ActiveBar = ({ show }: { show: boolean }) =>
     show ? (
-      <span className="absolute -left-2 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-brand shadow-[0_0_10px] shadow-brand/60" />
+      <span className="absolute -left-2 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-brand" />
     ) : null;
 
   return (
@@ -349,7 +348,6 @@ export function AppSidebar() {
     const exp = mobile || expanded;
     return (
       <>
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-brand via-amber-400 to-rose-500" />
         <div className={cn("hairline-b flex min-h-14 items-center gap-1 px-2 py-1.5", !exp && "flex-col px-1.5")}>
           <div className="min-w-0 flex-1 w-full">
             <CompanySwitcher
