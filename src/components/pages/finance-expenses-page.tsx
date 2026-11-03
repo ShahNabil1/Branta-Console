@@ -477,6 +477,7 @@ export function ExpensesPage() {
       } else {
         if (!idemRef.current) idemRef.current = crypto.randomUUID();
         await create({ data: { ...payload, workspace, idempotency_key: idemRef.current } });
+        if (sisterId) void sisterWallet.refetch();
       }
     },
     onSuccess: () => {
