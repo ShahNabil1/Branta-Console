@@ -73,6 +73,7 @@ function InboxPage() {
 
   const [filter, setFilter] = useState<FilterKey>("all");
   const [selectedThread, setSelectedThread] = useState<string | null>(null);
+  useEffect(() => setSelectedThread(null), [company]);
 
   const listQ = useQuery({
     queryKey: ["inbox", "list", company, filter],
@@ -163,7 +164,7 @@ function InboxPage() {
             <div>
               <div className="text-[13px] font-semibold">Inbox</div>
               <div className="text-[11px] text-muted-foreground">
-                hello@brantatech.com
+                {inboxAddr ?? `${active?.name ?? ""} · own Gmail`}
               </div>
             </div>
           </div>
