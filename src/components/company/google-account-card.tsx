@@ -63,7 +63,7 @@ export function GoogleAccountCard({ slug, accent, fallback }: { slug: string; ac
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2 text-[14px] font-bold">
             Inbox & Calendar Google account
-            {a && <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-bold text-success animate-in fade-in zoom-in-90"><CheckCircle2 className="size-3" /> Connected</span>}
+            {a && <span className="inline-flex items-center gap-1 rounded-full bg-status-converted/10 px-2 py-0.5 text-[11px] font-bold text-status-converted animate-in fade-in zoom-in-90"><CheckCircle2 className="size-3" /> Connected</span>}
           </div>
           <p className="truncate text-[12px] font-semibold text-muted-foreground">
             {q.isLoading ? "Loading…" : a ? <>Mail and meetings use <b className="text-foreground">{a.email}</b></> : <>Not connected — using the shared <b className="text-foreground">{fallback}</b></>}
@@ -100,8 +100,8 @@ export function GoogleAccountCard({ slug, accent, fallback }: { slug: string; ac
       {checks && (
         <div className="relative mt-3 space-y-1.5 animate-in fade-in slide-in-from-top-1">
           {checks.map((c) => (
-            <div key={c.id} className={cn("flex items-start gap-2 rounded-lg border px-3 py-2 text-[12px]", c.ok ? "border-success/30 bg-success/5" : "border-destructive/30 bg-destructive/5")}>
-              {c.ok ? <CheckCircle2 className="mt-0.5 size-3.5 text-success" /> : <XCircle className="mt-0.5 size-3.5 text-destructive" />}
+            <div key={c.id} className={cn("flex items-start gap-2 rounded-lg border px-3 py-2 text-[12px]", c.ok ? "border-status-converted/30 bg-status-converted/5" : "border-destructive/30 bg-destructive/5")}>
+              {c.ok ? <CheckCircle2 className="mt-0.5 size-3.5 text-status-converted" /> : <XCircle className="mt-0.5 size-3.5 text-destructive" />}
               <span className="font-bold">{c.label}</span><span className="font-semibold text-muted-foreground">{c.detail}</span>
             </div>
           ))}
@@ -113,7 +113,7 @@ export function GoogleAccountCard({ slug, accent, fallback }: { slug: string; ac
 
 function Chip({ ok, icon: Icon, label }: { ok: boolean; icon: typeof Inbox; label: string }) {
   return (
-    <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold", ok ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>
+    <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold", ok ? "bg-status-converted/10 text-status-converted" : "bg-destructive/10 text-destructive")}>
       <Icon className="size-3" /> {label} {ok ? "✓" : "— not granted"}
     </span>
   );
