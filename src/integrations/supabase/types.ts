@@ -879,30 +879,36 @@ export type Database = {
         Row: {
           config_id: string
           created_at: string
+          fixed_amount: number
           id: string
           key: string
           kind: string
           label: string
+          mode: string
           percent: number
           sort: number
         }
         Insert: {
           config_id: string
           created_at?: string
+          fixed_amount?: number
           id?: string
           key: string
           kind: string
           label: string
+          mode?: string
           percent: number
           sort?: number
         }
         Update: {
           config_id?: string
           created_at?: string
+          fixed_amount?: number
           id?: string
           key?: string
           kind?: string
           label?: string
+          mode?: string
           percent?: number
           sort?: number
         }
