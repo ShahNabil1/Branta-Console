@@ -1,4 +1,5 @@
 import { useActiveCompany } from "@/components/company/company-switcher";
+import { getCompanyFundConfig, getCompanyWallet } from "@/lib/company-wallet.functions";
 import { DiscardCancelButton } from "@/components/company/danger-confirm";
 import { Link, useSearch } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -86,7 +87,19 @@ function fmt(n: number, cur: string) {
 }
 
 export function ExpensesPage() {
-  const workspace = useActiveCompany().active?.slug ?? null;
+  const activeCompany = useActiveCompany().active;
+  const workspace = activeCompany?.slug ?? null;
+  const sisterId = activeCompany && !activeCompany.is_holding ? activeCompany.id : null;
+  const walletFn = useServerFn(getCompanyWallet);
+  const fundCfgFn = useServerFn(getCompanyFundConfig);
+  const sisterWallet = useQuery({ queryKey: ["company-wallet", sisterId], enabled: !!sisterId, queryFn: () => walletFn({ data: { companyId: sisterId as string, limit: 1 } }) });
+  const sisterCfg = useQuery({ queryKey: ["company-fund-config", sisterId], enabled: !!sisterId, queryFn: () => fundCfgFn({ data: { companyId: sisterId as string } }) });
+  const walletItems: SearchableItem[] = (((sisterCfg.data?.active as { company_fund_buckets?: { key: string; label: string; sort: number }[] } | null)?.company_fund_buckets) ?? [])
+    .slice().sort((a, b) => a.sort - b.sort)
+    .map((b) => {
+      const bal = Number((sisterWallet.data?.buckets ?? []).find((x: { bucket_key: string }) => x.bucket_key === b.key)?.balance ?? 0);
+      return { value: b.key, label: b.label, hint: `৳${Math.round(bal).toLocaleString("en-IN")} available` };
+    });
   const listFn = useServerFn(listExpenses);
   const create = useServerFn(createExpense);
   const idemRef = useRef<string | null>(null);
@@ -192,6 +205,7 @@ export function ExpensesPage() {
     request_purpose: "",
     paying_fund_id: "",
     fund_exception_reason: "",
+    wallet_bucket: "",
   };
 
   // Advanced filtering — same model the export uses, so what you see is what
@@ -288,6 +302,7 @@ export function ExpensesPage() {
       request_purpose: r.request_purpose ?? "",
       paying_fund_id: "",
       fund_exception_reason: "",
+    wallet_bucket: "",
     });
     setItems((r.items ?? []).map((i) => ({
       name: i.name,
@@ -441,7 +456,8 @@ export function ExpensesPage() {
         linked_invoice_id: form.linked_invoice_id || null,
         is_project_cost: !!form.linked_invoice_id && form.is_project_cost,
         request_purpose: form.request_purpose.trim() || null,
-        paying_fund_id: editingId ? null : form.paying_fund_id || null,
+        paying_fund_id: editingId || sisterId ? null : form.paying_fund_id || null,
+        wallet_bucket: editingId || !sisterId ? null : form.wallet_bucket || null,
         fund_exception_reason: form.fund_exception_reason.trim() || null,
         items: items
           .filter((i) => i.name.trim())
@@ -871,7 +887,18 @@ export function ExpensesPage() {
                   </div>
                 </div>
               </div>
-              {!editingId && (
+              {!editingId && sisterId && (
+                <div className="rounded-sm border border-border bg-muted/30 p-2.5">
+                  <label className="text-[11px] font-semibold uppercase text-muted-foreground">Pay from wallet fund (optional)</label>
+                  <div className="mt-1">
+                    <SearchableSelect items={walletItems} value={form.wallet_bucket} onChange={(v) => setForm({ ...form, wallet_bucket: v })} placeholder="— Not charged to the wallet —" emptyText="No wallet funds yet" />
+                  </div>
+                  {form.wallet_bucket && Number(form.amount) > Number((sisterWallet.data?.buckets ?? []).find((x: { bucket_key: string }) => x.bucket_key === form.wallet_bucket)?.balance ?? 0) && (
+                    <p className="mt-1 text-[11.5px] font-medium text-destructive">Amount is above this fund's wallet balance.</p>
+                  )}
+                </div>
+              )}
+              {!editingId && !sisterId && (
                 <div className="rounded-sm border border-border bg-muted/30 p-2.5">
                   <label className="text-[11px] font-semibold uppercase text-muted-foreground">Paying fund (Fund Ledger · optional)</label>
                   <div className="mt-1">
