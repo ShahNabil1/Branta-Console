@@ -64,10 +64,9 @@ function DraftsPage() {
     queryKey: ["leads", "drafts", isSuperAdmin ? ownerFilter : "me", workspace],
     queryFn: () =>
       listFn({
-        // workspace scoping
         data: isSuperAdmin
-          ? { ownerFilter: ownerFilter as "all" | "me" | string }
-          : {},
+          ? { ownerFilter: ownerFilter as "all" | "me" | string, workspace }
+          : { workspace },
       }),
     enabled: permsQ.isSuccess,
   });
