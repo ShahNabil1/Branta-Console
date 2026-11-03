@@ -91,7 +91,6 @@ export function ProfileMenu() {
       </PopoverTrigger>
       <PopoverContent align="end" sideOffset={10} className="w-72 overflow-hidden rounded-xl border border-border bg-card p-0 shadow-2xl shadow-foreground/10">
         <div className="relative overflow-hidden px-4 py-4">
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-brand via-amber-400 to-rose-500" />
           <div className="pointer-events-none absolute -right-10 -top-12 size-32 rounded-full bg-brand/15 blur-2xl" />
           <div className="relative flex items-center gap-3">
             <div className="relative">
@@ -112,9 +111,9 @@ export function ProfileMenu() {
         </div>
         <div className="hairline-t space-y-0.5 p-1.5">
           {([
-            { to: "/app/profile", label: "View profile", hint: "Personal details", Icon: User, cls: "bg-indigo-500/10 text-indigo-600" },
-            { to: "/app/profile/finance", label: "My Wallet", hint: "Balance & withdrawals", Icon: Wallet, cls: "bg-emerald-500/10 text-emerald-600" },
-            { to: "/app/profile/security", label: "Security", hint: "Password & 2FA", Icon: ShieldCheck, cls: "bg-amber-500/10 text-amber-600" },
+            { to: "/app/profile", label: "View profile", hint: "Personal details", Icon: User, cls: "bg-muted text-muted-foreground" },
+            { to: "/app/profile/finance", label: "My Wallet", hint: "Balance & withdrawals", Icon: Wallet, cls: "bg-muted text-muted-foreground" },
+            { to: "/app/profile/security", label: "Security", hint: "Password & 2FA", Icon: ShieldCheck, cls: "bg-muted text-muted-foreground" },
           ] as const).map(({ to, label, hint, Icon, cls }) => (
             <Link key={to} to={to} onClick={() => setOpen(false)}
               className="group flex items-center gap-3 rounded-lg px-2 py-2 transition-all hover:translate-x-0.5 hover:bg-muted/70">
