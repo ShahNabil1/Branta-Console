@@ -2121,14 +2121,21 @@ export const listEmployeesForFinance = createServerFn({ method: "GET" })
     }
   });
 
-export const isFinanceAdminCheck = createServerFn({ method: "GET" })
+/** Finance gate. With a sister `workspace`, that company's CEO (company super_admin) also passes; RLS scopes the rows. */
+export const isFinanceAdminCheck = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((d: { workspace?: string | null } | undefined) => z.object({ workspace: z.string().max(80).nullish() }).parse(d ?? {}))
+  .handler(async ({ data: input, context }) => {
     const { data, error } = await context.supabase.rpc("is_finance_admin", {
       _user_id: context.userId,
     });
     if (error) throw dbError(error);
-    return { isAdmin: Boolean(data) };
+    if (data) return { isAdmin: true };
+    if (!input.workspace) return { isAdmin: false };
+    const { data: co } = await context.supabase.from("companies").select("id, is_holding").eq("slug", input.workspace).maybeSingle();
+    if (!co || co.is_holding) return { isAdmin: false };
+    const { data: ok } = await context.supabase.rpc("can_manage_company", { _company: co.id, _user: context.userId });
+    return { isAdmin: Boolean(ok) };
   });
 
 // ==================== Company Wallet ====================
