@@ -6,13 +6,12 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { dbError } from "@/lib/db-errors";
 
-export const BUCKET_KINDS = ["free", "team_payable", "officer_payable", "vat_reserve", "operation", "reserve", "growth", "other"] as const;
-
 const bucketSchema = z.object({
   key: z.string().trim().regex(/^[a-z0-9_]{1,40}$/),
   label: z.string().trim().min(1).max(60),
-  kind: z.enum(BUCKET_KINDS),
+  mode: z.enum(["percent", "fixed"]),
   percent: z.number().min(0).max(100),
+  fixed_amount: z.number().min(0).max(1e10),
 });
 
 export const getCompanyFundConfig = createServerFn({ method: "POST" })
@@ -22,7 +21,7 @@ export const getCompanyFundConfig = createServerFn({ method: "POST" })
     const sb = context.supabase as any;
     const { data: cfgs, error } = await sb
       .from("company_fund_configs")
-      .select("id, version, is_active, note, created_at, company_fund_buckets(id, key, label, kind, percent, sort)")
+      .select("id, version, is_active, note, created_at, company_fund_buckets(id, key, label, mode, percent, fixed_amount, sort)")
       .eq("company_id", data.companyId)
       .order("version", { ascending: false })
       .limit(20);
@@ -115,35 +114,3 @@ export const moveCompanyWalletFunds = createServerFn({ method: "POST" })
     return { movementId: id as string };
   });
 
-const ruleSchema = z.object({
-  label: z.string().trim().min(1).max(60),
-  mode: z.enum(["percent", "fixed"]),
-  value: z.number().min(0).max(1e10),
-});
-
-export const getCompanyDeductionConfig = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((i: { companyId: string }) => z.object({ companyId: z.string().uuid() }).parse(i))
-  .handler(async ({ data, context }) => {
-    const { data: cfgs, error } = await (context.supabase as any)
-      .from("company_deduction_configs")
-      .select("id, version, is_active, note, created_at, company_deduction_rules(id, label, mode, value, sort)")
-      .eq("company_id", data.companyId)
-      .order("version", { ascending: false })
-      .limit(20);
-    if (error) throw dbError(error);
-    return { active: (cfgs ?? []).find((c: any) => c.is_active) ?? null, history: cfgs ?? [] };
-  });
-
-export const saveCompanyDeductionConfig = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) =>
-    z.object({ companyId: z.string().uuid(), note: z.string().max(300).optional(), rules: z.array(ruleSchema).max(20) }).parse(i),
-  )
-  .handler(async ({ data, context }) => {
-    const { data: id, error } = await (context.supabase as any).rpc("save_company_deduction_config", {
-      _company: data.companyId, _rules: data.rules, _note: data.note ?? null,
-    });
-    if (error) throw dbError(error);
-    return { id: id as string };
-  });
