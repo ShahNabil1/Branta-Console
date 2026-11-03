@@ -63,6 +63,7 @@ function relTime(iso: string) {
 
 function CustomersPage() {
   const qc = useQueryClient();
+  const setup = useCompanySetup();
   const list = useServerFn(listCustomers);
   const countsFn = useServerFn(getProjectCounts);
   const { data: projCounts } = useQuery({ queryKey: ["client-project-counts"], queryFn: () => countsFn(), staleTime: 30_000 });
