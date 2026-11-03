@@ -1,9 +1,10 @@
 # Roadmap
 
 ## Admakai source branding
-- [ ] Transfer authentic logo, inverse logo and square icon from the Admakai project.
-- [ ] Apply company-owned identity globally and prepare the branded invoice, preserving Branta payment information and existing invoice history.
-- [ ] Verify transferred images, PDF rendering and available company views.
+- [x] Transfer authentic logo, inverse logo and square icon from the Admakai project.
+- [x] Apply company-owned identity globally and prepare the branded invoice, preserving Branta payment information and existing invoice history.
+- [x] Verify asset responses, one-page PDF visually and 14 identity/snapshot/render tests; login loads without runtime errors.
+- [ ] Verify signed-in company profile/switcher and actual invoice download; external unmanaged auth has no available test session.
 
 ## Agent integrations
 - [x] Add OAuth-protected, caller-scoped lead/customer read tools and consent with safe login return handling; no contact or finance values.
