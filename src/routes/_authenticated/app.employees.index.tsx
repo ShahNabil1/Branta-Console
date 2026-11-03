@@ -54,6 +54,7 @@ import { EmployeesDirectory } from "@/components/branta/employees-directory";
 import { CloudflareMark, DrawerHero, StepPills } from "@/components/branta/page-hero";
 import { Button } from "@/components/ui/button";
 import { MailActivity } from "@/components/employee/mail-activity";
+import { WorkspaceAccess } from "@/components/employee/workspace-access";
 
 export const Route = createFileRoute("/_authenticated/app/employees/")({
   head: () => ({
@@ -226,7 +227,7 @@ function CreateEmployeeModal({
   const createFn = useServerFn(createEmployee);
 
   const [local, setLocal] = useState("");
-  const [created, setCreated] = useState<{ email: string; gmail: string; password: string } | null>(null);
+  const [created, setCreated] = useState<{ email: string; gmail: string; password: string; userId: string } | null>(null);
   const [fullName, setFullName] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<Role>("user");
@@ -312,11 +313,11 @@ function CreateEmployeeModal({
           grantAdmakai: role === "super_admin" ? false : grantAdmakai,
         },
       }),
-    onSuccess: () => {
+    onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ["employees.list"] });
       qc.invalidateQueries({ queryKey: ["cf.destinations"] });
       toast.success("Employee created — welcome email handed to Brevo.");
-      setCreated({ email: `${local}${DOMAIN}`, gmail: gmailOk ? gmail.trim().toLowerCase() : "", password });
+      setCreated({ email: `${local}${DOMAIN}`, gmail: gmailOk ? gmail.trim().toLowerCase() : "", password, userId: res.userId });
     },
     onError: (err) =>
       setFormError(err instanceof Error ? err.message : "Failed to create employee."),
@@ -406,6 +407,7 @@ function CreateEmployeeModal({
                 }}><Copy className="size-3.5" /> Copy</button>
               </div>
             </div>
+            <div className="mt-3"><WorkspaceAccess userId={created.userId} compact /></div>
             <div className="mt-3"><MailActivity emails={[created.email, created.gmail]} /></div>
             <button type="button" onClick={onCreated} className="mt-4 inline-flex h-9 shrink-0 items-center justify-center rounded-sm bg-brand px-4 text-[13px] font-semibold text-primary-foreground hover:bg-brand-700">Done</button>
           </div>

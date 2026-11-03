@@ -606,7 +606,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
       </div>
 
       {/* Identity strip */}
-      <section className="rounded-sm border border-border bg-card p-4 sm:p-5">
+      <section className="rounded-lg border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
         <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3 sm:flex sm:flex-wrap">
           <button
             type="button"
@@ -692,7 +692,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
       </Dialog>
 
       {/* Employee ID + Job Role */}
-      <section className="rounded-sm border border-border bg-card p-4 sm:p-5">
+      <section className="rounded-lg border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
         <div className="mb-3 flex items-center gap-2">
           <ShieldCheck className="size-4 text-brand" strokeWidth={2} />
           <h2 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
@@ -806,7 +806,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
 
       {tab === "profile" ? (
         <><ProfileTab e={e} />
-          <section className="mt-4 rounded-sm border border-border bg-card p-4 sm:p-5">
+          <section className="mt-4 rounded-lg border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
             <h3 className="mb-3 text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Payment methods</h3>
             {(e.profile.payment_methods ?? []).length === 0 ? (
               <p className="text-[12.5px] italic text-muted-foreground">N/A — no bank or MFS account saved yet.</p>
@@ -825,7 +825,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
       ) : (
         <div className="space-y-4">
       {/* RBAC */}
-      <section className="rounded-sm border border-border bg-card p-4 sm:p-5">
+      <section className="rounded-lg border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
         <div className="mb-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
           <div className="flex items-center gap-2">
             <ShieldCheck className="size-4 text-brand" strokeWidth={2} />
@@ -1051,7 +1051,7 @@ function ProfileTab({ e }: { e: EmployeeDetail }) {
   const perm = fmtAddrBd(p);
   const pres = present?.same ? perm : present ? fmtAddrBd(present) : null;
   return (
-    <section className="rounded-sm border border-border bg-card p-4 sm:p-5">
+    <section className="rounded-lg border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
       <div className="mb-3 flex items-center gap-2">
         <UserCog className="size-4 text-brand" strokeWidth={2} />
         <h2 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
@@ -1177,7 +1177,7 @@ function WalletTab({
   return (
     <div className="flex flex-col gap-4">
       {/* Balances */}
-      <section className="rounded-sm border border-border bg-card p-4 sm:p-5">
+      <section className="rounded-lg border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
         <div className="mb-3 flex items-center gap-2">
           <Wallet className="size-4 text-brand" strokeWidth={2} />
           <h3 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
@@ -1208,7 +1208,7 @@ function WalletTab({
 
       <WalletLedgerView userId={userId} admin />
       {/* Payouts */}
-      <section className="rounded-sm border border-border bg-card p-4 sm:p-5">
+      <section className="rounded-lg border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
         <div className="mb-3 flex items-center gap-2">
           <h3 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Payment history ({payouts.length})
@@ -1287,7 +1287,7 @@ function WalletTab({
       </section>
 
       {/* Withdrawals */}
-      <section className="rounded-sm border border-border bg-card p-4 sm:p-5">
+      <section className="rounded-lg border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
         <div className="mb-3 flex items-center gap-2">
           <h3 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Withdrawal requests ({withdrawals.length})
@@ -1534,7 +1534,7 @@ function SessionsSection({
   const active = rows.filter((r) => !r.revoked_at);
 
   return (
-    <section className="rounded-sm border border-border bg-card p-4 sm:p-5">
+    <section className="rounded-lg border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
       <div className="mb-3 flex items-center gap-2">
         <ShieldAlert className="size-4 text-brand" strokeWidth={2} />
         <h2 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
@@ -2083,7 +2083,7 @@ function AppAccessSection({ userId, roles, allowedApps }: { userId: string; role
     onError: (err) => toast.error(err instanceof Error ? err.message : "Could not update access"),
   });
   return (
-    <section className="rounded-sm border border-border bg-card p-4 sm:p-5">
+    <section className="rounded-lg border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
       <h3 className="text-[13px] font-semibold text-foreground">Connected App Permissions</h3>
       <p className="mt-0.5 text-[12px] text-muted-foreground">Sister concerns this employee can sign in to with Branta Console.</p>
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-sm border border-border p-3">
