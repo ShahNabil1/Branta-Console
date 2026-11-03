@@ -1,5 +1,11 @@
 # Roadmap
 
+## Lead detail cleanup
+- [x] Remove the Docs tab and its exclusive generation/list/delete functions; preserve saved history.
+- [x] Remove the duplicate detail Status editor while retaining the workspace header status action.
+- [x] Verify no remaining Docs callers, valid changed-file syntax, clean build and two lead company tests.
+- [ ] Verify signed-in lead screen and retained header status change; external unmanaged auth provides no test session.
+
 ## Company email test tracking
 - [x] Remove the duplicate Inbox routing tile; retain the verified Inbox address flow.
 - [x] Track test sends with company-scoped correlation and real provider/webhook milestones and event details; retain real default selection and make its save atomic.
