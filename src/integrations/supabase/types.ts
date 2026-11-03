@@ -2026,6 +2026,7 @@ export type Database = {
       }
       inbox_messages: {
         Row: {
+          company_id: string
           created_at: string
           from_email: string
           from_name: string | null
@@ -2044,6 +2045,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          company_id: string
           created_at?: string
           from_email: string
           from_name?: string | null
@@ -2062,6 +2064,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          company_id?: string
           created_at?: string
           from_email?: string
           from_name?: string | null
@@ -2080,6 +2083,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "inbox_messages_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "inbox_messages_lead_contact_id_fkey"
             columns: ["lead_contact_id"]
@@ -3514,6 +3524,7 @@ export type Database = {
         Row: {
           attendee_responses: Json
           attendees: string[]
+          company_id: string
           created_at: string
           created_by: string | null
           description: string | null
@@ -3532,6 +3543,7 @@ export type Database = {
         Insert: {
           attendee_responses?: Json
           attendees?: string[]
+          company_id: string
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -3550,6 +3562,7 @@ export type Database = {
         Update: {
           attendee_responses?: Json
           attendees?: string[]
+          company_id?: string
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -3566,6 +3579,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "lead_meetings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "lead_meetings_lead_id_fkey"
             columns: ["lead_id"]
@@ -3767,6 +3787,7 @@ export type Database = {
           alt_phone_label: string | null
           budget: number | null
           company: string | null
+          company_id: string
           contact_person: string | null
           contact_preference: string | null
           created_at: string
@@ -3813,6 +3834,7 @@ export type Database = {
           alt_phone_label?: string | null
           budget?: number | null
           company?: string | null
+          company_id: string
           contact_person?: string | null
           contact_preference?: string | null
           created_at?: string
@@ -3859,6 +3881,7 @@ export type Database = {
           alt_phone_label?: string | null
           budget?: number | null
           company?: string | null
+          company_id?: string
           contact_person?: string | null
           contact_preference?: string | null
           created_at?: string
@@ -3898,7 +3921,15 @@ export type Database = {
           value_usd?: number | null
           whatsapp?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "leads_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       notification_events: {
         Row: {
@@ -5322,6 +5353,7 @@ export type Database = {
         }
         Returns: string
       }
+      holding_company_id: { Args: never; Returns: string }
       installment_project_cost_share: {
         Args: {
           _exclude_alloc?: string
