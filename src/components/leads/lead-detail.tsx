@@ -3541,7 +3541,7 @@ function MeetingsTab({
               let conflicts: Awaited<ReturnType<typeof conflictsFn>> = [];
               try {
                 conflicts = await conflictsFn({
-                  data: { startsAt: startISO, endsAt: endISO },
+                  data: { startsAt: startISO, endsAt: endISO, leadId: lead.id },
                 });
               } finally {
                 setCheckingConflicts(false);
@@ -3832,7 +3832,7 @@ function MeetingsTab({
                     > = [];
                     try {
                       conflicts = await conflictsFn({
-                        data: { startsAt: startISO, endsAt: endISO },
+                        data: { startsAt: startISO, endsAt: endISO, leadId: lead.id },
                       });
                     } finally {
                       setReChecking(false);
