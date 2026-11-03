@@ -14,10 +14,10 @@ export function InvoicePdfPreview({ pdf, zoom }: { pdf: string; zoom: number }) 
       const lib = await import("pdfjs-dist");
       const worker = await import("pdfjs-dist/build/pdf.worker.min.mjs?url");
       lib.GlobalWorkerOptions.workerSrc = worker.default;
-      const loading = lib.getDocument({ data: Uint8Array.from(atob(pdf), c => c.charCodeAt(0)), isEvalSupported: false });
+      const loading = lib.getDocument({ data: Uint8Array.from(atob(pdf), c => c.charCodeAt(0)) });
       destroy = () => loading.destroy();
       const doc = await loading.promise;
-      if (cancelled || !ref.current) { await doc.destroy(); return; }
+      if (cancelled || !ref.current) { await loading.destroy(); return; }
       ref.current.replaceChildren();
       for (let n = 1; n <= doc.numPages; n++) {
         if (cancelled || !ref.current) return;
