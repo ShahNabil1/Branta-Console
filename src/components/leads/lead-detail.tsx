@@ -1,3 +1,4 @@
+import { IntegrationRequired, useIntegrationGate } from "@/components/company/setup-required";
 import { DiscardCancelButton } from "@/components/company/danger-confirm";
 // Full-page Lead detail with Overview / Emails / Meetings tabs.
 // Extracted from the former drawer so it can be mounted at /app/leads/$slug.
@@ -3343,8 +3344,9 @@ function MeetingsTab({
       toast.error(e instanceof Error ? e.message : "Reschedule failed"),
   });
 
+  const meetGate = useIntegrationGate("meeting");
   const canSchedule =
-    !!title.trim() && attendees.length > 0 && !schedM.isPending;
+    !!title.trim() && attendees.length > 0 && !schedM.isPending && !meetGate.items.length;
 
   return (
     <div className="grid gap-4">
@@ -3357,6 +3359,7 @@ function MeetingsTab({
             Timezone · Asia/Dhaka (BDT) · 12-hour
           </div>
         </div>
+        {meetGate.items.length > 0 && <div className="px-3 pt-3"><IntegrationRequired feature="meeting" compact /></div>}
         <div className="grid grid-cols-2 gap-3 p-3">
           <Field label="Title" className="col-span-2">
             <Input
