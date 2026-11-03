@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.invoice_installment_company(uuid) FROM authenticated;
