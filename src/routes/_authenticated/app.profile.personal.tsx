@@ -1,3 +1,4 @@
+import { DiscardCancelButton } from "@/components/company/danger-confirm";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -428,15 +429,8 @@ function ProfileForm({
           </div>
           {contactDirty && (
             <div className="mt-4 flex justify-end gap-2 border-t border-border pt-3">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 rounded-sm text-[12px]"
-                disabled={saving}
-                onClick={() => setForm((f) => ({ ...f, phone_primary: profile.phone_primary, phone_alt: profile.phone_alt }))}
-              >
-                Cancel
-              </Button>
+              <DiscardCancelButton dirty className="h-8 rounded-sm text-[12px]" disabled={saving}
+                onCancel={() => setForm((f) => ({ ...f, phone_primary: profile.phone_primary, phone_alt: profile.phone_alt }))} />
               <Button
                 size="sm"
                 className="h-8 rounded-sm text-[12px] font-semibold"
@@ -604,9 +598,7 @@ function AddressSection({
             {!same && <BdAddressBlock form={pres} set={setR} />}
           </div>
           <div className="flex justify-end gap-2 border-t border-border pt-3">
-            <Button variant="outline" size="sm" className="h-8 rounded-sm text-[12px]" disabled={busy} onClick={() => { reset(); setEditing(false); }}>
-              Cancel
-            </Button>
+            <DiscardCancelButton dirty={dirty} className="h-8 rounded-sm text-[12px]" disabled={busy} onCancel={() => { reset(); setEditing(false); }} />
             <Button size="sm" className="h-8 rounded-sm text-[12px] font-semibold" disabled={!dirty || !valid || busy} onClick={save}>
               {busy && <Loader2 className="mr-1 size-3.5 animate-spin" />}Save changes
             </Button>
