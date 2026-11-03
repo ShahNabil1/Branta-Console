@@ -101,9 +101,9 @@ function CustomersPage() {
   const createMut = useMutation({
     mutationFn: async () =>
       create({
-        // company scope
         data: {
           ...form,
+          workspace,
           email: form.email || null,
           role: form.role || null,
           company: form.company || null,
