@@ -1,5 +1,5 @@
 import { DiscardCancelButton } from "@/components/company/danger-confirm";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useParams } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
@@ -32,8 +32,8 @@ export const Route = createFileRoute("/_authenticated/app/projects/$id")({
   component: ProjectPage,
 });
 
-function ProjectPage() {
-  const { id } = Route.useParams();
+export function ProjectPage() {
+  const { id } = useParams({ strict: false }) as { id: string };
   const get = useServerFn(getHubProject);
   const q = useQuery({ queryKey: ["hub-project", id], queryFn: () => get({ data: { id } }) });
   const [edit, setEdit] = useState(false);
