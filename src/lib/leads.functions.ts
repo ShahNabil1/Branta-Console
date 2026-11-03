@@ -240,6 +240,29 @@ const normPhoneStr = (v: unknown): string | null => {
   return d.length >= 7 ? d.slice(-10) : null;
 };
 
+// Duplicate checks are per company: the same person may be a lead/customer
+// of several group companies without conflicting.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function companyLeadIds(supabase: any, companyId: string | null, leadId: string | null): Promise<Set<string>> {
+  let co = companyId;
+  if (!co && leadId) {
+    const { data } = await supabase.from("leads").select("company_id").eq("id", leadId).maybeSingle();
+    co = (data?.company_id as string | undefined) ?? null;
+  }
+  if (!co) {
+    const { data } = await supabase.from("companies").select("id").eq("is_holding", true).maybeSingle();
+    co = (data?.id as string | undefined) ?? null;
+  }
+  const ids = new Set<string>();
+  for (let from = 0; ; from += 1000) {
+    const { data } = await supabase.from("leads").select("id").eq("company_id", co).range(from, from + 999);
+    const rows = (data ?? []) as { id: string }[];
+    rows.forEach((r) => ids.add(r.id));
+    if (rows.length < 1000) break;
+  }
+  return ids;
+}
+
 async function throwIfDuplicate(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
@@ -250,6 +273,7 @@ async function throwIfDuplicate(
     alt_phone?: string | null;
   },
   excludeLeadId: string | null,
+  companyId: string | null = null,
 ): Promise<void> {
   const emails = [normEmailStr(fields.email), normEmailStr(fields.alt_email)].filter(
     (x): x is string => !!x,
@@ -258,6 +282,7 @@ async function throwIfDuplicate(
     (x): x is string => !!x,
   );
   if (emails.length === 0 && phones.length === 0) return;
+  const scope = await companyLeadIds(supabase, companyId, excludeLeadId);
 
   const resolveSlug = async (leadId: string): Promise<string> => {
     const { data } = await supabase.from("leads").select("slug").eq("id", leadId).maybeSingle();
@@ -272,7 +297,7 @@ async function throwIfDuplicate(
       .ilike("alt_email", e)
       .limit(5);
     for (const l of (L ?? []) as { id: string; slug: string }[]) {
-      if (l.id !== excludeLeadId) {
+      if (l.id !== excludeLeadId && scope.has(l.id)) {
         throw new Error(`Email ${e} is already used by lead ${l.slug}`);
       }
     }
@@ -283,7 +308,7 @@ async function throwIfDuplicate(
         .ilike(col, e)
         .limit(10);
       for (const c of (C ?? []) as { lead_id: string }[]) {
-        if (c.lead_id !== excludeLeadId) {
+        if (c.lead_id !== excludeLeadId && scope.has(c.lead_id)) {
           const slug = await resolveSlug(c.lead_id);
           throw new Error(`Email ${e} is already used by lead ${slug}`);
         }
@@ -303,7 +328,7 @@ async function throwIfDuplicate(
       alt_phone: string | null;
     }>;
     for (const l of leadsList) {
-      if (l.id === excludeLeadId) continue;
+      if (l.id === excludeLeadId || !scope.has(l.id)) continue;
       const lp = normPhoneStr(l.phone);
       const la = normPhoneStr(l.alt_phone);
       if ((lp && phones.includes(lp)) || (la && phones.includes(la))) {
@@ -319,7 +344,7 @@ async function throwIfDuplicate(
       alt_phone: string | null;
     }>;
     for (const c of contactsList) {
-      if (c.lead_id === excludeLeadId) continue;
+      if (c.lead_id === excludeLeadId || !scope.has(c.lead_id)) continue;
       const cp = normPhoneStr(c.phone);
       const ca = normPhoneStr(c.alt_phone);
       if ((cp && phones.includes(cp)) || (ca && phones.includes(ca))) {
@@ -519,7 +544,8 @@ export const checkLeadDuplicates = createServerFn({ method: "POST" })
       }
     }
 
-    return conflicts;
+    const scope = await companyLeadIds(supabase, null, excludeLeadId);
+    return conflicts.filter((c) => scope.has(c.conflictLeadId));
   });
 
 export const listLeads = createServerFn({ method: "GET" })
@@ -592,6 +618,7 @@ export const createLead = createServerFn({ method: "POST" })
       context.supabase,
       { email, alt_email: altEmail, phone: data.phone ?? null, alt_phone: data.alt_phone ?? null },
       null,
+      co.id,
     );
     const { data: row, error } = await context.supabase
 
