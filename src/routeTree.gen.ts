@@ -65,6 +65,7 @@ import { Route as AuthenticatedAppLeadsIndexRouteImport } from './routes/_authen
 import { Route as AuthenticatedAppLeadsSlugRouteImport } from './routes/_authenticated/app.leads.$slug'
 import { Route as AuthenticatedAppLeadsDashboardRouteImport } from './routes/_authenticated/app.leads.dashboard'
 import { Route as AuthenticatedAppLeadsDraftsRouteImport } from './routes/_authenticated/app.leads.drafts'
+import { Route as AuthenticatedAppOrgOrgRouteImport } from './routes/_authenticated/app.org.$org'
 import { Route as AuthenticatedAppProfileIndexRouteImport } from './routes/_authenticated/app.profile.index'
 import { Route as AuthenticatedAppProfileFinanceRouteImport } from './routes/_authenticated/app.profile.finance'
 import { Route as AuthenticatedAppProfilePersonalRouteImport } from './routes/_authenticated/app.profile.personal'
@@ -416,6 +417,11 @@ const AuthenticatedAppLeadsDraftsRoute =
     path: '/drafts',
     getParentRoute: () => AuthenticatedAppLeadsRoute,
   } as any)
+const AuthenticatedAppOrgOrgRoute = AuthenticatedAppOrgOrgRouteImport.update({
+  id: '/org/$org',
+  path: '/org/$org',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
 const AuthenticatedAppProfileIndexRoute =
   AuthenticatedAppProfileIndexRouteImport.update({
     id: '/',
@@ -548,51 +554,51 @@ const AuthenticatedAppFinanceInvoicesNewRoute =
   } as any)
 const AuthenticatedAppOrgOrgIndexRoute =
   AuthenticatedAppOrgOrgIndexRouteImport.update({
-    id: '/org/$org/',
-    path: '/org/$org/',
-    getParentRoute: () => AuthenticatedAppRoute,
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedAppOrgOrgRoute,
   } as any)
 const AuthenticatedAppOrgOrgInboxRoute =
   AuthenticatedAppOrgOrgInboxRouteImport.update({
-    id: '/org/$org/inbox',
-    path: '/org/$org/inbox',
-    getParentRoute: () => AuthenticatedAppRoute,
+    id: '/inbox',
+    path: '/inbox',
+    getParentRoute: () => AuthenticatedAppOrgOrgRoute,
   } as any)
 const AuthenticatedAppOrgOrgCustomersIndexRoute =
   AuthenticatedAppOrgOrgCustomersIndexRouteImport.update({
-    id: '/org/$org/customers/',
-    path: '/org/$org/customers/',
-    getParentRoute: () => AuthenticatedAppRoute,
+    id: '/customers/',
+    path: '/customers/',
+    getParentRoute: () => AuthenticatedAppOrgOrgRoute,
   } as any)
 const AuthenticatedAppOrgOrgCustomersCodeRoute =
   AuthenticatedAppOrgOrgCustomersCodeRouteImport.update({
-    id: '/org/$org/customers/$code',
-    path: '/org/$org/customers/$code',
-    getParentRoute: () => AuthenticatedAppRoute,
+    id: '/customers/$code',
+    path: '/customers/$code',
+    getParentRoute: () => AuthenticatedAppOrgOrgRoute,
   } as any)
 const AuthenticatedAppOrgOrgLeadsIndexRoute =
   AuthenticatedAppOrgOrgLeadsIndexRouteImport.update({
-    id: '/org/$org/leads/',
-    path: '/org/$org/leads/',
-    getParentRoute: () => AuthenticatedAppRoute,
+    id: '/leads/',
+    path: '/leads/',
+    getParentRoute: () => AuthenticatedAppOrgOrgRoute,
   } as any)
 const AuthenticatedAppOrgOrgLeadsSlugRoute =
   AuthenticatedAppOrgOrgLeadsSlugRouteImport.update({
-    id: '/org/$org/leads/$slug',
-    path: '/org/$org/leads/$slug',
-    getParentRoute: () => AuthenticatedAppRoute,
+    id: '/leads/$slug',
+    path: '/leads/$slug',
+    getParentRoute: () => AuthenticatedAppOrgOrgRoute,
   } as any)
 const AuthenticatedAppOrgOrgLeadsDashboardRoute =
   AuthenticatedAppOrgOrgLeadsDashboardRouteImport.update({
-    id: '/org/$org/leads/dashboard',
-    path: '/org/$org/leads/dashboard',
-    getParentRoute: () => AuthenticatedAppRoute,
+    id: '/leads/dashboard',
+    path: '/leads/dashboard',
+    getParentRoute: () => AuthenticatedAppOrgOrgRoute,
   } as any)
 const AuthenticatedAppOrgOrgLeadsDraftsRoute =
   AuthenticatedAppOrgOrgLeadsDraftsRouteImport.update({
-    id: '/org/$org/leads/drafts',
-    path: '/org/$org/leads/drafts',
-    getParentRoute: () => AuthenticatedAppRoute,
+    id: '/leads/drafts',
+    path: '/leads/drafts',
+    getParentRoute: () => AuthenticatedAppOrgOrgRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -646,6 +652,7 @@ export interface FileRoutesByFullPath {
   '/app/leads/$slug': typeof AuthenticatedAppLeadsSlugRoute
   '/app/leads/dashboard': typeof AuthenticatedAppLeadsDashboardRoute
   '/app/leads/drafts': typeof AuthenticatedAppLeadsDraftsRoute
+  '/app/org/$org': typeof AuthenticatedAppOrgOrgRouteWithChildren
   '/app/profile/finance': typeof AuthenticatedAppProfileFinanceRoute
   '/app/profile/personal': typeof AuthenticatedAppProfilePersonalRoute
   '/app/profile/security': typeof AuthenticatedAppProfileSecurityRoute
@@ -816,6 +823,7 @@ export interface FileRoutesById {
   '/_authenticated/app/leads/$slug': typeof AuthenticatedAppLeadsSlugRoute
   '/_authenticated/app/leads/dashboard': typeof AuthenticatedAppLeadsDashboardRoute
   '/_authenticated/app/leads/drafts': typeof AuthenticatedAppLeadsDraftsRoute
+  '/_authenticated/app/org/$org': typeof AuthenticatedAppOrgOrgRouteWithChildren
   '/_authenticated/app/profile/finance': typeof AuthenticatedAppProfileFinanceRoute
   '/_authenticated/app/profile/personal': typeof AuthenticatedAppProfilePersonalRoute
   '/_authenticated/app/profile/security': typeof AuthenticatedAppProfileSecurityRoute
@@ -905,6 +913,7 @@ export interface FileRouteTypes {
     | '/app/leads/$slug'
     | '/app/leads/dashboard'
     | '/app/leads/drafts'
+    | '/app/org/$org'
     | '/app/profile/finance'
     | '/app/profile/personal'
     | '/app/profile/security'
@@ -1074,6 +1083,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/leads/$slug'
     | '/_authenticated/app/leads/dashboard'
     | '/_authenticated/app/leads/drafts'
+    | '/_authenticated/app/org/$org'
     | '/_authenticated/app/profile/finance'
     | '/_authenticated/app/profile/personal'
     | '/_authenticated/app/profile/security'
@@ -1525,6 +1535,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppLeadsDraftsRouteImport
       parentRoute: typeof AuthenticatedAppLeadsRoute
     }
+    '/_authenticated/app/org/$org': {
+      id: '/_authenticated/app/org/$org'
+      path: '/org/$org'
+      fullPath: '/app/org/$org'
+      preLoaderRoute: typeof AuthenticatedAppOrgOrgRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
     '/_authenticated/app/profile/': {
       id: '/_authenticated/app/profile/'
       path: '/'
@@ -1681,59 +1698,59 @@ declare module '@tanstack/react-router' {
     }
     '/_authenticated/app/org/$org/': {
       id: '/_authenticated/app/org/$org/'
-      path: '/org/$org'
+      path: '/'
       fullPath: '/app/org/$org/'
       preLoaderRoute: typeof AuthenticatedAppOrgOrgIndexRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
+      parentRoute: typeof AuthenticatedAppOrgOrgRoute
     }
     '/_authenticated/app/org/$org/inbox': {
       id: '/_authenticated/app/org/$org/inbox'
-      path: '/org/$org/inbox'
+      path: '/inbox'
       fullPath: '/app/org/$org/inbox'
       preLoaderRoute: typeof AuthenticatedAppOrgOrgInboxRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
+      parentRoute: typeof AuthenticatedAppOrgOrgRoute
     }
     '/_authenticated/app/org/$org/customers/': {
       id: '/_authenticated/app/org/$org/customers/'
-      path: '/org/$org/customers'
+      path: '/customers'
       fullPath: '/app/org/$org/customers/'
       preLoaderRoute: typeof AuthenticatedAppOrgOrgCustomersIndexRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
+      parentRoute: typeof AuthenticatedAppOrgOrgRoute
     }
     '/_authenticated/app/org/$org/customers/$code': {
       id: '/_authenticated/app/org/$org/customers/$code'
-      path: '/org/$org/customers/$code'
+      path: '/customers/$code'
       fullPath: '/app/org/$org/customers/$code'
       preLoaderRoute: typeof AuthenticatedAppOrgOrgCustomersCodeRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
+      parentRoute: typeof AuthenticatedAppOrgOrgRoute
     }
     '/_authenticated/app/org/$org/leads/': {
       id: '/_authenticated/app/org/$org/leads/'
-      path: '/org/$org/leads'
+      path: '/leads'
       fullPath: '/app/org/$org/leads/'
       preLoaderRoute: typeof AuthenticatedAppOrgOrgLeadsIndexRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
+      parentRoute: typeof AuthenticatedAppOrgOrgRoute
     }
     '/_authenticated/app/org/$org/leads/$slug': {
       id: '/_authenticated/app/org/$org/leads/$slug'
-      path: '/org/$org/leads/$slug'
+      path: '/leads/$slug'
       fullPath: '/app/org/$org/leads/$slug'
       preLoaderRoute: typeof AuthenticatedAppOrgOrgLeadsSlugRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
+      parentRoute: typeof AuthenticatedAppOrgOrgRoute
     }
     '/_authenticated/app/org/$org/leads/dashboard': {
       id: '/_authenticated/app/org/$org/leads/dashboard'
-      path: '/org/$org/leads/dashboard'
+      path: '/leads/dashboard'
       fullPath: '/app/org/$org/leads/dashboard'
       preLoaderRoute: typeof AuthenticatedAppOrgOrgLeadsDashboardRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
+      parentRoute: typeof AuthenticatedAppOrgOrgRoute
     }
     '/_authenticated/app/org/$org/leads/drafts': {
       id: '/_authenticated/app/org/$org/leads/drafts'
-      path: '/org/$org/leads/drafts'
+      path: '/leads/drafts'
       fullPath: '/app/org/$org/leads/drafts'
       preLoaderRoute: typeof AuthenticatedAppOrgOrgLeadsDraftsRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
+      parentRoute: typeof AuthenticatedAppOrgOrgRoute
     }
   }
 }
@@ -1890,6 +1907,39 @@ const AuthenticatedAppProfileRouteWithChildren =
     AuthenticatedAppProfileRouteChildren,
   )
 
+interface AuthenticatedAppOrgOrgRouteChildren {
+  AuthenticatedAppOrgOrgInboxRoute: typeof AuthenticatedAppOrgOrgInboxRoute
+  AuthenticatedAppOrgOrgIndexRoute: typeof AuthenticatedAppOrgOrgIndexRoute
+  AuthenticatedAppOrgOrgCustomersCodeRoute: typeof AuthenticatedAppOrgOrgCustomersCodeRoute
+  AuthenticatedAppOrgOrgLeadsSlugRoute: typeof AuthenticatedAppOrgOrgLeadsSlugRoute
+  AuthenticatedAppOrgOrgLeadsDashboardRoute: typeof AuthenticatedAppOrgOrgLeadsDashboardRoute
+  AuthenticatedAppOrgOrgLeadsDraftsRoute: typeof AuthenticatedAppOrgOrgLeadsDraftsRoute
+  AuthenticatedAppOrgOrgCustomersIndexRoute: typeof AuthenticatedAppOrgOrgCustomersIndexRoute
+  AuthenticatedAppOrgOrgLeadsIndexRoute: typeof AuthenticatedAppOrgOrgLeadsIndexRoute
+}
+
+const AuthenticatedAppOrgOrgRouteChildren: AuthenticatedAppOrgOrgRouteChildren =
+  {
+    AuthenticatedAppOrgOrgInboxRoute: AuthenticatedAppOrgOrgInboxRoute,
+    AuthenticatedAppOrgOrgIndexRoute: AuthenticatedAppOrgOrgIndexRoute,
+    AuthenticatedAppOrgOrgCustomersCodeRoute:
+      AuthenticatedAppOrgOrgCustomersCodeRoute,
+    AuthenticatedAppOrgOrgLeadsSlugRoute: AuthenticatedAppOrgOrgLeadsSlugRoute,
+    AuthenticatedAppOrgOrgLeadsDashboardRoute:
+      AuthenticatedAppOrgOrgLeadsDashboardRoute,
+    AuthenticatedAppOrgOrgLeadsDraftsRoute:
+      AuthenticatedAppOrgOrgLeadsDraftsRoute,
+    AuthenticatedAppOrgOrgCustomersIndexRoute:
+      AuthenticatedAppOrgOrgCustomersIndexRoute,
+    AuthenticatedAppOrgOrgLeadsIndexRoute:
+      AuthenticatedAppOrgOrgLeadsIndexRoute,
+  }
+
+const AuthenticatedAppOrgOrgRouteWithChildren =
+  AuthenticatedAppOrgOrgRoute._addFileChildren(
+    AuthenticatedAppOrgOrgRouteChildren,
+  )
+
 interface AuthenticatedAppRouteChildren {
   AuthenticatedAppAnalyticsRoute: typeof AuthenticatedAppAnalyticsRoute
   AuthenticatedAppCompaniesRoute: typeof AuthenticatedAppCompaniesRouteWithChildren
@@ -1906,17 +1956,10 @@ interface AuthenticatedAppRouteChildren {
   AuthenticatedAppTransfersRoute: typeof AuthenticatedAppTransfersRoute
   AuthenticatedAppIndexRoute: typeof AuthenticatedAppIndexRoute
   AuthenticatedAppEmployeesUserIdRoute: typeof AuthenticatedAppEmployeesUserIdRoute
+  AuthenticatedAppOrgOrgRoute: typeof AuthenticatedAppOrgOrgRouteWithChildren
   AuthenticatedAppProjectsIdRoute: typeof AuthenticatedAppProjectsIdRoute
   AuthenticatedAppEmployeesIndexRoute: typeof AuthenticatedAppEmployeesIndexRoute
   AuthenticatedAppProjectsIndexRoute: typeof AuthenticatedAppProjectsIndexRoute
-  AuthenticatedAppOrgOrgInboxRoute: typeof AuthenticatedAppOrgOrgInboxRoute
-  AuthenticatedAppOrgOrgIndexRoute: typeof AuthenticatedAppOrgOrgIndexRoute
-  AuthenticatedAppOrgOrgCustomersCodeRoute: typeof AuthenticatedAppOrgOrgCustomersCodeRoute
-  AuthenticatedAppOrgOrgLeadsSlugRoute: typeof AuthenticatedAppOrgOrgLeadsSlugRoute
-  AuthenticatedAppOrgOrgLeadsDashboardRoute: typeof AuthenticatedAppOrgOrgLeadsDashboardRoute
-  AuthenticatedAppOrgOrgLeadsDraftsRoute: typeof AuthenticatedAppOrgOrgLeadsDraftsRoute
-  AuthenticatedAppOrgOrgCustomersIndexRoute: typeof AuthenticatedAppOrgOrgCustomersIndexRoute
-  AuthenticatedAppOrgOrgLeadsIndexRoute: typeof AuthenticatedAppOrgOrgLeadsIndexRoute
 }
 
 const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
@@ -1935,21 +1978,10 @@ const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
   AuthenticatedAppTransfersRoute: AuthenticatedAppTransfersRoute,
   AuthenticatedAppIndexRoute: AuthenticatedAppIndexRoute,
   AuthenticatedAppEmployeesUserIdRoute: AuthenticatedAppEmployeesUserIdRoute,
+  AuthenticatedAppOrgOrgRoute: AuthenticatedAppOrgOrgRouteWithChildren,
   AuthenticatedAppProjectsIdRoute: AuthenticatedAppProjectsIdRoute,
   AuthenticatedAppEmployeesIndexRoute: AuthenticatedAppEmployeesIndexRoute,
   AuthenticatedAppProjectsIndexRoute: AuthenticatedAppProjectsIndexRoute,
-  AuthenticatedAppOrgOrgInboxRoute: AuthenticatedAppOrgOrgInboxRoute,
-  AuthenticatedAppOrgOrgIndexRoute: AuthenticatedAppOrgOrgIndexRoute,
-  AuthenticatedAppOrgOrgCustomersCodeRoute:
-    AuthenticatedAppOrgOrgCustomersCodeRoute,
-  AuthenticatedAppOrgOrgLeadsSlugRoute: AuthenticatedAppOrgOrgLeadsSlugRoute,
-  AuthenticatedAppOrgOrgLeadsDashboardRoute:
-    AuthenticatedAppOrgOrgLeadsDashboardRoute,
-  AuthenticatedAppOrgOrgLeadsDraftsRoute:
-    AuthenticatedAppOrgOrgLeadsDraftsRoute,
-  AuthenticatedAppOrgOrgCustomersIndexRoute:
-    AuthenticatedAppOrgOrgCustomersIndexRoute,
-  AuthenticatedAppOrgOrgLeadsIndexRoute: AuthenticatedAppOrgOrgLeadsIndexRoute,
 }
 
 const AuthenticatedAppRouteWithChildren =

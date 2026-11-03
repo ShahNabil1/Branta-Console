@@ -14,6 +14,7 @@ import { usePresenceTracker } from "@/hooks/use-presence";
 import { getOnboardingStatus } from "@/lib/onboarding.functions";
 import { isImpersonating } from "@/lib/impersonation";
 import { WorkspaceGate } from "@/components/company/workspace-gate";
+import { OrgBridge } from "@/components/company/org-bridge";
 
 export const Route = createFileRoute("/_authenticated/app")({
   ssr: false,
@@ -70,6 +71,7 @@ function AppShell() {
         <div className="flex min-w-0 flex-1 flex-col">
           <TopBar />
           <main className="w-full min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
+            <OrgBridge />
             <WorkspaceGate><Outlet /></WorkspaceGate>
           </main>
         </div>
