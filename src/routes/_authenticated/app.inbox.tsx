@@ -20,6 +20,7 @@ import {
   syncInbox,
   getInboxThread,
   markThreadRead,
+  getInboxIdentity,
   type InboxRow,
 } from "@/lib/inbox.functions";
 import { sendInboxReply } from "@/lib/inbox-reply.functions";
@@ -69,7 +70,14 @@ function InboxPage() {
   const markReadFn = useServerFn(markThreadRead);
   const { active } = useActiveCompany();
   const company = active?.slug;
-  const inboxAddr = active && !active.is_holding ? null : "hello@brantatech.com";
+  const identityFn = useServerFn(getInboxIdentity);
+  const identityQ = useQuery({
+    queryKey: ["inbox", "identity", company],
+    queryFn: () => identityFn({ data: { company } }),
+    enabled: !!company,
+    staleTime: 60_000,
+  });
+  const identity = identityQ.data;
 
   const [filter, setFilter] = useState<FilterKey>("all");
   const [selectedThread, setSelectedThread] = useState<string | null>(null);
@@ -164,7 +172,18 @@ function InboxPage() {
             <div>
               <div className="text-[13px] font-semibold">Inbox</div>
               <div className="text-[11px] text-muted-foreground">
-                {inboxAddr ?? `${active?.name ?? ""} · own Gmail`}
+                {identity ? (
+                  <span title={identity.gmail ? `Delivered to ${identity.gmail}` : undefined}>
+                    {identity.address}
+                    {identity.gmail && identity.gmail !== identity.address && (
+                      <span className="opacity-70"> · via {identity.gmail}</span>
+                    )}
+                  </span>
+                ) : identityQ.isError ? (
+                  `${active?.name ?? ""} · no inbox connected`
+                ) : (
+                  "Loading…"
+                )}
               </div>
             </div>
           </div>
