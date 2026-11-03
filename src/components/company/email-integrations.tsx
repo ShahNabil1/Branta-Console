@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import {
   Check, CheckCircle2, ChevronDown, Copy, Inbox, KeyRound, Loader2, Lock, Mail, Pencil, RefreshCw,
   Send, ShieldCheck, Star, Unplug, Webhook, X, XCircle, type LucideIcon,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
