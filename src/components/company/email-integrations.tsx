@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   checkInboundRouting, connectBrevoWebhook, connectResendWebhook, disconnectProvider, getEmailIntegrations, sendProviderTest,
-  setDefaultProvider, verifyEmailProvider, sendInboxProbe, pollInboxProbe, verifyResendWebhook, type Check as CheckT, type ProviderView,
+  setDefaultProvider, verifyEmailProvider, sendInboxProbe, pollInboxProbe, type Check as CheckT, type ProviderView,
 } from "@/lib/company-email.functions";
 import { cn } from "@/lib/utils";
 import { GoogleAccountCard } from "@/components/company/google-account-card";
@@ -322,42 +322,6 @@ function CopyRow({ value }: { value: string }) {
       <Button size="sm" variant="ghost" onClick={async () => { await navigator.clipboard.writeText(value); setDone(true); setTimeout(() => setDone(false), 1500); }}>
         {done ? <Check className="size-3.5 text-status-converted" /> : <Copy className="size-3.5" />} {done ? "Copied" : "Copy"}
       </Button>
-    </div>
-  );
-}
-
-function StepResendHook({ slug, v, data, onDone }: { slug: string; v: ProviderView | null; data: Data; onDone: () => void }) {
-  const [secret, setSecret] = useState("");
-  const [checks, setChecks] = useState<CheckT[] | null>(null);
-  const [busy, setBusy] = useState(false);
-  const fn = useServerFn(verifyResendWebhook);
-  const refresh = useRefresh(slug);
-  const run = async () => {
-    setBusy(true); setChecks(null);
-    try {
-      const r = await fn({ data: { slug, secret: secret.trim() || undefined } });
-      setChecks(r.checks);
-      if (r.ok) { setSecret(""); await refresh(); toast.success("Webhook connected"); setTimeout(onDone, 700); }
-    } catch (e) { toast.error(err(e)); } finally { setBusy(false); }
-  };
-  return (
-    <div className="space-y-4">
-      <ol className="space-y-3 text-[12.5px] font-semibold">
-        <li><b>1.</b> Resend → <b>Webhooks</b> → <b>Add Webhook</b>, paste this endpoint:</li>
-        <CopyRow value={data.resendWebhookUrl} />
-        <li><b>2.</b> Select these events:</li>
-        <div className="flex flex-wrap gap-1.5">
-          {data.resendEvents.map((e) => (
-            <span key={e} className={cn("rounded-full px-2 py-0.5 font-mono text-[11px] font-bold", v?.webhook_events.includes(e) ? "bg-status-converted/15 text-status-converted" : "bg-muted")}>{e}</span>
-          ))}
-        </div>
-        <li><b>3.</b> Save, open the webhook and copy its <b>Signing Secret</b> (whsec_…) here:</li>
-      </ol>
-      <SecretBox value={secret} onChange={setSecret} placeholder="whsec_…" savedHint={v?.webhook_secret_hint ?? null} />
-      <Button disabled={busy || (!secret.trim() && !v?.webhook_secret_hint)} onClick={run} className="shadow-md transition-all hover:-translate-y-0.5 active:scale-95">
-        {busy ? <Loader2 className="size-4 animate-spin" /> : <ShieldCheck className="size-4" />} Verify webhook
-      </Button>
-      <Checks list={checks} />
     </div>
   );
 }
