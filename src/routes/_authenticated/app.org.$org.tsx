@@ -16,7 +16,7 @@ function OrgLayout() {
   const activeSlug = useActiveCompanySlug();
   const company = (q.data ?? []).find((c) => c.slug === org);
   useEffect(() => {
-    if (company && !company.is_holding && activeSlug !== org) setActiveCompanySlug(org);
+    // Active company comes from the URL; the switcher keeps the stored preference in sync.
   }, [company, activeSlug, org]);
 
   if (q.isLoading) return <div className="grid h-full place-items-center text-muted-foreground"><Loader2 className="size-4 animate-spin" /></div>;

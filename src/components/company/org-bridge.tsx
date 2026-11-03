@@ -20,10 +20,9 @@ export function OrgBridge() {
 
   useEffect(() => {
     if (isLoading || !active || orgFromPath(loc.pathname)) return;
-    if (active.is_holding || !isOrgScoped(loc.pathname)) return;
-    const hasHolding = list.some((c) => c.is_holding);
-    // Sister-only staff, or a sister company currently selected.
-    if (!hasHolding || !active.is_holding) {
+    // Plain /app pages belong to the holding; only sister-only staff get moved into their company.
+    if (active.is_holding || !isOrgScoped(loc.pathname) || list.some((c) => c.is_holding)) return;
+    {
       navigate({ href: `/app/org/${active.slug}${loc.pathname.slice(4)}${loc.searchStr ?? ""}`, replace: true });
     }
   }, [active, list, isLoading, loc.pathname, loc.searchStr, navigate]);
