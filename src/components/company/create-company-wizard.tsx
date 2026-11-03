@@ -3,7 +3,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ArrowLeft, ArrowRight, Building2, Check, ChevronsUpDown, Crown, Loader2, Sparkles, UserCog, X } from "lucide-react";
-import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { DrawerHero, StepPills } from "@/components/branta/page-hero";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -58,40 +59,9 @@ export function CreateCompanyWizard({ open, onOpenChange, onCreated }: { open: b
   return (
     <Sheet open={open} onOpenChange={(o) => { onOpenChange(o); if (!o) setTimeout(reset, 250); }}>
       <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-[560px]">
-        <div className="relative overflow-hidden border-b border-border px-6 pb-5 pt-6">
-          <div className="pointer-events-none absolute -right-16 -top-20 size-56 rounded-full bg-brand/10 blur-3xl" />
-          <div className="pointer-events-none absolute -left-10 top-6 size-40 rounded-full bg-status-viewed/10 blur-3xl" />
-          <SheetTitle className="relative text-[18px] font-bold tracking-tight">Create a company</SheetTitle>
-          <p className="relative mt-1 text-[12.5px] text-muted-foreground">Add a new sister concern under Branta Tech Group.</p>
-          <ol className="relative mt-5 flex items-center gap-2">
-            {STEPS.map((s, i) => {
-              const done = i < step, cur = i === step;
-              return (
-                <li key={s.key} className="flex flex-1 items-center gap-2">
-                  <button
-                    type="button"
-                    disabled={i > step}
-                    onClick={() => setStep(i)}
-                    className={cn(
-                      "flex items-center gap-2 rounded-full border px-2.5 py-1 text-[11.5px] font-bold transition-all duration-300",
-                      cur && "scale-105 border-brand bg-brand text-primary-foreground shadow-md shadow-brand/30",
-                      done && "border-status-converted/40 bg-status-converted/10 text-status-converted hover:scale-105",
-                      !cur && !done && "border-border bg-card text-muted-foreground",
-                    )}
-                  >
-                    {done ? <Check className="size-3.5" /> : <s.icon className="size-3.5" />}
-                    <span className="hidden sm:inline">{s.label}</span>
-                  </button>
-                  {i < STEPS.length - 1 && (
-                    <span className="h-0.5 flex-1 overflow-hidden rounded-full bg-border">
-                      <span className={cn("block h-full bg-status-converted transition-all duration-500", done ? "w-full" : "w-0")} />
-                    </span>
-                  )}
-                </li>
-              );
-            })}
-          </ol>
-        </div>
+        <DrawerHero title="Create a company" subtitle="Add a new sister concern under Branta Tech Group.">
+          <StepPills steps={[...STEPS]} step={step} onGo={setStep} />
+        </DrawerHero>
 
         <div key={step} className="flex-1 space-y-4 overflow-y-auto px-6 py-5 animate-in fade-in slide-in-from-right-4 duration-300">
           {step === 0 && (
