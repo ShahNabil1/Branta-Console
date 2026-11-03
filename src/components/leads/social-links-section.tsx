@@ -195,13 +195,13 @@ export function SocialLinksSection({
   const [draftLabel, setDraftLabel] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<{
-  const [editBase, setEditBase] = useState<string | null>(null);
-  useEffect(() => { setEditBase(editDraft ? JSON.stringify(editDraft) : null); // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editingId]);
     platform: SocialPlatform;
     url: string;
     label: string;
   } | null>(null);
+  const [editBase, setEditBase] = useState<string | null>(null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { setEditBase(editDraft ? JSON.stringify(editDraft) : null); }, [editingId]);
 
   const addM = useMutation({
     mutationFn: () =>
