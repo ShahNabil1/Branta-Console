@@ -1,9 +1,10 @@
 # Roadmap
 
 ## Company email test tracking
-- [ ] Remove the duplicate Inbox routing tile; retain the verified Inbox address flow.
-- [ ] Track test sends with real provider/webhook milestones and live event details; verify default provider behavior.
-- [ ] Run delivery-state tests and verify available preview flow; authenticated send is blocked by external unmanaged auth.
+- [x] Remove the duplicate Inbox routing tile; retain the verified Inbox address flow.
+- [x] Track test sends with company-scoped correlation and real provider/webhook milestones and event details; retain real default selection and make its save atomic.
+- [x] Run six delivery/default/correlation/detail tests plus three disconnect regressions; build OK.
+- [ ] Verify authenticated send → signed webhook → UI end-to-end; blocked by external unmanaged auth without a test session and unpublished updated webhook receivers.
 
 ## Admakai source branding
 - [x] Transfer authentic logo, inverse logo and square icon from the Admakai project.
