@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  checkInboundRouting, connectBrevoWebhook, disconnectProvider, getEmailIntegrations, sendProviderTest,
+  checkInboundRouting, connectBrevoWebhook, connectResendWebhook, disconnectProvider, getEmailIntegrations, sendProviderTest,
   setDefaultProvider, verifyEmailProvider, sendInboxProbe, pollInboxProbe, verifyResendWebhook, type Check as CheckT, type ProviderView,
 } from "@/lib/company-email.functions";
 import { cn } from "@/lib/utils";
@@ -181,8 +181,8 @@ function Setup({ p, slug, v, data, both }: { p: P; slug: string; v: ProviderView
         })}
       </div>
       <div key={step} className="p-5 animate-in fade-in slide-in-from-right-2 duration-300">
-        {step === 1 && <StepKey p={p} slug={slug} v={v} inboxEmail={data.inbox!.email} onDone={() => setStep(2)} />}
-        {step === 2 && (p === "resend" ? <StepResendHook slug={slug} v={v} data={data} onDone={() => setStep(3)} /> : <StepBrevoHook slug={slug} v={v} data={data} onDone={() => setStep(3)} />)}
+        {step === 1 && <StepKey p={p} slug={slug} v={v} inboxEmail={data.inbox!.email} companyName={data.company.name} onDone={() => setStep(2)} />}
+        {step === 2 && (p === "resend" ? <StepAutoHook p="resend" slug={slug} v={v} data={data} onDone={() => setStep(3)} /> : <StepAutoHook p="brevo" slug={slug} v={v} data={data} onDone={() => setStep(3)} />)}
         {step === 3 && <StepFinish p={p} slug={slug} v={v} both={both} inbox={data.inboxGmail} />}
       </div>
     </section>
@@ -238,9 +238,9 @@ function SecretBox({ value, onChange, placeholder, savedHint }: { value: string;
   );
 }
 
-function StepKey({ p, slug, v, inboxEmail, onDone }: { p: P; slug: string; v: ProviderView | null; inboxEmail: string; onDone: () => void }) {
+function StepKey({ p, slug, v, inboxEmail, companyName, onDone }: { p: P; slug: string; v: ProviderView | null; inboxEmail: string; companyName: string; onDone: () => void }) {
   const m = META[p];
-  const [name, setName] = useState(v?.sender_name ?? "");
+  const [name, setName] = useState(v?.sender_name || (p === "resend" ? companyName : ""));
   const email = inboxEmail;
   const [key, setKey] = useState("");
   const [checks, setChecks] = useState<CheckT[] | null>(null);
@@ -282,7 +282,7 @@ function StepKey({ p, slug, v, inboxEmail, onDone }: { p: P; slug: string; v: Pr
             )}
           </Field>
         ) : (
-          <Field label="Sender name" hint="Shown as the From name, e.g. Admakai"><Input value={name} maxLength={80} onChange={(e) => setName(e.target.value)} placeholder="Admakai" /></Field>
+          <Field label="Sender name" hint="Pre-filled with the company name — edit if you want a different From name"><Input value={name} maxLength={80} onChange={(e) => setName(e.target.value)} placeholder="Admakai" /></Field>
         )}
         <Field label="Sender email address" hint="Locked to the verified Inbox address so client replies always land in the Inbox.">
           <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2">
@@ -369,22 +369,27 @@ const BREVO_STAGES = [
   { k: "verify", label: "Read back & verify", pct: 100 },
 ] as const;
 
-function StepBrevoHook({ slug, v, data, onDone }: { slug: string; v: ProviderView | null; data: Data; onDone: () => void }) {
+function StepAutoHook({ p, slug, v, data, onDone }: { p: P; slug: string; v: ProviderView | null; data: Data; onDone: () => void }) {
   const [checks, setChecks] = useState<CheckT[]>([]);
   const [done, setDone] = useState(-1); // index of last completed stage
   const [active, setActive] = useState<number | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
   const [pct, setPct] = useState(0);
-  const fn = useServerFn(connectBrevoWebhook);
+  const brevoFn = useServerFn(connectBrevoWebhook);
+  const resendFn = useServerFn(connectResendWebhook);
+  const fn = p === "brevo" ? brevoFn : resendFn;
   const refresh = useRefresh(slug);
-  const accent = META.brevo.color;
+  const accent = META[p].color;
+  const pname = META[p].name;
+  const stages = p === "brevo" ? BREVO_STAGES : BREVO_STAGES.map((s) => (s.k === "account" ? { ...s, label: "Resend account" } : s));
+  const events = p === "brevo" ? data.brevoEvents : data.resendEvents;
   const busy = active !== null;
   const run = async () => {
     setChecks([]); setDone(-1); setFailed(null); setPct(2);
-    for (let i = 0; i < BREVO_STAGES.length; i++) {
-      const st = BREVO_STAGES[i];
+    for (let i = 0; i < stages.length; i++) {
+      const st = stages[i];
       setActive(i);
-      setPct((BREVO_STAGES[i - 1]?.pct ?? 0) + 8);
+      setPct((stages[i - 1]?.pct ?? 0) + 8);
       try {
         const r = await fn({ data: { slug, stage: st.k } });
         setChecks((c) => [...c, ...r.checks]);
@@ -396,16 +401,16 @@ function StepBrevoHook({ slug, v, data, onDone }: { slug: string; v: ProviderVie
       } catch (e) { setFailed(`${st.label}: ${err(e)}`); setActive(null); return; }
     }
     setActive(null);
-    await refresh(); toast.success("Brevo webhook connected"); setTimeout(onDone, 900);
+    await refresh(); toast.success(`${pname} webhook connected`); setTimeout(onDone, 900);
   };
-  const ok = done === BREVO_STAGES.length - 1;
+  const ok = done === stages.length - 1;
   return (
     <div className="space-y-4">
       <p className="text-[12.5px] font-semibold text-muted-foreground">
-        One click: the Console uses your Brevo API key to create this company's private webhook with every event, removes old ones, then reads it back from Brevo to confirm — nothing to copy or paste.
+        One click: the Console uses your {pname} API key to create this company's private webhook with every event, removes old ones, then reads it back from {pname} to confirm{p === "resend" ? " and saves the signing secret automatically" : ""} — nothing to copy or paste.
       </p>
       <div className="flex flex-wrap gap-1.5">
-        {data.brevoEvents.map((e) => (
+        {events.map((e) => (
           <span key={e} className={cn("rounded-full px-2 py-0.5 font-mono text-[11px] font-bold transition-colors", ok || v?.webhook_events.includes(e) ? "bg-status-converted/15 text-status-converted" : "bg-muted")}>{e}</span>
         ))}
       </div>
@@ -417,7 +422,7 @@ function StepBrevoHook({ slug, v, data, onDone }: { slug: string; v: ProviderVie
           <div className="flex items-center justify-between text-[12px] font-bold">
             <span className="flex items-center gap-1.5">
               {busy ? <Loader2 className="size-3.5 animate-spin" style={{ color: accent }} /> : ok ? <CheckCircle2 className="size-3.5 text-status-converted" /> : <XCircle className="size-3.5 text-destructive" />}
-              {busy ? `${BREVO_STAGES[active!].label}…` : ok ? "Webhook connected & verified" : "Setup failed"}
+              {busy ? `${stages[active!].label}…` : ok ? "Webhook connected & verified" : "Setup failed"}
             </span>
             <span className="font-mono tabular-nums">{Math.round(pct)}%</span>
           </div>
@@ -425,7 +430,7 @@ function StepBrevoHook({ slug, v, data, onDone }: { slug: string; v: ProviderVie
             <div className="h-full rounded-full transition-all duration-700 ease-out" style={{ width: `${pct}%`, background: failed ? "var(--color-destructive)" : ok ? "var(--color-status-converted)" : accent }} />
           </div>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {BREVO_STAGES.map((st, i) => (
+            {stages.map((st, i) => (
               <div key={st.k} className={cn("flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-[11px] font-bold transition-colors",
                 i <= done ? "border-status-converted/30 bg-status-converted/10 text-status-converted"
                   : failed && i === done + 1 ? "border-destructive/30 bg-destructive/10 text-destructive"
