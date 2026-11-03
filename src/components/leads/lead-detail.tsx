@@ -78,6 +78,7 @@ import {
   renderVariables,
   retryFailedEmail,
   sendLeadEmail,
+  getLeadSender,
   type EmailUsageToday,
   type LeadEmailRow,
 } from "@/lib/lead-email.functions";
@@ -2637,6 +2638,15 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
   }
 
   // Client-side preview substitution (mirror of server-side renderVariables).
+  const senderFn = useServerFn(getLeadSender);
+  const senderQ = useQuery({
+    queryKey: ["lead-sender", lead.id],
+    queryFn: () => senderFn({ data: { leadId: lead.id } }),
+    staleTime: 60_000,
+  });
+  const sender = senderQ.data;
+  const senderEmail = sender ? (sender.ready ? sender.email : "no verified sender") : "…";
+  const senderName = sender?.name ?? "";
   const previewVars: Record<string, string | null> = {
     "lead.name": lead.name,
     "lead.first_name": (lead.name || "").split(/\s+/)[0] || null,
@@ -2839,7 +2849,7 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
 
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="text-[11px] text-muted-foreground">
-              From <span className="font-mono">hello@brantatech.com</span>
+              From <span className="font-mono">{senderEmail}</span>
               {selectedEmails.length > 0 && (
                 <>
                   {" "}
@@ -3070,7 +3080,7 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
             <div className="rounded-sm border border-border bg-muted/50 px-3 py-2 text-[11.5px]">
               <div>
                 <span className="text-muted-foreground">From</span>{" "}
-                <span className="font-mono">Branta Tech &lt;hello@brantatech.com&gt;</span>
+                <span className="font-mono">{senderName} &lt;{senderEmail}&gt;</span>
               </div>
               <div>
                 <span className="text-muted-foreground">To</span>{" "}
@@ -3108,7 +3118,7 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
                 <div>
                   <span className="text-muted-foreground">From</span>{" "}
                   <span className="font-mono">
-                    Branta Tech &lt;{viewMail.from_email || "hello@brantatech.com"}&gt;
+                    {senderName || "Branta Tech"} &lt;{viewMail.from_email || senderEmail}&gt;
                   </span>
                   {viewMail.sent_by_name && (
                     <span className="ml-2 text-muted-foreground">
