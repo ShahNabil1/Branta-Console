@@ -27,6 +27,7 @@ export interface LeadEmailRow {
   body_html: string | null;
   body_text: string | null;
   from_email: string | null;
+  from_name?: string | null;
   to_emails: string[];
   cc_emails: string[];
   status: LeadEmailStatus;
