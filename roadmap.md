@@ -1,5 +1,10 @@
 # Roadmap
 
+## Company email test tracking
+- [ ] Remove the duplicate Inbox routing tile; retain the verified Inbox address flow.
+- [ ] Track test sends with real provider/webhook milestones and live event details; verify default provider behavior.
+- [ ] Run delivery-state tests and verify available preview flow; authenticated send is blocked by external unmanaged auth.
+
 ## Admakai source branding
 - [x] Transfer authentic logo, inverse logo and square icon from the Admakai project.
 - [x] Apply company-owned identity globally and prepare the branded invoice, preserving Branta payment information and existing invoice history.
