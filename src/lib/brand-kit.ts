@@ -28,13 +28,13 @@ export const PrefixesSchema = z.object(
 export type Prefixes = Partial<Record<PrefixKind, string>>;
 
 /** Prefixes another company already uses for the same kind (empty = no conflict). */
-export function prefixConflicts(mine: Prefixes, others: { name: string; prefixes: Prefixes }[], holdingDefaults = true): string[] {
+export function prefixConflicts(mine: Prefixes, others: { name: string; isHolding: boolean; prefixes: Prefixes }[]): string[] {
   const out: string[] = [];
   for (const k of PREFIX_KINDS) {
     const p = mine[k];
     if (!p) continue;
     for (const o of others) {
-      const theirs = o.prefixes[k] || (holdingDefaults ? undefined : undefined);
+      const theirs = o.prefixes[k] || (o.isHolding ? DEFAULT_PREFIX[k] : undefined);
       if (theirs === p) out.push(`${k} prefix ${p} is already used by ${o.name}`);
     }
   }
@@ -64,7 +64,6 @@ export function brandChecks(k: BrandKit): Check[] {
         : { level: "fail", label, detail: `${r}:1 — too light on white paper` };
   if (k.primary) {
     out.push(grade(contrast(k.primary, "#FFFFFF"), "Primary on white paper", "text and table headers"));
-    out.push(grade(contrast(k.primary, "#FFFFFF") >= 4.5 ? 4.5 : contrast("#FFFFFF", k.primary), "White text on primary", "buttons and header bands"));
   }
   if (k.secondary) out.push(grade(contrast(k.secondary, "#FFFFFF"), "Secondary on white paper", "body text and borders"));
   if (k.gradient?.enabled) {
