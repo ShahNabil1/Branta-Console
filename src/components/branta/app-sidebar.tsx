@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ComponentType } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
@@ -6,9 +6,8 @@ import {
   LayoutDashboard,
   Users,
   Settings,
-  Shield,
+  ShieldCheck,
   BarChart3,
-  Inbox,
   ChevronsLeft,
   UserPlus,
   Send,
@@ -19,7 +18,7 @@ import {
   Receipt,
   PiggyBank,
   ArrowLeftRight,
-  Bell,
+  BellRing,
   RadioTower,
   Menu,
   X,
@@ -31,51 +30,76 @@ import {
   HandCoins,
   Plug,
   FolderKanban,
+  PieChart,
+  Gauge,
+  Contact,
+  History,
+  ArrowDownToLine,
+  CalendarClock,
+  Puzzle,
+  Pin,
+  PinOff,
+  FileSpreadsheet,
+  Handshake,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { resolveActivePath } from "@/lib/nav-active";
 import brandLogo from "@/assets/brand-logo.png.asset.json";
-import type { LucideIcon } from "lucide-react";
 import { getMyPermissions } from "@/lib/permissions.functions";
-import { Button } from "@/components/ui/button";
 import { CompanySwitcher } from "@/components/company/company-switcher";
+import { GmailMark } from "@/components/company/google-account-card";
 
-type NavItem = { label: string; to: string; icon: LucideIcon };
+type IconType = ComponentType<{ className?: string; strokeWidth?: number }>;
+type Tone = "orange" | "sky" | "violet" | "emerald" | "amber" | "rose" | "indigo" | "teal" | "slate" | "brand";
+type NavItem = { label: string; to: string; icon: IconType; tone: Tone; brand?: boolean };
 type NavGroup = { label: string; items: NavItem[] };
-type FinanceNavGroup = NavGroup & { icon: LucideIcon };
+type FinanceNavGroup = NavGroup & { icon: IconType; tone: Tone };
 
+// Icon tile color per tone (soft tinted background + saturated glyph).
+const TONE: Record<Tone, string> = {
+  brand: "bg-brand/10 text-brand",
+  orange: "bg-orange-500/10 text-orange-600",
+  sky: "bg-sky-500/10 text-sky-600",
+  violet: "bg-violet-500/10 text-violet-600",
+  emerald: "bg-emerald-500/10 text-emerald-600",
+  amber: "bg-amber-500/10 text-amber-600",
+  rose: "bg-rose-500/10 text-rose-600",
+  indigo: "bg-indigo-500/10 text-indigo-600",
+  teal: "bg-teal-500/10 text-teal-600",
+  slate: "bg-slate-500/10 text-slate-600",
+};
+
+const GmailIcon: IconType = ({ className }) => <GmailMark className={className} />;
 
 const NAV: NavGroup[] = [
   {
     label: "Workspace",
     items: [
-      { label: "Overview", to: "/app", icon: LayoutDashboard },
-      { label: "Today's Operations", to: "/app/operations", icon: RadioTower },
-      { label: "Projects", to: "/app/projects", icon: FolderKanban },
-      { label: "Analytics", to: "/app/analytics", icon: BarChart3 },
+      { label: "Overview", to: "/app", icon: LayoutDashboard, tone: "brand" },
+      { label: "Today's Operations", to: "/app/operations", icon: RadioTower, tone: "rose" },
+      { label: "Projects", to: "/app/projects", icon: FolderKanban, tone: "violet" },
+      { label: "Analytics", to: "/app/analytics", icon: PieChart, tone: "sky" },
     ],
   },
   {
     label: "CRM",
     items: [
-      { label: "Lead Dashboard", to: "/app/leads/dashboard", icon: BarChart3 },
-      { label: "Leads", to: "/app/leads", icon: Users },
-      { label: "Customers", to: "/app/customers", icon: Building2 },
-      { label: "Inbox", to: "/app/inbox", icon: Inbox },
+      { label: "Lead Dashboard", to: "/app/leads/dashboard", icon: Gauge, tone: "indigo" },
+      { label: "Leads", to: "/app/leads", icon: Users, tone: "sky" },
+      { label: "Customers", to: "/app/customers", icon: Handshake, tone: "emerald" },
+      { label: "Inbox", to: "/app/inbox", icon: GmailIcon, tone: "slate", brand: true },
     ],
   },
-  {
-    label: "Finance",
-    items: [],
-  },
+  { label: "Finance", items: [] },
   {
     label: "Admin",
     items: [
-      { label: "Companies", to: "/app/companies", icon: Building2 },
-      { label: "Employees", to: "/app/employees", icon: UserPlus },
-      { label: "Transfers", to: "/app/transfers", icon: ArrowLeftRight },
-      { label: "Mail queue", to: "/app/mail-queue", icon: Send },
-      { label: "Notifications", to: "/app/notifications", icon: Bell },
-      { label: "Extension Settings", to: "/app/tracker-settings", icon: RadioTower },
+      { label: "Companies", to: "/app/companies", icon: Building2, tone: "brand" },
+      { label: "Employees", to: "/app/employees", icon: UserPlus, tone: "violet" },
+      { label: "Transfers", to: "/app/transfers", icon: ArrowLeftRight, tone: "amber" },
+      { label: "Mail queue", to: "/app/mail-queue", icon: Send, tone: "sky" },
+      { label: "Notifications", to: "/app/notifications", icon: BellRing, tone: "rose" },
+      { label: "Extension Settings", to: "/app/tracker-settings", icon: Puzzle, tone: "teal" },
     ],
   },
 ];
@@ -84,64 +108,93 @@ const FINANCE_NAV: FinanceNavGroup[] = [
   {
     label: "Overview",
     icon: LayoutDashboard,
+    tone: "brand",
     items: [
-      { label: "Dashboard", to: "/app/finance", icon: LayoutDashboard },
-      { label: "Fund Analytics", to: "/app/finance/fund-analytics", icon: BarChart3 },
-      { label: "Project Profitability", to: "/app/finance/profitability", icon: TrendingUp },
-      { label: "Reconciliation", to: "/app/finance/reconciliation", icon: Shield },
+      { label: "Dashboard", to: "/app/finance", icon: LayoutDashboard, tone: "brand" },
+      { label: "Fund Analytics", to: "/app/finance/fund-analytics", icon: BarChart3, tone: "sky" },
+      { label: "Project Profitability", to: "/app/finance/profitability", icon: TrendingUp, tone: "emerald" },
+      { label: "Reconciliation", to: "/app/finance/reconciliation", icon: ShieldCheck, tone: "indigo" },
     ],
   },
   {
     label: "Funds",
     icon: Landmark,
+    tone: "emerald",
     items: [
-      { label: "Fund Ledger", to: "/app/finance/funds", icon: PiggyBank },
-      { label: "Fund Transfers", to: "/app/finance/fund-transfers", icon: ArrowLeftRight },
-      { label: "Fund Loans", to: "/app/finance/fund-loans", icon: Banknote },
-      { label: "Fund Settings", to: "/app/finance/fund-settings", icon: Settings },
+      { label: "Fund Ledger", to: "/app/finance/funds", icon: PiggyBank, tone: "emerald" },
+      { label: "Fund Transfers", to: "/app/finance/fund-transfers", icon: ArrowLeftRight, tone: "amber" },
+      { label: "Fund Loans", to: "/app/finance/fund-loans", icon: Banknote, tone: "teal" },
+      { label: "Fund Settings", to: "/app/finance/fund-settings", icon: Settings, tone: "slate" },
     ],
   },
   {
     label: "Billing",
     icon: FileStack,
+    tone: "sky",
     items: [
-      { label: "Invoices", to: "/app/finance/invoices", icon: FileText },
-      { label: "Income", to: "/app/finance/income", icon: TrendingUp },
-      { label: "Historical Allocation", to: "/app/finance/historical-allocation", icon: FileText },
+      { label: "Invoices", to: "/app/finance/invoices", icon: FileText, tone: "sky" },
+      { label: "Income", to: "/app/finance/income", icon: TrendingUp, tone: "emerald" },
+      { label: "Historical Allocation", to: "/app/finance/historical-allocation", icon: History, tone: "violet" },
     ],
   },
   {
     label: "Team Payments",
     icon: HandCoins,
+    tone: "violet",
     items: [
-      { label: "Employee Payments", to: "/app/finance/employee-payments", icon: BadgeDollarSign },
-      { label: "Employee Wallets", to: "/app/finance/employee-wallets", icon: Wallet },
-      { label: "Employee Earnings (Legacy)", to: "/app/finance/employee-earnings", icon: Wallet },
-      { label: "Salary", to: "/app/finance/salary", icon: BadgeDollarSign },
-      { label: "Salary Report", to: "/app/finance/salary-report", icon: FileText },
-      { label: "Wallet", to: "/app/finance/wallet", icon: Wallet },
-      { label: "Withdrawals", to: "/app/finance/withdrawals", icon: Banknote },
+      { label: "Employee Payments", to: "/app/finance/employee-payments", icon: BadgeDollarSign, tone: "emerald" },
+      { label: "Employee Wallets", to: "/app/finance/employee-wallets", icon: Wallet, tone: "violet" },
+      { label: "Employee Earnings (Legacy)", to: "/app/finance/employee-earnings", icon: Contact, tone: "slate" },
+      { label: "Salary", to: "/app/finance/salary", icon: BadgeDollarSign, tone: "amber" },
+      { label: "Salary Report", to: "/app/finance/salary-report", icon: CalendarClock, tone: "indigo" },
+      { label: "Wallet", to: "/app/finance/wallet", icon: Wallet, tone: "brand" },
+      { label: "Withdrawals", to: "/app/finance/withdrawals", icon: ArrowDownToLine, tone: "rose" },
     ],
   },
   {
     label: "Expenses",
     icon: Receipt,
-    items: [{ label: "Expenses", to: "/app/finance/expenses", icon: Receipt }],
+    tone: "rose",
+    items: [{ label: "Expenses", to: "/app/finance/expenses", icon: Receipt, tone: "rose" }],
   },
   {
     label: "Integrations",
     icon: Plug,
-    items: [{ label: "Finance Sheets", to: "/app/finance/sheets", icon: FileText }],
+    tone: "teal",
+    items: [{ label: "Finance Sheets", to: "/app/finance/sheets", icon: FileSpreadsheet, tone: "emerald" }],
   },
+];
+
+const ALL_PATHS = [
+  ...NAV.flatMap((g) => g.items.map((i) => i.to)),
+  ...FINANCE_NAV.flatMap((g) => g.items.map((i) => i.to)),
 ];
 
 const COLLAPSE_KEY = "branta.sidebar.collapsed";
 
+function IconTile({ icon: Icon, tone, active, brand, small }: { icon: IconType; tone: Tone; active: boolean; brand?: boolean; small?: boolean }) {
+  return (
+    <span
+      className={cn(
+        "grid shrink-0 place-items-center rounded-md transition-all duration-200 group-hover/item:scale-110 group-hover/item:-rotate-3",
+        small ? "size-6" : "size-7",
+        brand ? "bg-card ring-1 ring-border" : TONE[tone],
+        active && !brand && "shadow-sm ring-1 ring-current/20",
+      )}
+    >
+      <Icon className={small ? "size-3.5" : "size-4"} strokeWidth={2} />
+    </span>
+  );
+}
+
 export function AppSidebar() {
   const [collapsed, setCollapsed] = useState(false);
+  const [peek, setPeek] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openFinanceGroups, setOpenFinanceGroups] = useState<string[]>([]);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const peekTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const groupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const permsFn = useServerFn(getMyPermissions);
   const permsQ = useQuery({
@@ -158,25 +211,37 @@ export function AppSidebar() {
     setMobileOpen(false);
   }, [pathname]);
 
-  const isRouteActive = (to: string) =>
-    pathname === to || (to !== "/app/finance" && pathname.startsWith(`${to}/`));
+  const activePath = resolveActivePath(pathname, ALL_PATHS);
+  const isRouteActive = (to: string) => activePath === to;
+  const expanded = !collapsed || peek;
 
   const activeFinanceGroup = FINANCE_NAV.find((group) =>
-    group.items.some((item) => isRouteActive(item.to)),
+    group.items.some((item) => item.to === activePath),
   )?.label;
 
   useEffect(() => {
     if (!activeFinanceGroup) return;
-    setOpenFinanceGroups((current) => {
-      if (current.includes(activeFinanceGroup)) return current;
-      return [...current.slice(-1), activeFinanceGroup];
-    });
+    setOpenFinanceGroups((current) =>
+      current.includes(activeFinanceGroup) ? current : [...current.slice(-1), activeFinanceGroup],
+    );
   }, [activeFinanceGroup]);
 
   const toggle = () => {
     const next = !collapsed;
     setCollapsed(next);
+    setPeek(false);
     localStorage.setItem(COLLAPSE_KEY, next ? "1" : "0");
+  };
+
+  const onEnter = () => {
+    if (!collapsed) return;
+    if (peekTimer.current) clearTimeout(peekTimer.current);
+    peekTimer.current = setTimeout(() => setPeek(true), 120);
+  };
+  const onLeave = () => {
+    if (peekTimer.current) clearTimeout(peekTimer.current);
+    if (groupTimer.current) clearTimeout(groupTimer.current);
+    setPeek(false);
   };
 
   const nav = useMemo<NavGroup[]>(() => {
@@ -198,21 +263,38 @@ export function AppSidebar() {
           return true;
         }),
       };
-    }).filter((g) => g.label === "Finance" ? isFinance : g.items.length > 0);
+    }).filter((g) => (g.label === "Finance" ? isFinance : g.items.length > 0));
   }, [permsQ.data]);
 
   const toggleFinanceGroup = (label: string) => {
-    if (collapsed) {
-      setCollapsed(false);
-      localStorage.setItem(COLLAPSE_KEY, "0");
-    }
-    setOpenFinanceGroups((current) => {
-      if (current.includes(label)) return current.filter((item) => item !== label);
-      return [...current.slice(-1), label];
-    });
+    setOpenFinanceGroups((current) =>
+      current.includes(label) ? current.filter((i) => i !== label) : [...current.slice(-1), label],
+    );
+  };
+  // Hover-intent: resting on a section header for a moment opens it.
+  const hoverOpenGroup = (label: string) => {
+    if (groupTimer.current) clearTimeout(groupTimer.current);
+    groupTimer.current = setTimeout(() => {
+      setOpenFinanceGroups((current) => (current.includes(label) ? current : [...current.slice(-1), label]));
+    }, 260);
+  };
+  const cancelGroupHover = () => {
+    if (groupTimer.current) clearTimeout(groupTimer.current);
   };
 
+  const itemClass = (active: boolean) =>
+    cn(
+      "group/item relative flex items-center gap-2.5 rounded-lg px-1.5 py-1 text-[13px] font-medium transition-all duration-150 active:scale-[0.98]",
+      active
+        ? "bg-gradient-to-r from-brand/15 via-brand/5 to-transparent text-foreground"
+        : "text-muted-foreground hover:translate-x-0.5 hover:bg-muted/80 hover:text-foreground",
+      !expanded && "md:justify-center md:px-0",
+    );
 
+  const ActiveBar = ({ show }: { show: boolean }) =>
+    show ? (
+      <span className="absolute -left-2 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-brand shadow-[0_0_10px] shadow-brand/60" />
+    ) : null;
 
   return (
     <>
@@ -233,137 +315,139 @@ export function AppSidebar() {
           className="fixed inset-0 z-30 touch-none overscroll-none bg-foreground/30 md:hidden"
         />
       )}
-    <aside
-      className={cn(
-        "hairline-r fixed inset-y-0 left-0 z-40 flex w-[min(19rem,86vw)] shrink-0 flex-col bg-card shadow-xl transition-transform duration-200 md:relative md:z-auto md:translate-x-0 md:shadow-none md:transition-[width] md:duration-150",
-        mobileOpen ? "translate-x-0" : "-translate-x-full",
-        collapsed ? "md:w-14" : "md:w-60",
-      )}
-    >
-      {/* Company switcher (logo) + collapse */}
-      <div className={cn("hairline-b flex min-h-14 items-center gap-1 px-2 py-1.5", collapsed && "md:flex-col md:px-1.5")}>
-        <div className="min-w-0 flex-1 md:w-full">
-          <CompanySwitcher
-            collapsed={collapsed}
-            canManage={Boolean(permsQ.data?.isAdmin ?? permsQ.data?.isSuperAdmin)}
-            holdingLogoUrl={brandLogo.url}
-          />
-        </div>
-        <button
-          onClick={toggle}
-          className="hidden size-7 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:grid"
-          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+      {/* Spacer keeps page layout stable while the panel peeks over content */}
+      <div
+        className={cn(
+          "relative hidden shrink-0 transition-[width] duration-200 ease-out md:block",
+          collapsed ? "md:w-16" : "md:w-64",
+        )}
+      >
+        <aside
+          onMouseEnter={onEnter}
+          onMouseLeave={onLeave}
+          className={cn(
+            "hairline-r fixed inset-y-0 left-0 z-40 flex flex-col bg-card transition-[width,box-shadow] duration-200 ease-out",
+            expanded ? "w-64" : "w-16",
+            peek && "shadow-2xl shadow-foreground/10",
+          )}
         >
-          <ChevronsLeft className={cn("size-4 transition-transform", collapsed && "rotate-180")} />
-        </button>
+          {renderBody(false)}
+        </aside>
       </div>
+      <aside
+        className={cn(
+          "hairline-r fixed inset-y-0 left-0 z-40 flex w-[min(19rem,86vw)] flex-col bg-card shadow-xl transition-transform duration-200 md:hidden",
+          mobileOpen ? "translate-x-0" : "-translate-x-full",
+        )}
+      >
+        {renderBody(true)}
+      </aside>
+    </>
+  );
 
-      {/* Nav */}
-      <nav className="flex-1 overflow-y-auto overscroll-contain p-2">
-        {nav.map((group) => (
-          <div key={group.label} className="mb-4">
-            <div
-              className={cn(
-                "px-2 pb-1.5 pt-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground",
-                collapsed && "md:hidden",
-              )}
+  function renderBody(mobile: boolean) {
+    const exp = mobile || expanded;
+    return (
+      <>
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-brand via-amber-400 to-rose-500" />
+        <div className={cn("hairline-b flex min-h-14 items-center gap-1 px-2 py-1.5", !exp && "flex-col px-1.5")}>
+          <div className="min-w-0 flex-1 w-full">
+            <CompanySwitcher
+              collapsed={!exp}
+              canManage={Boolean(permsQ.data?.isAdmin ?? permsQ.data?.isSuperAdmin)}
+              holdingLogoUrl={brandLogo.url}
+            />
+          </div>
+          {!mobile && exp && (
+            <button
+              onClick={toggle}
+              className="grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-brand/10 hover:text-brand"
+              aria-label={collapsed ? "Pin sidebar open" : "Collapse sidebar"}
+              title={collapsed ? "Pin sidebar open" : "Collapse sidebar"}
             >
-              {group.label}
-            </div>
-            {group.label === "Finance" ? (
-              <div className="space-y-0.5">
-                {FINANCE_NAV.map((financeGroup) => {
-                  const open = openFinanceGroups.includes(financeGroup.label);
-                  const containsActive = financeGroup.items.some((item) => isRouteActive(item.to));
-                  const GroupIcon = financeGroup.icon;
-                  return (
-                    <div key={financeGroup.label}>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        onClick={() => toggleFinanceGroup(financeGroup.label)}
-                        aria-expanded={open}
-                        title={collapsed ? financeGroup.label : undefined}
-                        className={cn(
-                          "h-8 w-full justify-start gap-2 rounded-sm px-2 text-[13px] font-medium text-muted-foreground shadow-none hover:bg-muted hover:text-foreground",
-                          containsActive && "text-foreground",
-                          collapsed && "md:justify-center",
-                        )}
-                      >
-                        <GroupIcon className="size-4 shrink-0" strokeWidth={1.75} />
-                        <span className={cn("min-w-0 flex-1 truncate text-left", collapsed && "md:hidden")}>
-                          {financeGroup.label}
-                        </span>
-                        <ChevronRight
-                          className={cn(
-                            "size-3.5 shrink-0 transition-transform duration-150",
-                            open && "rotate-90",
-                            collapsed && "md:hidden",
+              {collapsed ? <Pin className="size-3.5" /> : <ChevronsLeft className="size-4" />}
+            </button>
+          )}
+          {!mobile && !exp && (
+            <button
+              onClick={toggle}
+              className="grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-muted"
+              aria-label="Expand sidebar"
+            >
+              <PinOff className="size-3.5" />
+            </button>
+          )}
+        </div>
+
+        <nav className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-2 py-2 [scrollbar-width:thin]">
+          {nav.map((group) => (
+            <div key={group.label} className="mb-3">
+              <div
+                className={cn(
+                  "flex items-center gap-2 px-2 pb-1 pt-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground/80",
+                  !exp && "justify-center px-0",
+                )}
+              >
+                {exp ? group.label : <span className="h-px w-5 bg-border" />}
+              </div>
+              {group.label === "Finance" ? (
+                <div className="space-y-0.5">
+                  {FINANCE_NAV.map((fg) => {
+                    const open = openFinanceGroups.includes(fg.label) && exp;
+                    const containsActive = fg.items.some((i) => isRouteActive(i.to));
+                    return (
+                      <div key={fg.label} onMouseEnter={() => exp && hoverOpenGroup(fg.label)} onMouseLeave={cancelGroupHover}>
+                        <button
+                          type="button"
+                          onClick={() => toggleFinanceGroup(fg.label)}
+                          aria-expanded={open}
+                          title={!exp ? fg.label : undefined}
+                          className={cn(itemClass(false), "w-full", containsActive && "text-foreground")}
+                        >
+                          <ActiveBar show={containsActive && !open} />
+                          <IconTile icon={fg.icon} tone={fg.tone} active={containsActive} />
+                          {exp && <span className="min-w-0 flex-1 truncate text-left">{fg.label}</span>}
+                          {exp && (
+                            <ChevronRight className={cn("size-3.5 shrink-0 transition-transform duration-200", open && "rotate-90")} />
                           )}
-                        />
-                      </Button>
-                      <div
-                        className={cn(
-                          "grid transition-[grid-template-rows] duration-150",
-                          open && !collapsed ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
-                        )}
-                      >
-                        <div className="overflow-hidden">
-                          <div className="ml-3 space-y-0.5 border-l border-border py-0.5 pl-2">
-                            {financeGroup.items.map((item) => {
-                              const active = isRouteActive(item.to);
-                              const Icon = item.icon;
-                              return (
-                                <Link
-                                  key={item.to}
-                                  to={item.to}
-                                  className={cn(
-                                    "flex min-h-8 items-center gap-2 rounded-sm px-2 py-1.5 text-[12.5px] font-medium transition-colors active:scale-[0.98]",
-                                    active
-                                      ? "bg-brand-50 text-brand"
-                                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                                  )}
-                                >
-                                  <Icon className="size-3.5 shrink-0" strokeWidth={1.75} />
-                                  <span className="truncate">{item.label}</span>
-                                </Link>
-                              );
-                            })}
+                        </button>
+                        <div className={cn("grid transition-[grid-template-rows,opacity] duration-200 ease-out", open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0")}>
+                          <div className="overflow-hidden">
+                            <div className="ml-[18px] space-y-0.5 border-l border-dashed border-border py-1 pl-2">
+                              {fg.items.map((item) => {
+                                const active = isRouteActive(item.to);
+                                return (
+                                  <Link key={item.to} to={item.to} className={cn(itemClass(active), "text-[12.5px]")}>
+                                    <IconTile icon={item.icon} tone={item.tone} active={active} small />
+                                    <span className="truncate">{item.label}</span>
+                                  </Link>
+                                );
+                              })}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : <div className="space-y-0.5">
-              {group.items.map((item) => {
-                const active = isRouteActive(item.to);
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.label + item.to}
-                    to={item.to}
-                    className={cn(
-                      "flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-[13px] font-medium transition-colors active:scale-[0.98]",
-                      active
-                        ? "bg-brand-50 text-brand"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                      collapsed && "md:justify-center",
-                    )}
-                  >
-                    <Icon className="size-4 shrink-0" strokeWidth={1.75} />
-                    <span className={cn("truncate", collapsed && "md:hidden")}>{item.label}</span>
-                  </Link>
-                );
-              })}
-            </div>}
-          </div>
-        ))}
-      </nav>
-
-    </aside>
-    </>
-  );
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="space-y-0.5">
+                  {group.items.map((item) => {
+                    const active = isRouteActive(item.to);
+                    return (
+                      <Link key={item.label + item.to} to={item.to} title={!exp ? item.label : undefined} className={itemClass(active)}>
+                        <ActiveBar show={active} />
+                        <IconTile icon={item.icon} tone={item.tone} active={active} brand={item.brand} />
+                        {exp && <span className="truncate">{item.label}</span>}
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ))}
+        </nav>
+      </>
+    );
+  }
 }

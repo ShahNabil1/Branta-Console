@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { User, Wallet, Shield, LogOut } from "lucide-react";
+import { User, Wallet, ShieldCheck, LogOut, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Popover,
@@ -69,9 +69,6 @@ export function ProfileMenu() {
     navigate({ to: "/login" });
   };
 
-  const itemClass =
-    "flex h-9 items-center gap-2 rounded-sm px-2 text-[13px] text-foreground transition-colors hover:bg-muted";
-
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -92,58 +89,48 @@ export function ProfileMenu() {
           )}
         </button>
       </PopoverTrigger>
-      <PopoverContent
-        align="end"
-        sideOffset={8}
-        className="w-64 rounded-md border border-border bg-card p-0 shadow-[var(--shadow-panel)]"
-      >
-        <div className="flex items-center gap-3 px-4 py-4">
-          <Avatar className="size-11 border border-border">
-            {profile?.avatarUrl && (
-              <AvatarImage src={profile.avatarUrl} alt="" />
-            )}
-            <AvatarFallback className="bg-muted text-[13px] font-semibold text-foreground">
-              {initials}
-            </AvatarFallback>
-          </Avatar>
-          <div className="min-w-0">
-            <div className="truncate text-[13px] font-medium text-foreground">
-              {display}
+      <PopoverContent align="end" sideOffset={10} className="w-72 overflow-hidden rounded-xl border border-border bg-card p-0 shadow-2xl shadow-foreground/10">
+        <div className="relative overflow-hidden px-4 py-4">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-brand via-amber-400 to-rose-500" />
+          <div className="pointer-events-none absolute -right-10 -top-12 size-32 rounded-full bg-brand/15 blur-2xl" />
+          <div className="relative flex items-center gap-3">
+            <div className="relative">
+              <Avatar className="size-12 ring-2 ring-brand/30 ring-offset-2 ring-offset-card">
+                {profile?.avatarUrl && <AvatarImage src={profile.avatarUrl} alt="" />}
+                <AvatarFallback className="bg-brand/10 text-[13px] font-semibold text-brand">{initials}</AvatarFallback>
+              </Avatar>
+              <span className="absolute bottom-0 right-0 size-3 rounded-full bg-emerald-500 ring-2 ring-card" title="Active now" />
             </div>
-            <div className="truncate font-mono text-[11px] text-muted-foreground">
-              {profile?.email ?? "—"}
+            <div className="min-w-0">
+              <div className="truncate text-[14px] font-semibold text-foreground">{display}</div>
+              <div className="truncate font-mono text-[11px] text-muted-foreground">{profile?.email ?? "—"}</div>
+              <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
+                <span className="size-1.5 rounded-full bg-emerald-500" /> Active now
+              </div>
             </div>
           </div>
         </div>
-        <div className="hairline-t px-2 py-2">
-          <Link to="/app/profile" onClick={() => setOpen(false)} className={itemClass}>
-            <User className="size-3.5 text-muted-foreground" strokeWidth={1.75} />
-            View profile
-          </Link>
-          <Link
-            to="/app/profile/finance"
-            onClick={() => setOpen(false)}
-            className={itemClass}
-          >
-            <Wallet className="size-3.5 text-muted-foreground" strokeWidth={1.75} />
-            My Wallet
-          </Link>
-          <Link
-            to="/app/profile/security"
-            onClick={() => setOpen(false)}
-            className={itemClass}
-          >
-            <Shield className="size-3.5 text-muted-foreground" strokeWidth={1.75} />
-            Security
-          </Link>
+        <div className="hairline-t space-y-0.5 p-1.5">
+          {([
+            { to: "/app/profile", label: "View profile", hint: "Personal details", Icon: User, cls: "bg-indigo-500/10 text-indigo-600" },
+            { to: "/app/profile/finance", label: "My Wallet", hint: "Balance & withdrawals", Icon: Wallet, cls: "bg-emerald-500/10 text-emerald-600" },
+            { to: "/app/profile/security", label: "Security", hint: "Password & 2FA", Icon: ShieldCheck, cls: "bg-amber-500/10 text-amber-600" },
+          ] as const).map(({ to, label, hint, Icon, cls }) => (
+            <Link key={to} to={to} onClick={() => setOpen(false)}
+              className="group flex items-center gap-3 rounded-lg px-2 py-2 transition-all hover:translate-x-0.5 hover:bg-muted/70">
+              <span className={`grid size-8 place-items-center rounded-lg transition-transform group-hover:scale-110 ${cls}`}><Icon className="size-4" strokeWidth={2} /></span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[13px] font-medium text-foreground">{label}</span>
+                <span className="block text-[11px] text-muted-foreground">{hint}</span>
+              </span>
+              <ChevronRight className="size-3.5 text-muted-foreground opacity-0 transition-all group-hover:opacity-100" />
+            </Link>
+          ))}
         </div>
         <div className="hairline-t p-2">
-          <button
-            type="button"
-            onClick={handleSignOut}
-            className="flex h-9 w-full items-center justify-center gap-2 rounded-sm bg-red-600 px-2 text-[13px] font-medium text-white transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2"
-          >
-            <LogOut className="size-3.5" strokeWidth={2} />
+          <button type="button" onClick={handleSignOut}
+            className="group flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-rose-500/30 bg-rose-500/5 px-2 text-[13px] font-medium text-rose-600 transition-all hover:border-rose-600 hover:bg-rose-600 hover:text-white hover:shadow-md hover:shadow-rose-600/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-600 focus-visible:ring-offset-2">
+            <LogOut className="size-3.5 transition-transform group-hover:-translate-x-0.5" strokeWidth={2} />
             Sign out
           </button>
         </div>
