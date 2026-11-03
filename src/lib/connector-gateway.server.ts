@@ -37,6 +37,8 @@ export interface GatewayCallOptions {
   >;
   body?: unknown;
   headers?: Record<string, string>;
+  /** Use this company's own connected Google account (Gmail/Calendar) when one exists. */
+  companyId?: string | null;
 }
 
 // Direct API mode: when the provider's own credentials are stored as project
@@ -76,7 +78,13 @@ async function getGoogleAccessToken(): Promise<string | null> {
 async function resolveTarget(
   connector: ConnectorId,
   path: string,
+  companyId?: string | null,
 ): Promise<{ base: string; auth: Record<string, string> }> {
+  if (companyId && (connector === "google_mail" || connector === "google_calendar")) {
+    const { companyGoogleToken } = await import("@/lib/company-google.server");
+    const t = await companyGoogleToken(companyId);
+    if (t) return { base: GOOGLE_BASE[connector]!, auth: { Authorization: `Bearer ${t}` } };
+  }
   if (connector === "telegram" && process.env.TELEGRAM_BOT_TOKEN) {
     return { base: `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}`, auth: {} };
   }
@@ -110,7 +118,7 @@ async function resolveTarget(
 export async function callGateway<T = unknown>(
   opts: GatewayCallOptions,
 ): Promise<T> {
-  const target = await resolveTarget(opts.connector, opts.path);
+  const target = await resolveTarget(opts.connector, opts.path, opts.companyId);
   const url = new URL(`${target.base}${opts.path}`);
   if (opts.query) {
     for (const [k, v] of Object.entries(opts.query)) {
