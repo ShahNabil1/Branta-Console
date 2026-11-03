@@ -22,7 +22,6 @@
 - Invoice PDFs measure wrapped rows, keep the signature with the final block and fixed letterhead margins; the BDT-only merchant QR is embedded from the cropped upload in a server-only brand module — why: no orphan signature pages, no network dependency.
 - Project teams live in project_members (one row per user, roles text[]; deactivate, never delete); permission checks use has_project_role/can_manage_project and project recipients resolve via project-recipients.server.ts — why: one employee can hold several roles and must get each alert exactly once.
 - Expense reports export only via src/lib/expense-report.server.ts (category-grouped, read-only) and category labels only via formatCategory() in src/lib/expense-categories.ts — why: DB keeps lowercase enum values; every screen/export must show the same capitalized label.
-- Expense exports filter payment status before totals: trimmed transaction reference = paid; otherwise recorded — why: match the selected status.
 - All sign-outs go through signOutWithLog() in src/lib/sign-out.ts and sessions silent >35 min are auto-ended with logout_reason — why: ended sessions must never show as active; only a read-only logout log remains.
 - Tracker SSO only via tracker-sso.functions.ts + /sso/tracker; server-only tracker.server.ts upserts one Tracker auth user per email; connected_apps revoke, never delete — why: one auditable path, no duplicates.
 - Tracker employee mirror runs through the shared employee-app sync hooks and src/lib/tracker.server.ts (auth user + profiles + default settings; inactive = is_active false + Tracker ban) — why: Console is the only employee source of truth and a Tracker outage must never block Console changes.
@@ -42,3 +41,4 @@
 - Company identity uses companies.logo_url/brand_kit, company-identity.ts and local pointers; PDF images embed server-only; no editor. Prefixes use companies.functions.ts + company_code_prefix() — why: consistent identity, offline PDFs, unique codes.
 - Company invoice branding resolves server-side via company-invoice-template.server.ts with immutable snapshots; no in-app editor — why: sisters never show Branta logos/contacts, issued documents never change. renderInvoicePdf forces PAYMENT INFORMATION (bank, note, QR) to Branta Tech for all companies — why: one group bank account.
 - WebMCP uses screen-owned hooks, shared actions and static telemetry — why: agents only use visible controls.
+- Company member/leader ids are profiles.id; membership predicates join profiles.user_id — why: auth.uid() comparison silently broke roles.

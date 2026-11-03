@@ -77,3 +77,5 @@
 - [x] Phase 4: handover dossier (checklist, final links, notes), linked invoice codes, completion + team Telegram alert; project leads can edit projects
 
 - [x] Reconnect 7 integrations in new workspace (Brevo, Gmail, Calendar, Docs, Sheets, Resend, Telegram)
+
+- [ ] Restyle employee profile tabs, logs and confirmation dialogs to match /app/companies (Previous/Next done)

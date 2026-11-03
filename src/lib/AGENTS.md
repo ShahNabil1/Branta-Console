@@ -1,0 +1,1 @@
+- Expense exports filter payment status before totals: trimmed transaction reference = paid; otherwise recorded — why: match the selected status.
