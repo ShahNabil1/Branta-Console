@@ -58,9 +58,6 @@ export function CompanySwitcher({ collapsed, canManage, holdingLogoUrl }: { coll
                 <span className="truncate text-[13px] font-bold">{active.name}</span>
               </span>
             )}
-            <span className="mt-0.5 block text-[9.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              {active.is_holding ? "Group · Holding" : "Company"}
-            </span>
           </span>
           {collapsed && (
             <span className="hidden md:block">
