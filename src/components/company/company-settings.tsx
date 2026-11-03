@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
-  Check, GripVertical, Hash, History, Loader2, Lock, Pencil, PieChart, Plus, Receipt, RotateCcw, Trash2, X, type LucideIcon,
+  Check, GripVertical, Hash, History, Loader2, Lock, Pencil, PieChart, Plus, RotateCcw, Trash2, X, type LucideIcon,
 } from "lucide-react";
 import { DndContext, PointerSensor, KeyboardSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -13,17 +13,16 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { updateCompanyPrefixes } from "@/lib/companies.functions";
 import {
-  BUCKET_KINDS, getCompanyDeductionConfig, getCompanyFundConfig, saveCompanyDeductionConfig, saveCompanyFundConfig,
+  getCompanyFundConfig, saveCompanyFundConfig,
 } from "@/lib/company-wallet.functions";
+import { percentTotal, splitInstallment } from "@/lib/company-fund-split";
 import { DEFAULT_PREFIX, PREFIX_KINDS, PREFIX_RE, type PrefixKind, type Prefixes } from "@/lib/brand-kit";
 import { DangerConfirm } from "./danger-confirm";
 
 type Co = { id: string; name: string; slug: string; is_holding: boolean; tagline?: string | null; code_prefixes?: unknown };
-type Kind = (typeof BUCKET_KINDS)[number];
 
-const SUBTABS: { id: "fund" | "deductions" | "prefixes"; label: string; icon: LucideIcon }[] = [
+const SUBTABS: { id: "fund" | "prefixes"; label: string; icon: LucideIcon }[] = [
   { id: "fund", label: "Fund Allocation", icon: PieChart },
-  { id: "deductions", label: "Direct Deductions", icon: Receipt },
   { id: "prefixes", label: "Code Prefixes", icon: Hash },
 ];
 
@@ -43,7 +42,7 @@ export function CompanySettings({ c, accent }: { c: Co; accent: string }) {
       <div key={sub} className="animate-in fade-in slide-in-from-bottom-1 duration-300">
         {sub === "prefixes" ? <PrefixPanel c={c} accent={accent} />
           : c.is_holding ? <HoldingNote />
-          : sub === "fund" ? <FundPanel c={c} accent={accent} /> : <DeductionPanel c={c} accent={accent} />}
+          : <FundPanel c={c} accent={accent} />}
       </div>
     </div>
   );
@@ -179,11 +178,22 @@ const slugKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "_").repla
 
 /* ---------- Fund Allocation ---------- */
 
-const KIND_LABEL: Record<Kind, string> = {
-  free: "Free balance", team_payable: "Team payable", officer_payable: "Officer payable", vat_reserve: "VAT reserve",
-  operation: "Operation fund", reserve: "Reserve", growth: "Growth", other: "Other",
-};
-type Bucket = { uid: string; key: string; label: string; kind: Kind; percent: number };
+type Bucket = { uid: string; key: string; label: string; mode: "percent" | "fixed"; percent: number; fixed_amount: number };
+
+function ModeToggle({ mode, onChange }: { mode: Bucket["mode"]; onChange: (m: Bucket["mode"]) => void }) {
+  const fixed = mode === "fixed";
+  return (
+    <button type="button" role="switch" aria-checked={fixed} aria-label="Fixed amount instead of percentage"
+      onClick={() => onChange(fixed ? "percent" : "fixed")}
+      className="relative inline-flex h-8 w-[76px] shrink-0 items-center rounded-full border border-border bg-muted/60 p-0.5 text-[11px] font-bold transition-colors hover:border-brand/40">
+      <span className={cn("absolute top-0.5 h-[26px] w-[36px] rounded-full bg-card shadow-sm ring-1 ring-border transition-transform duration-300 ease-out", fixed ? "translate-x-[36px]" : "translate-x-0")} />
+      <span className={cn("relative z-10 w-[36px] text-center transition-colors", !fixed ? "text-brand" : "text-muted-foreground")}>%</span>
+      <span className={cn("relative z-10 w-[36px] text-center transition-colors", fixed ? "text-brand" : "text-muted-foreground")}>৳</span>
+    </button>
+  );
+}
+
+const fmt = (n: number) => `৳${n.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 
 function FundPanel({ c, accent }: { c: Co; accent: string }) {
   const getFn = useServerFn(getCompanyFundConfig);
@@ -192,14 +202,15 @@ function FundPanel({ c, accent }: { c: Co; accent: string }) {
   const q = useQuery({ queryKey: ["company-fund", c.id], queryFn: () => getFn({ data: { companyId: c.id } }) });
   const toBuckets = (cfg: any): Bucket[] =>
     [...(cfg?.company_fund_buckets ?? [])].sort((a: any, b: any) => a.sort - b.sort)
-      .map((b: any) => ({ uid: b.id, key: b.key, label: b.label, kind: b.kind, percent: Number(b.percent) }));
+      .map((b: any) => ({ uid: b.id, key: b.key, label: b.label, mode: b.mode === "fixed" ? "fixed" : "percent", percent: Number(b.percent), fixed_amount: Number(b.fixed_amount ?? 0) }));
   const saved = useMemo(() => toBuckets(q.data?.active), [q.data]);
   const ed = useEditable<{ buckets: Bucket[]; note: string }>({ buckets: saved, note: "" });
   const [removing, setRemoving] = useState<Bucket | null>(null);
   const list = ed.value.buckets;
-  const total = Math.round(list.reduce((s, b) => s + (Number(b.percent) || 0), 0) * 1000) / 1000;
-  const frees = list.filter((b) => b.kind === "free").length;
-  const invalid = total !== 100 || frees !== 1 || list.some((b) => !b.label.trim());
+  const total = percentTotal(list);
+  const names = list.map((b) => b.label.trim().toLowerCase());
+  const dupes = names.some((n, i) => n && names.indexOf(n) !== i);
+  const invalid = total !== 100 || dupes || list.some((b) => !b.label.trim());
   const set = (u: string, patch: Partial<Bucket>) => ed.setForm((f) => ({ ...f, buckets: f.buckets.map((b) => (b.uid === u ? { ...b, ...patch } : b)) }));
 
   const persist = async (buckets: Bucket[], note: string, msg: string) => {
@@ -207,8 +218,8 @@ function FundPanel({ c, accent }: { c: Co; accent: string }) {
     try {
       const used = new Set<string>();
       const payload = buckets.map((b) => {
-        let k = b.key || slugKey(b.label); while (used.has(k)) k = `${k}_${used.size}`; used.add(k);
-        return { key: k, label: b.label.trim(), kind: b.kind, percent: Number(b.percent) };
+        let k = b.key || slugKey(b.label); const base = k; let n = 2; while (used.has(k)) k = `${base.slice(0, 36)}_${n++}`; used.add(k);
+        return { key: k, label: b.label.trim(), mode: b.mode, percent: b.mode === "percent" ? Number(b.percent) || 0 : 0, fixed_amount: b.mode === "fixed" ? Number(b.fixed_amount) || 0 : 0 };
       });
       await saveFn({ data: { companyId: c.id, buckets: payload, note: note.trim() || undefined } });
       await qc.invalidateQueries({ queryKey: ["company-fund", c.id] });
@@ -217,62 +228,65 @@ function FundPanel({ c, accent }: { c: Co; accent: string }) {
   };
 
   if (q.isLoading) return <Loader2 className="mx-auto my-10 size-5 animate-spin text-muted-foreground" />;
-  const versions: Ver[] = (q.data?.history ?? []).map((h: any) => ({
-    id: h.id, version: h.version, is_active: h.is_active, note: h.note, created_at: h.created_at,
-    count: h.company_fund_buckets?.length ?? 0, summary: `${h.company_fund_buckets?.length ?? 0} buckets`,
-  }));
+  const versions: Ver[] = (q.data?.history ?? []).map((h: any) => {
+    const bs = h.company_fund_buckets ?? [];
+    const fx = bs.filter((b: any) => b.mode === "fixed").length;
+    return { id: h.id, version: h.version, is_active: h.is_active, note: h.note, created_at: h.created_at, count: bs.length,
+      summary: `${bs.length} funds${fx ? ` · ${fx} fixed` : ""}` };
+  });
 
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
-      <div className="space-y-4 lg:col-span-2">
-        <Panel title="Fund allocation" sub="How each paid installment is split into this company's wallet. Each save becomes a new version." icon={PieChart} accent={accent}
+    <div className="grid gap-4 lg:grid-cols-5">
+      <div className="space-y-4 lg:col-span-3">
+        <Panel title="Fund allocation" sub="Name each fund freely. Fixed (৳) funds come off every paid installment first; percentage funds share the rest and must total 100%. Each save becomes a new version." icon={PieChart} accent={accent}
           editing={ed.editing} saving={ed.saving} dirty={ed.dirty} invalid={invalid}
           onEdit={ed.edit} onCancel={ed.cancel} onSave={() => persist(ed.form.buckets, ed.form.note, "Fund allocation saved as a new version.")}>
           <TotalBar total={total} accent={accent} />
           {!list.length && !ed.editing ? (
-            <p className="rounded-lg border border-dashed border-border p-6 text-center text-[12.5px] font-semibold text-muted-foreground">No allocation yet. Click Edit to add buckets.</p>
+            <p className="rounded-lg border border-dashed border-border p-6 text-center text-[12.5px] font-semibold text-muted-foreground">No funds yet. Click Edit to add one.</p>
           ) : (
             <SortList items={list} editing={ed.editing} onReorder={(b) => ed.setForm((f) => ({ ...f, buckets: b }))} render={(b) => ed.editing ? (
               <>
-                <Input value={b.label} onChange={(e) => set(b.uid, { label: e.target.value })} placeholder="Bucket name" className={cn(fieldCls, "min-w-0 flex-1")} />
-                <select value={b.kind} onChange={(e) => set(b.uid, { kind: e.target.value as Kind })} className={cn(fieldCls, "w-36 border px-2")}>
-                  {BUCKET_KINDS.map((k) => <option key={k} value={k}>{KIND_LABEL[k]}</option>)}
-                </select>
-                <div className="relative w-24">
-                  <Input type="number" min={0} max={100} step="0.5" value={b.percent} onChange={(e) => set(b.uid, { percent: Number(e.target.value) })} className={cn(fieldCls, "pr-6 text-right font-mono")} />
-                  <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[12px] font-bold text-muted-foreground">%</span>
+                <Input value={b.label} onChange={(e) => set(b.uid, { label: e.target.value })} placeholder="e.g. Employee Fund, Gateway fee, TDS" maxLength={60} className={cn(fieldCls, "min-w-0 flex-1")} />
+                <ModeToggle mode={b.mode} onChange={(m) => set(b.uid, { mode: m })} />
+                <div className="relative w-28">
+                  {b.mode === "fixed" && <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[12px] font-bold text-muted-foreground">৳</span>}
+                  <Input type="number" min={0} max={b.mode === "percent" ? 100 : undefined} step={b.mode === "percent" ? "0.5" : "1"}
+                    value={b.mode === "percent" ? b.percent : b.fixed_amount}
+                    onChange={(e) => set(b.uid, b.mode === "percent" ? { percent: Number(e.target.value) } : { fixed_amount: Number(e.target.value) })}
+                    className={cn(fieldCls, "text-right font-mono", b.mode === "percent" ? "pr-6" : "pl-6")} />
+                  {b.mode === "percent" && <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[12px] font-bold text-muted-foreground">%</span>}
                 </div>
                 <RemoveButton onClick={() => setRemoving(b)} />
               </>
             ) : (
               <>
-                <span className="size-2 shrink-0 rounded-full" style={{ background: b.kind === "free" ? accent : "var(--muted-foreground)" }} />
                 <span className="min-w-0 flex-1 truncate text-[13px] font-bold">{b.label}</span>
-                <span className="rounded-full bg-muted px-2 py-0.5 text-[10.5px] font-bold text-muted-foreground">{KIND_LABEL[b.kind]}</span>
-                <span className="w-16 text-right font-mono text-[13px] font-bold">{b.percent}%</span>
+                <span className="rounded-full bg-muted px-2 py-0.5 text-[10.5px] font-bold text-muted-foreground">{b.mode === "fixed" ? "Fixed" : "Percent"}</span>
+                <span className="w-24 text-right font-mono text-[13px] font-bold">{b.mode === "fixed" ? fmt(b.fixed_amount) : `${b.percent}%`}</span>
               </>
             )} />
           )}
           {ed.editing && (
             <div className="mt-3 space-y-3">
-              <Button size="sm" variant="outline" className="gap-1 text-[12px] font-bold" onClick={() => ed.setForm((f) => ({ ...f, buckets: [...f.buckets, { uid: uid(), key: "", label: "", kind: f.buckets.some((x) => x.kind === "free") ? "other" : "free", percent: 0 }] }))}>
-                <Plus className="size-3.5" /> Add bucket
+              <Button size="sm" variant="outline" className="gap-1 text-[12px] font-bold" onClick={() => ed.setForm((f) => ({ ...f, buckets: [...f.buckets, { uid: uid(), key: "", label: "", mode: "percent", percent: 0, fixed_amount: 0 }] }))}>
+                <Plus className="size-3.5" /> Add fund
               </Button>
-              {frees !== 1 && <p className="text-[12px] font-semibold text-destructive">Exactly one bucket must be a Free balance.</p>}
+              {dupes && <p className="text-[12px] font-semibold text-destructive">Two funds have the same name.</p>}
               <Input value={ed.form.note} onChange={(e) => ed.setForm((f) => ({ ...f, note: e.target.value }))} placeholder="What changed? (optional, shown in history)" className={fieldCls} maxLength={300} />
             </div>
           )}
         </Panel>
         <VersionHistory versions={versions} canRestore={!ed.editing} onRestore={(id) => {
           const h = (q.data?.history ?? []).find((x: any) => x.id === id);
-          persist(toBuckets(h), `Restored from v${h?.version}`, `Version ${h?.version} is active again (as a new version).`);
+          persist(toBuckets(h).map((b) => ({ ...b, uid: uid() })), `Restored from v${h?.version}`, `Version ${h?.version} is active again (as a new version).`);
         }} />
       </div>
-      <Preview buckets={list} accent={accent} />
-      <DangerConfirm open={!!removing} icon={Trash2} title="Remove this bucket?" subject={removing?.label || "Unnamed bucket"} confirmLabel="Remove"
+      <div className="lg:col-span-2"><Preview buckets={list} accent={accent} /></div>
+      <DangerConfirm open={!!removing} icon={Trash2} title="Remove this fund?" subject={removing?.label || "Unnamed fund"} confirmLabel="Remove"
         points={[
-          `${removing?.percent ?? 0}% will no longer go to this bucket.`,
-          "You must re-balance to exactly 100% before saving.",
+          removing?.mode === "fixed" ? `${fmt(removing?.fixed_amount ?? 0)} will no longer be set aside per installment.` : `${removing?.percent ?? 0}% will no longer go to this fund.`,
+          "Percentage funds must total exactly 100% before saving.",
           "Nothing changes until you press Save.",
           "Past wallet entries and older versions stay unchanged.",
         ]}
@@ -287,8 +301,8 @@ function TotalBar({ total, accent }: { total: number; accent: string }) {
   return (
     <div className="mb-4">
       <div className="mb-1.5 flex items-center justify-between text-[12px] font-bold">
-        <span className="text-muted-foreground">Total</span>
-        <span className={cn("font-mono", ok ? "text-status-converted" : "text-destructive")}>{total}% {ok ? "✓" : `· ${total > 100 ? "over" : "needs"} ${Math.abs(100 - total)}%`}</span>
+        <span className="text-muted-foreground">Percentage total</span>
+        <span className={cn("font-mono", ok ? "text-status-converted" : "text-destructive")}>{total}% {ok ? "✓" : `· ${total > 100 ? "over" : "needs"} ${Math.round(Math.abs(100 - total) * 1000) / 1000}%`}</span>
       </div>
       <div className="h-1.5 overflow-hidden rounded-full bg-muted">
         <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(total, 100)}%`, background: ok ? accent : "var(--destructive)" }} />
@@ -297,117 +311,73 @@ function TotalBar({ total, accent }: { total: number; accent: string }) {
   );
 }
 
+const PRESETS = [25000, 50000, 100000, 500000];
+
 function Preview({ buckets, accent }: { buckets: Bucket[]; accent: string }) {
   const [amt, setAmt] = useState(100000);
+  const { shares, fixedTotal, net } = splitInstallment(amt, buckets);
+  const rows = buckets.map((b, i) => ({ b, amount: shares[i].amount })).filter((r) => r.b.label.trim() || r.amount > 0);
+  const max = Math.max(1, ...rows.map((r) => r.amount));
   return (
-    <aside className="h-fit rounded-xl border border-border bg-card p-5 shadow-sm lg:sticky lg:top-4">
-      <h3 className="text-[13px] font-bold">Allocation preview</h3>
-      <p className="mt-0.5 text-[12px] font-semibold text-muted-foreground">Try an installment amount.</p>
-      <div className="relative mt-3">
-        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[13px] font-bold text-muted-foreground">৳</span>
-        <Input type="number" min={0} value={amt} onChange={(e) => setAmt(Number(e.target.value) || 0)} className={cn(fieldCls, "pl-7 font-mono")} />
+    <aside className="h-fit overflow-hidden rounded-xl border border-border bg-card shadow-sm lg:sticky lg:top-4">
+      <div className="border-b border-border p-5">
+        <h3 className="text-[13px] font-bold">Allocation preview</h3>
+        <p className="mt-0.5 text-[12px] font-semibold text-muted-foreground">How one paid installment would be split.</p>
+        <div className="relative mt-3">
+          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[15px] font-bold text-muted-foreground">৳</span>
+          <Input type="number" min={0} value={amt} onChange={(e) => setAmt(Math.max(0, Number(e.target.value) || 0))} className={cn(fieldCls, "h-11 pl-8 font-mono text-[16px] font-bold")} />
+        </div>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {PRESETS.map((p) => (
+            <button key={p} type="button" onClick={() => setAmt(p)}
+              className={cn("rounded-full border px-2.5 py-1 font-mono text-[11px] font-bold transition-all active:scale-95",
+                amt === p ? "border-brand/40 bg-brand/10 text-brand" : "border-border text-muted-foreground hover:border-brand/30 hover:text-foreground")}>
+              {p >= 100000 ? `${p / 100000}L` : `${p / 1000}K`}
+            </button>
+          ))}
+        </div>
       </div>
-      <ul className="mt-3 space-y-1.5">
-        {buckets.map((b) => (
-          <li key={b.uid} className="flex items-center justify-between gap-2 text-[12.5px] font-semibold">
-            <span className="flex min-w-0 items-center gap-2"><span className="size-1.5 rounded-full" style={{ background: b.kind === "free" ? accent : "var(--muted-foreground)" }} /><span className="truncate">{b.label || "Unnamed"}</span></span>
-            <span className="font-mono font-bold">৳{Math.round((amt * (Number(b.percent) || 0)) / 100).toLocaleString("en-IN")}</span>
-          </li>
-        ))}
-      </ul>
-    </aside>
-  );
-}
-
-/* ---------- Direct deductions ---------- */
-
-type Rule = { uid: string; label: string; mode: "percent" | "fixed"; value: number };
-
-function DeductionPanel({ c, accent }: { c: Co; accent: string }) {
-  const getFn = useServerFn(getCompanyDeductionConfig);
-  const saveFn = useServerFn(saveCompanyDeductionConfig);
-  const qc = useQueryClient();
-  const q = useQuery({ queryKey: ["company-deductions", c.id], queryFn: () => getFn({ data: { companyId: c.id } }) });
-  const toRules = (cfg: any): Rule[] =>
-    [...(cfg?.company_deduction_rules ?? [])].sort((a: any, b: any) => a.sort - b.sort)
-      .map((r: any) => ({ uid: r.id, label: r.label, mode: r.mode, value: Number(r.value) }));
-  const saved = useMemo(() => toRules(q.data?.active), [q.data]);
-  const ed = useEditable<{ rules: Rule[]; note: string }>({ rules: saved, note: "" });
-  const [removing, setRemoving] = useState<Rule | null>(null);
-  const list = ed.value.rules;
-  const pct = list.filter((r) => r.mode === "percent").reduce((s, r) => s + (Number(r.value) || 0), 0);
-  const invalid = pct > 100 || list.some((r) => !r.label.trim());
-  const set = (u: string, patch: Partial<Rule>) => ed.setForm((f) => ({ ...f, rules: f.rules.map((r) => (r.uid === u ? { ...r, ...patch } : r)) }));
-
-  const persist = async (rules: Rule[], note: string, msg: string) => {
-    ed.setSaving(true);
-    try {
-      await saveFn({ data: { companyId: c.id, rules: rules.map((r) => ({ label: r.label.trim(), mode: r.mode, value: Number(r.value) })), note: note.trim() || undefined } });
-      await qc.invalidateQueries({ queryKey: ["company-deductions", c.id] });
-      ed.done(); toast.success(msg);
-    } catch (e) { toast.error((e as Error).message); } finally { ed.setSaving(false); }
-  };
-
-  if (q.isLoading) return <Loader2 className="mx-auto my-10 size-5 animate-spin text-muted-foreground" />;
-  const versions: Ver[] = (q.data?.history ?? []).map((h: any) => ({
-    id: h.id, version: h.version, is_active: h.is_active, note: h.note, created_at: h.created_at,
-    count: h.company_deduction_rules?.length ?? 0, summary: `${h.company_deduction_rules?.length ?? 0} rules`,
-  }));
-
-  return (
-    <div className="max-w-3xl space-y-4">
-      <Panel title="Default direct deduction rules" sub="Taken off the received amount before fund allocation (e.g. gateway fee, commission, tax). Each save becomes a new version." icon={Receipt} accent={accent}
-        editing={ed.editing} saving={ed.saving} dirty={ed.dirty} invalid={invalid}
-        onEdit={ed.edit} onCancel={ed.cancel} onSave={() => persist(ed.form.rules, ed.form.note, "Deduction rules saved as a new version.")}>
-        {!list.length && !ed.editing ? (
-          <p className="rounded-lg border border-dashed border-border p-6 text-center text-[12.5px] font-semibold text-muted-foreground">No direct deductions. Click Edit to add a rule.</p>
+      {amt > 0 && rows.length > 0 && (
+        <div className="flex h-2 w-full bg-muted">
+          {rows.map(({ b, amount }, i) => amount > 0 && (
+            <div key={b.uid} title={`${b.label}: ${fmt(amount)}`} className="h-full transition-all duration-500"
+              style={{ width: `${(amount / amt) * 100}%`, background: accent, opacity: Math.max(0.25, 1 - i * 0.12) }} />
+          ))}
+        </div>
+      )}
+      <div className="space-y-3 p-5">
+        <div className="grid grid-cols-3 gap-2">
+          {[["Received", amt], ["Fixed off", fixedTotal], ["Shared by %", net]].map(([l, v]) => (
+            <div key={l as string} className="rounded-lg border border-border/70 bg-muted/20 px-2.5 py-2">
+              <div className="text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground">{l}</div>
+              <div className="mt-0.5 truncate font-mono text-[12.5px] font-bold">{fmt(v as number)}</div>
+            </div>
+          ))}
+        </div>
+        {!rows.length ? (
+          <p className="rounded-lg border border-dashed border-border p-5 text-center text-[12px] font-semibold text-muted-foreground">Add funds to see the split.</p>
         ) : (
-          <SortList items={list} editing={ed.editing} onReorder={(r) => ed.setForm((f) => ({ ...f, rules: r }))} render={(r) => ed.editing ? (
-            <>
-              <Input value={r.label} onChange={(e) => set(r.uid, { label: e.target.value })} placeholder="e.g. Gateway fee" className={cn(fieldCls, "min-w-0 flex-1")} />
-              <div className="inline-flex rounded-lg border border-border p-0.5">
-                {(["percent", "fixed"] as const).map((m) => (
-                  <button key={m} type="button" onClick={() => set(r.uid, { mode: m })}
-                    className={cn("rounded-md px-2.5 py-1 text-[11.5px] font-bold transition-colors", r.mode === m ? "bg-brand/10 text-brand" : "text-muted-foreground hover:text-foreground")}>
-                    {m === "percent" ? "%" : "৳ Fixed"}
-                  </button>
-                ))}
-              </div>
-              <Input type="number" min={0} step="0.5" value={r.value} onChange={(e) => set(r.uid, { value: Number(e.target.value) })} className={cn(fieldCls, "w-24 text-right font-mono")} />
-              <RemoveButton onClick={() => setRemoving(r)} />
-            </>
-          ) : (
-            <>
-              <span className="min-w-0 flex-1 truncate text-[13px] font-bold">{r.label}</span>
-              <span className="rounded-full bg-muted px-2 py-0.5 text-[10.5px] font-bold text-muted-foreground">{r.mode === "percent" ? "Percent" : "Fixed"}</span>
-              <span className="w-24 text-right font-mono text-[13px] font-bold">{r.mode === "percent" ? `${r.value}%` : `৳${r.value.toLocaleString("en-IN")}`}</span>
-            </>
-          )} />
+          <ul className="space-y-2">
+            {rows.map(({ b, amount }, i) => (
+              <li key={b.uid} style={{ animationDelay: `${i * 30}ms` }} className="group animate-in fade-in slide-in-from-right-1 fill-mode-both rounded-lg border border-transparent p-2 transition-colors hover:border-border hover:bg-muted/30">
+                <div className="flex items-center justify-between gap-2 text-[12.5px] font-semibold">
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className="size-2 shrink-0 rounded-full" style={{ background: accent, opacity: Math.max(0.25, 1 - i * 0.12) }} />
+                    <span className="truncate font-bold">{b.label || "Unnamed fund"}</span>
+                    <span className="shrink-0 rounded bg-muted px-1.5 py-px font-mono text-[10px] font-bold text-muted-foreground">{b.mode === "fixed" ? "fixed" : `${b.percent}%`}</span>
+                  </span>
+                  <span className="shrink-0 font-mono font-bold">{fmt(amount)}</span>
+                </div>
+                <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-muted">
+                  <div className="h-full rounded-full transition-all duration-500" style={{ width: `${(amount / max) * 100}%`, background: accent, opacity: 0.7 }} />
+                </div>
+              </li>
+            ))}
+          </ul>
         )}
-        {ed.editing && (
-          <div className="mt-3 space-y-3">
-            <Button size="sm" variant="outline" className="gap-1 text-[12px] font-bold" onClick={() => ed.setForm((f) => ({ ...f, rules: [...f.rules, { uid: uid(), label: "", mode: "percent", value: 0 }] }))}>
-              <Plus className="size-3.5" /> Add rule
-            </Button>
-            {pct > 100 && <p className="text-[12px] font-semibold text-destructive">Percentage rules cannot add up to more than 100%.</p>}
-            <Input value={ed.form.note} onChange={(e) => ed.setForm((f) => ({ ...f, note: e.target.value }))} placeholder="What changed? (optional, shown in history)" className={fieldCls} maxLength={300} />
-          </div>
-        )}
-      </Panel>
-      <VersionHistory versions={versions} canRestore={!ed.editing} onRestore={(id) => {
-        const h = (q.data?.history ?? []).find((x: any) => x.id === id);
-        persist(toRules(h), `Restored from v${h?.version}`, `Version ${h?.version} is active again (as a new version).`);
-      }} />
-      <DangerConfirm open={!!removing} icon={Trash2} title="Remove this deduction?" subject={removing?.label || "Unnamed rule"} confirmLabel="Remove"
-        points={[
-          "It will no longer be taken off new payments.",
-          "More of each payment goes into fund allocation.",
-          "Nothing changes until you press Save.",
-          "Past payments and older versions stay unchanged.",
-        ]}
-        onCancel={() => setRemoving(null)}
-        onConfirm={() => { ed.setForm((f) => ({ ...f, rules: f.rules.filter((x) => x.uid !== removing!.uid) })); setRemoving(null); }} />
-    </div>
+        {fixedTotal > 0 && amt > 0 && fixedTotal >= amt && <p className="text-[11.5px] font-semibold text-destructive">Fixed funds use up the whole installment.</p>}
+      </div>
+    </aside>
   );
 }
 
