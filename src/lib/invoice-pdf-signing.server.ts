@@ -97,7 +97,7 @@ export async function loadInvoicePdfPayload(adminClient: any, slug: string) {
   if (!inv) return null;
   const [{ data: cust }, { data: insts }, { data: items }, { data: settings }] = await Promise.all([
     adminClient.from("customers")
-      .select("name, customer_code, email, company, phone, address")
+      .select("name, customer_code, email, company, phone, address, company_id")
       .eq("id", inv.customer_id).maybeSingle(),
     adminClient.from("invoice_installments")
       .select("sequence, label, due_date, amount, status, paid_at")
@@ -107,12 +107,22 @@ export async function loadInvoicePdfPayload(adminClient: any, slug: string) {
       .eq("invoice_id", inv.id).order("sequence"),
     adminClient.from("invoice_pdf_settings").select("*").eq("id", "default").maybeSingle(),
   ]);
+  let invoiceSettings = inv.pdf_template_snapshot ?? settings ?? null;
+  // Legacy holding invoices keep their previous settings; a sister never inherits holding identity.
+  if (!inv.pdf_template_snapshot && cust?.company_id) {
+    const { data: co, error: coError } = await adminClient.from("companies").select("is_holding").eq("id", cust.company_id).single();
+    if (coError) throw new Error("Unable to resolve invoice company.");
+    if (!co.is_holding) {
+      const { companyInvoiceSettings } = await import("./company-invoice-template.server");
+      invoiceSettings = (await companyInvoiceSettings(adminClient, cust.company_id)).settings;
+    }
+  }
   return {
     invoice: inv,
     customer: cust ?? { name: null, customer_code: null, email: null, company: null, phone: null, address: null },
     installments: insts ?? [],
     lineItems: items ?? [],
-    settings: settings ?? null,
+    settings: invoiceSettings,
   };
 }
 

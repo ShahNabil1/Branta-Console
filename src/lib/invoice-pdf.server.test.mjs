@@ -29,6 +29,19 @@ const fixture = {
 };
 
 describe("invoice PDF pagination", () => {
+  test("Admakai renders its own template and font without Branta QR or logos", async () => {
+    const settings = { ...fixture.settings, use_branta_assets: false, company_name: "Admakai",
+      company_email: "info@admakai.com", company_phone: null, company_website: "admakai.com",
+      payment_info: "Account Name: Admakai", payment_note: "Pay to this account.", payment_intro: "Bank transfer",
+      signature_name: "Admakai - Finance", signature_title: "Authorized Signature",
+      logo_url: null, logo_inverse_url: null, font_family: "TimesRoman", signature_align: "left" };
+    const bytes = await renderInvoicePdf({ ...fixture, settings });
+    const doc = await PDFDocument.load(bytes);
+    expect(doc.getPageCount()).toBe(1);
+    const images = doc.getPages()[0].node.Resources().lookupMaybe((await import("pdf-lib")).PDFName.of("XObject"), (await import("pdf-lib")).PDFDict);
+    expect(images?.keys().length ?? 0).toBe(0);
+    if (process.env.INVOICE_PDF_QA_DIR) await Bun.write(`${process.env.INVOICE_PDF_QA_DIR}/admakai.pdf`, bytes);
+  });
   for (const mode of ["digital", "print"]) {
     test(`BT-32 single-item invoice stays on one page (${mode})`, async () => {
       const bytes = await renderInvoicePdf(fixture, { mode });

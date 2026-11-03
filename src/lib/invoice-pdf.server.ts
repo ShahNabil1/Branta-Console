@@ -16,14 +16,21 @@ import { BANGLA_QR_MERCHANT_ID, BANGLA_QR_PNG_B64 } from "@/lib/brand/bangla-qr.
 export type { GeneratedBy };
 
 /** Header band: brand logo only, plus the orange rule. No marketing copy. */
-function drawBrandHeader(p: PDFPage, logo: PDFImage | null, brand: RGB) {
+function drawBrandHeader(p: PDFPage, logo: PDFImage | null, brand: RGB, settings?: PdfSettings, font?: PDFFont, background?: RGB) {
   const bandH = 92;
   const bandY = PAGE_H - bandH;
+  if (background) p.drawRectangle({ x: 0, y: bandY, width: PAGE_W, height: bandH, color: background });
   p.drawRectangle({ x: 0, y: bandY - 6, width: PAGE_W, height: 4, color: brand });
   if (logo) {
-    const h = 46;
-    const w = (logo.width / logo.height) * h;
-    p.drawImage(logo, { x: SIDE, y: bandY + (bandH - h) / 2, width: w, height: h });
+    const scale = Math.min((settings?.logo_height ?? 46) / logo.height, (PAGE_W - SIDE * 2) / logo.width);
+    const h = logo.height * scale;
+    const w = logo.width * scale;
+    const x = settings?.logo_align === "center" ? (PAGE_W - w) / 2 : settings?.logo_align === "right" ? PAGE_W - SIDE - w : SIDE;
+    p.drawImage(logo, { x, y: bandY + (bandH - h) / 2, width: w, height: h });
+  } else if (settings && font) {
+    const name = safeText(settings.company_name);
+    const size = Math.min(20, 20 * (PAGE_W - SIDE * 2) / Math.max(1, font.widthOfTextAtSize(name, 20)));
+    p.drawText(name, { x: SIDE, y: bandY + 36, size, font, color: brand });
   }
 }
 
@@ -40,6 +47,9 @@ function drawBrandFooter(
     email?: string | null;
     website?: string | null;
     generatedBy?: GeneratedBy | null;
+    useBrantaAssets?: boolean;
+    footerText?: string;
+    contacts?: boolean;
   },
 ) {
   const fH = 20;
@@ -54,9 +64,10 @@ function drawBrandFooter(
   }
 
   const segs = [
-    `Hotline: ${opts.phone?.trim() || "09644228678"}`,
-    `Email: ${brandEmailList(opts.email)}`,
-    opts.website ? `Web: ${opts.website.replace(/^https?:\/\//, "")}` : null,
+    opts.contacts === false ? null : opts.phone?.trim() || opts.useBrantaAssets !== false ? `Hotline: ${opts.phone?.trim() || "09644228678"}` : null,
+    opts.contacts === false ? null : opts.useBrantaAssets !== false ? `Email: ${brandEmailList(opts.email)}` : opts.email ? `Email: ${opts.email}` : null,
+    opts.contacts !== false && opts.website ? `Web: ${opts.website.replace(/^https?:\/\//, "")}` : null,
+    opts.footerText || null,
   ].filter(Boolean) as string[];
   // Sequential, centered layout: shrink until the full contact strip fits.
   const area = PAGE_W - SIDE - left;
@@ -71,7 +82,7 @@ function drawBrandFooter(
   let x = left + Math.max(0, (area - total) / 2);
   segs.forEach((t, i) => {
     p.drawText(safeText(t), { x, y: 30, size, font: opts.font, color: opts.white });
-    x += ws[i]! + gap;
+    x += (ws[i] ?? 0) + gap;
   });
 
   const line = safeText(generatedByLine(opts.generatedBy));
@@ -146,6 +157,16 @@ export interface PdfSettings {
   signature_title: string | null;
   payment_info?: string | null;
   payment_note?: string | null;
+  payment_intro?: string | null;
+  logo_inverse_url?: string | null;
+  use_branta_assets?: boolean;
+  logo_height?: number;
+  logo_align?: "left" | "center" | "right";
+  signature_align?: "left" | "right";
+  font_family?: "Helvetica" | "TimesRoman" | "Courier";
+  default_terms?: string;
+  default_notes?: string;
+  labels?: Partial<Record<string, string>>;
   sections: {
     description?: boolean;
     installments?: boolean;
@@ -154,6 +175,8 @@ export interface PdfSettings {
     footer?: boolean;
     payment_info?: boolean;
     terms?: boolean;
+    signature?: boolean;
+    contacts?: boolean;
   };
 }
 
@@ -250,6 +273,8 @@ export function amountInWords(amount: number, currency: string): string {
 
 async function tryFetchImage(url: string): Promise<Uint8Array | null> {
   try {
+    const data = /^data:image\/(?:png|jpeg);base64,([a-z0-9+/=]+)$/i.exec(url);
+    if (data?.[1]) return Uint8Array.from(atob(data[1]), c => c.charCodeAt(0));
     const res = await fetch(url);
     if (!res.ok) return null;
     return new Uint8Array(await res.arrayBuffer());
@@ -272,13 +297,20 @@ async function loadBrandLogos(
     const buf = await tryFetchImage(s.logo_url);
     if (buf) {
       try {
-        const isJpg = /\.jpe?g($|\?)/i.test(s.logo_url);
+        const isJpg = /\.jpe?g($|\?)/i.test(s.logo_url) || s.logo_url.startsWith("data:image/jpeg;");
         logo = isJpg ? await pdf.embedJpg(buf) : await pdf.embedPng(buf);
       } catch { /* ignore */ }
     }
   }
-  if (!logo) logo = await embedBrandLogo(pdf, "color");
-  const whiteLogo = await embedBrandLogo(pdf, "white");
+  if (!logo && s.use_branta_assets !== false) logo = await embedBrandLogo(pdf, "color");
+  let whiteLogo: PDFImage | null = null;
+  if (s.logo_inverse_url) {
+    const buf = await tryFetchImage(s.logo_inverse_url);
+    if (buf) {
+      try { whiteLogo = s.logo_inverse_url.startsWith("data:image/jpeg;") ? await pdf.embedJpg(buf) : await pdf.embedPng(buf); } catch { /* company name/contact fallback, never another logo */ }
+    }
+  }
+  if (!whiteLogo && s.use_branta_assets !== false) whiteLogo = await embedBrandLogo(pdf, "white");
   return { logo, whiteLogo };
 }
 
@@ -298,8 +330,8 @@ export async function renderInvoicePdf(
   const white = hex(rgb, "#FFFFFF");
 
   const pdf: PDFDocument = await PDoc.create();
-  const font = await pdf.embedFont(StandardFonts.Helvetica);
-  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  const font = await pdf.embedFont(s.font_family === "TimesRoman" ? StandardFonts.TimesRoman : s.font_family === "Courier" ? StandardFonts.Courier : StandardFonts.Helvetica);
+  const bold = await pdf.embedFont(s.font_family === "TimesRoman" ? StandardFonts.TimesRomanBold : s.font_family === "Courier" ? StandardFonts.CourierBold : StandardFonts.HelveticaBold);
   const mono = await pdf.embedFont(StandardFonts.Courier);
   const monoBold = await pdf.embedFont(StandardFonts.CourierBold);
 
@@ -314,9 +346,10 @@ export async function renderInvoicePdf(
   let y = CONTENT_TOP;
 
   const drawLetterhead = (p: PDFPage) => {
+    p.drawRectangle({ x: 0, y: 0, width: PAGE_W, height: PAGE_H, color: hex(rgb, s.page_bg_color) });
     if (mode !== "digital") return;
-    drawBrandHeader(p, logo, brand);
-    drawBrandFooter(p, {
+    drawBrandHeader(p, logo, brand, s, bold, hex(rgb, s.header_bg_color));
+    if (s.sections.footer !== false) drawBrandFooter(p, {
       logo: whiteLogo,
       font,
       brand,
@@ -326,6 +359,9 @@ export async function renderInvoicePdf(
       email: s.company_email,
       website: s.company_website,
       generatedBy: opts.generatedBy,
+      useBrantaAssets: s.use_branta_assets,
+      footerText: s.footer_text,
+      contacts: s.sections.contacts,
     });
   };
 
@@ -362,7 +398,7 @@ export async function renderInvoicePdf(
     return out;
   };
 
-  const SIGNATURE_H = 60;
+  const SIGNATURE_H = s.sections.signature === false ? 0 : 60;
   const paragraph = (t: string, size = 9.5, f: PDFFont = font, color: RGB = muted, lead = 12.5, reserveSignature = false) => {
     const lines = wrap(t, f, size, CONTENT_W);
     for (const [i, ln] of lines.entries()) {
@@ -382,9 +418,10 @@ export async function renderInvoicePdf(
     page.drawLine({ start: { x: SIDE, y }, end: { x: PAGE_W - SIDE, y }, thickness: 0.6, color: hair });
     y -= 6;
   };
+  const label = (key: string, fallback: string) => s.labels?.[key] || fallback;
 
   /* ---------- title block ---------- */
-  const inv = data.invoice;
+  const inv = { ...data.invoice, terms: data.invoice.terms || s.default_terms || null, notes: data.invoice.notes || s.default_notes || null };
   const cur = inv.currency || "BDT";
 
   draw(s.header_text || "INVOICE", SIDE, y - 22, 24, bold, brand);
@@ -429,8 +466,8 @@ export async function renderInvoicePdf(
       draw(first ?? "—", valX, ry, 8.5, bold, text);
     });
   };
-  drawInfoCol(SIDE, leftLines, "BILL TO");
-  drawInfoCol(SIDE + colW + 16, rightLines, "INVOICE DETAILS");
+  drawInfoCol(SIDE, leftLines, label("bill_to", "BILL TO"));
+  drawInfoCol(SIDE + colW + 16, rightLines, label("details", "INVOICE DETAILS"));
   y = boxTop - boxH - 16;
 
   /* ---------- project title / description ---------- */
@@ -454,7 +491,7 @@ export async function renderInvoicePdf(
   const paid = Number(inv.paid_amount ?? 0);
   const balance = Math.max(0, +(grand - paid).toFixed(2));
 
-  sectionTitle("Service / Project Description");
+  sectionTitle(label("services", "Service / Project Description"));
 
   const cSeq = SIDE + 8;
   const cDesc = SIDE + 30;
@@ -466,12 +503,14 @@ export async function renderInvoicePdf(
     ensure(24);
     page.drawRectangle({ x: SIDE, y: y - 18, width: CONTENT_W, height: 18, color: brand });
     draw("#", cSeq, y - 12.5, 8, bold, white);
-    draw("DESCRIPTION", cDesc, y - 12.5, 8, bold, white);
-    draw("QTY", cQty, y - 12.5, 8, bold, white);
-    const uw = bold.widthOfTextAtSize("UNIT PRICE", 8);
-    draw("UNIT PRICE", cUnitRight - uw, y - 12.5, 8, bold, white);
-    const w = bold.widthOfTextAtSize("AMOUNT", 8);
-    draw("AMOUNT", cAmt - w, y - 12.5, 8, bold, white);
+    draw(label("description", "DESCRIPTION"), cDesc, y - 12.5, 8, bold, white);
+    draw(label("quantity", "QTY"), cQty, y - 12.5, 8, bold, white);
+    const unitLabel = label("unit_price", "UNIT PRICE");
+    const uw = bold.widthOfTextAtSize(unitLabel, 8);
+    draw(unitLabel, cUnitRight - uw, y - 12.5, 8, bold, white);
+    const amountLabel = label("amount", "AMOUNT");
+    const w = bold.widthOfTextAtSize(amountLabel, 8);
+    draw(amountLabel, cAmt - w, y - 12.5, 8, bold, white);
     y -= 18;
   };
   tableHeader();
@@ -494,12 +533,12 @@ export async function renderInvoicePdf(
 
   /* ---------- totals ---------- */
   const totalRows: Array<[string, string, boolean]> = [
-    ["Subtotal", money(subtotal, cur), false],
+    [label("subtotal", "Subtotal"), money(subtotal, cur), false],
     ...(discount > 0 ? ([["Discount", `- ${money(discount, cur)}`, false]] as Array<[string, string, boolean]>) : []),
     ...(taxPct > 0 ? ([[`Tax / VAT (${taxPct}%)`, money(tax, cur), false]] as Array<[string, string, boolean]>) : []),
-    ["Total Payable", money(grand, cur), true],
+    [label("total", "Total Payable"), money(grand, cur), true],
     ...(paid > 0 ? ([["Paid", money(paid, cur), false]] as Array<[string, string, boolean]>) : []),
-    ["Balance Due", money(balance, cur), true],
+    [label("balance", "Balance Due"), money(balance, cur), true],
   ];
   const totalsH = 14 + totalRows.length * 16;
   const words = amountInWords(grand, cur);
@@ -534,7 +573,7 @@ export async function renderInvoicePdf(
 
   /* ---------- installment schedule ---------- */
   if (s.sections.installments !== false && data.installments.length > 1) {
-    sectionTitle("Payment Schedule");
+    sectionTitle(label("schedule", "Payment Schedule"));
     ensure(18);
     draw("#", cSeq, y - 10, 8, bold, muted);
     draw("MILESTONE", cDesc, y - 10, 8, bold, muted);
@@ -562,10 +601,10 @@ export async function renderInvoicePdf(
   const hasTerms = s.sections.terms !== false && Boolean(inv.terms);
   const hasNotes = s.sections.notes !== false && Boolean(inv.notes);
   if (s.sections.payment_info !== false) {
-    const infoText = s.payment_info || DEFAULT_PAYMENT_INFO;
-    const noteText = s.payment_note || DEFAULT_PAYMENT_NOTE;
+    const infoText = s.payment_info ?? (s.use_branta_assets !== false ? DEFAULT_PAYMENT_INFO : "");
+    const noteText = s.payment_note ?? (s.use_branta_assets !== false ? DEFAULT_PAYMENT_NOTE : "");
     const intro =
-      "Pay via bank transfer using the details below, or scan the Bangla QR with bKash, Nagad, Rocket or any mobile banking / bank app. After payment, kindly share the receipt or confirmation for verification.";
+      s.payment_intro ?? (s.use_branta_assets !== false ? "Pay via bank transfer using the details below, or scan the Bangla QR with bKash, Nagad, Rocket or any mobile banking / bank app. After payment, kindly share the receipt or confirmation for verification." : "");
     const introLines = wrap(intro, font, 8.5, CONTENT_W - 28);
     // Legacy saved settings may still carry the retired bKash/Nagad wallet lines — never render them.
     const infoLines = infoText
@@ -575,7 +614,7 @@ export async function renderInvoicePdf(
       .filter((l) => !/^(bkash|bikash|nagad|rocket)\s*:/i.test(l));
     const noteLines = wrap(noteText, font, 8, CONTENT_W - 28);
     // Local-currency merchant QR only; never imply it accepts foreign currency.
-    const qrImage = cur === "BDT"
+    const qrImage = cur === "BDT" && s.use_branta_assets !== false
       ? await pdf.embedPng(Uint8Array.from(atob(BANGLA_QR_PNG_B64), (c) => c.charCodeAt(0)))
       : null;
     const qrW = 104;
@@ -607,6 +646,9 @@ export async function renderInvoicePdf(
     const detailH = detailRows.reduce((h, row) => h + Math.max(...row.map((cell) => cell.lines.length)) * detailLead, 0);
     const paymentBodyH = qrImage ? Math.max(detailH + 52, qrW + 16) : detailH;
     const blockH = 24 + introLines.length * 10 + 4 + paymentBodyH + 8 + noteLines.length * 9 + 4;
+    if (blockH + SIGNATURE_H + 14 > CONTENT_TOP - CONTENT_BOTTOM) {
+      throw new Error("Payment information is too long for one page. Shorten the bank details or payment note.");
+    }
     // Reserve the page-number band as well as the signature's writing space.
     ensure(blockH + 14 + (!hasTerms && !hasNotes ? SIGNATURE_H : 0));
 
@@ -614,7 +656,7 @@ export async function renderInvoicePdf(
     page.drawRectangle({ x: SIDE, y: top - blockH, width: CONTENT_W, height: blockH, color: panel, borderColor: hair, borderWidth: 0.5 });
     page.drawRectangle({ x: SIDE, y: top - blockH, width: 3, height: blockH, color: brand });
     let iy = top - 15;
-    draw("PAYMENT INFORMATION", SIDE + 14, iy, 9, bold, brand);
+    draw(label("payment", "PAYMENT INFORMATION"), SIDE + 14, iy, 9, bold, brand);
     iy -= 13;
     introLines.forEach((ln) => { draw(ln, SIDE + 14, iy, 8.5, font, muted); iy -= 10; });
     iy -= 4;
@@ -659,8 +701,8 @@ export async function renderInvoicePdf(
   if (pairedFinal) {
     const finalH = 22 + Math.max(shortTerms.length, shortNotes.length) * 11;
     ensure(finalH + SIGNATURE_H);
-    draw("TERMS AND CONDITIONS", SIDE, y - 11, 8.5, bold, brand);
-    draw("NOTES", SIDE + finalColW + 20, y - 11, 8.5, bold, brand);
+    draw(label("terms", "Terms and Conditions").toUpperCase(), SIDE, y - 11, 8.5, bold, brand);
+    draw(label("notes", "Notes").toUpperCase(), SIDE + finalColW + 20, y - 11, 8.5, bold, brand);
     shortTerms.forEach((ln, i) => draw(ln, SIDE, y - 25 - i * 11, 8.5, font, muted));
     shortNotes.forEach((ln, i) => draw(ln, SIDE + finalColW + 20, y - 25 - i * 11, 8.5, font, muted));
     y -= finalH;
@@ -668,26 +710,28 @@ export async function renderInvoicePdf(
 
   /* ---------- terms ---------- */
   if (!pairedFinal && s.sections.terms !== false && inv.terms) {
-    sectionTitle("Terms and Conditions");
+    sectionTitle(label("terms", "Terms and Conditions"));
     paragraph(inv.terms, 8.5, font, muted, 11, !hasNotes);
   }
 
   /* ---------- notes ---------- */
   if (!pairedFinal && s.sections.notes !== false && inv.notes) {
-    sectionTitle("Notes");
+    sectionTitle(label("notes", "Notes"));
     paragraph(inv.notes, 8.5, font, muted, 11, true);
   }
 
   /* ---------- signature ---------- */
+  if (s.sections.signature !== false) {
   ensure(SIGNATURE_H);
   y -= 24;
-  const sigX = PAGE_W - SIDE - 200;
-  page.drawLine({ start: { x: sigX, y }, end: { x: PAGE_W - SIDE, y }, thickness: 0.7, color: hair });
+  const sigX = s.signature_align === "left" ? SIDE : PAGE_W - SIDE - 200;
+  page.drawLine({ start: { x: sigX, y }, end: { x: sigX + 200, y }, thickness: 0.7, color: hair });
   y -= 12;
   draw(s.signature_name || "Authorized Signature", sigX, y, 9.5, bold, text);
   y -= 11;
   draw(s.signature_title || "Authorized Signature", sigX, y, 8.5, font, muted);
   y -= 16;
+  }
 
   /* ---------- page numbers (inside content box) ---------- */
   const pages = pdf.getPages();

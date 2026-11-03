@@ -248,6 +248,7 @@ export async function internalSendInvoiceEmail(opts: {
     invoice: payload.invoice,
     customer: payload.customer,
     installments: payload.installments,
+    lineItems: payload.lineItems,
     settings: pdfSettings,
   });
   const pdfBase64 = Buffer.from(pdfBytes).toString("base64");
