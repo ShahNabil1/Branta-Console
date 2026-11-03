@@ -166,6 +166,29 @@ export const sendInboxReply = createServerFn({ method: "POST" })
         messageId = res.messageId;
       }
 
+      // Persist the sent reply so the thread shows it even though it was
+      // delivered via Resend/Brevo (not Gmail, so it never lands in Sent).
+      {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const admin = supabaseAdmin as unknown as { from: (t: string) => any }; // eslint-disable-line @typescript-eslint/no-explicit-any
+        const { error: saveErr } = await admin.from("inbox_replies").insert({
+          company_id: mb.companyId,
+          gmail_thread_id: data.threadId,
+          provider,
+          provider_message_id: messageId || null,
+          from_email: fromEmail,
+          from_name: fromName,
+          to_emails: data.to,
+          cc_emails: data.cc,
+          subject: data.subject,
+          body_text: text,
+          body_html: html,
+          lead_id: data.leadId ?? null,
+          sent_by: context.userId,
+        });
+        if (saveErr) console.error("[sendInboxReply] save failed:", saveErr.message);
+      }
+
       // If linked to a lead, log the outbound activity.
       if (data.leadId) {
         await context.supabase.from("lead_activities").insert({
