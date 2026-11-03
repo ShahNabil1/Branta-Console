@@ -399,10 +399,14 @@ async function logInvoicePayoutLocks(supabase: any, invoiceId: string, actorId: 
 
 export const listInvoices = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<InvoiceRow[]> => {
+  .inputValidator((d: unknown) => z.object({ workspace: z.string().regex(/^[a-z0-9-]{1,80}$/).nullable().optional() }).parse(d ?? {}))
+  .handler(async ({ data: input, context }): Promise<InvoiceRow[]> => {
+    // Only the selected company's invoices (Branta Tech = holding company).
+    const co = await (await import("@/lib/lead-company.server")).resolveLeadCompany(context.supabase, context.userId, input.workspace);
     const { data, error } = await context.supabase
       .from("invoices")
       .select("*")
+      .eq("company_id" as never, co.id as never)
       .is("archived_at" as never, null)
       .order("created_at", { ascending: false })
       .limit(500);
@@ -429,12 +433,13 @@ export const listInvoices = createServerFn({ method: "GET" })
 
 export const getInvoiceBySlug = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { slug: string }) =>
-    z.object({ slug: z.string().trim().min(1) }).parse(data),
+  .inputValidator((data: { slug: string; workspace?: string | null }) =>
+    z.object({ slug: z.string().trim().min(1), workspace: z.string().regex(/^[a-z0-9-]{1,80}$/).nullable().optional() }).parse(data),
   )
   .handler(async ({ data, context }) => {
+    const co = await (await import("@/lib/lead-company.server")).resolveLeadCompany(context.supabase, context.userId, data.workspace);
     const { data: inv, error } = await context.supabase
-      .from("invoices").select("*").eq("slug", data.slug).maybeSingle();
+      .from("invoices").select("*").eq("slug", data.slug).eq("company_id" as never, co.id as never).maybeSingle();
     if (error) throw dbError(error);
     if (!inv) throw new Error("Invoice not found");
     const invoice = inv as unknown as InvoiceRow;
@@ -1514,11 +1519,14 @@ export interface ExpenseAttachmentRow {
 
 export const listExpenses = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<ExpenseRow[]> => {
+  .inputValidator((d: unknown) => z.object({ workspace: z.string().regex(/^[a-z0-9-]{1,80}$/).nullable().optional() }).parse(d ?? {}))
+  .handler(async ({ data: input, context }): Promise<ExpenseRow[]> => {
     await ensureFinanceAdmin(context.supabase as never, context.userId);
+    const co = await (await import("@/lib/lead-company.server")).resolveLeadCompany(context.supabase, context.userId, input.workspace);
     const { data, error } = await context.supabase
       .from("expenses")
       .select("*")
+      .eq("company_id" as never, co.id as never)
       .is("deleted_at", null)
       .order("spent_on", { ascending: false })
       .limit(1000);
@@ -1575,6 +1583,9 @@ const ExpenseAttachmentIn = z.object({
 });
 
 const ExpenseIn = z.object({
+  workspace: z.string().regex(/^[a-z0-9-]{1,80}$/).nullable().optional(),
+  /** Sister companies only: wallet fund key to pay from (same transaction). */
+  wallet_bucket: z.string().regex(/^[a-z0-9_]{1,40}$/).nullable().optional(),
   paying_fund_id: z.string().uuid().nullable().optional(),
   fund_exception_reason: z.string().nullable().optional(),
   idempotency_key: z.string().uuid().nullable().optional(),
@@ -1666,9 +1677,10 @@ export const createExpense = createServerFn({ method: "POST" })
     // One DB transaction: expense + line items + receipt rows + fund debit + audit.
     // Receipts are already uploaded to storage (staged); only their rows are written here.
     // idempotency_key makes double-click / retries return the same expense.
-    const { idempotency_key, ...expenseFields } = base as typeof base & { idempotency_key?: string | null };
+    const { idempotency_key, workspace, wallet_bucket, ...expenseFields } = base as typeof base & { idempotency_key?: string | null };
+    const co = await (await import("@/lib/lead-company.server")).resolveLeadCompany(context.supabase, context.userId, workspace);
     const { data: newId, error: rpcError } = await (context.supabase as any).rpc("create_expense_atomic", {
-      _expense: expenseFields,
+      _expense: { ...expenseFields, company_id: co.id, wallet_bucket: co.isHolding ? null : wallet_bucket ?? null },
       _items: items ?? [],
       _attachments: attachments ?? [],
       _fund: paying_fund_id ?? null,
