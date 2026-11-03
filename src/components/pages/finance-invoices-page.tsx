@@ -1,3 +1,4 @@
+import { useActiveCompany } from "@/components/company/company-switcher";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
@@ -27,10 +28,11 @@ function fmt(n: number, cur: string) {
 }
 
 export function InvoicesPage() {
+  const workspace = useActiveCompany().active?.slug ?? null;
   const list = useServerFn(listInvoices);
   const q = useQuery({
-    queryKey: ["finance", "invoices"],
-    queryFn: () => list(),
+    queryKey: ["finance", "invoices", workspace],
+    queryFn: () => list({ data: { workspace } }),
     staleTime: 15_000,
   });
   const [search, setSearch] = useState("");

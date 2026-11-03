@@ -1,3 +1,4 @@
+import { useActiveCompany } from "@/components/company/company-switcher";
 import { useParams, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -81,6 +82,7 @@ type UpdateInvoicePayload = {
 };
 
 export function InvoiceDetail() {
+  const workspace = useActiveCompany().active?.slug ?? null;
   const { slug } = useParams({ strict: false }) as { slug: string };
   const navigate = useNavigate();
   const confirm = useConfirm();
@@ -99,8 +101,8 @@ export function InvoiceDetail() {
   const getPdfUrl = useServerFn(getSignedInvoicePdfUrl);
 
   const q = useQuery({
-    queryKey: ["finance", "invoice", slug],
-    queryFn: () => getFn({ data: { slug } }),
+    queryKey: ["finance", "invoice", slug, workspace],
+    queryFn: () => getFn({ data: { slug, workspace } }),
     staleTime: 15_000,
   });
 
@@ -122,7 +124,7 @@ export function InvoiceDetail() {
     staleTime: 5_000,
   });
 
-  const customers = useQuery({ queryKey: ["customers"], queryFn: () => listCust(), staleTime: 60_000 });
+  const customers = useQuery({ queryKey: ["customers", "picker", workspace], queryFn: () => listCust({ data: { workspace } }), staleTime: 60_000 });
   const employees = useQuery({ queryKey: ["finance-employees"], queryFn: () => listEmp(), staleTime: 60_000 });
 
   useEffect(() => {

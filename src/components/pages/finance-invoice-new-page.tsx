@@ -1,3 +1,4 @@
+import { useActiveCompany } from "@/components/company/company-switcher";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -29,12 +30,13 @@ type Stakeholder = { user_id: string; role: StakeholderRole; percent: number };
 
 
 export function NewInvoicePage() {
+  const workspace = useActiveCompany().active?.slug ?? null;
   const navigate = useNavigate();
   const create = useServerFn(createInvoice);
   const listCust = useServerFn(listCustomersForPicker);
   const listEmp = useServerFn(listEmployeesForFinance);
 
-  const custs = useQuery({ queryKey: ["customers"], queryFn: () => listCust(), staleTime: 30_000 });
+  const custs = useQuery({ queryKey: ["customers", "picker", workspace], queryFn: () => listCust({ data: { workspace } }), staleTime: 30_000 });
   const emps = useQuery({ queryKey: ["finance-employees"], queryFn: () => listEmp(), staleTime: 30_000 });
 
   const [customerId, setCustomerId] = useState("");

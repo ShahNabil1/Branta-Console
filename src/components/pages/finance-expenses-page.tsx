@@ -1,3 +1,4 @@
+import { useActiveCompany } from "@/components/company/company-switcher";
 import { DiscardCancelButton } from "@/components/company/danger-confirm";
 import { Link, useSearch } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -85,6 +86,7 @@ function fmt(n: number, cur: string) {
 }
 
 export function ExpensesPage() {
+  const workspace = useActiveCompany().active?.slug ?? null;
   const listFn = useServerFn(listExpenses);
   const create = useServerFn(createExpense);
   const idemRef = useRef<string | null>(null);
@@ -98,7 +100,7 @@ export function ExpensesPage() {
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const isAdmin = useQuery({ queryKey: ["is-finance-admin"], queryFn: () => check(), staleTime: 60_000 });
   const q = useQuery({
-    queryKey: ["expenses"], queryFn: () => listFn(), staleTime: 15_000,
+    queryKey: ["expenses", workspace], queryFn: () => listFn({ data: { workspace } }), staleTime: 15_000,
     enabled: !!isAdmin.data?.isAdmin,
   });
 
@@ -163,7 +165,7 @@ export function ExpensesPage() {
 
   const invListFn = useServerFn(listInvoices);
   const invoices = useQuery({
-    queryKey: ["finance-invoices-lite"], queryFn: () => invListFn(), staleTime: 60_000,
+    queryKey: ["finance-invoices-lite", workspace], queryFn: () => invListFn({ data: { workspace } }), staleTime: 60_000,
     enabled: !!isAdmin.data?.isAdmin,
   });
   const invoiceItems: SearchableItem[] = (invoices.data ?? []).map((i) => ({
@@ -458,7 +460,7 @@ export function ExpensesPage() {
         await update({ data: { id: editingId, ...payload, edit_reason: editReason ?? "" } });
       } else {
         if (!idemRef.current) idemRef.current = crypto.randomUUID();
-        await create({ data: { ...payload, idempotency_key: idemRef.current } });
+        await create({ data: { ...payload, workspace, idempotency_key: idemRef.current } });
       }
     },
     onSuccess: () => {
