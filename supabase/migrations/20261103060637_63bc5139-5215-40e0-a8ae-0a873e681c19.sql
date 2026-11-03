@@ -1,0 +1,1 @@
+UPDATE public.companies SET email = 'hello@brantatech.com' WHERE slug = 'branta-tech' AND email = 'info@brantatech.com';
