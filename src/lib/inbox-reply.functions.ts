@@ -5,6 +5,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { callGateway } from "@/lib/connector-gateway.server";
+import { COMPANY_SLUG_RE, resolveMailbox } from "@/lib/company-mailbox.server";
 
 const FROM_NAME = "Branta Tech";
 const FROM_EMAIL = "hello@brantatech.com";
@@ -31,6 +32,7 @@ const ReplyInput = z.object({
   inReplyTo: z.string().trim().max(998).regex(MSG_ID_RE, "Invalid Message-ID").nullable().optional(), // original Message-ID header
   references: z.string().trim().max(4000).regex(MSG_IDS_RE, "Invalid References header").nullable().optional(),
   leadId: z.string().uuid().nullable().optional(),
+  company: z.string().regex(COMPANY_SLUG_RE).optional(),
 });
 
 function textToHtml(text: string): string {
@@ -49,12 +51,27 @@ export const sendInboxReply = createServerFn({ method: "POST" })
       data,
       context,
     }): Promise<{ ok: true; messageId: string; provider: string }> => {
+      const mb = await resolveMailbox(context.supabase, context.userId, data.company);
+      // Sister companies always reply through their own verified sender.
+      let fromName = FROM_NAME;
+      let fromEmail = FROM_EMAIL;
+      let own: { provider: "resend" | "brevo"; apiKey: string } | null = null;
+      if (!mb.isHolding) {
+        const { resolveCompanySender } = await import("@/lib/company-email.server");
+        const s = await resolveCompanySender(mb.companyId, data.provider);
+        if (!s) throw new Error(`${mb.companyName} has no verified Resend or Brevo sender yet. Set one up in Integrations.`);
+        fromName = s.fromName;
+        fromEmail = s.fromEmail.toLowerCase();
+        own = { provider: s.provider, apiKey: s.apiKey };
+      }
+      const provider = own?.provider ?? data.provider;
       // The thread must exist in the shared inbox, and every recipient must
       // be a participant of that thread — no arbitrary outbound addresses.
       const { data: threadMsgs } = await context.supabase
         .from("inbox_messages")
         .select("from_email, lead_id")
         .eq("gmail_thread_id", data.threadId)
+        .eq("company_id", mb.companyId)
         .limit(100);
       if (!threadMsgs || threadMsgs.length === 0)
         throw new Error("Thread not found in the shared inbox");
@@ -65,7 +82,8 @@ export const sendInboxReply = createServerFn({ method: "POST" })
       // A lead can only be tagged/logged when the thread is linked to it.
       if (data.leadId && !msgs.some((m) => m.lead_id === data.leadId))
         throw new Error("This thread is not linked to that lead");
-      participants.add(FROM_EMAIL);
+      participants.add(fromEmail);
+      participants.add(mb.inboxAddr);
       const outsider = [...data.to, ...data.cc].find(
         (e) => !participants.has(e.trim().toLowerCase()),
       );
@@ -85,13 +103,17 @@ export const sendInboxReply = createServerFn({ method: "POST" })
         .trim();
 
       let messageId = "";
-      if (data.provider === "resend") {
-        const res = await callGateway<{ id: string }>({
-          connector: "resend",
-          path: "/emails",
-          method: "POST",
-          body: {
-            from: `${FROM_NAME} <${FROM_EMAIL}>`,
+      const viaCompany = async <T,>(path: string, body: unknown): Promise<T> => {
+        const m = await import("@/lib/company-email.server");
+        const r = own!.provider === "resend" ? await m.resend(own!.apiKey, path, { method: "POST", body }) : await m.brevo(own!.apiKey, path, { method: "POST", body });
+        if (!r.ok) throw new Error(`${own!.provider} rejected the reply [${r.status}]: ${JSON.stringify(r.body).slice(0, 300)}`);
+        return r.body as T;
+      };
+      const send = <T,>(connector: "resend" | "brevo", path: string, body: unknown) =>
+        own ? viaCompany<T>(path, body) : callGateway<T>({ connector, path, method: "POST", body });
+      if (provider === "resend") {
+        const res = await send<{ id: string }>("resend", "/emails", {
+            from: `${fromName} <${fromEmail}>`,
             to: data.to,
             cc: data.cc.length ? data.cc : undefined,
             subject: data.subject,
@@ -112,12 +134,8 @@ export const sendInboxReply = createServerFn({ method: "POST" })
         });
         messageId = res.id;
       } else {
-        const res = await callGateway<{ messageId: string }>({
-          connector: "brevo",
-          path: "/smtp/email",
-          method: "POST",
-          body: {
-            sender: { name: FROM_NAME, email: FROM_EMAIL },
+        const res = await send<{ messageId: string }>("brevo", "/smtp/email", {
+            sender: { name: fromName, email: fromEmail },
             to: data.to.map((email) => ({ email })),
             cc: data.cc.length ? data.cc.map((email) => ({ email })) : undefined,
             subject: data.subject,
