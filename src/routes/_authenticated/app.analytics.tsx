@@ -1,4 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { useActiveCompany } from "@/components/company/company-switcher";
+import { createFileRoute, Link, useSearch, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
@@ -39,20 +40,22 @@ export const Route = createFileRoute("/_authenticated/app/analytics")({
   component: AnalyticsPage,
 });
 
-function AnalyticsPage() {
-  const search = Route.useSearch();
-  const navigate = Route.useNavigate();
+export function AnalyticsPage() {
+  const _ac = useActiveCompany().active;
+  const workspace = _ac && !_ac.is_holding ? _ac.slug : null;
+  const search = useSearch({ strict: false }) as { u?: string; r?: string };
+  const navigate = useNavigate();
   const [scope, setScope] = useState<ScopeState>({
     userId: search.u || null,
     range: (search.r as RangeKey) || "30d",
   });
   const updateScope = (v: ScopeState) => {
     setScope(v);
-    navigate({ search: { u: v.userId ?? "", r: v.range }, replace: true });
+    navigate({ to: ".", search: { u: v.userId ?? "", r: v.range } as never, replace: true });
   };
 
-  const scopeArg = { userId: scope.userId, range: scope.range };
-  const key = [scope.userId ?? "self", scope.range] as const;
+  const scopeArg = { userId: scope.userId, range: scope.range, workspace };
+  const key = [workspace ?? "holding", scope.userId ?? "self", scope.range] as const;
 
   const permsFn = useServerFn(getMyPermissions);
   const permsQ = useQuery({
@@ -75,8 +78,8 @@ function AnalyticsPage() {
   const heatQ = useQuery({ queryKey: ["a.heat", ...key], queryFn: () => heatFn({ data: scopeArg }), staleTime: 60_000 });
   const finQ = useQuery({ queryKey: ["a.fin", ...key], queryFn: () => finFn({ data: scopeArg }), staleTime: 60_000 });
   const boardQ = useQuery({
-    queryKey: ["a.board", scope.range],
-    queryFn: () => boardFn({ data: { userId: null, range: scope.range } }),
+    queryKey: ["a.board", workspace ?? "holding", scope.range],
+    queryFn: () => boardFn({ data: { userId: null, range: scope.range, workspace } }),
     enabled: isAdmin,
     staleTime: 60_000,
   });

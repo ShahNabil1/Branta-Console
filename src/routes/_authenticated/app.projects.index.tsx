@@ -1,3 +1,4 @@
+import { useActiveCompany } from "@/components/company/company-switcher";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -39,9 +40,12 @@ export const trackLabel = (k: string | null) => SERVICE_TRACKS.find((t) => t.key
 export const roleShort = (k: string) => PROJECT_ROLES.find((r) => r.key === k)?.label.split(" /")[0] ?? k;
 export const STATUS_LABEL: Record<string, string> = { planned: "Planned", active: "Active", on_hold: "On hold", completed: "Completed", cancelled: "Cancelled" };
 
-function ProjectsHub() {
+export function ProjectsHub() {
+  const _ac = useActiveCompany().active;
+  const workspace = _ac && !_ac.is_holding ? _ac.slug : null;
+
   const list = useServerFn(listHubProjects);
-  const q = useQuery({ queryKey: ["hub-projects"], queryFn: () => list() });
+  const q = useQuery({ queryKey: ["hub-projects", workspace ?? "holding"], queryFn: () => list({ data: { workspace } }) });
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
@@ -142,7 +146,9 @@ function ProjectCard({ p }: { p: HubProject }) {
 function NewProjectDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const create = useServerFn(createHubProject);
   const custFn = useServerFn(listCustomersForPicker);
-  const customers = useQuery({ queryKey: ["hub-customers"], queryFn: () => custFn(), enabled: open });
+  const _ac = useActiveCompany().active;
+  const workspace = _ac && !_ac.is_holding ? _ac.slug : null;
+  const customers = useQuery({ queryKey: ["hub-customers", workspace ?? "holding"], queryFn: () => custFn({ data: { workspace } }), enabled: open });
   const qc = useQueryClient();
   const nav = useNavigate();
   const blank = { title: "", category: "client" as "client" | "internal", customer_id: "", service_track: "web_dev", project_type: "one_time" as "one_time" | "monthly",
@@ -157,6 +163,7 @@ function NewProjectDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
       billing_day: f.project_type === "monthly" && f.billing_day ? Number(f.billing_day) : null,
       monthly_deliverables: f.project_type === "monthly" ? f.monthly_deliverables || null : null,
       notes: f.notes || null, sow_doc_url: f.sow_doc_url || null, requirements_doc_url: f.requirements_doc_url || null,
+      workspace,
     } }),
     onSuccess: (r) => {
       toast.success("Project created");

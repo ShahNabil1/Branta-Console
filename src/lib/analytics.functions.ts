@@ -166,13 +166,22 @@ export const listScopeUsers = createServerFn({ method: "GET" })
 const scopeInput = z.object({
   userId: z.string().uuid().optional().nullable(),
   range: z.enum(["today", "7d", "30d", "90d", "ytd"]).default("7d"),
+  workspace: z.string().regex(/^[a-z0-9-]{1,80}$/).optional().nullable(),
 });
+
+// Every analytics read is scoped to one company (holding when no workspace).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function workspaceCompany(sb: any, userId: string, workspace?: string | null): Promise<string> {
+  const { resolveLeadCompany } = await import("@/lib/lead-company.server");
+  return (await resolveLeadCompany(sb, userId, workspace ?? null)).id;
+}
 
 // ---------- Overview KPIs ----------
 export const getOverviewKpis = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => scopeInput.parse(d))
   .handler(async ({ data, context }): Promise<OverviewKpis> => {
+    const cid = await workspaceCompany(context.supabase, context.userId, data.workspace);
     const scope = await resolveScopeUser(context.supabase, context.userId, data.userId ?? null);
     const { from, to, prevFrom, prevTo } = rangeToBounds(data.range);
     const supabase = context.supabase;
@@ -196,55 +205,55 @@ export const getOverviewKpis = createServerFn({ method: "POST" })
       pendingWithdrawals,
     ] = await Promise.all([
       countRows(
-        supabase.from("leads").select("id", { head: true, count: "exact" })
+        supabase.from("leads").select("id", { head: true, count: "exact" }).eq("company_id", cid)
           .eq("owner_id", scope)
           .gte("created_at", from.toISOString())
           .lt("created_at", to.toISOString()),
       ),
       countRows(
-        supabase.from("leads").select("id", { head: true, count: "exact" })
+        supabase.from("leads").select("id", { head: true, count: "exact" }).eq("company_id", cid)
           .eq("owner_id", scope)
           .gte("created_at", prevFrom.toISOString())
           .lt("created_at", prevTo.toISOString()),
       ),
       supabase.from("lead_activities")
-        .select("lead_id")
+        .select("lead_id, leads!inner(company_id)").eq("leads.company_id", cid)
         .eq("actor_id", scope)
         .gte("created_at", from.toISOString())
         .lt("created_at", to.toISOString())
         .limit(5000),
       supabase.from("lead_activities")
-        .select("lead_id")
+        .select("lead_id, leads!inner(company_id)").eq("leads.company_id", cid)
         .eq("actor_id", scope)
         .gte("created_at", prevFrom.toISOString())
         .lt("created_at", prevTo.toISOString())
         .limit(5000),
       countRows(
-        supabase.from("lead_meetings").select("id", { head: true, count: "exact" })
+        supabase.from("lead_meetings").select("id", { head: true, count: "exact" }).eq("company_id", cid)
           .eq("created_by", scope)
           .gte("starts_at", todayStart.toISOString())
           .lt("starts_at", todayEnd.toISOString()),
       ),
       countRows(
-        supabase.from("lead_emails").select("id", { head: true, count: "exact" })
+        supabase.from("lead_emails").select("id, leads!inner(company_id)", { head: true, count: "exact" }).eq("leads.company_id", cid)
           .eq("sent_by", scope)
           .eq("direction", "out")
           .gte("sent_at", day24Ago.toISOString()),
       ),
       countRows(
-        supabase.from("lead_emails").select("id", { head: true, count: "exact" })
+        supabase.from("lead_emails").select("id, leads!inner(company_id)", { head: true, count: "exact" }).eq("leads.company_id", cid)
           .eq("sent_by", scope)
           .eq("direction", "out")
           .gte("sent_at", new Date(day24Ago.getTime() - 24 * 3600_000).toISOString())
           .lt("sent_at", day24Ago.toISOString()),
       ),
       countRows(
-        supabase.from("invoices").select("id", { head: true, count: "exact" })
+        supabase.from("invoices").select("id", { head: true, count: "exact" }).eq("company_id", cid)
           .eq("created_by", scope)
           .in("status", ["draft", "sent", "overdue", "partially_paid"]),
       ),
       supabase.from("invoice_payouts")
-        .select("currency, amount")
+        .select("currency, amount, invoices!inner(company_id)").eq("invoices.company_id", cid)
         .eq("user_id", scope)
         .eq("status", "available")
         .limit(2000),
@@ -318,10 +327,11 @@ export const getOverviewInbox = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => scopeInput.parse(d))
   .handler(async ({ data, context }): Promise<OverviewInboxItem[]> => {
+    const cid = await workspaceCompany(context.supabase, context.userId, data.workspace);
     const scope = await resolveScopeUser(context.supabase, context.userId, data.userId ?? null);
     const { data: rows, error } = await context.supabase
       .from("inbox_messages")
-      .select("gmail_message_id, from_email, from_name, subject, snippet, received_at, is_unread, handled_by")
+      .select("gmail_message_id, from_email, from_name, subject, snippet, received_at, is_unread, handled_by").eq("company_id", cid)
       .or(`handled_by.eq.${scope},handled_by.is.null`)
       .eq("is_unread", true)
       .order("received_at", { ascending: false })
@@ -349,12 +359,13 @@ export const getTodaysMeetings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => scopeInput.parse(d))
   .handler(async ({ data, context }): Promise<OverviewMeeting[]> => {
+    const cid = await workspaceCompany(context.supabase, context.userId, data.workspace);
     const scope = await resolveScopeUser(context.supabase, context.userId, data.userId ?? null);
     const start = new Date(); start.setHours(0, 0, 0, 0);
     const end = new Date(start); end.setDate(end.getDate() + 1);
     const { data: rows, error } = await context.supabase
       .from("lead_meetings")
-      .select("id, title, starts_at, ends_at, meeting_link, lead_id, leads(slug)")
+      .select("id, title, starts_at, ends_at, meeting_link, lead_id, leads(slug)").eq("company_id", cid)
       .eq("created_by", scope)
       .gte("starts_at", start.toISOString())
       .lt("starts_at", end.toISOString())
@@ -373,10 +384,11 @@ export const getFollowUps = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => scopeInput.parse(d))
   .handler(async ({ data, context }): Promise<OverviewFollowUp[]> => {
+    const cid = await workspaceCompany(context.supabase, context.userId, data.workspace);
     const scope = await resolveScopeUser(context.supabase, context.userId, data.userId ?? null);
     const { data: rows, error } = await context.supabase
       .from("leads")
-      .select("id, slug, name, company, next_action, last_activity_at, status")
+      .select("id, slug, name, company, next_action, last_activity_at, status").eq("company_id", cid)
       .eq("owner_id", scope)
       .eq("is_draft", false)
       .not("status", "in", "(converted,lost)")
@@ -395,6 +407,7 @@ export const getPipelineFunnel = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => scopeInput.parse(d))
   .handler(async ({ data, context }): Promise<PipelineBucket[]> => {
+    const cid = await workspaceCompany(context.supabase, context.userId, data.workspace);
     const scope = await resolveScopeUser(context.supabase, context.userId, data.userId ?? null);
     const { from, to } = rangeToBounds(data.range);
 
@@ -404,7 +417,7 @@ export const getPipelineFunnel = createServerFn({ method: "POST" })
         .eq("is_active", true)
         .order("sort_order", { ascending: true }),
       context.supabase.from("leads")
-        .select("status")
+        .select("status").eq("company_id", cid)
         .eq("owner_id", scope)
         .eq("is_draft", false)
         .gte("created_at", from.toISOString())
@@ -431,17 +444,18 @@ export const getActivityFeed = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => scopeInput.parse(d))
   .handler(async ({ data, context }): Promise<ActivityFeedItem[]> => {
+    const cid = await workspaceCompany(context.supabase, context.userId, data.workspace);
     const scope = await resolveScopeUser(context.supabase, context.userId, data.userId ?? null);
     const supabase = context.supabase;
 
     const [leadAct, invAct] = await Promise.all([
       supabase.from("lead_activities")
-        .select("id, kind, body, created_at, lead_id, leads(slug, name)")
+        .select("id, kind, body, created_at, lead_id, leads(slug, name), leads!inner(company_id)").eq("leads.company_id", cid)
         .eq("actor_id", scope)
         .order("created_at", { ascending: false })
         .limit(15),
       supabase.from("invoice_activity_logs")
-        .select("id, action, title, body, created_at, invoice_slug")
+        .select("id, action, title, body, created_at, invoice_slug, invoices!inner(company_id)").eq("invoices.company_id", cid)
         .eq("actor_id", scope)
         .order("created_at", { ascending: false })
         .limit(15),
@@ -486,11 +500,12 @@ export const getActivityHeatmap = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => scopeInput.parse(d))
   .handler(async ({ data, context }): Promise<HeatmapCell[]> => {
+    const cid = await workspaceCompany(context.supabase, context.userId, data.workspace);
     const scope = await resolveScopeUser(context.supabase, context.userId, data.userId ?? null);
     const { from, to } = rangeToBounds(data.range);
     const { data: rows, error } = await context.supabase
       .from("lead_activities")
-      .select("created_at")
+      .select("created_at, leads!inner(company_id)").eq("leads.company_id", cid)
       .eq("actor_id", scope)
       .gte("created_at", from.toISOString())
       .lt("created_at", to.toISOString())
@@ -518,11 +533,12 @@ export const getLeadVelocity = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => scopeInput.parse(d))
   .handler(async ({ data, context }): Promise<VelocityPoint[]> => {
+    const cid = await workspaceCompany(context.supabase, context.userId, data.workspace);
     const scope = await resolveScopeUser(context.supabase, context.userId, data.userId ?? null);
     const { from, to } = rangeToBounds(data.range);
     const { data: rows, error } = await context.supabase
       .from("leads")
-      .select("created_at, status, updated_at")
+      .select("created_at, status, updated_at").eq("company_id", cid)
       .eq("owner_id", scope)
       .eq("is_draft", false)
       .gte("created_at", from.toISOString())
@@ -555,11 +571,12 @@ export const getLeadSourceMix = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => scopeInput.parse(d))
   .handler(async ({ data, context }): Promise<SourceSlice[]> => {
+    const cid = await workspaceCompany(context.supabase, context.userId, data.workspace);
     const scope = await resolveScopeUser(context.supabase, context.userId, data.userId ?? null);
     const { from, to } = rangeToBounds(data.range);
     const { data: rows, error } = await context.supabase
       .from("leads")
-      .select("source, status")
+      .select("source, status").eq("company_id", cid)
       .eq("owner_id", scope)
       .eq("is_draft", false)
       .gte("created_at", from.toISOString())
@@ -590,6 +607,7 @@ export const getFinanceAttribution = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => scopeInput.parse(d))
   .handler(async ({ data, context }): Promise<FinanceAttribution> => {
+    const cid = await workspaceCompany(context.supabase, context.userId, data.workspace);
     const scope = await resolveScopeUser(context.supabase, context.userId, data.userId ?? null);
     const { from, to } = rangeToBounds(data.range);
     const supabase = context.supabase;
@@ -597,14 +615,14 @@ export const getFinanceAttribution = createServerFn({ method: "POST" })
     // Booked = paid invoice_payouts within window
     const [paidRes, availRes] = await Promise.all([
       supabase.from("invoice_payouts")
-        .select("currency, amount, paid_at")
+        .select("currency, amount, paid_at, invoices!inner(company_id)").eq("invoices.company_id", cid)
         .eq("user_id", scope)
         .eq("status", "paid")
         .gte("paid_at", from.toISOString())
         .lt("paid_at", to.toISOString())
         .limit(5000),
       supabase.from("invoice_payouts")
-        .select("currency, amount, status")
+        .select("currency, amount, status, invoices!inner(company_id)").eq("invoices.company_id", cid)
         .eq("user_id", scope)
         .in("status", ["locked", "available"])
         .limit(5000),
@@ -651,6 +669,7 @@ export const getTeamLeaderboard = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => scopeInput.parse(d))
   .handler(async ({ data, context }): Promise<LeaderboardRow[]> => {
+    const cid = await workspaceCompany(context.supabase, context.userId, data.workspace);
     const admin = await isAdmin(context.supabase, context.userId);
     if (!admin) throw new Error("Forbidden: admin only");
     const { from, to } = rangeToBounds(data.range);
@@ -658,25 +677,25 @@ export const getTeamLeaderboard = createServerFn({ method: "POST" })
     const [profiles, leads, emails, meetings, payouts] = await Promise.all([
       supabase.from("profiles").select("user_id, full_name, employee_code").limit(1000),
       supabase.from("leads")
-        .select("owner_id, status, created_at")
+        .select("owner_id, status, created_at").eq("company_id", cid)
         .eq("is_draft", false)
         .gte("created_at", from.toISOString())
         .lt("created_at", to.toISOString())
         .limit(20000),
       supabase.from("lead_emails")
-        .select("sent_by, direction, sent_at")
+        .select("sent_by, direction, sent_at, leads!inner(company_id)").eq("leads.company_id", cid)
         .eq("direction", "out")
         .gte("sent_at", from.toISOString())
         .lt("sent_at", to.toISOString())
         .limit(20000),
       supabase.from("lead_meetings")
-        .select("created_by, status, starts_at")
+        .select("created_by, status, starts_at").eq("company_id", cid)
         .eq("status", "held")
         .gte("starts_at", from.toISOString())
         .lt("starts_at", to.toISOString())
         .limit(10000),
       supabase.from("invoice_payouts")
-        .select("user_id, currency, amount, paid_at")
+        .select("user_id, currency, amount, paid_at, invoices!inner(company_id)").eq("invoices.company_id", cid)
         .eq("status", "paid")
         .gte("paid_at", from.toISOString())
         .lt("paid_at", to.toISOString())

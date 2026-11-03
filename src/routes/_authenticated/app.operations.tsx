@@ -1,3 +1,4 @@
+import { useActiveCompany } from "@/components/company/company-switcher";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -53,13 +54,16 @@ const STATUS_STYLE: Record<string, string> = {
   delivered: "border-status-converted/35 bg-status-converted/10 text-status-converted",
 };
 
-function OperationsPage() {
+export function OperationsPage() {
+  const _ac = useActiveCompany().active;
+  const workspace = _ac && !_ac.is_holding ? _ac.slug : null;
+
   const getOperations = useServerFn(getTodayOperations);
   const getUsers = useServerFn(listAssignableUsers);
   const queryClient = useQueryClient();
   const operations = useQuery({
-    queryKey: ["today-operations"],
-    queryFn: () => getOperations(),
+    queryKey: ["today-operations", workspace ?? "holding"],
+    queryFn: () => getOperations({ data: { workspace } }),
     staleTime: 20_000,
     refetchInterval: 60_000,
   });

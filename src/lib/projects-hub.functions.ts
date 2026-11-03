@@ -82,9 +82,12 @@ function shape(p: any, members: any[], tasks: any[], me: string): HubProject {
 
 export const listHubProjects = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<HubProject[]> => {
+  .inputValidator((d: unknown) => z.object({ workspace: z.string().regex(/^[a-z0-9-]{1,80}$/).optional().nullable() }).default({}).parse(d ?? {}))
+  .handler(async ({ data, context }): Promise<HubProject[]> => {
     const sb = context.supabase as any;
-    const { data: ps, error } = await sb.from("client_projects").select(COLS).is("archived_at", null)
+    const { resolveLeadCompany } = await import("@/lib/lead-company.server");
+    const co = await resolveLeadCompany(sb, context.userId, data.workspace ?? null);
+    const { data: ps, error } = await sb.from("client_projects").select(COLS).is("archived_at", null).eq("company_id", co.id)
       .order("created_at", { ascending: false }).limit(1000);
     if (error) throw dbError(error);
     const ids = (ps ?? []).map((p: any) => p.id);
@@ -146,12 +149,16 @@ export const createHubProject = createServerFn({ method: "POST" })
     monthly_deliverables: z.string().trim().max(2000).nullable().optional(),
     notes: z.string().trim().max(4000).nullable().optional(),
     sow_doc_url: url, requirements_doc_url: url,
+    workspace: z.string().regex(/^[a-z0-9-]{1,80}$/).optional().nullable(),
   }).refine((v) => v.category === "internal" || !!v.customer_id, "Choose a client for a client project").parse(d))
   .handler(async ({ data, context }) => {
     const sb = context.supabase as any;
     const label = SERVICE_TRACKS.find((t) => t.key === data.service_track)?.label ?? null;
+    const { resolveLeadCompany } = await import("@/lib/lead-company.server");
+    const { workspace, ...fields } = data;
+    const co = await resolveLeadCompany(sb, context.userId, workspace ?? null);
     const { data: row, error } = await sb.from("client_projects").insert({
-      ...data, customer_id: data.category === "internal" ? null : data.customer_id,
+      ...fields, company_id: co.id, customer_id: data.category === "internal" ? null : data.customer_id,
       service: label, created_by: context.userId,
     }).select("id").single();
     if (error) throw dbError(error);
@@ -197,8 +204,11 @@ export const updateHubProjectDetails = createServerFn({ method: "POST" })
 
 export const listCustomersForPicker = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { data } = await (context.supabase as any).from("customers").select("id,name,company,customer_code")
+  .inputValidator((d: unknown) => z.object({ workspace: z.string().regex(/^[a-z0-9-]{1,80}$/).optional().nullable() }).default({}).parse(d ?? {}))
+  .handler(async ({ data: input, context }) => {
+    const { resolveLeadCompany } = await import("@/lib/lead-company.server");
+    const co = await resolveLeadCompany(context.supabase as any, context.userId, input.workspace ?? null);
+    const { data } = await (context.supabase as any).from("customers").select("id,name,company,customer_code").eq("company_id", co.id)
       .is("archived_at", null).order("name").limit(1000);
     return (data ?? []) as { id: string; name: string; company: string | null; customer_code: string }[];
   });
