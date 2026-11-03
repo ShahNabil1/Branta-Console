@@ -27,7 +27,6 @@
 - Tracker employee mirror runs through the shared employee-app sync hooks and src/lib/tracker.server.ts (auth user + profiles + default settings; inactive = is_active false + Tracker ban) — why: Console is the only employee source of truth and a Tracker outage must never block Console changes.
 - Employee mutation hooks use syncEmployeeAppsSafe() in src/lib/employee-app-sync.server.ts to run independent Tracker and Admakai mirrors — why: one app outage must not block the other mirror or Console changes.
 - Admakai SSO: authenticated /sso/admakai + admakai-sso.functions.ts; server-only admakai.server.ts does email matching, profile/role mirroring and session revocation; callback/role rules in admakai-policy.ts — why: credentials stay server-only, inactive access fails closed.
-- Tracker Shift schedules are admin-edited only via tracker-schedule.functions.ts into Tracker app_metadata.shift_schedule; the extension computes Late/Early/Overtime — why: employees cannot edit app_metadata.
 - Sister-app access is explicit per employee via profiles.allowed_apps (admin-only, DB-guarded); Super Admins always pass; Hub only sets Admakai owner for super_admin and inserts member if no role exists — why: Admakai manages its own internal roles and staff must be granted, not implied.
 - Lead email/meeting recipient allow-lists share lead-recipient-policy.ts (incl. alt_email, lead_contacts) — why: stored alternates work, arbitrary recipients don't.
 - External services (Telegram, Resend, Brevo, Google) go through callGateway() in connector-gateway.server.ts: direct provider secrets when set, else Lovable connectors — why: workspace transfers must not break integrations.
@@ -41,4 +40,4 @@
 - Company identity uses companies.logo_url/brand_kit, company-identity.ts and local pointers; PDF images embed server-only; no editor. Prefixes use companies.functions.ts + company_code_prefix() — why: consistent identity, offline PDFs, unique codes.
 - Company invoice branding resolves server-side via company-invoice-template.server.ts with immutable snapshots; no in-app editor — why: sisters never show Branta logos/contacts, issued documents never change. renderInvoicePdf forces PAYMENT INFORMATION (bank, note, QR) to Branta Tech for all companies — why: one group bank account.
 - WebMCP uses screen-owned hooks, shared actions and static telemetry — why: agents only use visible controls.
-- Company member/leader ids are profiles.id; membership predicates join profiles.user_id — why: auth.uid() comparison silently broke roles.
+- Workspace access = explicit company_members rows (profiles.id; predicates join profiles.user_id), set via setEmployeeWorkspace; no implicit holding access — why: staff see only granted companies.

@@ -15,6 +15,21 @@ const SHARED = ["/app/companies", "/app/employees", "/app/profile", "/app/settin
 export function WorkspaceGate({ children }: { children: React.ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { active, list } = useActiveCompany();
+  const isLoading = useActiveCompany().isLoading;
+  if (!isLoading && list.length === 0 && !pathname.startsWith("/app/profile")) {
+    return (
+      <div className="grid min-h-full place-items-center p-6">
+        <div className="relative w-full max-w-md overflow-hidden rounded-xl border border-border bg-card p-8 text-center shadow-sm animate-in fade-in zoom-in-95">
+          <span className="pointer-events-none absolute -top-24 left-1/2 size-64 -translate-x-1/2 rounded-full bg-brand/10 blur-3xl" />
+          <h2 className="relative text-[18px] font-bold tracking-tight">No workspace access yet</h2>
+          <p className="relative mt-1.5 text-[12.5px] font-medium text-muted-foreground">
+            You have not been added to any company. Ask a Branta Tech admin to switch on your workspace.
+          </p>
+          <Link to="/app/profile" className="relative mt-5 inline-flex rounded-md border border-border px-3 py-2 text-[12.5px] font-bold transition-all hover:border-brand/40 active:scale-95">My profile</Link>
+        </div>
+      </div>
+    );
+  }
   if (!active || active.is_holding || pathname === "/app" || pathname === "/app/" || (SHARED.some((p) => pathname.startsWith(p)) || (pathname.startsWith("/app/leads")))) return <>{children}</>;
   const holding = list.find((c) => c.is_holding);
   const accent = companyAccent(active.slug);

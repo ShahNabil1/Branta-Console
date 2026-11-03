@@ -78,4 +78,4 @@
 
 - [x] Reconnect 7 integrations in new workspace (Brevo, Gmail, Calendar, Docs, Sheets, Resend, Telegram)
 
-- [ ] Restyle employee profile tabs, logs and confirmation dialogs to match /app/companies (Previous/Next done)
+- [x] Restyle employee profile tabs, logs, dialogs + Workspaces access

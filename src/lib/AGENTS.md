@@ -1,1 +1,2 @@
 - Expense exports filter payment status before totals: trimmed transaction reference = paid; otherwise recorded — why: match the selected status.
+- Tracker Shift schedules are admin-edited only via tracker-schedule.functions.ts into Tracker app_metadata.shift_schedule; the extension computes Late/Early/Overtime — why: employees cannot edit app_metadata.

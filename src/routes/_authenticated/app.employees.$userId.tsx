@@ -50,6 +50,9 @@ import { PLATFORM_META, type SocialPlatform } from "@/components/social/platform
 import { waNumberFromUrl } from "@/components/profile/social-link-rules";
 import { BadgeCheck, Phone } from "lucide-react";
 import { EmployeePager } from "@/components/employee/employee-pager";
+import { WorkspaceAccess } from "@/components/employee/workspace-access";
+import { DrawerHero } from "@/components/branta/page-hero";
+import { Building2 } from "lucide-react";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
   assignLeadOwner,
@@ -319,7 +322,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
 
-  const [tab, setTab] = useState<"profile" | "wallet" | "permissions" | "schedule">("profile");
+  const [tab, setTab] = useState<"profile" | "wallet" | "permissions" | "schedule" | "workspaces">("profile");
   const [avatarOpen, setAvatarOpen] = useState(false);
 
   if (admin.isLoading || detail.isLoading) {
@@ -603,7 +606,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
       </div>
 
       {/* Identity strip */}
-      <section className="rounded-sm border border-border bg-card p-4 sm:p-5">
+      <section className="rounded-lg border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
         <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3 sm:flex sm:flex-wrap">
           <button
             type="button"
@@ -689,7 +692,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
       </Dialog>
 
       {/* Employee ID + Job Role */}
-      <section className="rounded-sm border border-border bg-card p-4 sm:p-5">
+      <section className="rounded-lg border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
         <div className="mb-3 flex items-center gap-2">
           <ShieldCheck className="size-4 text-brand" strokeWidth={2} />
           <h2 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
@@ -779,7 +782,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
 
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 overflow-x-auto border-b border-border whitespace-nowrap">
+      <div className="flex w-fit max-w-full items-center gap-1 overflow-x-auto rounded-full border border-border bg-card p-1 shadow-sm whitespace-nowrap">
         <TabBtn active={tab === "profile"} onClick={() => setTab("profile")} icon={UserCog}>
           Profile
         </TabBtn>
@@ -796,11 +799,14 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
         >
           Permissions
         </TabBtn>
+        <TabBtn active={tab === "workspaces"} onClick={() => setTab("workspaces")} icon={Building2}>
+          Workspaces
+        </TabBtn>
       </div>
 
       {tab === "profile" ? (
         <><ProfileTab e={e} />
-          <section className="mt-4 rounded-sm border border-border bg-card p-4 sm:p-5">
+          <section className="mt-4 rounded-lg border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
             <h3 className="mb-3 text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Payment methods</h3>
             {(e.profile.payment_methods ?? []).length === 0 ? (
               <p className="text-[12.5px] italic text-muted-foreground">N/A — no bank or MFS account saved yet.</p>
@@ -814,10 +820,12 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
         <WalletTab userId={userId} walletFn={walletFn} />
       ) : tab === "schedule" ? (
         <TrackerScheduleTab userId={userId} />
+      ) : tab === "workspaces" ? (
+        <WorkspaceAccess userId={userId} />
       ) : (
         <div className="space-y-4">
       {/* RBAC */}
-      <section className="rounded-sm border border-border bg-card p-4 sm:p-5">
+      <section className="rounded-lg border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
         <div className="mb-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
           <div className="flex items-center gap-2">
             <ShieldCheck className="size-4 text-brand" strokeWidth={2} />
@@ -876,18 +884,17 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
       )}
 
       <Sheet open={logsOpen} onOpenChange={setLogsOpen}>
-        <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-[620px]">
-          <div className="border-b border-border px-5 py-4">
-            <SheetTitle className="text-[15px] font-semibold">Logs · {e.profile.full_name ?? e.email}</SheetTitle>
-            <div className="mt-3 flex gap-1 rounded-sm bg-muted p-1">
+        <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-[640px]">
+          <DrawerHero title="Activity logs" subtitle={`Mail delivery and sign-in sessions for ${e.profile.full_name ?? e.email}`}>
+            <div className="relative mt-4 flex gap-1 rounded-full border border-border bg-card p-1 shadow-sm">
               {(["mail", "sessions"] as const).map((t) => (
-                <button key={t} onClick={() => setLogsTab(t)} className={cn("h-8 flex-1 rounded-sm text-[12.5px] font-semibold", logsTab === t ? "bg-card text-brand shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+                <button key={t} onClick={() => setLogsTab(t)} className={cn("h-8 flex-1 rounded-full text-[12.5px] font-semibold transition-all duration-200 active:scale-95", logsTab === t ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:bg-muted hover:text-foreground")}>
                   {t === "mail" ? "Mail delivery" : "Sessions & logout"}
                 </button>
               ))}
             </div>
-          </div>
-          <div className="flex-1 overflow-y-auto p-4">
+          </DrawerHero>
+          <div key={logsTab} className="flex-1 overflow-y-auto p-5 animate-in fade-in slide-in-from-right-2 duration-300">
             {logsTab === "mail" ? (
               <MailActivity emails={[e.email, e.profile.personal_gmail ?? ""]} />
             ) : (
@@ -920,10 +927,10 @@ function TabBtn({
       type="button"
       onClick={onClick}
       className={cn(
-        "-mb-px inline-flex items-center gap-1.5 border-b-2 px-3 py-2 text-[12.5px] font-semibold transition-colors",
+        "inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12.5px] font-semibold transition-all duration-200 active:scale-95",
         active
-          ? "border-brand text-foreground"
-          : "border-transparent text-muted-foreground hover:text-foreground",
+          ? "bg-foreground text-background shadow-sm"
+          : "text-muted-foreground hover:bg-muted hover:text-foreground",
       )}
     >
       <Icon className="size-3.5" strokeWidth={2} />
@@ -1044,7 +1051,7 @@ function ProfileTab({ e }: { e: EmployeeDetail }) {
   const perm = fmtAddrBd(p);
   const pres = present?.same ? perm : present ? fmtAddrBd(present) : null;
   return (
-    <section className="rounded-sm border border-border bg-card p-4 sm:p-5">
+    <section className="rounded-lg border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
       <div className="mb-3 flex items-center gap-2">
         <UserCog className="size-4 text-brand" strokeWidth={2} />
         <h2 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
@@ -1170,7 +1177,7 @@ function WalletTab({
   return (
     <div className="flex flex-col gap-4">
       {/* Balances */}
-      <section className="rounded-sm border border-border bg-card p-4 sm:p-5">
+      <section className="rounded-lg border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
         <div className="mb-3 flex items-center gap-2">
           <Wallet className="size-4 text-brand" strokeWidth={2} />
           <h3 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
@@ -1201,7 +1208,7 @@ function WalletTab({
 
       <WalletLedgerView userId={userId} admin />
       {/* Payouts */}
-      <section className="rounded-sm border border-border bg-card p-4 sm:p-5">
+      <section className="rounded-lg border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
         <div className="mb-3 flex items-center gap-2">
           <h3 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Payment history ({payouts.length})
@@ -1280,7 +1287,7 @@ function WalletTab({
       </section>
 
       {/* Withdrawals */}
-      <section className="rounded-sm border border-border bg-card p-4 sm:p-5">
+      <section className="rounded-lg border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
         <div className="mb-3 flex items-center gap-2">
           <h3 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Withdrawal requests ({withdrawals.length})
@@ -1527,7 +1534,7 @@ function SessionsSection({
   const active = rows.filter((r) => !r.revoked_at);
 
   return (
-    <section className="rounded-sm border border-border bg-card p-4 sm:p-5">
+    <section className="rounded-lg border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
       <div className="mb-3 flex items-center gap-2">
         <ShieldAlert className="size-4 text-brand" strokeWidth={2} />
         <h2 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
@@ -2076,7 +2083,7 @@ function AppAccessSection({ userId, roles, allowedApps }: { userId: string; role
     onError: (err) => toast.error(err instanceof Error ? err.message : "Could not update access"),
   });
   return (
-    <section className="rounded-sm border border-border bg-card p-4 sm:p-5">
+    <section className="rounded-lg border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
       <h3 className="text-[13px] font-semibold text-foreground">Connected App Permissions</h3>
       <p className="mt-0.5 text-[12px] text-muted-foreground">Sister concerns this employee can sign in to with Branta Console.</p>
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-sm border border-border p-3">
