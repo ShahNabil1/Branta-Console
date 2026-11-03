@@ -40,5 +40,5 @@
 - Leads/customers resolve the company via lead-company.server.ts (sister = membership checked; customers inherit lead company_id); sister lead mail uses only that company's verified provider; no Leads Sheets sync — why: no cross-company data or senders.
 - Console inbox replies (Resend/Brevo) persist in inbox_replies and merge into getInboxThread — why: they never reach Gmail Sent.
 - Company brand_kit/code_prefixes are written only via companies.functions.ts (rules in brand-kit.ts); prefixes applied by DB triggers via company_code_prefix(), one group sequence — why: offline-safe documents, no cross-company code collisions.
-- Invoice Studio uses company-invoice-template.functions.ts (Group admin + Finance), append-only company_invoice_templates and immutable invoice snapshots; preview/download/email share renderInvoicePdf; PDF.js imports only after hydration — why: exact previews, isolated branding and unchanged issued documents.
+- Company invoice branding is resolved server-side only by company-invoice-template.server.ts with immutable invoice snapshots; no in-app Brand Kit/Invoice Studio editor exists — why: sister invoices must never show Branta assets and issued documents never change.
 - WebMCP uses screen-owned hooks, shared actions and static telemetry — why: agents only use visible controls.
