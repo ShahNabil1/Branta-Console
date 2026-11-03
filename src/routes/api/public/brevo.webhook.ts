@@ -186,6 +186,19 @@ async function handlePost(request: Request): Promise<Response> {
   }
 
   const items = normalizeItems(body);
+  try {
+    const { recordCompanyTestEvent } = await import("@/lib/company-email-test.server");
+    for (const item of items) {
+      const timestamp = pickDate(item);
+      // Identical retries deduplicate; distinct event payloads remain separate.
+      const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(item)));
+      const eventKey = Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
+      await recordCompanyTestEvent("brevo", company, item, eventKey, timestamp);
+    }
+  } catch (e) {
+    console.error("[brevo-webhook] test tracking failed", e);
+    return new Response("Test tracking failed", { status: 500 });
+  }
 
   // Split into lead-tagged (routed to Google Sheet) and non-lead (routed to
   // public.email_events for the Employees welcome-mail status column).

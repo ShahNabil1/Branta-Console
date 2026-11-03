@@ -3,6 +3,7 @@
 // company_email_providers (service-role only, no client grants). Never import
 // from browser code.
 
+import { chooseCompanyProvider } from "./company-email-test-policy";
 export type Provider = "resend" | "brevo";
 
 export const INBOX_GMAIL = "brantatech@gmail.com";
@@ -98,7 +99,7 @@ export async function resolveCompanySender(companyId: string, prefer?: Provider)
   const { data } = await sb.from("company_email_providers").select("*")
     .eq("company_id", companyId).eq("is_active", true).not("domain_verified_at", "is", null);
   const rows = (data ?? []) as { provider: Provider; sender_name: string; sender_email: string; api_key_enc: string; is_default: boolean }[];
-  const row = rows.find((r) => r.provider === prefer) ?? rows.find((r) => r.is_default) ?? rows[0];
+  const row = chooseCompanyProvider(rows, prefer);
   if (!row) return null;
   return { provider: row.provider, fromName: row.sender_name, fromEmail: row.sender_email, apiKey: (await open(row.api_key_enc))! };
 }

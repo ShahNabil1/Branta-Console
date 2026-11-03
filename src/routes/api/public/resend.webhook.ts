@@ -101,6 +101,13 @@ export const Route = createFileRoute("/api/public/resend/webhook")({
         }
 
         const data = payload.data ?? {};
+        try {
+          const { recordCompanyTestEvent } = await import("@/lib/company-email-test.server");
+          await recordCompanyTestEvent("resend", company, { ...data, type: payload.type }, svixId, payload.created_at ?? new Date().toISOString());
+        } catch (e) {
+          console.error("[resend-webhook] test tracking failed", e);
+          return new Response("Test tracking failed", { status: 500 });
+        }
         const recipient = Array.isArray(data.to) ? data.to[0] : data.to ?? "";
         const tags = data.tags ?? [];
         const lead_id = pickTag(tags, "lead_id");
