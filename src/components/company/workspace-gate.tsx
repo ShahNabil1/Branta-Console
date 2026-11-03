@@ -14,7 +14,7 @@ const SHARED = ["/app/companies", "/app/employees", "/app/profile", "/app/settin
 export function WorkspaceGate({ children }: { children: React.ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { active, list } = useActiveCompany();
-  if (!active || active.is_holding || SHARED.some((p) => pathname.startsWith(p))) return <>{children}</>;
+  if (!active || active.is_holding || pathname === "/app" || pathname === "/app/" || SHARED.some((p) => pathname.startsWith(p))) return <>{children}</>;
   const holding = list.find((c) => c.is_holding);
   const accent = companyAccent(active.slug);
   return (

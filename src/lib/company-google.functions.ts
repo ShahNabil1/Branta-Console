@@ -19,8 +19,8 @@ async function gate(ctx: { supabase: unknown; userId: string }, slug: string) {
   const sb = ctx.supabase as Any;
   const { data: co } = await sb.from("companies").select("id, slug, name").eq("slug", slug).maybeSingle();
   if (!co) throw new Error("Company not found.");
-  const { data: ok } = await sb.rpc("can_manage_company", { _company: co.id, _user: ctx.userId });
-  if (!ok) throw new Error("Only this company's admins can manage integrations.");
+  const { assertGroupAdmin } = await import("@/lib/group-admin");
+  await assertGroupAdmin(sb, ctx.userId, "Only Branta Tech group admins can manage company integrations.");
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   return { co: co as { id: string; slug: string; name: string }, admin: supabaseAdmin as Any };
 }

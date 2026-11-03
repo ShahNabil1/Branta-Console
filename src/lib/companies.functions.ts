@@ -1,6 +1,7 @@
 // Companies (Group of Companies). Reads use the caller's RLS; creation is
 // admin-only and runs with the admin client after the role check.
 import { createServerFn } from "@tanstack/react-start";
+import { assertGroupAdmin } from "@/lib/group-admin";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { dbError } from "@/lib/db-errors";
 import { z } from "zod";
@@ -58,6 +59,7 @@ export const getCompany = createServerFn({ method: "GET" })
   .inputValidator((i: unknown) => z.object({ slug: z.string().min(1).max(80) }).parse(i))
   .handler(async ({ data, context }) => {
     const sb = context.supabase as unknown as Sb;
+    await assertGroupAdmin(sb, context.userId);
     const { data: row, error } = await sb.from("companies").select("*").eq("slug", data.slug).maybeSingle();
     if (error) throw dbError(error);
     if (!row) return null;
@@ -159,8 +161,7 @@ export const updateCompanyInfo = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => PatchCompanySchema.parse(i))
   .handler(async ({ data, context }) => {
     const sb = context.supabase as unknown as Sb;
-    const { data: ok } = await sb.rpc("can_manage_company", { _company: data.id, _user: context.userId });
-    if (!ok) throw new Error("You don't have permission to edit this company.");
+    await assertGroupAdmin(sb, context.userId);
     const patch = Object.fromEntries(Object.entries(data.patch).filter(([, v]) => v !== undefined));
     if (!Object.keys(patch).length) return { ok: true };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
