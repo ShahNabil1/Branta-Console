@@ -76,7 +76,8 @@ export const getEmailIntegrations = createServerFn({ method: "GET" })
 
 const VerifyInput = z.object({
   slug: Slug, provider: Provider,
-  senderName: z.string().trim().min(1).max(80),
+  // Required for Resend; ignored for Brevo (name is read from the Brevo sender).
+  senderName: z.string().trim().max(80).default(""),
   senderEmail: z.string().trim().toLowerCase().email().max(254),
   apiKey: z.string().trim().min(10).max(300).optional(),
 });
@@ -96,6 +97,7 @@ export const verifyEmailProvider = createServerFn({ method: "POST" })
     if (inbox.email !== data.senderEmail) throw new Error(`Sender email must be the verified Inbox address (${inbox.email}).`);
     const domain = data.senderEmail.split("@")[1];
     const checks: Check[] = [];
+    let brevoName = "";
 
     if (data.provider === "resend") {
       if (!key.startsWith("re_")) checks.push({ id: "fmt", label: "Key format", ok: false, detail: "Resend keys start with re_" });
@@ -119,17 +121,24 @@ export const verifyEmailProvider = createServerFn({ method: "POST" })
       } else {
         checks.push({ id: "key", label: "API key", ok: true, detail: `Valid · ${acc.body?.companyName ?? acc.body?.email ?? "Brevo account"}` });
         const [s, dm] = await Promise.all([m.brevo(key, "/senders"), m.brevo(key, "/senders/domains")]);
-        const sender = ((s.body?.senders ?? []) as { email: string; active: boolean }[]).find((x) => x.email.toLowerCase() === data.senderEmail);
-        checks.push({ id: "sender", label: `Sender ${data.senderEmail}`, ok: !!sender?.active, detail: sender ? (sender.active ? "Active sender" : "Sender exists but is not active yet.") : "Add this sender in Brevo → Senders, Domains & IPs." });
+        if (!s.ok) checks.push({ id: "sender", label: "Read senders", ok: false, detail: `Brevo error ${s.status}: ${s.body?.message ?? ""}` });
+        const sender = ((s.body?.senders ?? []) as { email: string; name?: string; active: boolean }[]).find((x) => x.email.toLowerCase() === data.senderEmail);
+        if (s.ok) checks.push({ id: "sender", label: `Sender ${data.senderEmail}`, ok: !!sender?.active, detail: sender ? (sender.active ? `Active · "${sender.name ?? ""}"` : "Sender exists but is not active yet — confirm it in Brevo.") : "Add this sender in Brevo → Senders, Domains & IPs." });
+        // Brevo owns the From name: always use the name verified there.
+        if (sender?.active && sender.name?.trim()) brevoName = sender.name.trim().slice(0, 80);
+        else if (sender?.active) checks.push({ id: "name", label: "Sender name", ok: false, detail: "This sender has no name in Brevo. Add one in Brevo → Senders." });
+        if (!dm.ok) checks.push({ id: "domain", label: "Read domains", ok: false, detail: `Brevo error ${dm.status}: ${dm.body?.message ?? ""}` });
         const d = ((dm.body?.domains ?? []) as { domain_name: string; authenticated: boolean; verified: boolean }[]).find((x) => x.domain_name.toLowerCase() === domain);
-        checks.push({ id: "domain", label: `Domain ${domain}`, ok: !!d?.authenticated, detail: d ? (d.authenticated ? "Authenticated (DKIM/DMARC)" : "Domain added but not authenticated — finish DNS in Brevo.") : `${domain} is not added in Brevo → Domains.` });
+        if (dm.ok) checks.push({ id: "domain", label: `Domain ${domain}`, ok: !!d?.authenticated, detail: d ? (d.authenticated ? "Authenticated (DKIM/DMARC)" : "Domain added but not authenticated — finish DNS in Brevo.") : `${domain} is not added in Brevo → Domains.` });
       }
     }
+    if (data.provider === "resend" && !data.senderName) checks.push({ id: "name", label: "Sender name", ok: false, detail: "Enter a sender name." });
+    const senderName = data.provider === "brevo" ? brevoName : data.senderName;
 
-    const ok = checks.every((c) => c.ok);
+    const ok = checks.every((c) => c.ok) && !!senderName;
     if (ok) {
       const patch: Any = {
-        company_id: co.id, provider: data.provider, sender_name: data.senderName, sender_email: data.senderEmail,
+        company_id: co.id, provider: data.provider, sender_name: senderName, sender_email: data.senderEmail,
         domain, domain_verified_at: new Date().toISOString(), is_active: true, updated_by: context.userId,
         last_check: { at: new Date().toISOString(), checks },
       };
@@ -143,7 +152,7 @@ export const verifyEmailProvider = createServerFn({ method: "POST" })
       const { error } = await admin.from("company_email_providers").upsert(patch, { onConflict: "company_id,provider" });
       if (error) throw new Error("Could not save the integration.");
     }
-    return { ok, checks };
+    return { ok, checks, senderName: senderName || null };
   });
 
 /** Step 2 (Resend): verify the endpoint + events exist and save the signing secret. */
@@ -188,49 +197,83 @@ export const verifyResendWebhook = createServerFn({ method: "POST" })
     return { ok, checks };
   });
 
-/** Step 2 (Brevo): create/repair the transactional webhook with a private token, then verify. */
+/**
+ * Step 2 (Brevo): staged, fully automatic webhook setup. The UI calls each stage in order
+ * and drives a 0–100% progress bar from the real results:
+ *  account  → key still valid with Brevo
+ *  clean    → list transactional hooks, delete stale ones for this company
+ *  register → create (or repair) the hook with every required event
+ *  verify   → re-read the hook from Brevo, confirm URL + events, then save
+ */
+const BrevoStage = z.enum(["account", "clean", "register", "verify"]);
 export const connectBrevoWebhook = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => z.object({ slug: Slug }).parse(i))
+  .inputValidator((i: unknown) => z.object({ slug: Slug, stage: BrevoStage.default("account") }).parse(i))
   .handler(async ({ data, context }) => {
     const { co, admin } = await gate(context, data.slug);
     const m = await import("@/lib/company-email.server");
     const r = await row(admin, co.id, "brevo");
     if (!r?.is_active || !r.domain_verified_at) throw new Error("Verify the API key first.");
     const key = (await m.open(r.api_key_enc))!;
+    const fail = (id: string, label: string, res: { status: number; body: Any }) =>
+      ({ ok: false, checks: [{ id, label, ok: false, detail: `Brevo error ${res.status}${res.body?.code ? ` (${res.body.code})` : ""}: ${res.body?.message ?? "no message returned"}` }] as Check[] });
+    type W = { id: number; url: string; events: string[]; type?: string };
+
+    if (data.stage === "account") {
+      const a = await m.brevo(key, "/account");
+      if (!a.ok) return fail("account", a.status === 401 ? "API key rejected (revoked, expired or IP not authorised)" : "Brevo account", a);
+      return { ok: true, checks: [{ id: "account", label: "Brevo account", ok: true, detail: `Connected · ${a.body?.companyName ?? a.body?.email ?? "account"}` }] as Check[] };
+    }
+
+    // Token: reuse the stored one, or create + persist it before any hook points at it.
     let token = await m.open(r.webhook_secret_enc);
-    const fresh = !token;
-    if (!token) token = m.randomToken();
+    if (!token) {
+      token = m.randomToken();
+      await admin.from("company_email_providers").update({ webhook_secret_enc: await m.seal(token), webhook_secret_hint: m.hint(token), webhook_verified_at: null }).eq("id", r.id);
+    }
     const url = m.webhookUrl("brevo", co.slug, token);
     const base = m.webhookUrl("brevo", co.slug);
-    const checks: Check[] = [];
-    type W = { id: number; url: string; events: string[] };
     const list = await m.brevo(key, "/webhooks?type=transactional");
-    if (!list.ok) return { ok: false, checks: [{ id: "list", label: "Read webhooks", ok: false, detail: `Brevo error ${list.status}: ${list.body?.message ?? ""}` }] };
+    if (!list.ok) return fail("list", "Read webhooks", list);
     const hooks = (list.body?.webhooks ?? []) as W[];
-    let hook = hooks.find((w) => w.url === url);
-    const stale = hooks.filter((w) => w.url.startsWith(base) && w.url !== url);
-    if (!hook) {
-      const c = await m.brevo(key, "/webhooks", { method: "POST", body: { url, description: `Branta Console · ${co.name}`, events: [...m.BREVO_EVENTS], type: "transactional" } });
-      if (!c.ok) return { ok: false, checks: [{ id: "create", label: "Create webhook", ok: false, detail: `Brevo error ${c.status}: ${c.body?.message ?? ""}` }] };
-      hook = { id: c.body?.id, url, events: [...m.BREVO_EVENTS] };
-      checks.push({ id: "create", label: "Webhook created in Brevo", ok: true, detail: `ID ${hook.id}` });
-    } else {
-      const missing = m.BREVO_EVENTS.filter((e) => !hook!.events.includes(e));
-      if (missing.length) {
-        const u = await m.brevo(key, `/webhooks/${hook.id}`, { method: "PUT", body: { url, events: [...m.BREVO_EVENTS] } });
-        checks.push({ id: "repair", label: "Events updated", ok: u.ok, detail: u.ok ? `Added ${missing.join(", ")}` : `Brevo error ${u.status}` });
-      } else checks.push({ id: "found", label: "Webhook connected", ok: true, detail: `ID ${hook.id}` });
+    const hook = hooks.find((w) => w.url === url);
+
+    if (data.stage === "clean") {
+      const stale = hooks.filter((w) => w.url.startsWith(base) && w.url !== url);
+      for (const s of stale) {
+        const d = await m.brevo(key, `/webhooks/${s.id}`, { method: "DELETE" });
+        if (!d.ok && d.status !== 404) return fail("clean", `Remove old webhook #${s.id}`, d);
+      }
+      return { ok: true, checks: [{ id: "clean", label: "Old webhooks", ok: true, detail: stale.length ? `Removed ${stale.length} outdated hook(s)` : "None to clean" }] as Check[] };
     }
-    for (const s of stale) await m.brevo(key, `/webhooks/${s.id}`, { method: "DELETE" });
-    checks.push({ id: "events", label: "Required events", ok: true, detail: `${m.BREVO_EVENTS.length} events subscribed` });
-    checks.push({ id: "token", label: "Private token", ok: true, detail: "Generated & stored encrypted" });
+
+    if (data.stage === "register") {
+      if (!hook) {
+        const c = await m.brevo(key, "/webhooks", { method: "POST", body: { url, description: `Branta Console · ${co.name}`, events: [...m.BREVO_EVENTS], type: "transactional" } });
+        if (!c.ok) return fail("create", "Create webhook", c);
+        return { ok: true, checks: [{ id: "create", label: "Webhook created", ok: true, detail: `ID ${c.body?.id} · ${m.BREVO_EVENTS.length} events` }] as Check[] };
+      }
+      const missing = m.BREVO_EVENTS.filter((e) => !hook.events.includes(e));
+      if (!missing.length) return { ok: true, checks: [{ id: "found", label: "Webhook already registered", ok: true, detail: `ID ${hook.id}` }] as Check[] };
+      const u = await m.brevo(key, `/webhooks/${hook.id}`, { method: "PUT", body: { url, events: [...m.BREVO_EVENTS] } });
+      if (!u.ok) return fail("repair", "Update webhook events", u);
+      return { ok: true, checks: [{ id: "repair", label: "Webhook events updated", ok: true, detail: `Added ${missing.join(", ")}` }] as Check[] };
+    }
+
+    // verify: read back from Brevo, never trust our own write.
+    if (!hook) return { ok: false, checks: [{ id: "verify", label: "Webhook in Brevo", ok: false, detail: "Brevo did not return the webhook after creating it. Retry." }] as Check[] };
+    const g = await m.brevo(key, `/webhooks/${hook.id}`);
+    if (!g.ok) return fail("verify", "Read webhook back", g);
+    const w = g.body as W;
+    const missing = m.BREVO_EVENTS.filter((e) => !(w.events ?? []).includes(e));
+    const checks: Check[] = [
+      { id: "url", label: "Endpoint URL", ok: w.url === url, detail: w.url === url ? "Matches this company's private endpoint" : "URL in Brevo differs from this company's endpoint." },
+      { id: "type", label: "Webhook type", ok: (w.type ?? "transactional") === "transactional", detail: w.type ?? "transactional" },
+      { id: "events", label: "Required events", ok: !missing.length, detail: missing.length ? `Missing in Brevo: ${missing.join(", ")}` : `All ${m.BREVO_EVENTS.length} events active` },
+      { id: "token", label: "Private token", ok: true, detail: "Stored encrypted" },
+    ];
     const ok = checks.every((c) => c.ok);
-    if (ok) {
-      const patch: Any = { webhook_verified_at: new Date().toISOString(), webhook_events: [...m.BREVO_EVENTS], updated_by: context.userId };
-      if (fresh) { patch.webhook_secret_enc = await m.seal(token); patch.webhook_secret_hint = m.hint(token); }
-      await admin.from("company_email_providers").update(patch).eq("id", r.id);
-    }
+    if (ok) await admin.from("company_email_providers").update({ webhook_verified_at: new Date().toISOString(), webhook_events: w.events, updated_by: context.userId }).eq("id", r.id);
     return { ok, checks };
   });
 
