@@ -1,8 +1,17 @@
 import { companyAccent, companyInitials } from "@/lib/active-company";
 import { cn } from "@/lib/utils";
+import { companyIdentity } from "@/lib/company-identity";
+import { useState } from "react";
 
-export function CompanyAvatar({ name, slug, className }: { name: string; slug: string; className?: string }) {
+export function CompanyAvatar({ name, slug, className, iconUrl }: { name: string; slug: string; className?: string; iconUrl?: string | null }) {
   const c = companyAccent(slug);
+  const icon = iconUrl || companyIdentity(slug).icon;
+  const [failed, setFailed] = useState<string | null>(null);
+  if (icon && failed !== icon) return (
+    <span className={cn("grid size-8 shrink-0 place-items-center overflow-hidden rounded-md bg-[var(--company-artwork-paper)] ring-1 ring-border", className)}>
+      <img src={icon} alt={`${name} icon`} className="size-full object-contain" onError={() => setFailed(icon)} />
+    </span>
+  );
   return (
     <span
       className={cn("grid size-8 shrink-0 place-items-center rounded-md text-[11px] font-bold tracking-wide shadow-sm ring-1 ring-inset", className)}
