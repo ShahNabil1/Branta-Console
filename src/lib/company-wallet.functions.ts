@@ -114,3 +114,24 @@ export const moveCompanyWalletFunds = createServerFn({ method: "POST" })
     return { movementId: id as string };
   });
 
+
+/** Invoice form: which company a customer belongs to, and that sister company's active fund split. */
+export const getCustomerFundContext = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: { customerId: string }) => z.object({ customerId: z.string().uuid() }).parse(i))
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase as any;
+    const { data: cu } = await sb.from("customers").select("company_id").eq("id", data.customerId).maybeSingle();
+    if (!cu?.company_id) return { sister: false as const };
+    const { data: co } = await sb.from("companies").select("id, name, slug, is_holding").eq("id", cu.company_id).maybeSingle();
+    if (!co || co.is_holding) return { sister: false as const };
+    const { data: cfg, error } = await sb.from("company_fund_configs")
+      .select("version, company_fund_buckets(key, label, mode, percent, fixed_amount, sort)")
+      .eq("company_id", co.id).eq("is_active", true).maybeSingle();
+    if (error) throw dbError(error);
+    const funds = [...(cfg?.company_fund_buckets ?? [])].sort((a: any, b: any) => a.sort - b.sort).map((b: any) => ({
+      key: b.key as string, label: b.label as string, mode: (b.mode === "fixed" ? "fixed" : "percent") as "fixed" | "percent",
+      percent: Number(b.percent), fixed_amount: Number(b.fixed_amount ?? 0),
+    }));
+    return { sister: true as const, company: { id: co.id as string, name: co.name as string, slug: co.slug as string }, version: (cfg?.version ?? null) as number | null, funds };
+  });
