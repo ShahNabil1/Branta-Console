@@ -66,7 +66,6 @@ import { Route as AuthenticatedAppLeadsSlugRouteImport } from './routes/_authent
 import { Route as AuthenticatedAppLeadsDashboardRouteImport } from './routes/_authenticated/app.leads.dashboard'
 import { Route as AuthenticatedAppLeadsDraftsRouteImport } from './routes/_authenticated/app.leads.drafts'
 import { Route as AuthenticatedAppProfileIndexRouteImport } from './routes/_authenticated/app.profile.index'
-import { Route as AuthenticatedAppProfileActivityRouteImport } from './routes/_authenticated/app.profile.activity'
 import { Route as AuthenticatedAppProfileFinanceRouteImport } from './routes/_authenticated/app.profile.finance'
 import { Route as AuthenticatedAppProfilePersonalRouteImport } from './routes/_authenticated/app.profile.personal'
 import { Route as AuthenticatedAppProfileSecurityRouteImport } from './routes/_authenticated/app.profile.security'
@@ -415,12 +414,6 @@ const AuthenticatedAppProfileIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedAppProfileRoute,
   } as any)
-const AuthenticatedAppProfileActivityRoute =
-  AuthenticatedAppProfileActivityRouteImport.update({
-    id: '/activity',
-    path: '/activity',
-    getParentRoute: () => AuthenticatedAppProfileRoute,
-  } as any)
 const AuthenticatedAppProfileFinanceRoute =
   AuthenticatedAppProfileFinanceRouteImport.update({
     id: '/finance',
@@ -597,7 +590,6 @@ export interface FileRoutesByFullPath {
   '/app/leads/$slug': typeof AuthenticatedAppLeadsSlugRoute
   '/app/leads/dashboard': typeof AuthenticatedAppLeadsDashboardRoute
   '/app/leads/drafts': typeof AuthenticatedAppLeadsDraftsRoute
-  '/app/profile/activity': typeof AuthenticatedAppProfileActivityRoute
   '/app/profile/finance': typeof AuthenticatedAppProfileFinanceRoute
   '/app/profile/personal': typeof AuthenticatedAppProfilePersonalRoute
   '/app/profile/security': typeof AuthenticatedAppProfileSecurityRoute
@@ -671,7 +663,6 @@ export interface FileRoutesByTo {
   '/app/leads/$slug': typeof AuthenticatedAppLeadsSlugRoute
   '/app/leads/dashboard': typeof AuthenticatedAppLeadsDashboardRoute
   '/app/leads/drafts': typeof AuthenticatedAppLeadsDraftsRoute
-  '/app/profile/activity': typeof AuthenticatedAppProfileActivityRoute
   '/app/profile/finance': typeof AuthenticatedAppProfileFinanceRoute
   '/app/profile/personal': typeof AuthenticatedAppProfilePersonalRoute
   '/app/profile/security': typeof AuthenticatedAppProfileSecurityRoute
@@ -753,7 +744,6 @@ export interface FileRoutesById {
   '/_authenticated/app/leads/$slug': typeof AuthenticatedAppLeadsSlugRoute
   '/_authenticated/app/leads/dashboard': typeof AuthenticatedAppLeadsDashboardRoute
   '/_authenticated/app/leads/drafts': typeof AuthenticatedAppLeadsDraftsRoute
-  '/_authenticated/app/profile/activity': typeof AuthenticatedAppProfileActivityRoute
   '/_authenticated/app/profile/finance': typeof AuthenticatedAppProfileFinanceRoute
   '/_authenticated/app/profile/personal': typeof AuthenticatedAppProfilePersonalRoute
   '/_authenticated/app/profile/security': typeof AuthenticatedAppProfileSecurityRoute
@@ -835,7 +825,6 @@ export interface FileRouteTypes {
     | '/app/leads/$slug'
     | '/app/leads/dashboard'
     | '/app/leads/drafts'
-    | '/app/profile/activity'
     | '/app/profile/finance'
     | '/app/profile/personal'
     | '/app/profile/security'
@@ -909,7 +898,6 @@ export interface FileRouteTypes {
     | '/app/leads/$slug'
     | '/app/leads/dashboard'
     | '/app/leads/drafts'
-    | '/app/profile/activity'
     | '/app/profile/finance'
     | '/app/profile/personal'
     | '/app/profile/security'
@@ -990,7 +978,6 @@ export interface FileRouteTypes {
     | '/_authenticated/app/leads/$slug'
     | '/_authenticated/app/leads/dashboard'
     | '/_authenticated/app/leads/drafts'
-    | '/_authenticated/app/profile/activity'
     | '/_authenticated/app/profile/finance'
     | '/_authenticated/app/profile/personal'
     | '/_authenticated/app/profile/security'
@@ -1441,13 +1428,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppProfileIndexRouteImport
       parentRoute: typeof AuthenticatedAppProfileRoute
     }
-    '/_authenticated/app/profile/activity': {
-      id: '/_authenticated/app/profile/activity'
-      path: '/activity'
-      fullPath: '/app/profile/activity'
-      preLoaderRoute: typeof AuthenticatedAppProfileActivityRouteImport
-      parentRoute: typeof AuthenticatedAppProfileRoute
-    }
     '/_authenticated/app/profile/finance': {
       id: '/_authenticated/app/profile/finance'
       path: '/finance'
@@ -1729,7 +1709,6 @@ const AuthenticatedAppLeadsRouteWithChildren =
   )
 
 interface AuthenticatedAppProfileRouteChildren {
-  AuthenticatedAppProfileActivityRoute: typeof AuthenticatedAppProfileActivityRoute
   AuthenticatedAppProfileFinanceRoute: typeof AuthenticatedAppProfileFinanceRoute
   AuthenticatedAppProfilePersonalRoute: typeof AuthenticatedAppProfilePersonalRoute
   AuthenticatedAppProfileSecurityRoute: typeof AuthenticatedAppProfileSecurityRoute
@@ -1739,7 +1718,6 @@ interface AuthenticatedAppProfileRouteChildren {
 
 const AuthenticatedAppProfileRouteChildren: AuthenticatedAppProfileRouteChildren =
   {
-    AuthenticatedAppProfileActivityRoute: AuthenticatedAppProfileActivityRoute,
     AuthenticatedAppProfileFinanceRoute: AuthenticatedAppProfileFinanceRoute,
     AuthenticatedAppProfilePersonalRoute: AuthenticatedAppProfilePersonalRoute,
     AuthenticatedAppProfileSecurityRoute: AuthenticatedAppProfileSecurityRoute,
