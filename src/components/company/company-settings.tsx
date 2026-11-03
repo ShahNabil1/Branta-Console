@@ -258,7 +258,7 @@ function PrefixPanel({ c, accent }: { c: Co; accent: string }) {
                 </span>
               </div>
               <Input value={v} placeholder={c.is_holding ? DEFAULT_PREFIX[kind] : "e.g. ADL-"} maxLength={6}
-                onChange={(e) => { let x = e.target.value.toUpperCase().replace(/[^A-Z-]/g, ""); if (x && !x.endsWith("-") && x.length >= 2 && !x.includes("-")) x = x; setP((o) => ({ ...o, [kind]: x })); }}
+                onChange={(e) => { let x = e.target.value.toUpperCase().replace(/[^A-Z-]/g, ""); setP((o) => ({ ...o, [kind]: x })); }}
                 onBlur={() => v && !v.endsWith("-") && setP((o) => ({ ...o, [kind]: `${v}-` }))}
                 className={cn("mt-2 font-mono", bad && "border-destructive")} />
               <div className="mt-2 flex items-center justify-between text-[11px] font-semibold">

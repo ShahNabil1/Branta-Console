@@ -18,6 +18,7 @@ import {
 } from "@/components/profile/bd-fields";
 import { cn } from "@/lib/utils";
 import { EmailIntegrations } from "@/components/company/email-integrations";
+import { CompanySettings } from "@/components/company/company-settings";
 
 export const Route = createFileRoute("/_authenticated/app/companies/$slug")({
   head: () => ({
@@ -113,7 +114,7 @@ function CompanyProfile() {
       </section>
 
       <div key={tab} className="animate-in fade-in slide-in-from-bottom-1 duration-300">
-        {tab === "info" ? <InfoTab c={c} accent={accent} /> : tab === "integrations" ? <EmailIntegrations slug={c.slug} accent={accent} /> : <ComingSoon tab={TABS.find((t) => t.id === tab)!} accent={accent} />}
+        {tab === "info" ? <InfoTab c={c} accent={accent} /> : tab === "integrations" ? <EmailIntegrations slug={c.slug} accent={accent} /> : tab === "settings" ? <CompanySettings c={c} accent={accent} /> : <ComingSoon tab={TABS.find((t) => t.id === tab)!} accent={accent} />}
       </div>
     </div>
   );
