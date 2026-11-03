@@ -27,6 +27,7 @@ export interface LeadEmailRow {
   body_html: string | null;
   body_text: string | null;
   from_email: string | null;
+  from_name?: string | null;
   to_emails: string[];
   cc_emails: string[];
   status: LeadEmailStatus;
@@ -182,6 +183,7 @@ async function deliverQueuedRow(
   const { data: lc } = await adminClient.from("leads").select("company_id, companies:company_id(is_holding, name)")
     .eq("id", row.lead_id).maybeSingle();
   let own: OwnSender = null;
+  const isSister = !!(lc?.companies && !lc.companies.is_holding);
   let result: { ok: true; messageId: string } | { ok: false; error: string };
   if (lc?.company_id && lc.companies && !lc.companies.is_holding) {
     const { resolveCompanySender } = await import("@/lib/company-email.server");
@@ -199,6 +201,9 @@ async function deliverQueuedRow(
       .from("lead_emails")
       .update({
         status: "sent",
+        // Record the address it really left from (provider config at send time).
+        from_email: own?.fromEmail ?? (isSister ? null : LEAD_FROM_EMAIL),
+        from_name: own?.fromName ?? (isSister ? null : LEAD_FROM_NAME),
         message_id: result.messageId || null,
         sent_at: new Date().toISOString(),
         error_message: null,
@@ -379,6 +384,7 @@ export const sendLeadEmail = createServerFn({ method: "POST" })
           body_html: html,
           body_text: text ?? renderedBody,
           from_email: sender.email || LEAD_FROM_EMAIL,
+          from_name: sender.name || LEAD_FROM_NAME,
           to_emails: [recipient.email],
           cc_emails: data.cc,
           status: "queued" as const,

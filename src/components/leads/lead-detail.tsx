@@ -3118,7 +3118,7 @@ function EmailsTab({ lead }: { lead: LeadRow }) {
                 <div>
                   <span className="text-muted-foreground">From</span>{" "}
                   <span className="font-mono">
-                    {senderName || "Branta Tech"} &lt;{viewMail.from_email || senderEmail}&gt;
+                    {(viewMail as { from_name?: string | null }).from_name || senderName} &lt;{viewMail.from_email || senderEmail}&gt;
                   </span>
                   {viewMail.sent_by_name && (
                     <span className="ml-2 text-muted-foreground">
