@@ -26,7 +26,8 @@ import { Input } from "@/components/ui/input";
 import { SearchableSelect, type SearchableItem } from "@/components/finance/searchable-select";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { ReportFilterBar } from "@/components/finance/report-filter-bar";
-import { RecordCard, RowActionsMenu } from "@/components/finance/responsive-record-list";
+import { RowActionsMenu } from "@/components/finance/responsive-record-list";
+import { PageHero } from "@/components/branta/page-hero";
 import { ExpenseItemsEditor, sumItems, type ExpenseItem } from "@/components/finance/expense-items-editor";
 import { ExpenseReceiptsEditor, type ReceiptDraft } from "@/components/finance/expense-receipts-editor";
 
@@ -79,6 +80,16 @@ async function uploadToBucket(file: File, prefix: string) {
   return path;
 }
 
+
+const CAT_TONE: Record<string, { chip: string; bar: string }> = {
+  salary: { chip: "bg-violet-50 text-violet-700 ring-violet-200", bar: "bg-violet-500" },
+  tools: { chip: "bg-sky-50 text-sky-700 ring-sky-200", bar: "bg-sky-500" },
+  ads: { chip: "bg-pink-50 text-pink-700 ring-pink-200", bar: "bg-pink-500" },
+  office: { chip: "bg-amber-50 text-amber-700 ring-amber-200", bar: "bg-amber-500" },
+  misc: { chip: "bg-slate-100 text-slate-700 ring-slate-200", bar: "bg-slate-400" },
+  tax: { chip: "bg-rose-50 text-rose-700 ring-rose-200", bar: "bg-rose-500" },
+  refund: { chip: "bg-emerald-50 text-emerald-700 ring-emerald-200", bar: "bg-emerald-500" },
+};
 
 const CATEGORIES: ExpenseCategory[] = ["salary", "tools", "ads", "office", "misc", "tax", "refund"];
 
@@ -512,22 +523,47 @@ export function ExpensesPage() {
 
   return (
     <div className="mx-auto w-full min-w-0 max-w-7xl space-y-4 px-3 py-5 sm:px-6 sm:py-6 2xl:max-w-[1600px]">
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 sm:flex sm:flex-wrap sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <h1 className="truncate text-[18px] font-semibold text-foreground sm:text-[20px]">Expenses</h1>
-          <p className="text-[12px] text-muted-foreground sm:text-[12.5px]">Track company outflow — reflected in the dashboard.</p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <Button asChild variant="ghost" className="h-9 rounded-sm text-[12.5px]">
-            <Link to="/app/finance/recycle-bin">
-              <Trash2 className="mr-1.5 size-3.5" /> <span className="hidden sm:inline">Recycle Bin</span>
-            </Link>
+      <PageHero
+        icon={Receipt}
+        eyebrow={activeCompany?.name ?? "Finance"}
+        title="Expenses"
+        subtitle={`${(q.data ?? []).length} expense${(q.data ?? []).length === 1 ? "" : "s"} · only ${activeCompany?.name ?? "this company"}'s outflow`}
+        actions={<>
+          <Button asChild variant="outline" className="gap-1.5">
+            <Link to="/app/finance/recycle-bin"><Trash2 className="size-4" /> <span className="hidden sm:inline">Recycle Bin</span></Link>
           </Button>
           <ExportMenu filters={filters} kind="expense" />
-          <Button onClick={startCreate} className="h-9 rounded-sm bg-primary hover:bg-brand-700">
-            <Plus className="mr-1.5 size-3.5" /> <span className="hidden sm:inline">Add expense</span><span className="sm:hidden">Add</span>
+          <Button onClick={startCreate} className="gap-1.5 shadow-md shadow-brand/25 transition-all hover:-translate-y-0.5 hover:shadow-lg active:scale-95">
+            <Plus className="size-4" /> Add expense
           </Button>
-        </div>
+        </>}
+      />
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {(() => {
+          const shown = visible;
+          const total = shown.reduce((a, r) => a + Number(r.amount), 0);
+          const monthKey = new Date().toISOString().slice(0, 7);
+          const month = shown.filter((r) => r.spent_on.startsWith(monthKey)).reduce((a, r) => a + Number(r.amount), 0);
+          const signed = shown.filter((r) => r.signed_voucher_url).length;
+          const byCat = new Map<string, number>();
+          shown.forEach((r) => byCat.set(r.category, (byCat.get(r.category) ?? 0) + Number(r.amount)));
+          const top = [...byCat.entries()].sort((a, b) => b[1] - a[1])[0];
+          return ([
+            { l: "Total in view", v: fmt(total, filters.currency), tone: "text-rose-600 bg-rose-50 ring-rose-200" },
+            { l: "This month", v: fmt(month, filters.currency), tone: "text-amber-600 bg-amber-50 ring-amber-200" },
+            { l: "Top category", v: top ? formatCategory(top[0]) : "—", tone: "text-sky-600 bg-sky-50 ring-sky-200" },
+            { l: "Signed vouchers", v: `${signed} / ${shown.length}`, tone: "text-emerald-600 bg-emerald-50 ring-emerald-200" },
+          ]).map((k, i) => (
+            <div key={k.l} style={{ animationDelay: `${i * 40}ms` }} className="group rounded-lg border border-border bg-card p-4 shadow-sm transition-all duration-200 animate-in fade-in slide-in-from-bottom-1 fill-mode-both hover:-translate-y-0.5 hover:shadow-md">
+              <div className="flex items-center justify-between">
+                <span className="text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground">{k.l}</span>
+                <span className={cn("grid size-7 place-items-center rounded-md ring-1 ring-inset transition-transform group-hover:scale-110", k.tone)}><Receipt className="size-3.5" /></span>
+              </div>
+              <div className="mt-2 truncate font-mono text-[17px] font-bold">{k.v}</div>
+            </div>
+          ));
+        })()}
       </div>
 
       <ReportFilterBar filters={filters} onChange={setFilters} kind="expense" />
@@ -548,130 +584,77 @@ export function ExpensesPage() {
         })}
       </div>
 
-      <div className="hidden w-full max-w-full overflow-x-auto overscroll-x-contain rounded-md border border-border bg-card xl:block">
-        <table className="w-full min-w-[1240px] table-auto text-[12.5px]">
 
-          <thead className="sticky top-0 z-10 border-b border-border bg-muted/60 text-left text-[10.5px] uppercase tracking-wider text-muted-foreground backdrop-blur">
-            <tr className="[&>th]:whitespace-nowrap">
-              <th className="px-3 py-2">Date</th>
-              <th className="px-3 py-2">Category</th>
-              <th className="px-3 py-2">Department</th>
-              <th className="px-3 py-2">Requested by</th>
-              <th className="px-3 py-2">Vendor</th>
-              <th className="px-3 py-2">Method / TrxID</th>
-              <th className="px-3 py-2 text-right">Amount</th>
-              <th className="px-3 py-2">Purpose / Notes</th>
-              <th className="px-3 py-2">Voucher</th>
-              <th className="px-3 py-2">Receipt</th>
-              <th className="px-3 py-2">Signed copy</th>
-              <th className="px-3 py-2 text-right"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {visible.length === 0 ? (
-              <tr><td colSpan={12} className="px-3 py-10 text-center text-muted-foreground">
-                {(q.data ?? []).length === 0 ? "No expenses yet." : "No expenses match the selected filters."}
-              </td></tr>
-            ) : visible.map((r) => (
-              <tr key={r.id} id={`exp-${r.id}`} data-exp-id={r.id}
-                className={`border-t border-border align-top transition-colors duration-500 [&>td]:whitespace-nowrap ${
-                  highlightId === r.id ? "bg-brand/10 shadow-[inset_0_0_0_2px_var(--color-brand)]" : ""
-                }`}>
-                <td className="px-3 py-2 font-mono text-[11.5px] text-muted-foreground">{r.spent_on}</td>
-                <td className="px-3 py-2">{formatCategory(r.category)}</td>
-                <td className="px-3 py-2">
-                  <span className="block max-w-[130px] truncate">{r.department ?? "—"}</span>
-                </td>
-                <td className="px-3 py-2">
-                  <span className="block max-w-[150px] truncate">{r.requested_by_name ?? "—"}</span>
-                </td>
-                <td className="px-3 py-2">
-                  <span className="block max-w-[160px] truncate" title={r.vendor ?? ""}>{r.vendor ?? "—"}</span>
-                </td>
-                <td className="px-3 py-2">
-                  <div className="max-w-[150px] leading-tight">
-                    <div className="truncate">{r.payment_method ?? "—"}</div>
-                    {r.txn_id && <div className="truncate font-mono text-[11px] text-muted-foreground">{r.txn_id}</div>}
-                  </div>
-                </td>
-                <td className="px-3 py-2 text-right font-mono">{fmt(r.amount, r.currency)}</td>
-                <td className="px-3 py-2 text-muted-foreground">
-                  <span className="block max-w-[220px] truncate" title={r.request_purpose || r.notes || ""}>
-                    {r.request_purpose || r.notes || "—"}
-                  </span>
-                </td>
-                <td className="px-3 py-2">
-                  <div className="flex items-center gap-1">
-                    <span className="font-mono text-[11.5px] text-muted-foreground">{r.voucher_no ?? "—"}</span>
-                    <Button size="sm" variant="ghost" className="h-7 rounded-sm px-2 text-[11.5px]"
-                      disabled={!r.voucher_no || busyId === r.id + "view"}
-                      onClick={() => viewVoucher(r.id, r.voucher_no)} title="View voucher invoice">
-                      {busyId === r.id + "view" ? <Loader2 className="size-3.5 animate-spin" /> : <Eye className="size-3.5" />}
-                    </Button>
-                    <Button size="sm" variant="ghost" className="h-7 rounded-sm px-2 text-[11.5px]"
-                      disabled={!r.voucher_no || busyId === r.id + "dl"}
-                      onClick={() => downloadVoucher(r.id, r.voucher_no, r.signed_voucher_url)}
-                      title={r.signed_voucher_url ? "Download sealed (signed) copy" : "Download voucher PDF"}>
-                      {busyId === r.id + "dl" ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />}
-                    </Button>
-
-                    <Button size="sm" variant="ghost" className="h-7 rounded-sm px-2 text-[11.5px]"
-                      disabled={!r.voucher_no || busyId === r.id + "print"}
-                      onClick={() => openVoucher(r.id, "print")} title="Print on letterhead paper">
-                      {busyId === r.id + "print" ? <Loader2 className="size-3.5 animate-spin" /> : <Printer className="size-3.5" />}
-                    </Button>
-                  </div>
-                </td>
-                <td className="px-3 py-2">
-                  {(r.attachments ?? []).length > 0 ? (
-                    <div className="flex flex-wrap items-center gap-1">
-                      {(r.attachments ?? []).map((a, i) => (
-                        <Button key={a.id} size="sm" variant="ghost" className="h-7 rounded-sm px-2 text-[11.5px]"
-                          onClick={() => openReceipt(a.path, r.id)}
-                          title={a.caption || `Receipt ${i + 1}`}>
-                          {isPdfPath(a.path) ? <FileText className="size-3.5" /> : <Eye className="size-3.5" />}
-                          <span className="ml-1">{i + 1}</span>
-                        </Button>
-                      ))}
-                    </div>
-                  ) : r.receipt_url ? (
-                    <div className="flex items-center gap-1">
-                      <Button size="sm" variant="ghost" className="h-7 rounded-sm px-2 text-[11.5px]"
-                        onClick={() => openReceipt(r.receipt_url as string, r.id)}
-                        title={isPdfPath(r.receipt_url) ? "Open PDF" : "View image"}>
-                        {isPdfPath(r.receipt_url) ? <FileText className="size-3.5" /> : <Eye className="size-3.5" />}
-                        <span className="ml-1">View</span>
+      <div className="grid w-full min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {visible.length === 0 ? (
+          <div className="col-span-full rounded-lg border border-dashed border-border bg-card px-6 py-16 text-center">
+            <span className="mx-auto grid size-12 place-items-center rounded-xl bg-brand/10 text-brand"><Receipt className="size-6" /></span>
+            <div className="mt-3 text-[14px] font-bold">{(q.data ?? []).length === 0 ? "No expenses yet" : "No expenses match the selected filters"}</div>
+            <p className="mt-1 text-[12.5px] text-muted-foreground">Record {activeCompany?.name ?? "the company"}'s first expense with its receipt.</p>
+            <Button onClick={startCreate} className="mt-4 gap-1.5"><Plus className="size-4" /> Add expense</Button>
+          </div>
+        ) : visible.map((r, idx) => {
+          const tone = CAT_TONE[r.category] ?? CAT_TONE.misc;
+          const receipts = (r.attachments ?? []).length || (r.receipt_url ? 1 : 0);
+          return (
+          <div
+            key={`m-${r.id}`}
+            id={`exp-m-${r.id}`}
+            data-exp-id={r.id}
+            style={{ animationDelay: `${Math.min(idx, 12) * 35}ms` }}
+            className={cn("group relative flex flex-col overflow-hidden rounded-lg border border-border bg-card p-5 shadow-sm transition-all duration-200 animate-in fade-in slide-in-from-bottom-2 fill-mode-both hover:-translate-y-1 hover:border-transparent hover:shadow-xl",
+              highlightId === r.id && "ring-2 ring-brand")}
+          >
+            <span className={cn("absolute inset-x-0 top-0 h-1 origin-left scale-x-0 transition-transform duration-300 group-hover:scale-x-100", tone.bar)} />
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span className={cn("grid size-9 shrink-0 place-items-center rounded-lg ring-1 ring-inset transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3", tone.chip)}><Receipt className="size-4" /></span>
+                <div className="min-w-0">
+                  <div className="truncate font-mono text-[11.5px] font-bold">{r.voucher_no ?? "—"}</div>
+                  <span className={cn("mt-0.5 inline-flex rounded-full px-2 py-px text-[10px] font-bold uppercase tracking-wider", tone.chip)}>{formatCategory(r.category)}</span>
+                </div>
+              </div>
+              <div className="flex shrink-0 items-center gap-1">
+                {r.signed_voucher_url && <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-700">Signed</span>}
+                <RowActionsMenu>
+                  <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]"
+                    disabled={!r.voucher_no} onClick={() => viewVoucher(r.id, r.voucher_no)}>
+                    <Eye className="mr-2 size-3.5" /> View voucher
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]"
+                    disabled={!r.voucher_no} onClick={() => downloadVoucher(r.id, r.voucher_no, r.signed_voucher_url)}>
+                    <Download className="mr-2 size-3.5" /> Download voucher
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]"
+                    disabled={!r.voucher_no} onClick={() => openVoucher(r.id, "print")}>
+                    <Printer className="mr-2 size-3.5" /> Print on letterhead
+                  </Button>
+                  {r.receipt_url && (
+                    <>
+                      <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]"
+                        onClick={() => openReceipt(r.receipt_url as string, r.id)}>
+                        <FileText className="mr-2 size-3.5" /> View receipt
                       </Button>
-                      <Button size="sm" variant="ghost" className="h-7 rounded-sm px-2 text-[11.5px]"
-                        onClick={() => downloadReceipt(r.receipt_url as string, r.id)} title="Download">
-                        <Download className="size-3.5" />
+                      <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]"
+                        onClick={() => downloadReceipt(r.receipt_url as string, r.id)}>
+                        <Download className="mr-2 size-3.5" /> Download receipt
                       </Button>
-                    </div>
-                  ) : (
-                    <span className="text-[11.5px] text-muted-foreground">—</span>
+                    </>
                   )}
-                </td>
-                <td className="px-3 py-2">
                   {r.signed_voucher_url ? (
-                    <div className="flex items-center gap-1">
-                      <span className="rounded-sm bg-emerald-50 px-1.5 py-0.5 text-[10.5px] font-semibold uppercase text-emerald-700">Signed</span>
-                      <Button size="sm" variant="ghost" className="h-7 rounded-sm px-2"
-                        onClick={() => openReceipt(r.signed_voucher_url as string, r.id)} title="View sealed copy">
-                        {isPdfPath(r.signed_voucher_url) ? <FileText className="size-3.5" /> : <Eye className="size-3.5" />}
+                    <>
+                      <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]"
+                        onClick={() => openReceipt(r.signed_voucher_url as string, r.id)}>
+                        <Stamp className="mr-2 size-3.5" /> View sealed copy
                       </Button>
-                      <Button size="sm" variant="ghost" className="h-7 rounded-sm px-2"
-                        onClick={() => downloadReceipt(r.signed_voucher_url as string, r.id)} title="Download">
-                        <Download className="size-3.5" />
+                      <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px] text-rose-600"
+                        onClick={() => removeSigned(r.id)}>
+                        <X className="mr-2 size-3.5" /> Remove sealed copy
                       </Button>
-                      <Button size="sm" variant="ghost" className="h-7 rounded-sm px-2 text-rose-600 hover:bg-rose-50"
-                        disabled={busyId === r.id + "signed"} onClick={() => removeSigned(r.id)} title="Remove">
-                        <X className="size-3.5" />
-                      </Button>
-                    </div>
+                    </>
                   ) : (
-                    <label className="inline-flex cursor-pointer items-center gap-1 rounded-sm border border-dashed border-input px-2 py-1 text-[11.5px] text-muted-foreground hover:border-primary hover:text-primary">
-                      {busyId === r.id + "signed" ? <Loader2 className="size-3.5 animate-spin" /> : <Stamp className="size-3.5" />}
-                      <span>Upload sealed</span>
+                    <label className="inline-flex h-8 w-full cursor-pointer items-center rounded-sm px-3 text-[12px] hover:bg-muted">
+                      <Stamp className="mr-2 size-3.5" /> Upload sealed copy
                       <input type="file" accept={ACCEPT} className="hidden"
                         onChange={(ev) => {
                           const f = ev.target.files?.[0];
@@ -680,136 +663,44 @@ export function ExpensesPage() {
                         }} />
                     </label>
                   )}
-                </td>
-                <td className="px-3 py-2 text-right">
-                  <Button size="sm" variant="ghost" onClick={() => copyLink(r.voucher_no)}
-                    className="h-7 rounded-sm" disabled={!r.voucher_no}
-                    title="Copy private link (Finance only)">
-                    <Link2 className="size-3.5" />
+                  <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]"
+                    disabled={!r.voucher_no} onClick={() => copyLink(r.voucher_no)}>
+                    <Link2 className="mr-2 size-3.5" /> Copy private link
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => setLogsFor({ id: r.id, voucher: r.voucher_no })}
-                    className="h-7 rounded-sm" title="Activity log — who did what, when">
-                    <History className="size-3.5" />
+                  <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]"
+                    onClick={() => setLogsFor({ id: r.id, voucher: r.voucher_no })}>
+                    <History className="mr-2 size-3.5" /> Activity log
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => setAskEditFor(r)}
-                    className="h-7 rounded-sm" title="Edit expense">
-                    <Pencil className="size-3.5" />
+                  <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]" onClick={() => setAskEditFor(r)}>
+                    <Pencil className="mr-2 size-3.5" /> Edit expense
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => setAskDeleteFor(r)}
-                    className="h-7 rounded-sm text-rose-600 hover:bg-rose-50" title="Move to Recycle Bin">
-                    <Trash2 className="size-3.5" />
+                  <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px] text-rose-600"
+                    onClick={() => setAskDeleteFor(r)}>
+                    <Trash2 className="mr-2 size-3.5" /> Delete (Recycle Bin)
                   </Button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Mobile / tablet cards */}
-      <div className="w-full min-w-0 space-y-2.5 xl:hidden">
-        {visible.length === 0 ? (
-          <div className="rounded-md border border-border bg-card px-3 py-10 text-center text-[12.5px] text-muted-foreground">
-            {(q.data ?? []).length === 0 ? "No expenses yet." : "No expenses match the selected filters."}
+                </RowActionsMenu>
+              </div>
+            </div>
+            <div className="mt-3 line-clamp-1 text-[14.5px] font-bold">{r.vendor || formatCategory(r.category)}</div>
+            <p className="mt-0.5 line-clamp-2 min-h-[2.25rem] text-[12px] text-muted-foreground">{r.request_purpose || r.notes || "No purpose noted"}</p>
+            <div className="mt-3 font-mono text-[19px] font-bold text-rose-600">− {fmt(r.amount, r.currency)}</div>
+            <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5 border-t border-border pt-3 text-[11.5px]">
+              <div className="min-w-0"><dt className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Date</dt><dd className="truncate font-semibold">{new Date(r.spent_on).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</dd></div>
+              <div className="min-w-0"><dt className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Method</dt><dd className="truncate font-semibold">{r.payment_method ?? "—"}</dd></div>
+              <div className="min-w-0"><dt className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Requested by</dt><dd className="truncate font-semibold">{r.requested_by_name ?? "—"}</dd></div>
+              <div className="min-w-0"><dt className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Department</dt><dd className="truncate font-semibold">{r.department ?? "—"}</dd></div>
+            </dl>
+            <div className="mt-3 flex items-center justify-between gap-2">
+              <span className="truncate font-mono text-[10.5px] text-muted-foreground">{r.txn_id ? `TrxID ${r.txn_id}` : "No TrxID"} · {receipts} receipt{receipts === 1 ? "" : "s"}</span>
+              <div className="flex shrink-0 items-center gap-0.5 opacity-70 transition-opacity group-hover:opacity-100">
+                <Button size="sm" variant="ghost" className="h-7 rounded-md px-2" disabled={!r.voucher_no} onClick={() => viewVoucher(r.id, r.voucher_no)} title="View voucher"><Eye className="size-3.5" /></Button>
+                <Button size="sm" variant="ghost" className="h-7 rounded-md px-2" disabled={!r.voucher_no} onClick={() => downloadVoucher(r.id, r.voucher_no, r.signed_voucher_url)} title="Download voucher"><Download className="size-3.5" /></Button>
+                <Button size="sm" variant="ghost" className="h-7 rounded-md px-2" onClick={() => setAskEditFor(r)} title="Edit"><Pencil className="size-3.5" /></Button>
+              </div>
+            </div>
           </div>
-        ) : visible.map((r) => (
-          <div
-            key={`m-${r.id}`}
-            id={`exp-m-${r.id}`}
-            data-exp-id={r.id}
-            className={`overflow-hidden rounded-md border border-border bg-card shadow-sm transition-all duration-500 ${
-              highlightId === r.id ? "bg-brand/10 shadow-[inset_0_0_0_2px_var(--color-brand)]" : ""
-            }`}
-          >
-          <RecordCard
-            code={r.voucher_no}
-            title={r.vendor || formatCategory(r.category)}
-            subtitle={r.request_purpose || r.notes || ""}
-            amount={fmt(r.amount, r.currency)}
-            amountTone="expense"
-            badge={
-              r.signed_voucher_url ? (
-                <span className="rounded-sm bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-emerald-700">Signed</span>
-              ) : null
-            }
-            fields={[
-              { label: "Date", value: r.spent_on, primary: true },
-              { label: "Category", value: formatCategory(r.category), primary: true },
-              { label: "Department", value: r.department ?? "—" },
-              { label: "Requested by", value: r.requested_by_name ?? "—" },
-              { label: "Method", value: r.payment_method ?? "—" },
-              { label: "TrxID", value: r.txn_id ? <span className="font-mono">{r.txn_id}</span> : "—" },
-              { label: "Purpose", value: r.request_purpose || r.notes || "—" },
-              { label: "Receipt", value: r.receipt_url ? "Attached" : "—" },
-            ]}
-            actions={
-              <RowActionsMenu>
-                <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]"
-                  disabled={!r.voucher_no} onClick={() => viewVoucher(r.id, r.voucher_no)}>
-                  <Eye className="mr-2 size-3.5" /> View voucher
-                </Button>
-                <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]"
-                  disabled={!r.voucher_no} onClick={() => downloadVoucher(r.id, r.voucher_no, r.signed_voucher_url)}>
-                  <Download className="mr-2 size-3.5" /> Download voucher
-                </Button>
-                <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]"
-                  disabled={!r.voucher_no} onClick={() => openVoucher(r.id, "print")}>
-                  <Printer className="mr-2 size-3.5" /> Print on letterhead
-                </Button>
-                {r.receipt_url && (
-                  <>
-                    <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]"
-                      onClick={() => openReceipt(r.receipt_url as string, r.id)}>
-                      <FileText className="mr-2 size-3.5" /> View receipt
-                    </Button>
-                    <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]"
-                      onClick={() => downloadReceipt(r.receipt_url as string, r.id)}>
-                      <Download className="mr-2 size-3.5" /> Download receipt
-                    </Button>
-                  </>
-                )}
-                {r.signed_voucher_url ? (
-                  <>
-                    <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]"
-                      onClick={() => openReceipt(r.signed_voucher_url as string, r.id)}>
-                      <Stamp className="mr-2 size-3.5" /> View sealed copy
-                    </Button>
-                    <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px] text-rose-600"
-                      onClick={() => removeSigned(r.id)}>
-                      <X className="mr-2 size-3.5" /> Remove sealed copy
-                    </Button>
-                  </>
-                ) : (
-                  <label className="inline-flex h-8 w-full cursor-pointer items-center rounded-sm px-3 text-[12px] hover:bg-muted">
-                    <Stamp className="mr-2 size-3.5" /> Upload sealed copy
-                    <input type="file" accept={ACCEPT} className="hidden"
-                      onChange={(ev) => {
-                        const f = ev.target.files?.[0];
-                        ev.target.value = "";
-                        if (f) void uploadSigned(r.id, f);
-                      }} />
-                  </label>
-                )}
-                <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]"
-                  disabled={!r.voucher_no} onClick={() => copyLink(r.voucher_no)}>
-                  <Link2 className="mr-2 size-3.5" /> Copy private link
-                </Button>
-                <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]"
-                  onClick={() => setLogsFor({ id: r.id, voucher: r.voucher_no })}>
-                  <History className="mr-2 size-3.5" /> Activity log
-                </Button>
-                <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]" onClick={() => setAskEditFor(r)}>
-                  <Pencil className="mr-2 size-3.5" /> Edit expense
-                </Button>
-                <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px] text-rose-600"
-                  onClick={() => setAskDeleteFor(r)}>
-                  <Trash2 className="mr-2 size-3.5" /> Delete (Recycle Bin)
-                </Button>
-              </RowActionsMenu>
-            }
-          />
-          </div>
-        ))}
+          );
+        })}
       </div>
 
 
