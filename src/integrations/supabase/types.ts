@@ -5654,6 +5654,10 @@ export type Database = {
         }
         Returns: number
       }
+      set_company_default_email_provider: {
+        Args: { _actor: string; _company: string; _provider: string }
+        Returns: undefined
+      }
       validate_branta_email: { Args: { _email: string }; Returns: boolean }
       verify_cron_token: {
         Args: { _name: string; _token: string }
