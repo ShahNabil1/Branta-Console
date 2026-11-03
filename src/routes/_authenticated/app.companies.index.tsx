@@ -1,4 +1,3 @@
-import { useNavigate } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { z } from "zod";
@@ -33,7 +32,6 @@ export const Route = createFileRoute("/_authenticated/app/companies/")({
 });
 
 function CompaniesPage() {
-  const navigate = useNavigate();
   const { create } = Route.useSearch();
   const navigate = useNavigate();
   const q = useCompanies();

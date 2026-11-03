@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 
 
 export function CustomerDetailPage() {
-  const { code } = useParamsRR({ strict: false }) as never as Record<string, string>;
+  const { code } = (useParamsRR({ strict: false }) as Record<string, string>);
   const navigate = useNavigate();
   const getCustomer = useServerFn(getCustomerByCode);
   const workspace = useActiveCompany().active?.slug ?? null;

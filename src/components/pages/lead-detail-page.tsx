@@ -23,7 +23,7 @@ export const searchSchema = z.object({
 
 
 export function LeadDetailPage() {
-  const { slug } = useParamsRR({ strict: false }) as never as Record<string, string>;
+  const { slug } = (useParamsRR({ strict: false }) as Record<string, string>);
   const { new: isNewFlag } = (useSearchRR({ strict: false }) as z.infer<typeof searchSchema>);
   const isNew = isNewFlag === 1;
   const navigate = useNavigate();

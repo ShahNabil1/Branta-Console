@@ -70,7 +70,7 @@ function HoldingOverview() {
 
   const updateScope = (v: ScopeState) => {
     setScope(v);
-    navigate({ search: { u: v.userId ?? "", r: v.range }, replace: true });
+    navigate({ search: { u: v.userId ?? "", r: v.range } as never, replace: true } as never);
   };
 
   const kpisFn = useServerFn(getOverviewKpis);
