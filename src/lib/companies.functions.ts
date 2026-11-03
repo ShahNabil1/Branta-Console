@@ -47,8 +47,10 @@ export const listCompanies = createServerFn({ method: "GET" })
     const counts: Record<string, number> = {};
     for (const m of (mem ?? []) as { company_id: string }[]) counts[m.company_id] = (counts[m.company_id] ?? 0) + 1;
     const ppl = await people(sb, rows.flatMap((r) => [r.ceo_user_id ?? "", r.coo_user_id ?? ""]));
-    return rows.map((r) => ({
+    const manage = await Promise.all(rows.map((r) => sb.rpc("can_manage_company", { _company: r.id, _user: context.userId })));
+    return rows.map((r, i) => ({
       ...r,
+      canManage: !!manage[i]?.data,
       ceo: r.ceo_user_id ? ppl[r.ceo_user_id] ?? null : null,
       coo: r.coo_user_id ? ppl[r.coo_user_id] ?? null : null,
       memberCount: counts[r.id] ?? 0,

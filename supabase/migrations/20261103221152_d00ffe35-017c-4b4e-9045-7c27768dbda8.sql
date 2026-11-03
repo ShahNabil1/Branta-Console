@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.is_any_company_manager(uuid) FROM PUBLIC, anon;
