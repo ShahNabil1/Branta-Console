@@ -562,7 +562,7 @@ export const getLead = createServerFn({ method: "GET" })
 
 export const getLeadBySlug = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { slug: string }) =>
+  .inputValidator((data: { slug: string; workspace?: string | null }) =>
     z.object({ slug: z.string().trim().min(1).max(40), workspace: z.string().regex(/^[a-z0-9-]{1,80}$/).optional().nullable() }).parse(data),
   )
   .handler(async ({ data, context }): Promise<LeadRow | null> => {
