@@ -14,7 +14,9 @@ import {
   setDefaultProvider, verifyEmailProvider, sendInboxProbe, pollInboxProbe, type Check as CheckT, type ProviderView,
 } from "@/lib/company-email.functions";
 import { cn } from "@/lib/utils";
-import { GoogleAccountCard } from "@/components/company/google-account-card";
+import { GoogleAccountCard, GoogleMark, GmailMark } from "@/components/company/google-account-card";
+import resendLogo from "@/assets/email/resend.webp.asset.json";
+import brevoLogo from "@/assets/email/brevo.webp.asset.json";
 import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 function ChangeInboxDialog({ open, email, verified, onCancel, onConfirm }: { open: boolean; email: string; verified: boolean; onCancel: () => void; onConfirm: () => void }) {
@@ -79,10 +81,9 @@ export function EmailIntegrations({ slug, accent }: { slug: string; accent: stri
       <section className="relative overflow-hidden rounded-xl border border-border bg-card p-5 shadow-sm">
         <span className="pointer-events-none absolute -left-16 -top-20 size-56 rounded-full blur-3xl" style={{ background: `color-mix(in oklab, ${accent} 16%, transparent)` }} />
         <div className="relative flex flex-wrap items-center gap-3">
-          <span className="grid size-10 place-items-center rounded-lg" style={{ background: `color-mix(in oklab, ${accent} 15%, transparent)`, color: accent }}><Mail className="size-5" /></span>
-          <div className="flex-1">
-            <h2 className="text-[16px] font-bold">Email Settings</h2>
-            <p className="text-[12px] font-semibold text-muted-foreground">Used only for {d.company.name}'s Leads, Invoices and Inbox replies. Connect one or both.</p>
+          <span className="grid size-10 shrink-0 place-items-center rounded-md border border-border bg-card"><GoogleMark className="size-5" /></span>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-[16px] font-bold">Email & Calendar</h2>
           </div>
         </div>
         <GoogleAccountCard slug={slug} accent={accent} fallback="brantatech@gmail.com" />
@@ -117,13 +118,13 @@ function status(v: ProviderView | null) {
 function ProviderCard({ p, v, on, onClick }: { p: P; v: ProviderView | null; on: boolean; onClick: () => void }) {
   const m = META[p]; const s = status(v);
   return (
-    <button onClick={onClick}
-      className={cn("group relative overflow-hidden rounded-xl border bg-background p-4 text-left transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.99]",
+    <Button variant="outline" onClick={onClick} aria-expanded={on}
+      className={cn("group relative block h-auto w-full overflow-hidden whitespace-normal rounded-md border bg-background p-4 text-left transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.99]",
         on ? "border-transparent shadow-lg ring-2" : "border-border")}
       style={on ? { ["--tw-ring-color" as string]: m.color } : undefined}>
       <span className="absolute inset-x-0 top-0 h-1 transition-all group-hover:h-1.5" style={{ background: m.color }} />
       <div className="flex items-center gap-3">
-        <span className="grid size-10 place-items-center rounded-lg shadow-md transition-transform group-hover:rotate-6" style={{ background: m.color }}><ProviderLogo p={p} /></span>
+        <span className="grid size-10 shrink-0 place-items-center rounded-md border border-border bg-card"><ProviderLogo p={p} /></span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 text-[14px] font-bold">{m.name}{v?.is_default && <Star className="size-3.5 fill-brand text-brand" />}</div>
           {v && <div className="truncate text-[11.5px] font-semibold text-muted-foreground">{`${v.sender_name} <${v.sender_email}>`}</div>}
@@ -131,21 +132,13 @@ function ProviderCard({ p, v, on, onClick }: { p: P; v: ProviderView | null; on:
         <span className={cn("rounded-full px-2 py-0.5 text-[10.5px] font-bold", s.cls)}>{s.label}</span>
         <ChevronDown className={cn("size-4 text-muted-foreground transition-transform duration-300", on && "rotate-180")} />
       </div>
-    </button>
+    </Button>
   );
 }
 
 function ProviderLogo({ p }: { p: P }) {
-  if (p === "resend") return (
-    <svg viewBox="0 0 24 24" className="size-5 fill-primary-foreground" aria-label="Resend">
-      <path d="M14.68 3H4v18h4.03v-6.43h2.96L14.94 21H19.5l-4.33-6.95A5.6 5.6 0 0 0 14.68 3Zm-.3 7.86H8.03V6.7h6.35a2.08 2.08 0 0 1 0 4.16Z" />
-    </svg>
-  );
-  return (
-    <svg viewBox="0 0 24 24" className="size-5 fill-primary-foreground" aria-label="Brevo">
-      <path d="M6 3h6.6c3.2 0 5.2 1.7 5.2 4.3 0 1.6-.8 2.9-2.2 3.6 2 .7 3.2 2.3 3.2 4.3 0 3.4-2.6 5.8-6.4 5.8H6V3Zm3.4 3v4.3h2.9c1.4 0 2.2-.8 2.2-2.1 0-1.4-.8-2.2-2.2-2.2H9.4Zm0 7.2V18h3.5c1.7 0 2.7-.9 2.7-2.4s-1-2.4-2.7-2.4H9.4Z" />
-    </svg>
-  );
+  const logo = p === "resend" ? resendLogo : brevoLogo;
+  return <img src={logo.url} alt={`${META[p].name} logo`} width={32} height={32} className="size-8 object-contain" />;
 }
 
 type Data = Awaited<ReturnType<typeof getEmailIntegrations>>;
@@ -582,10 +575,10 @@ function InboxAddress({ slug, accent, inbox, gmail }: { slug: string; accent: st
     <div className="relative mt-4 overflow-hidden rounded-xl border border-border bg-background p-4">
       <span className="absolute inset-y-0 left-0 w-1" style={{ background: inbox?.verified_at ? "var(--color-status-converted)" : accent }} />
       <div className="flex flex-wrap items-center gap-3">
-        <span className="grid size-9 place-items-center rounded-lg" style={{ background: `color-mix(in oklab, ${accent} 15%, transparent)`, color: accent }}><Inbox className="size-4" /></span>
+        <span className="grid size-9 shrink-0 place-items-center rounded-md border border-border bg-card"><GmailMark className="size-5" /></span>
         <div className="min-w-0 flex-1">
-          <div className="text-[13.5px] font-bold">Inbox address</div>
-          <div className="text-[11.5px] font-semibold text-muted-foreground">Mail sent to this address shows in this company's Inbox. It must forward to {gmail}.</div>
+          <h3 className="text-[13.5px] font-bold">In-app Gmail Inbox Address</h3>
+          <div className="break-all text-[11.5px] font-semibold text-muted-foreground">Forwarding destination: {gmail}</div>
         </div>
         {inbox?.verified_at && !editing && <span className="flex items-center gap-1 rounded-full bg-status-converted/15 px-2 py-0.5 text-[10.5px] font-bold text-status-converted"><CheckCircle2 className="size-3" /> Verified</span>}
         {!inbox?.verified_at && inbox && !editing && !run && <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10.5px] font-bold text-amber-600">Not verified</span>}
