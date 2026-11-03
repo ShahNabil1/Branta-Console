@@ -170,3 +170,41 @@ export const updateCompanyInfo = createServerFn({ method: "POST" })
     if (error) throw dbError(error);
     return { ok: true };
   });
+
+// ---- Phase 1 Settings: Brand Kit + code prefixes (admin-only writes) ----
+export const updateCompanyBrand = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({ id: z.string().uuid(), brand: z.unknown() }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { BrandKitSchema } = await import("@/lib/brand-kit");
+    const brand = BrandKitSchema.parse(data.brand);
+    const sb = context.supabase as unknown as Sb;
+    await assertGroupAdmin(sb, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const patch: Record<string, unknown> = { brand_kit: brand, updated_by: context.userId };
+    if (brand.mark !== undefined) patch.logo_url = brand.mark ?? brand.logo_primary ?? null;
+    const { error } = await (supabaseAdmin as unknown as Sb).from("companies").update(patch).eq("id", data.id);
+    if (error) throw dbError(error);
+    return { ok: true };
+  });
+
+export const updateCompanyPrefixes = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({ id: z.string().uuid(), prefixes: z.unknown() }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { PrefixesSchema, prefixConflicts } = await import("@/lib/brand-kit");
+    const prefixes = PrefixesSchema.parse(data.prefixes);
+    const sb = context.supabase as unknown as Sb;
+    await assertGroupAdmin(sb, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const admin = supabaseAdmin as unknown as Sb;
+    const { data: rows, error: e1 } = await admin.from("companies").select("id, name, is_holding, code_prefixes").neq("id", data.id);
+    if (e1) throw dbError(e1);
+    const others = ((rows ?? []) as { name: string; is_holding: boolean; code_prefixes: Record<string, string> | null }[])
+      .map((r) => ({ name: r.name, isHolding: r.is_holding, prefixes: r.code_prefixes ?? {} }));
+    const clash = prefixConflicts(prefixes, others);
+    if (clash.length) throw new Error(clash.join("; "));
+    const { error } = await admin.from("companies").update({ code_prefixes: prefixes, updated_by: context.userId }).eq("id", data.id);
+    if (error) throw dbError(error);
+    return { ok: true };
+  });
