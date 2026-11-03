@@ -38,3 +38,4 @@
 - Subdirectories (e.g. tracker-extension/) have their own AGENTS.md; read it before changing files there.
 - Per-company Gmail/Calendar: separate OAuth client (COMPANY_GOOGLE_*) in company-google.server.ts; leads/meetings/inbox carry company_id and resolve the mailbox via company-mailbox.server.ts (sisters never use shared Gmail) — why: main sign-in untouched, no cross-company mail.
 - Lead list/detail/draft/create resolve the company via lead-company.server.ts (sister = membership checked); customers inherit the lead company_id (trigger) and use the same resolver; sister lead mail uses only that company verified provider; leads have no Google Sheets sync (removed) — why: no cross-company leads or senders.
+- Inbox replies sent via Resend/Brevo are stored in inbox_replies (service-role only) and merged into getInboxThread by time — why: they never reach the connected Gmail's Sent folder, so Gmail alone shows incomplete conversations.
