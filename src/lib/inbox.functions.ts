@@ -669,3 +669,18 @@ export const markThreadRead = createServerFn({ method: "POST" })
     );
     return { ok: true };
   });
+
+/** Real inbox identity for the header: verified inbox address + connected Gmail. */
+export const getInboxIdentity = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ company: z.string().regex(COMPANY_SLUG_RE).optional() }).parse(d ?? {}))
+  .handler(async ({ data, context }): Promise<{ address: string; gmail: string | null; isHolding: boolean }> => {
+    const mb = await resolveMailbox(context.supabase, context.userId, data.company);
+    let gmail: string | null = null;
+    if (!mb.isHolding) {
+      const { getAccount } = await import("@/lib/company-google.server");
+      const acc = (await getAccount(mb.companyId)) as { email?: string } | null;
+      gmail = acc?.email ?? null;
+    }
+    return { address: mb.inboxAddr, gmail, isHolding: mb.isHolding };
+  });
