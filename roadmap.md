@@ -1,9 +1,9 @@
 # Roadmap
 
 ## Phase 2 — Company Invoice Studio
-- [ ] Add company-owned, versioned invoice templates and immutable new-invoice snapshots.
-- [ ] Add the real PDF preview, live editing controls, brand assets, payment/signature/section settings and save/cancel/download.
-- [ ] Apply the same renderer/settings to preview, signed PDF and email attachments; test isolation and pagination.
+- [x] Add company-owned, versioned invoice templates and immutable new-invoice snapshots.
+- [x] Add real PDF preview with live editing controls, logo conversion, payment/signature/section settings and save/cancel/download. Free-position canvas editing is not implemented.
+- [x] Apply shared renderer/settings to preview, signed PDF and email attachments; 13 tests pass; PDF.js renders a one-page sister-brand fixture without Branta assets.
 - [ ] Verify authenticated save → invoice → PDF end-to-end; blocked by external unmanaged auth without a session.
 
 ## Provider disconnect confirmation

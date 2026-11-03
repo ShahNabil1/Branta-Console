@@ -646,6 +646,9 @@ export async function renderInvoicePdf(
     const detailH = detailRows.reduce((h, row) => h + Math.max(...row.map((cell) => cell.lines.length)) * detailLead, 0);
     const paymentBodyH = qrImage ? Math.max(detailH + 52, qrW + 16) : detailH;
     const blockH = 24 + introLines.length * 10 + 4 + paymentBodyH + 8 + noteLines.length * 9 + 4;
+    if (blockH + SIGNATURE_H + 14 > CONTENT_TOP - CONTENT_BOTTOM) {
+      throw new Error("Payment information is too long for one page. Shorten the bank details or payment note.");
+    }
     // Reserve the page-number band as well as the signature's writing space.
     ensure(blockH + 14 + (!hasTerms && !hasNotes ? SIGNATURE_H : 0));
 
