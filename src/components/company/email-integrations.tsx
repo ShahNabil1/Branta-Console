@@ -10,13 +10,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  checkInboundRouting, connectBrevoWebhook, connectResendWebhook, disconnectProvider, previewProviderDisconnect, getEmailIntegrations, sendProviderTest,
+  connectBrevoWebhook, connectResendWebhook, disconnectProvider, previewProviderDisconnect, getEmailIntegrations,
   setDefaultProvider, verifyEmailProvider, sendInboxProbe, pollInboxProbe, type Check as CheckT, type ProviderView,
 } from "@/lib/company-email.functions";
 import { cn } from "@/lib/utils";
 import { GoogleAccountCard, GoogleMark, GmailMark } from "@/components/company/google-account-card";
 import resendLogo from "@/assets/email/resend.webp.asset.json";
 import brevoLogo from "@/assets/email/brevo.webp.asset.json";
+import { ProviderTest } from "@/components/company/provider-test";
 import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 function ChangeInboxDialog({ open, email, verified, onCancel, onConfirm }: { open: boolean; email: string; verified: boolean; onCancel: () => void; onConfirm: () => void }) {
@@ -176,7 +177,7 @@ function Setup({ p, slug, v, data, both }: { p: P; slug: string; v: ProviderView
       <div key={step} className="p-5 animate-in fade-in slide-in-from-right-2 duration-300">
         {step === 1 && <StepKey p={p} slug={slug} v={v} inboxEmail={data.inbox!.email} companyName={data.company.name} onDone={() => setStep(2)} />}
         {step === 2 && (p === "resend" ? <StepAutoHook p="resend" slug={slug} v={v} data={data} onDone={() => setStep(3)} /> : <StepAutoHook p="brevo" slug={slug} v={v} data={data} onDone={() => setStep(3)} />)}
-        {step === 3 && <StepFinish p={p} slug={slug} v={v} both={both} inbox={data.inboxGmail} />}
+        {step === 3 && <StepFinish p={p} slug={slug} v={v} both={both} />}
       </div>
     </section>
   );
@@ -406,21 +407,17 @@ function StepAutoHook({ p, slug, v, data, onDone }: { p: P; slug: string; v: Pro
   );
 }
 
-function StepFinish({ p, slug, v, both, inbox }: { p: P; slug: string; v: ProviderView | null; both: boolean; inbox: string }) {
-  const test = useServerFn(sendProviderTest);
-  const route = useServerFn(checkInboundRouting);
+function StepFinish({ p, slug, v, both }: { p: P; slug: string; v: ProviderView | null; both: boolean }) {
   const def = useServerFn(setDefaultProvider);
   const disc = useServerFn(disconnectProvider);
   const previewDisconnect = useServerFn(previewProviderDisconnect);
   const refresh = useRefresh(slug);
   const [busy, setBusy] = useState<string | null>(null);
-  const [routing, setRouting] = useState<{ state: string; message: string } | null>(null);
   const [confirm, setConfirm] = useState(false);
   const [hooks, setHooks] = useState<{ id: string; address: string }[] | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
   if (!v) return null;
   const act = async (id: string, f: () => Promise<unknown>) => { setBusy(id); try { await f(); } catch (e) { toast.error(err(e)); } finally { setBusy(null); } };
-  const routed = routing?.state === "routed";
   const loadPreview = async () => {
     setBusy("preview"); setHooks(null); setPreviewError(null);
     try { setHooks((await previewDisconnect({ data: { slug, provider: p } })).hooks); }
@@ -430,29 +427,7 @@ function StepFinish({ p, slug, v, both, inbox }: { p: P; slug: string; v: Provid
 
   return (
     <div className="grid gap-4 md:grid-cols-2">
-      <Tile icon={Send} title="Send a test email" body={`Sends from ${v.sender_name} <${v.sender_email}> to your own address.`}>
-        <Button size="sm" disabled={!!busy} onClick={() => act("test", async () => { const r = await test({ data: { slug, provider: p } }); toast.success(`Test sent to ${r.to}`); })}>
-          {busy === "test" ? <Loader2 className="size-3.5 animate-spin" /> : <Send className="size-3.5" />} Send test
-        </Button>
-      </Tile>
-
-      <Tile icon={Inbox} title="Inbox routing" body={`Replies to ${v.sender_email} must forward to ${inbox} so they land in this company's Inbox.`}>
-        {routing && (
-          <div className={cn("mb-2 rounded-md px-2.5 py-1.5 text-[12px] font-bold animate-in fade-in", routed ? "bg-status-converted/10 text-status-converted" : "bg-amber-500/10 text-amber-700")}>
-            {routing.message}
-          </div>
-        )}
-        <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" disabled={!!busy} onClick={() => act("chk", async () => setRouting(await route({ data: { slug, email: v.sender_email, create: false } })))}>
-            {busy === "chk" ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />} Check
-          </Button>
-          {routing && !routed && ["missing", "wrong_target"].includes(routing.state) && (
-            <Button size="sm" disabled={!!busy} onClick={() => act("mk", async () => { const r = await route({ data: { slug, email: v.sender_email, create: true } }); setRouting(r); if (r.state === "routed") toast.success("Routing rule created"); })}>
-              {busy === "mk" ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />} Create rule
-            </Button>
-          )}
-        </div>
-      </Tile>
+      <ProviderTest key={`${slug}:${p}`} slug={slug} provider={p} sender={`${v.sender_name} <${v.sender_email}>`} />
 
       {both && (
         <Tile icon={Star} title="Default provider" body="Used automatically for this company's mail; the other stays as a manual option.">
