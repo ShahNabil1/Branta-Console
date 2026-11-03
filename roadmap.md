@@ -1,5 +1,11 @@
 # Roadmap
 
+## Agent integrations
+- [ ] Add OAuth-protected, caller-scoped read tools and consent with safe login return handling.
+- [ ] Add browser-local read/search tools on the Leads screen with shared controls and telemetry.
+- [ ] Extract the MCP catalog and test authorization rules; verify available preview flows.
+- [ ] Verify hosted OAuth and approve/deny end-to-end; requires Supabase OAuth activation at republish (discovery currently feature_disabled) and an authenticated session.
+
 ## Phase 2 — Company Invoice Studio
 - [x] Add company-owned, versioned invoice templates and immutable new-invoice snapshots.
 - [x] Add real PDF preview with live editing controls, logo conversion, payment/signature/section settings and save/cancel/download. Free-position canvas editing is not implemented.
