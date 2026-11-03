@@ -1,3 +1,4 @@
+import { IntegrationRequired, useIntegrationGate } from "@/components/company/setup-required";
 import { useSearch as useSearchRR, useParams as useParamsRR, useNavigate as useNavigateRR } from "@tanstack/react-router";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -56,6 +57,13 @@ function formatTime(iso: string): string {
 }
 
 export function InboxPage() {
+  const gate = useIntegrationGate("inbox");
+  if (gate.loading) return null;
+  if (gate.items.length) return <IntegrationRequired feature="inbox" />;
+  return <InboxPageInner />;
+}
+
+function InboxPageInner() {
   const qc = useQueryClient();
   const listFn = useServerFn(listInbox);
   const syncFn = useServerFn(syncInbox);
