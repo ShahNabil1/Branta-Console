@@ -127,6 +127,7 @@ export type Database = {
           budget: number | null
           category: string
           client_manager_id: string | null
+          company_id: string | null
           contract_end: string | null
           contract_start: string | null
           created_at: string
@@ -162,6 +163,7 @@ export type Database = {
           budget?: number | null
           category?: string
           client_manager_id?: string | null
+          company_id?: string | null
           contract_end?: string | null
           contract_start?: string | null
           created_at?: string
@@ -197,6 +199,7 @@ export type Database = {
           budget?: number | null
           category?: string
           client_manager_id?: string | null
+          company_id?: string | null
           contract_end?: string | null
           contract_start?: string | null
           created_at?: string
@@ -226,6 +229,13 @@ export type Database = {
           work_value?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "client_projects_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "client_projects_customer_id_fkey"
             columns: ["customer_id"]
@@ -439,6 +449,7 @@ export type Database = {
       client_tasks: {
         Row: {
           archived_at: string | null
+          company_id: string | null
           created_at: string
           created_by: string | null
           customer_id: string | null
@@ -459,6 +470,7 @@ export type Database = {
         }
         Insert: {
           archived_at?: string | null
+          company_id?: string | null
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
@@ -479,6 +491,7 @@ export type Database = {
         }
         Update: {
           archived_at?: string | null
+          company_id?: string | null
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
@@ -498,6 +511,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "client_tasks_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "client_tasks_customer_id_fkey"
             columns: ["customer_id"]
