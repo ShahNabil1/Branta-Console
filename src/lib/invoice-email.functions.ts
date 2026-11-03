@@ -248,12 +248,11 @@ export async function internalSendInvoiceEmail(opts: {
   const { data: invCo } = await (supabaseAdmin as never as { from: (t: string) => any }) // eslint-disable-line @typescript-eslint/no-explicit-any
     .from("invoices").select("company_id, companies:company_id(is_holding, name, email)").eq("id", payload.invoice.id).maybeSingle();
   const sisterCo = invCo?.companies && !invCo.companies.is_holding ? invCo.companies as { name: string; email: string | null } : null;
-  let own: { provider: string; fromName: string; fromEmail: string; apiKey: string; financeEmail?: string | null } | null = null;
+  let own: { provider: string; fromName: string; fromEmail: string; apiKey: string } | null = null;
   if (sisterCo) {
-    const { resolveCompanySender } = await import("@/lib/company-email.server");
-    own = await resolveCompanySender(invCo.company_id as string);
+    const { resolveFinanceSender } = await import("@/lib/company-email.server");
+    own = await resolveFinanceSender(invCo.company_id as string);
     if (!own) throw new Error(`${sisterCo.name} has no verified email provider yet. Connect Resend or Brevo in the company Settings.`);
-    if (own.financeEmail) own = { ...own, fromEmail: own.financeEmail };
     Object.assign(settings, {
       from_name: own.fromName, from_email: own.fromEmail, reply_to: own.fromEmail,
       brand_color: pdfSettings.brand_color || "#111827",

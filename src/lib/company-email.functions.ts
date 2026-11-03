@@ -15,7 +15,7 @@ export type ProviderView = {
   provider: P; sender_name: string; sender_email: string; domain: string | null;
   api_key_hint: string | null; webhook_secret_hint: string | null;
   domain_verified_at: string | null; webhook_verified_at: string | null;
-  webhook_events: string[]; is_default: boolean; updated_at: string; finance_sender_email: string | null;
+  webhook_events: string[]; is_default: boolean; updated_at: string; finance_sender_email: string | null; finance_sender_name: string | null;
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -53,6 +53,7 @@ function view(r: Any): ProviderView | null {
     domain_verified_at: r.domain_verified_at, webhook_verified_at: r.webhook_verified_at,
     webhook_events: r.webhook_events ?? [], is_default: r.is_default, updated_at: r.updated_at,
     finance_sender_email: r.finance_sender_email ?? null,
+    finance_sender_name: r.finance_sender_name ?? null,
   };
 }
 
@@ -612,7 +613,7 @@ export const pollInboxProbe = createServerFn({ method: "POST" })
 /** Finance (invoice + reminder) sender for Resend — must stay on the Resend-verified domain. */
 export const setFinanceSender = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => z.object({ slug: Slug, email: z.string().trim().toLowerCase().email().max(254) }).parse(i))
+  .inputValidator((i: unknown) => z.object({ slug: Slug, email: z.string().trim().toLowerCase().email().max(254), name: z.string().trim().min(1).max(80).regex(/^[^<>"\r\n]+$/, "Name can't contain < > \" or line breaks.") }).parse(i))
   .handler(async ({ data, context }) => {
     const { co, admin } = await gate(context, data.slug);
     const r = await row(admin, co.id, "resend");
@@ -620,7 +621,8 @@ export const setFinanceSender = createServerFn({ method: "POST" })
     const domain = String(r.domain || r.sender_email.split("@")[1]).toLowerCase();
     if (data.email.split("@")[1] !== domain) throw new Error(`Finance email must use the Resend-verified domain @${domain}.`);
     const value = data.email === r.sender_email ? null : data.email;
-    const { error } = await admin.from("company_email_providers").update({ finance_sender_email: value, updated_by: context.userId }).eq("id", r.id);
+    const name = data.name === r.sender_name ? null : data.name;
+    const { error } = await admin.from("company_email_providers").update({ finance_sender_email: value, finance_sender_name: name, updated_by: context.userId }).eq("id", r.id);
     if (error) throw new Error(error.message);
-    return { ok: true, email: value ?? r.sender_email };
+    return { ok: true, email: value ?? r.sender_email, name: name ?? r.sender_name };
   });

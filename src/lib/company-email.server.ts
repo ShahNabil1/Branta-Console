@@ -104,6 +104,18 @@ export async function resolveCompanySender(companyId: string, prefer?: Provider)
   return { provider: row.provider, fromName: row.sender_name, fromEmail: row.sender_email, apiKey: (await open(row.api_key_enc))!, financeEmail: row.provider === "resend" ? row.finance_sender_email ?? null : null };
 }
 
+/** Invoice + reminder sender: Resend strictly (finance overrides), Brevo only when Resend isn't connected. */
+export async function resolveFinanceSender(companyId: string) {
+  const { pickFinanceSender } = await import("./finance-sender-policy");
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const sb = supabaseAdmin as unknown as { from: (t: string) => any }; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const { data } = await sb.from("company_email_providers").select("*")
+    .eq("company_id", companyId).eq("is_active", true).not("domain_verified_at", "is", null);
+  const pick = pickFinanceSender((data ?? []) as (Parameters<typeof pickFinanceSender>[0][number] & { provider: Provider; api_key_enc: string })[]);
+  if (!pick) return null;
+  return { provider: pick.row.provider as Provider, fromName: pick.fromName, fromEmail: pick.fromEmail, apiKey: (await open(pick.row.api_key_enc))! };
+}
+
 // ---------- Cloudflare inbound routing (any zone the token can reach) ----------
 async function cf(path: string, init?: { method?: string; body?: unknown }) {
   const t = process.env.CLOUDFLARE_API_TOKEN;
