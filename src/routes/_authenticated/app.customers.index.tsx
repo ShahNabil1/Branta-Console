@@ -1,3 +1,4 @@
+import { useActiveCompany } from "@/components/company/company-switcher";
 import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -65,6 +66,7 @@ function CustomersPage() {
   const countsFn = useServerFn(getProjectCounts);
   const { data: projCounts } = useQuery({ queryKey: ["client-project-counts"], queryFn: () => countsFn(), staleTime: 30_000 });
   const create = useServerFn(createCustomer);
+  const workspace = useActiveCompany().active?.slug ?? null;
   const remove = useServerFn(deleteCustomer);
   const confirm = useConfirm();
 
@@ -91,14 +93,15 @@ function CustomersPage() {
   });
 
   const query = useQuery({
-    queryKey: ["customers", "list"],
-    queryFn: () => list(),
+    queryKey: ["customers", "list", workspace],
+    queryFn: () => list({ data: { workspace } }),
     staleTime: 15_000,
   });
 
   const createMut = useMutation({
     mutationFn: async () =>
       create({
+        // company scope
         data: {
           ...form,
           email: form.email || null,

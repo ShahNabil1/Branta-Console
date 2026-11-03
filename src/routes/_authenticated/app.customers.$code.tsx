@@ -1,3 +1,4 @@
+import { useActiveCompany } from "@/components/company/company-switcher";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -26,6 +27,7 @@ function CustomerDetailPage() {
   const { code } = Route.useParams();
   const navigate = useNavigate();
   const getCustomer = useServerFn(getCustomerByCode);
+  const workspace = useActiveCompany().active?.slug ?? null;
   const getLead = useServerFn(getLeadBySlug);
   const listUsers = useServerFn(listAssignableUsers);
   const logView = useServerFn(logLeadView);
@@ -33,16 +35,16 @@ function CustomerDetailPage() {
   const [tab, setTab] = useState<"projects" | "tasks" | "profile" | "activity" | "crm">("projects");
 
   const customerQ = useQuery({
-    queryKey: ["customers", "by-code", code],
-    queryFn: () => getCustomer({ data: { code } }),
+    queryKey: ["customers", "by-code", code, workspace],
+    queryFn: () => getCustomer({ data: { code, workspace } }),
     staleTime: 15_000,
   });
 
   const leadSlug = customerQ.data?.leadSlug ?? null;
 
   const leadQ = useQuery({
-    queryKey: ["leads", "by-slug", leadSlug ?? "__none__"],
-    queryFn: () => getLead({ data: { slug: leadSlug as string } }),
+    queryKey: ["leads", "by-slug", leadSlug ?? "__none__", workspace],
+    queryFn: () => getLead({ data: { slug: leadSlug as string, workspace } }),
     enabled: !!leadSlug,
     staleTime: 10_000,
   });
