@@ -466,7 +466,7 @@ export const disconnectProvider = createServerFn({ method: "POST" })
       else throw new Error(`${data.provider} error ${result.status}: ${result.body?.message ?? "Webhook deletion failed"}. Connection retained; review the list and retry.`);
     }
     await admin.from("company_email_providers").update({
-      is_active: false, is_default: false, api_key_enc: null, api_key_hint: null, webhook_secret_enc: null,
+      is_active: false, is_default: false, finance_sender_email: null, finance_sender_name: null, api_key_enc: null, api_key_hint: null, webhook_secret_enc: null,
       webhook_secret_hint: null, domain_verified_at: null, webhook_verified_at: null, updated_by: context.userId,
     }).eq("company_id", co.id).eq("provider", data.provider);
     const { data: left } = await admin.from("company_email_providers").select("id").eq("company_id", co.id).eq("is_active", true).limit(1);
