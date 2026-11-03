@@ -352,6 +352,7 @@ export const sendLeadEmail = createServerFn({ method: "POST" })
       );
 
       // Build + insert all rows as `queued`.
+      const sender = await senderForLead(data.leadId);
       const toInsert = recipients.map((recipient) => {
         const nameForVars = recipient.name?.trim() || lead.name;
         const firstForVars =
