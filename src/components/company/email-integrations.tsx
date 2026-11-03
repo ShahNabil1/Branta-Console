@@ -461,10 +461,10 @@ function StepFinish({ p, slug, v, both, inbox }: { p: P; slug: string; v: Provid
         </Tile>
       )}
 
-      <Tile icon={Unplug} title="Disconnect" body="Erases the stored key and secret. History and activity logs stay intact.">
+      <Tile icon={Unplug} title="Disconnect" body="Removes this company's Branta webhook from the provider and erases the stored key and secret. Other webhooks and history stay intact.">
         {confirm ? (
           <div className="flex gap-2">
-            <Button size="sm" variant="destructive" disabled={!!busy} onClick={() => act("dc", async () => { await disc({ data: { slug, provider: p } }); await refresh(); toast.success("Disconnected"); })}>Confirm</Button>
+            <Button size="sm" variant="destructive" disabled={!!busy} onClick={() => act("dc", async () => { const r = await disc({ data: { slug, provider: p } }); await refresh(); if (r.hookError) toast.warning(`Disconnected, but the ${META[p].name} webhook could not be removed — ${r.hookError}`); else toast.success(r.removed ? `Disconnected · removed ${r.removed} Branta webhook from ${META[p].name}` : "Disconnected"); })}>Confirm</Button>
             <Button size="sm" variant="ghost" onClick={() => setConfirm(false)}>Cancel</Button>
           </div>
         ) : <Button size="sm" variant="outline" onClick={() => setConfirm(true)}><Unplug className="size-3.5" /> Disconnect</Button>}
