@@ -744,6 +744,7 @@ export type Database = {
           created_at: string
           domain: string | null
           domain_verified_at: string | null
+          finance_sender_email: string | null
           id: string
           is_active: boolean
           is_default: boolean
@@ -765,6 +766,7 @@ export type Database = {
           created_at?: string
           domain?: string | null
           domain_verified_at?: string | null
+          finance_sender_email?: string | null
           id?: string
           is_active?: boolean
           is_default?: boolean
@@ -786,6 +788,7 @@ export type Database = {
           created_at?: string
           domain?: string | null
           domain_verified_at?: string | null
+          finance_sender_email?: string | null
           id?: string
           is_active?: boolean
           is_default?: boolean

@@ -15,7 +15,7 @@ export type ProviderView = {
   provider: P; sender_name: string; sender_email: string; domain: string | null;
   api_key_hint: string | null; webhook_secret_hint: string | null;
   domain_verified_at: string | null; webhook_verified_at: string | null;
-  webhook_events: string[]; is_default: boolean; updated_at: string;
+  webhook_events: string[]; is_default: boolean; updated_at: string; finance_sender_email: string | null;
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -52,6 +52,7 @@ function view(r: Any): ProviderView | null {
     api_key_hint: r.api_key_hint, webhook_secret_hint: r.webhook_secret_hint,
     domain_verified_at: r.domain_verified_at, webhook_verified_at: r.webhook_verified_at,
     webhook_events: r.webhook_events ?? [], is_default: r.is_default, updated_at: r.updated_at,
+    finance_sender_email: r.finance_sender_email ?? null,
   };
 }
 
@@ -606,4 +607,20 @@ export const pollInboxProbe = createServerFn({ method: "POST" })
     }
     if (last === "delivered") return { stage: "delivered", message: `Accepted by ${cur.email.split("@")[1]}. Waiting for Cloudflare to forward it to the Inbox Gmail…` };
     return { stage: "sent", message: "Sent by Branta Tech's Resend. Waiting for the receiving server…" };
+  });
+
+/** Finance (invoice + reminder) sender for Resend — must stay on the Resend-verified domain. */
+export const setFinanceSender = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({ slug: Slug, email: z.string().trim().toLowerCase().email().max(254) }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { co, admin } = await gate(context, data.slug);
+    const r = await row(admin, co.id, "resend");
+    if (!r?.is_active || !r.domain_verified_at) throw new Error("Connect and verify Resend first.");
+    const domain = String(r.domain || r.sender_email.split("@")[1]).toLowerCase();
+    if (data.email.split("@")[1] !== domain) throw new Error(`Finance email must use the Resend-verified domain @${domain}.`);
+    const value = data.email === r.sender_email ? null : data.email;
+    const { error } = await admin.from("company_email_providers").update({ finance_sender_email: value, updated_by: context.userId }).eq("id", r.id);
+    if (error) throw new Error(error.message);
+    return { ok: true, email: value ?? r.sender_email };
   });
