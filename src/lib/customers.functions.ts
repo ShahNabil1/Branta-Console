@@ -53,7 +53,10 @@ const CreateInput = z.object({
 
 export const listCustomers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<CustomerRow[]> => {
+  .inputValidator((d: unknown) => z.object({ workspace: z.string().regex(/^[a-z0-9-]{1,80}$/).optional().nullable() }).parse(d ?? {}))
+  .handler(async ({ data: input, context }): Promise<CustomerRow[]> => {
+    const co = await (await import("@/lib/lead-company.server")).resolveLeadCompany(context.supabase, context.userId, input.workspace);
+
     // Gate: must have customer_access permission.
     const { data: canAccess } = await context.supabase.rpc("has_permission", {
       _user_id: context.userId,
@@ -69,6 +72,7 @@ export const listCustomers = createServerFn({ method: "GET" })
     let q = context.supabase
       .from("customers")
       .select("*")
+      .eq("company_id" as never, co.id as never)
       .is("archived_at" as never, null)
       .order("created_at", { ascending: false })
       .limit(1000);
@@ -150,8 +154,9 @@ export const listCustomersForPicker = createServerFn({ method: "GET" })
 
 export const createCustomer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => CreateInput.parse(data))
+  .inputValidator((data: unknown) => CreateInput.extend({ workspace: z.string().regex(/^[a-z0-9-]{1,80}$/).optional().nullable() }).parse(data))
   .handler(async ({ data, context }): Promise<CustomerRow> => {
+    const co = await (await import("@/lib/lead-company.server")).resolveLeadCompany(context.supabase, context.userId, data.workspace);
     const email = data.email === "" ? null : data.email ?? null;
 
     // Every customer is backed by a lead so email/meeting/docs/activity all
@@ -171,6 +176,7 @@ export const createCustomer = createServerFn({ method: "POST" })
         notes: data.notes ?? null,
         owner_id: data.owner_id ?? context.userId,
         created_by: context.userId,
+        company_id: co.id,
         is_draft: false,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any)
@@ -224,8 +230,8 @@ export const createCustomer = createServerFn({ method: "POST" })
 
 export const getCustomerByCode = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { code: string }) =>
-    z.object({ code: z.string().trim().min(1) }).parse(data),
+  .inputValidator((data: { code: string; workspace?: string | null }) =>
+    z.object({ code: z.string().trim().min(1), workspace: z.string().regex(/^[a-z0-9-]{1,80}$/).optional().nullable() }).parse(data),
   )
   .handler(
     async ({
@@ -243,10 +249,12 @@ export const getCustomerByCode = createServerFn({ method: "GET" })
         _perm: "customer_view_detail",
       });
       if (!canDetail) throw new Error("Forbidden: customer_view_detail required");
+    const co = await (await import("@/lib/lead-company.server")).resolveLeadCompany(context.supabase, context.userId, data.workspace);
 
       const { data: cust, error } = await context.supabase
         .from("customers")
         .select("*")
+        .eq("company_id" as never, co.id as never)
         .eq("customer_code", data.code)
         .maybeSingle();
       if (error) throw dbError(error);

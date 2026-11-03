@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.customers_company() FROM PUBLIC, anon, authenticated;

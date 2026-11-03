@@ -930,6 +930,7 @@ export type Database = {
           archived_by: string | null
           client_since: string
           company: string | null
+          company_id: string | null
           contact_person: string | null
           converted_from_lead_id: string | null
           created_at: string
@@ -955,6 +956,7 @@ export type Database = {
           archived_by?: string | null
           client_since?: string
           company?: string | null
+          company_id?: string | null
           contact_person?: string | null
           converted_from_lead_id?: string | null
           created_at?: string
@@ -980,6 +982,7 @@ export type Database = {
           archived_by?: string | null
           client_since?: string
           company?: string | null
+          company_id?: string | null
           contact_person?: string | null
           converted_from_lead_id?: string | null
           created_at?: string
@@ -999,6 +1002,13 @@ export type Database = {
           whatsapp?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "customers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "customers_converted_from_lead_id_fkey"
             columns: ["converted_from_lead_id"]

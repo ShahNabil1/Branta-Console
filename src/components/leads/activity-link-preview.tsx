@@ -1,3 +1,4 @@
+import { useActiveCompany } from "@/components/company/company-switcher";
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -122,9 +123,10 @@ function InvoicePreview({ slug, onClose }: { slug: string; onClose: () => void }
 
 function CustomerPreview({ code, onClose }: { code: string; onClose: () => void }) {
   const fn = useServerFn(getCustomerByCode);
+  const workspace = useActiveCompany().active?.slug ?? null;
   const q = useQuery({
-    queryKey: ["preview", "customer", code],
-    queryFn: () => fn({ data: { code } }),
+    queryKey: ["preview", "customer", code, workspace],
+    queryFn: () => fn({ data: { code, workspace } }),
     staleTime: 15_000,
   });
 
