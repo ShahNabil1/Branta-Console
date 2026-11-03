@@ -4,6 +4,7 @@ export function dbError(err: { message?: string; code?: string; details?: string
   const code = err?.code ?? "";
   // Technical detail stays in server logs only.
   console.error("[db-error]", code, msg, err?.details ?? "");
+  if (/COMPANY_SETUP_REQUIRED/.test(msg)) return new Error(msg.replace(/^.*COMPANY_SETUP_REQUIRED:\s*/, "Setup required: ") + " (ask a Branta Tech admin to finish it in the company Settings).");
   if (/leads_slug_key/.test(msg)) return new Error("Unable to create the lead because the generated lead code is already in use. Please try again.");
   if (code === "23505" || /duplicate key value/i.test(msg)) {
     const what = /slug|voucher|slip_no|code/i.test(msg) ? "An automatic code clashed" : "This record already exists";
