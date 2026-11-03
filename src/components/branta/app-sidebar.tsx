@@ -340,7 +340,7 @@ export function AppSidebar() {
             peek && "shadow-2xl shadow-foreground/10",
           )}
         >
-          <SidebarBody />
+          {renderBody(false)}
         </aside>
       </div>
       <aside
@@ -349,12 +349,12 @@ export function AppSidebar() {
           mobileOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        <SidebarBody mobile />
+        {renderBody(true)}
       </aside>
     </>
   );
 
-  function SidebarBody({ mobile = false }: { mobile?: boolean }) {
+  function renderBody(mobile: boolean) {
     const exp = mobile || expanded;
     return (
       <>
