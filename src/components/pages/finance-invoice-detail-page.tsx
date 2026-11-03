@@ -1,3 +1,4 @@
+import { DiscardCancelButton } from "@/components/company/danger-confirm";
 import { useActiveCompany } from "@/components/company/company-switcher";
 import { useParams, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -656,7 +657,8 @@ function EditInvoiceDialog({
   onSave: (payload: UpdateInvoicePayload) => void;
 }) {
   const [customerId, setCustomerId] = useState(invoice.customer_id);
-  const fundCtx = useCustomerFundContext(customerId || null);
+  const activeCo = useActiveCompany().active;
+  const fundCtx = useCustomerFundContext(customerId || null, activeCo && !activeCo.is_holding ? activeCo.id : null);
   const sisterCtx = fundCtx.data?.sister ? fundCtx.data : null;
   const [title, setTitle] = useState(invoice.title);
   const [description, setDescription] = useState(invoice.description ?? "");
@@ -686,6 +688,9 @@ function EditInvoiceDialog({
   const [editCosts, setEditCosts] = useState<ProjectCost[]>(
     projectCosts.map((c) => toEditorCost(c)),
   );
+  const formSnap = JSON.stringify({ customerId, title, description, projectType, currency, total, startsOn, endsOn, notes, internalNotes, editInstallments, editStakeholders, editCosts });
+  const [initialSnap] = useState(formSnap);
+  const editDirty = formSnap !== initialSnap;
   const fetchPlan = useServerFn(getInvoiceEmployeePlan);
   const planQ = useQuery({ queryKey: ["invoice-employee-plan", invoice.id], queryFn: () => fetchPlan({ data: { invoiceId: invoice.id } }) });
   const [plans, setPlans] = useState<EmployeePlan[] | null>(null);
@@ -727,7 +732,7 @@ function EditInvoiceDialog({
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-card px-5 py-3">
           <h3 className="flex items-center gap-1.5 text-[14px] font-semibold"><Pencil className="size-3.5" /> Edit invoice {invoice.slug}</h3>
           <div className="flex gap-2">
-            <Button variant="ghost" onClick={onClose} className="h-8 rounded-sm text-[12px]">Cancel</Button>
+            <DiscardCancelButton dirty={editDirty} onCancel={onClose} disabled={saving} className="h-8 rounded-sm text-[12px]" />
             <Button
               onClick={() => onSave({
                 id: invoice.id,
