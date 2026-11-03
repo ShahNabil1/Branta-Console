@@ -3471,6 +3471,7 @@ export type Database = {
           direction: string
           error_message: string | null
           from_email: string | null
+          from_name: string | null
           id: string
           lead_id: string
           message_id: string | null
@@ -3490,6 +3491,7 @@ export type Database = {
           direction: string
           error_message?: string | null
           from_email?: string | null
+          from_name?: string | null
           id?: string
           lead_id: string
           message_id?: string | null
@@ -3509,6 +3511,7 @@ export type Database = {
           direction?: string
           error_message?: string | null
           from_email?: string | null
+          from_name?: string | null
           id?: string
           lead_id?: string
           message_id?: string | null
