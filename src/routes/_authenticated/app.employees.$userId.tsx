@@ -1905,7 +1905,7 @@ const PERMISSION_ROWS: {
   {
     key: "lead_manage",
     label: "Add / Pull / Push leads",
-    hint: "Create new leads and sync with the Google Sheet (push & pull).",
+    hint: "Create and manage leads.",
   },
   {
     key: "lead_assign",

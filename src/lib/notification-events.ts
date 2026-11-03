@@ -48,7 +48,7 @@ export interface EventDef {
 export const EVENT_CATALOG: readonly EventDef[] = [
   // Leads
   { key: "lead.created", group: "leads", label: "New lead created",
-    description: "A new lead is added manually or pulled from Google Sheets.",
+    description: "A new lead is added.",
     template: "🆕 <b>New lead</b>: {name} ({slug})\nSource: {source}" },
   { key: "lead.assigned", group: "leads", label: "Lead assigned to you",
     description: "A lead was assigned to you as the owner.",
@@ -93,9 +93,6 @@ export const EVENT_CATALOG: readonly EventDef[] = [
   { key: "project.handover", group: "leads", label: "Project handed over",
     description: "A project you worked on was delivered and handed over to the client.",
     template: "🏁 <b>Project delivered</b>: {project}\nGreat work, team!" },
-  { key: "lead.sheet_sync.failed", group: "system", label: "Google Sheet sync failed",
-    description: "Automatic push to the Leads sheet failed.",
-    template: "⚠️ <b>Sheet sync failed</b>: {slug} — {error}" },
   // Meetings
   { key: "meeting.scheduled", group: "meetings", label: "Meeting scheduled",
     description: "A new meeting was scheduled on your lead.",

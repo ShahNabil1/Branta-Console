@@ -1,3 +1,4 @@
+import { useActiveCompany } from "@/components/company/company-switcher";
 import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -78,6 +79,7 @@ function LeadDashboardPage() {
   const [service, setService] = useState("");
   const [priority, setPriority] = useState("");
 
+  const workspace = useActiveCompany().active?.slug ?? null;
   const range = rangeFor(preset, custom);
   const input: LeadDashboardInput = {
     ...range,
@@ -86,6 +88,7 @@ function LeadDashboardPage() {
     status: status || null,
     service: service || null,
     priority: priority || null,
+    workspace,
   };
 
   const fetchDash = useServerFn(getLeadDashboard);
