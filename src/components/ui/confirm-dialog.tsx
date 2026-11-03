@@ -56,16 +56,16 @@ const ConfirmContext = React.createContext<
 
 const toneStyles: Record<ConfirmTone, { icon: React.ReactNode; btn: string }> = {
   danger: {
-    icon: <AlertTriangle className="size-5 text-red-600" />,
-    btn: "bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-600",
+    icon: <span className="grid size-10 place-items-center rounded-xl bg-destructive/10 text-destructive ring-1 ring-inset ring-destructive/20"><AlertTriangle className="size-5" /></span>,
+    btn: "bg-destructive text-destructive-foreground shadow-md shadow-destructive/25 hover:bg-destructive/90 focus-visible:ring-destructive",
   },
   warning: {
-    icon: <AlertTriangle className="size-5 text-amber-600" />,
+    icon: <span className="grid size-10 place-items-center rounded-xl bg-amber-500/10 text-amber-600 ring-1 ring-inset ring-amber-500/20"><AlertTriangle className="size-5" /></span>,
     btn: "bg-amber-600 text-white hover:bg-amber-700 focus-visible:ring-amber-600",
   },
   info: {
-    icon: <Info className="size-5 text-primary" />,
-    btn: "bg-primary text-primary-foreground hover:bg-brand-700 focus-visible:ring-primary",
+    icon: <span className="grid size-10 place-items-center rounded-xl bg-brand/10 text-brand ring-1 ring-inset ring-brand/20"><Info className="size-5" /></span>,
+    btn: "bg-primary text-primary-foreground shadow-md shadow-brand/25 hover:bg-brand-700 focus-visible:ring-primary",
   },
   neutral: {
     icon: null,
@@ -133,12 +133,13 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
           if (!o && !state.pending) finish(false);
         }}
       >
-        <AlertDialogContent className="rounded-md border-border p-0 sm:max-w-md">
-          <AlertDialogHeader className="gap-2 border-b border-border px-5 pb-3 pt-4 text-left">
-            <div className="flex items-start gap-3">
+        <AlertDialogContent className="overflow-hidden rounded-xl border-border p-0 shadow-2xl sm:max-w-md">
+          <AlertDialogHeader className="relative gap-2 px-6 pb-4 pt-6 text-left">
+            <span className="pointer-events-none absolute -right-16 -top-20 size-48 rounded-full bg-brand/10 blur-3xl" />
+            <div className="relative flex items-start gap-3.5">
               {styles.icon && <div className="mt-0.5 shrink-0">{styles.icon}</div>}
               <div className="min-w-0 flex-1 space-y-1.5">
-                <AlertDialogTitle className="text-[14px] font-semibold leading-tight text-foreground">
+                <AlertDialogTitle className="text-[16px] font-bold leading-tight tracking-tight text-foreground">
                   {state.title}
                 </AlertDialogTitle>
                 {state.description && (
@@ -151,7 +152,7 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
           </AlertDialogHeader>
 
           {requiresTyping && (
-            <div className="space-y-2 px-5 py-4">
+            <div className="space-y-2 px-6 pb-4">
               <p className="text-[11.5px] text-muted-foreground">
                 Type{" "}
                 <span className="rounded-sm border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
@@ -165,16 +166,16 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
                 onChange={(e) =>
                   setState((s) => ({ ...s, typed: e.target.value }))
                 }
-                className="h-9 rounded-sm text-[12.5px]"
+                className="h-10 rounded-md font-mono text-[12.5px]"
                 placeholder={state.requireTypedText}
               />
             </div>
           )}
 
-          <AlertDialogFooter className="gap-2 border-t border-border bg-muted/30 px-5 py-3">
+          <AlertDialogFooter className="gap-2 border-t border-border bg-muted/30 px-6 py-4">
             <AlertDialogCancel
               disabled={state.pending}
-              className="h-8 rounded-sm text-[12px]"
+              className="h-9 rounded-md text-[12.5px] font-semibold transition-all active:scale-95"
             >
               {state.cancelLabel ?? "Cancel"}
             </AlertDialogCancel>
@@ -185,7 +186,7 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
                 void handleConfirm();
               }}
               className={cn(
-                "h-8 rounded-sm text-[12px] font-semibold",
+                "h-9 rounded-md text-[12.5px] font-semibold transition-all hover:-translate-y-px active:scale-95",
                 styles.btn,
               )}
             >
