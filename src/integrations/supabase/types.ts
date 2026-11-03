@@ -3660,6 +3660,7 @@ export type Database = {
           archive_reason: string | null
           archived_at: string | null
           archived_by: string | null
+          company_id: string | null
           created_at: string
           created_by: string | null
           currency: string
@@ -3690,6 +3691,7 @@ export type Database = {
           archive_reason?: string | null
           archived_at?: string | null
           archived_by?: string | null
+          company_id?: string | null
           created_at?: string
           created_by?: string | null
           currency?: string
@@ -3720,6 +3722,7 @@ export type Database = {
           archive_reason?: string | null
           archived_at?: string | null
           archived_by?: string | null
+          company_id?: string | null
           created_at?: string
           created_by?: string | null
           currency?: string
@@ -3747,6 +3750,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "invoices_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "invoices_customer_id_fkey"
             columns: ["customer_id"]
