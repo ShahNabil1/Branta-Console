@@ -616,7 +616,9 @@ export async function renderInvoicePdf(
       .filter((l) => !/^(bkash|bikash|nagad|rocket)\s*:/i.test(l));
     const noteLines = wrap(noteText, font, 8, CONTENT_W - 28);
     // Local-currency merchant QR only; never imply it accepts foreign currency.
-    const qrImage = cur === "BDT" && s.use_branta_assets !== false
+    // The QR pays into the single Branta Tech merchant account, so it appears on
+    // every company's BDT invoice.
+    const qrImage = cur === "BDT"
       ? await pdf.embedPng(Uint8Array.from(atob(BANGLA_QR_PNG_B64), (c) => c.charCodeAt(0)))
       : null;
     const qrW = 104;
