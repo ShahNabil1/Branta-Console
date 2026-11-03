@@ -365,7 +365,12 @@ export const checkMeetingConflicts = createServerFn({ method: "POST" })
       const { data: l } = await context.supabase.from("leads").select("company_id").eq("id", data.leadId).maybeSingle();
       companyId = (l as { company_id?: string } | null)?.company_id ?? null;
     }
-    const mb = await mailboxForCompanyId(companyId).catch(() => null);
+    let mb: Awaited<ReturnType<typeof mailboxForCompanyId>> = null;
+    try {
+      mb = await mailboxForCompanyId(companyId);
+    } catch {
+      return []; // company calendar not connected — never check the shared one
+    }
     try {
       const res = await callGateway<{
         items?: Array<{
@@ -379,6 +384,7 @@ export const checkMeetingConflicts = createServerFn({ method: "POST" })
         }>;
       }>({
         connector: "google_calendar",
+        ...googleScope(mb),
         path: "/calendar/v3/calendars/primary/events",
         method: "GET",
         query: {
