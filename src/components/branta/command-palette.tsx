@@ -31,7 +31,6 @@ import {
   KeyRound,
   BellRing,
   User,
-  Activity,
   Link2,
   FileSignature,
   Loader2, TrendingUp } from "lucide-react";
