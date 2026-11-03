@@ -193,3 +193,58 @@ export const updateCompanyPrefixes = createServerFn({ method: "POST" })
     if (error) throw dbError(error);
     return { ok: true };
   });
+
+// ---- Per-employee workspace access (explicit; never implied) ----
+export const WORKSPACE_ROLES = ["member", "manager", "super_admin"] as const;
+export type WorkspaceRole = (typeof WORKSPACE_ROLES)[number];
+
+async function profileIdFor(admin: Sb, authUserId: string): Promise<string> {
+  const { data } = await admin.from("profiles").select("id").eq("user_id", authUserId).maybeSingle();
+  if (!data?.id) throw new Error("Employee profile not found.");
+  return data.id as string;
+}
+
+export const listEmployeeWorkspaces = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({ userId: z.string().uuid() }).parse(i))
+  .handler(async ({ data, context }) => {
+    await assertGroupAdmin(context.supabase, context.userId, "Only group admins can manage workspace access.");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const admin = supabaseAdmin as unknown as Sb;
+    const pid = await profileIdFor(admin, data.userId);
+    const [{ data: cos, error }, { data: mem }] = await Promise.all([
+      admin.from("companies").select("id, name, slug, is_holding, status, logo_url, brand_kit, ceo_user_id, coo_user_id").order("is_holding", { ascending: false }).order("created_at"),
+      admin.from("company_members").select("company_id, role, is_active").eq("user_id", pid),
+    ]);
+    if (error) throw dbError(error);
+    const byCo = new Map(((mem ?? []) as { company_id: string; role: string; is_active: boolean }[]).map((m) => [m.company_id, m]));
+    return ((cos ?? []) as CompanyRow[]).map((c) => {
+      const m = byCo.get(c.id);
+      const leader = c.ceo_user_id === pid ? "CEO" : c.coo_user_id === pid ? "COO" : null;
+      return { ...c, role: m?.is_active ? (m.role as WorkspaceRole) : null, leader };
+    });
+  });
+
+export const setEmployeeWorkspace = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({
+    userId: z.string().uuid(),
+    companyId: z.string().uuid(),
+    role: z.enum(WORKSPACE_ROLES).nullable(),
+  }).parse(i))
+  .handler(async ({ data, context }) => {
+    await assertGroupAdmin(context.supabase, context.userId, "Only group admins can manage workspace access.");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const admin = supabaseAdmin as unknown as Sb;
+    const pid = await profileIdFor(admin, data.userId);
+    const { data: co } = await admin.from("companies").select("ceo_user_id, coo_user_id").eq("id", data.companyId).maybeSingle();
+    if (!co) throw new Error("Company not found.");
+    if ((co.ceo_user_id === pid || co.coo_user_id === pid) && data.role !== "super_admin")
+      throw new Error("CEO/COO always keep full access. Change the company leadership first.");
+    const row = data.role
+      ? { company_id: data.companyId, user_id: pid, role: data.role, is_active: true }
+      : { company_id: data.companyId, user_id: pid, role: "member", is_active: false };
+    const { error } = await admin.from("company_members").upsert(row, { onConflict: "company_id,user_id" });
+    if (error) throw dbError(error);
+    return { ok: true as const };
+  });
