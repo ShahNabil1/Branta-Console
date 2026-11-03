@@ -93,6 +93,7 @@ import { Route as AuthenticatedAppOrgOrgInboxRouteImport } from './routes/_authe
 import { Route as AuthenticatedAppOrgOrgCustomersIndexRouteImport } from './routes/_authenticated/app.org.$org.customers.index'
 import { Route as AuthenticatedAppOrgOrgCustomersCodeRouteImport } from './routes/_authenticated/app.org.$org.customers.$code'
 import { Route as AuthenticatedAppOrgOrgFinanceExpensesRouteImport } from './routes/_authenticated/app.org.$org.finance.expenses'
+import { Route as AuthenticatedAppOrgOrgFinanceWalletRouteImport } from './routes/_authenticated/app.org.$org.finance.wallet'
 import { Route as AuthenticatedAppOrgOrgLeadsIndexRouteImport } from './routes/_authenticated/app.org.$org.leads.index'
 import { Route as AuthenticatedAppOrgOrgLeadsSlugRouteImport } from './routes/_authenticated/app.org.$org.leads.$slug'
 import { Route as AuthenticatedAppOrgOrgLeadsDashboardRouteImport } from './routes/_authenticated/app.org.$org.leads.dashboard'
@@ -586,6 +587,12 @@ const AuthenticatedAppOrgOrgFinanceExpensesRoute =
     path: '/finance/expenses',
     getParentRoute: () => AuthenticatedAppOrgOrgRoute,
   } as any)
+const AuthenticatedAppOrgOrgFinanceWalletRoute =
+  AuthenticatedAppOrgOrgFinanceWalletRouteImport.update({
+    id: '/finance/wallet',
+    path: '/finance/wallet',
+    getParentRoute: () => AuthenticatedAppOrgOrgRoute,
+  } as any)
 const AuthenticatedAppOrgOrgLeadsIndexRoute =
   AuthenticatedAppOrgOrgLeadsIndexRouteImport.update({
     id: '/leads/',
@@ -712,6 +719,7 @@ export interface FileRoutesByFullPath {
   '/app/org/$org/': typeof AuthenticatedAppOrgOrgIndexRoute
   '/app/org/$org/customers/$code': typeof AuthenticatedAppOrgOrgCustomersCodeRoute
   '/app/org/$org/finance/expenses': typeof AuthenticatedAppOrgOrgFinanceExpensesRoute
+  '/app/org/$org/finance/wallet': typeof AuthenticatedAppOrgOrgFinanceWalletRoute
   '/app/org/$org/leads/$slug': typeof AuthenticatedAppOrgOrgLeadsSlugRoute
   '/app/org/$org/leads/dashboard': typeof AuthenticatedAppOrgOrgLeadsDashboardRoute
   '/app/org/$org/leads/drafts': typeof AuthenticatedAppOrgOrgLeadsDraftsRoute
@@ -797,6 +805,7 @@ export interface FileRoutesByTo {
   '/app/org/$org': typeof AuthenticatedAppOrgOrgIndexRoute
   '/app/org/$org/customers/$code': typeof AuthenticatedAppOrgOrgCustomersCodeRoute
   '/app/org/$org/finance/expenses': typeof AuthenticatedAppOrgOrgFinanceExpensesRoute
+  '/app/org/$org/finance/wallet': typeof AuthenticatedAppOrgOrgFinanceWalletRoute
   '/app/org/$org/leads/$slug': typeof AuthenticatedAppOrgOrgLeadsSlugRoute
   '/app/org/$org/leads/dashboard': typeof AuthenticatedAppOrgOrgLeadsDashboardRoute
   '/app/org/$org/leads/drafts': typeof AuthenticatedAppOrgOrgLeadsDraftsRoute
@@ -891,6 +900,7 @@ export interface FileRoutesById {
   '/_authenticated/app/org/$org/': typeof AuthenticatedAppOrgOrgIndexRoute
   '/_authenticated/app/org/$org/customers/$code': typeof AuthenticatedAppOrgOrgCustomersCodeRoute
   '/_authenticated/app/org/$org/finance/expenses': typeof AuthenticatedAppOrgOrgFinanceExpensesRoute
+  '/_authenticated/app/org/$org/finance/wallet': typeof AuthenticatedAppOrgOrgFinanceWalletRoute
   '/_authenticated/app/org/$org/leads/$slug': typeof AuthenticatedAppOrgOrgLeadsSlugRoute
   '/_authenticated/app/org/$org/leads/dashboard': typeof AuthenticatedAppOrgOrgLeadsDashboardRoute
   '/_authenticated/app/org/$org/leads/drafts': typeof AuthenticatedAppOrgOrgLeadsDraftsRoute
@@ -985,6 +995,7 @@ export interface FileRouteTypes {
     | '/app/org/$org/'
     | '/app/org/$org/customers/$code'
     | '/app/org/$org/finance/expenses'
+    | '/app/org/$org/finance/wallet'
     | '/app/org/$org/leads/$slug'
     | '/app/org/$org/leads/dashboard'
     | '/app/org/$org/leads/drafts'
@@ -1070,6 +1081,7 @@ export interface FileRouteTypes {
     | '/app/org/$org'
     | '/app/org/$org/customers/$code'
     | '/app/org/$org/finance/expenses'
+    | '/app/org/$org/finance/wallet'
     | '/app/org/$org/leads/$slug'
     | '/app/org/$org/leads/dashboard'
     | '/app/org/$org/leads/drafts'
@@ -1163,6 +1175,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/org/$org/'
     | '/_authenticated/app/org/$org/customers/$code'
     | '/_authenticated/app/org/$org/finance/expenses'
+    | '/_authenticated/app/org/$org/finance/wallet'
     | '/_authenticated/app/org/$org/leads/$slug'
     | '/_authenticated/app/org/$org/leads/dashboard'
     | '/_authenticated/app/org/$org/leads/drafts'
@@ -1783,6 +1796,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppOrgOrgFinanceExpensesRouteImport
       parentRoute: typeof AuthenticatedAppOrgOrgRoute
     }
+    '/_authenticated/app/org/$org/finance/wallet': {
+      id: '/_authenticated/app/org/$org/finance/wallet'
+      path: '/finance/wallet'
+      fullPath: '/app/org/$org/finance/wallet'
+      preLoaderRoute: typeof AuthenticatedAppOrgOrgFinanceWalletRouteImport
+      parentRoute: typeof AuthenticatedAppOrgOrgRoute
+    }
     '/_authenticated/app/org/$org/leads/': {
       id: '/_authenticated/app/org/$org/leads/'
       path: '/leads'
@@ -1992,6 +2012,7 @@ interface AuthenticatedAppOrgOrgRouteChildren {
   AuthenticatedAppOrgOrgIndexRoute: typeof AuthenticatedAppOrgOrgIndexRoute
   AuthenticatedAppOrgOrgCustomersCodeRoute: typeof AuthenticatedAppOrgOrgCustomersCodeRoute
   AuthenticatedAppOrgOrgFinanceExpensesRoute: typeof AuthenticatedAppOrgOrgFinanceExpensesRoute
+  AuthenticatedAppOrgOrgFinanceWalletRoute: typeof AuthenticatedAppOrgOrgFinanceWalletRoute
   AuthenticatedAppOrgOrgLeadsSlugRoute: typeof AuthenticatedAppOrgOrgLeadsSlugRoute
   AuthenticatedAppOrgOrgLeadsDashboardRoute: typeof AuthenticatedAppOrgOrgLeadsDashboardRoute
   AuthenticatedAppOrgOrgLeadsDraftsRoute: typeof AuthenticatedAppOrgOrgLeadsDraftsRoute
@@ -2010,6 +2031,8 @@ const AuthenticatedAppOrgOrgRouteChildren: AuthenticatedAppOrgOrgRouteChildren =
       AuthenticatedAppOrgOrgCustomersCodeRoute,
     AuthenticatedAppOrgOrgFinanceExpensesRoute:
       AuthenticatedAppOrgOrgFinanceExpensesRoute,
+    AuthenticatedAppOrgOrgFinanceWalletRoute:
+      AuthenticatedAppOrgOrgFinanceWalletRoute,
     AuthenticatedAppOrgOrgLeadsSlugRoute: AuthenticatedAppOrgOrgLeadsSlugRoute,
     AuthenticatedAppOrgOrgLeadsDashboardRoute:
       AuthenticatedAppOrgOrgLeadsDashboardRoute,
