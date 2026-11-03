@@ -814,6 +814,44 @@ export type Database = {
           },
         ]
       }
+      company_invoice_templates: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string
+          id: string
+          revision: number
+          settings: Json
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by: string
+          id?: string
+          revision: number
+          settings: Json
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          revision?: number
+          settings?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_invoice_templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_ledger: {
         Row: {
           amount: number
@@ -3224,6 +3262,7 @@ export type Database = {
           internal_notes: string | null
           notes: string | null
           paid_amount: number
+          pdf_template_snapshot: Json | null
           project_cost_total: number
           project_id: string | null
           project_type: string
@@ -3253,6 +3292,7 @@ export type Database = {
           internal_notes?: string | null
           notes?: string | null
           paid_amount?: number
+          pdf_template_snapshot?: Json | null
           project_cost_total?: number
           project_id?: string | null
           project_type?: string
@@ -3282,6 +3322,7 @@ export type Database = {
           internal_notes?: string | null
           notes?: string | null
           paid_amount?: number
+          pdf_template_snapshot?: Json | null
           project_cost_total?: number
           project_id?: string | null
           project_type?: string
@@ -5338,6 +5379,10 @@ export type Database = {
         Args: { _company: string; _fallback: string; _kind: string }
         Returns: string
       }
+      company_invoice_base_settings: {
+        Args: { _company: string }
+        Returns: Json
+      }
       correct_allocation_base: {
         Args: { _allocation_id: string; _reason: string }
         Returns: string
@@ -5514,6 +5559,15 @@ export type Database = {
       revert_installment_payment: {
         Args: { _installment_id: string; _reason: string }
         Returns: undefined
+      }
+      save_company_invoice_template: {
+        Args: {
+          _actor: string
+          _company: string
+          _expected_revision: number
+          _settings: Json
+        }
+        Returns: number
       }
       validate_branta_email: { Args: { _email: string }; Returns: boolean }
       verify_cron_token: {
