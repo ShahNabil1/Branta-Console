@@ -130,7 +130,6 @@ export const sendInboxReply = createServerFn({ method: "POST" })
                 ? [{ name: "lead_id", value: data.leadId }]
                 : []),
             ],
-          },
         });
         messageId = res.id;
       } else {
@@ -150,7 +149,6 @@ export const sendInboxReply = createServerFn({ method: "POST" })
               `thread_id:${data.threadId}`,
               ...(data.leadId ? [`lead_id:${data.leadId}`] : []),
             ],
-          },
         });
         messageId = res.messageId;
       }
@@ -161,15 +159,16 @@ export const sendInboxReply = createServerFn({ method: "POST" })
           lead_id: data.leadId,
           actor_id: context.userId,
           kind: "email_reply",
-          body: `Replied via ${data.provider}: ${data.subject}`,
+          body: `Replied via ${provider}: ${data.subject}`,
           meta: {
-            provider: data.provider,
+            provider,
+            company_id: mb.companyId,
             thread_id: data.threadId,
             to: data.to.join(", "),
           },
         });
       }
 
-      return { ok: true, messageId, provider: data.provider };
+      return { ok: true, messageId, provider };
     },
   );

@@ -96,7 +96,7 @@ export const scheduleLeadMeeting = createServerFn({ method: "POST" })
     // Only the lead owner or a privileged role may schedule meetings for a lead.
     const { data: leadRow } = await context.supabase
       .from("leads")
-      .select("owner_id, alt_email")
+      .select("owner_id, alt_email, company_id")
       .eq("id", data.leadId)
       .maybeSingle();
     if (!leadRow) throw new Error("Lead not found");
