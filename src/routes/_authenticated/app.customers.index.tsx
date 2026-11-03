@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { useCompanySetup } from "@/components/company/setup-required";
 import { Plus, Search, Loader2, Trash2, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,6 +63,7 @@ function relTime(iso: string) {
 
 function CustomersPage() {
   const qc = useQueryClient();
+  const setup = useCompanySetup();
   const list = useServerFn(listCustomers);
   const countsFn = useServerFn(getProjectCounts);
   const { data: projCounts } = useQuery({ queryKey: ["client-project-counts"], queryFn: () => countsFn(), staleTime: 30_000 });
@@ -179,7 +181,10 @@ function CustomersPage() {
             className="h-8 pl-7 text-[13px]"
           />
         </div>
-        <Button size="sm" onClick={() => setOpen(true)}>
+        <Button size="sm" onClick={() => {
+          if (setup.blocked("customer").length) { toast.error(`${setup.companyName} needs its Customer Code prefix set by a Branta Tech admin first.`); return; }
+          setOpen(true);
+        }}>
           <Plus className="size-3.5" /> New customer
         </Button>
       </header>

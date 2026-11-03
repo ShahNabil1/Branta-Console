@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { useCompanySetup } from "@/components/company/setup-required";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import {
@@ -210,7 +211,11 @@ function LeadsPage() {
     onError: (e: unknown) =>
       toast.error(e instanceof Error ? e.message : "Failed to create lead"),
   });
-  const onNewLead = () => setFormOpen(true);
+  const setup = useCompanySetup();
+  const onNewLead = () => {
+    if (setup.blocked("lead").length) { toast.error(`${setup.companyName} needs its Lead Code prefix set by a Branta Tech admin first.`); return; }
+    setFormOpen(true);
+  };
 
   // ---- Super-admin bulk selection / actions --------------------------------
   const confirm = useConfirm();

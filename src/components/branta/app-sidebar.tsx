@@ -382,24 +382,7 @@ export function AppSidebar() {
                 {exp ? group.label : <span className="h-px w-5 bg-border" />}
               </div>
               {group.label === "Finance" && activeCompany && !activeCompany.is_holding ? (
-                <div className="space-y-0.5">
-                  {(() => {
-                    const active = pathname === `/app/companies/${activeCompany.slug}`;
-                    return (
-                      <Link
-                        to="/app/companies/$slug"
-                        params={{ slug: activeCompany.slug }}
-                        search={{ tab: "wallet" } as never}
-                        title={!exp ? "Wallet" : undefined}
-                        className={itemClass(active)}
-                      >
-                        <ActiveBar show={active} />
-                        <IconTile icon={Wallet} tone="brand" active={active} />
-                        {exp && <span className="truncate">Wallet</span>}
-                      </Link>
-                    );
-                  })()}
-                </div>
+                exp ? <div className="px-2 py-1 text-[11.5px] font-medium text-muted-foreground">Invoice, Expense and Wallet open here soon.</div> : null
               ) : group.label === "Finance" ? (
                 <div className="space-y-0.5">
                   {FINANCE_NAV.map((fg) => {

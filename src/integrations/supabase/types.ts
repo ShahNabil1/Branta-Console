@@ -5864,6 +5864,10 @@ export type Database = {
         Args: { _company: string; _fallback: string; _kind: string }
         Returns: string
       }
+      company_gate_check: {
+        Args: { _company: string; _kind: string }
+        Returns: undefined
+      }
       company_invoice_base_settings: {
         Args: { _company: string }
         Returns: Json
@@ -5882,6 +5886,7 @@ export type Database = {
         }
         Returns: string
       }
+      company_setup_missing: { Args: { _company: string }; Returns: string[] }
       company_wallet_credit_installment: {
         Args: { _installment: string }
         Returns: number
