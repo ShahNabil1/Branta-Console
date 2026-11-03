@@ -1,3 +1,4 @@
+import { DiscardCancelButton } from "@/components/company/danger-confirm";
 import { useActiveCompany } from "@/components/company/company-switcher";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -30,7 +31,9 @@ type Stakeholder = { user_id: string; role: StakeholderRole; percent: number };
 
 
 export function NewInvoicePage() {
-  const workspace = useActiveCompany().active?.slug ?? null;
+  const activeCo = useActiveCompany().active;
+  const workspace = activeCo?.slug ?? null;
+  const sisterCompanyId = activeCo && !activeCo.is_holding ? activeCo.id : null;
   const navigate = useNavigate();
   const create = useServerFn(createInvoice);
   const listCust = useServerFn(listCustomersForPicker);
@@ -89,7 +92,7 @@ export function NewInvoicePage() {
   const instSum = useMemo(() => installments.reduce((a, i) => a + Number(i.amount || 0), 0), [installments]);
   const costSum = useMemo(() => sumProjectCosts(projectCosts), [projectCosts]);
   const netAmount = Math.max(totalNum - costSum, 0);
-  const fundCtx = useCustomerFundContext(customerId || null);
+  const fundCtx = useCustomerFundContext(customerId || null, sisterCompanyId);
   const sisterCtx = fundCtx.data?.sister ? fundCtx.data : null;
   const pctSum = useMemo(() => stakeholders.reduce((a, s) => a + Number(s.percent || 0), 0), [stakeholders]);
 
@@ -152,7 +155,9 @@ export function NewInvoicePage() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="ghost" onClick={() => navigate({ to: "/app/finance/invoices" })} className="h-9 rounded-sm">Cancel</Button>
+          <DiscardCancelButton
+            dirty={!!(customerId || projectId || title.trim() || description.trim() || notes.trim() || totalNum > 0 || startsOn || endsOn || projectCosts.length || plans.length || installments.length !== 1 || installments[0]?.label !== "Advance" || Number(installments[0]?.amount) > 0)}
+            onCancel={() => navigate({ to: "/app/finance/invoices" })} className="h-9 rounded-sm" disabled={submit.isPending} />
           <Button onClick={() => submit.mutate()} disabled={!canSubmit || submit.isPending}
             className="h-9 rounded-sm bg-primary hover:bg-brand-700">
             {submit.isPending && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
@@ -284,6 +289,7 @@ export function NewInvoicePage() {
 
       <section className="rounded-md border border-border bg-card p-5">
         {sisterCtx ? <CompanyFundPreview ctx={sisterCtx} amount={totalNum} currency={currency} />
+          : sisterCompanyId ? <div className="flex items-center gap-2 text-[12px] text-muted-foreground"><Loader2 className="size-3.5 animate-spin" /> Loading {activeCo?.name} fund allocation…</div>
           : <EmployeeFundPlanner net={netAmount} currency={currency} projectId={projectId || null} plans={plans} onChange={setPlans} onPoolChange={(p) => p !== empPool && setEmpPool(p)} />}
       </section>
 
@@ -323,7 +329,9 @@ export function NewInvoicePage() {
             {canSubmit ? "Ready to create" : "Resolve the items above"}
           </div>
           <div className="flex gap-2">
-            <Button variant="ghost" onClick={() => navigate({ to: "/app/finance/invoices" })} className="h-9 rounded-sm">Cancel</Button>
+            <DiscardCancelButton
+            dirty={!!(customerId || projectId || title.trim() || description.trim() || notes.trim() || totalNum > 0 || startsOn || endsOn || projectCosts.length || plans.length || installments.length !== 1 || installments[0]?.label !== "Advance" || Number(installments[0]?.amount) > 0)}
+            onCancel={() => navigate({ to: "/app/finance/invoices" })} className="h-9 rounded-sm" disabled={submit.isPending} />
             <Button onClick={() => submit.mutate()} disabled={!canSubmit || submit.isPending}
               className="h-9 rounded-sm bg-primary hover:bg-brand-700">
               {submit.isPending && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}

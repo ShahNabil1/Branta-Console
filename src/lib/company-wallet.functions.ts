@@ -118,12 +118,16 @@ export const moveCompanyWalletFunds = createServerFn({ method: "POST" })
 /** Invoice form: which company a customer belongs to, and that sister company's active fund split. */
 export const getCustomerFundContext = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: { customerId: string }) => z.object({ customerId: z.string().uuid() }).parse(i))
+  .inputValidator((i: { customerId?: string | null; companyId?: string | null }) => z.object({ customerId: z.string().uuid().nullish(), companyId: z.string().uuid().nullish() }).parse(i))
   .handler(async ({ data, context }) => {
     const sb = context.supabase as any;
-    const { data: cu } = await sb.from("customers").select("company_id").eq("id", data.customerId).maybeSingle();
-    if (!cu?.company_id) return { sister: false as const };
-    const { data: co } = await sb.from("companies").select("id, name, slug, is_holding").eq("id", cu.company_id).maybeSingle();
+    let companyId = data.companyId ?? null;
+    if (!companyId && data.customerId) {
+      const { data: cu } = await sb.from("customers").select("company_id").eq("id", data.customerId).maybeSingle();
+      companyId = cu?.company_id ?? null;
+    }
+    if (!companyId) return { sister: false as const };
+    const { data: co } = await sb.from("companies").select("id, name, slug, is_holding").eq("id", companyId).maybeSingle();
     if (!co || co.is_holding) return { sister: false as const };
     const { data: cfg, error } = await sb.from("company_fund_configs")
       .select("version, company_fund_buckets(key, label, mode, percent, fixed_amount, sort)")

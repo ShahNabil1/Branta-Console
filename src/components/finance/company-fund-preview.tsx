@@ -7,9 +7,10 @@ import { splitInstallment } from "@/lib/company-fund-split";
 
 type Ctx = Awaited<ReturnType<typeof getCustomerFundContext>>;
 
-export function useCustomerFundContext(customerId: string | null | undefined) {
+/** Sister workspace: always that company's split (never Branta's), even before a customer is picked. */
+export function useCustomerFundContext(customerId: string | null | undefined, companyId?: string | null) {
   const fn = useServerFn(getCustomerFundContext);
-  return useQuery<Ctx>({ queryKey: ["customer-fund-ctx", customerId], queryFn: () => fn({ data: { customerId: customerId! } }), enabled: !!customerId, staleTime: 30_000 });
+  return useQuery<Ctx>({ queryKey: ["customer-fund-ctx", companyId ?? null, companyId ? null : customerId], queryFn: () => fn({ data: { customerId: customerId ?? null, companyId: companyId ?? null } }), enabled: !!(companyId || customerId), staleTime: 30_000 });
 }
 
 const fmt = (n: number, cur: string) => `${cur === "BDT" ? "৳" : `${cur} `}${n.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
