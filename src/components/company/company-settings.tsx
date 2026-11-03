@@ -2,10 +2,11 @@ import { useMemo, useRef, useState, type ReactNode } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { AlertTriangle, CheckCircle2, Hash, ImageUp, Loader2, Palette, Trash2, XCircle, type LucideIcon } from "lucide-react";
+import { AlertTriangle, CheckCircle2, FileText, Hash, ImageUp, Loader2, Palette, Trash2, XCircle, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { InvoiceStudio } from "./invoice-studio";
 import { updateCompanyBrand, updateCompanyPrefixes } from "@/lib/companies.functions";
 import {
   brandChecks, DEFAULT_PREFIX, HEX, MAX_ASSET_CHARS, PREFIX_KINDS, PREFIX_RE,
@@ -17,30 +18,31 @@ type Co = { id: string; name: string; slug: string; is_holding: boolean; tagline
 const SECTIONS: { id: string; label: string; icon: LucideIcon; hint: string }[] = [
   { id: "brand", label: "Brand Kit", icon: Palette, hint: "Logos, icon, colours" },
   { id: "codes", label: "Code Prefixes", icon: Hash, hint: "Lead, customer, invoice, expense" },
+  { id: "invoice", label: "Invoice Studio", icon: FileText, hint: "Template, payment, signature" },
 ];
 
 export function CompanySettings({ c, accent }: { c: Co; accent: string }) {
   const [sec, setSec] = useState("brand");
   return (
-    <div className="grid gap-4 md:grid-cols-[220px_1fr]">
+    <div className="grid min-w-0 gap-4 md:grid-cols-[180px_minmax(0,1fr)]">
       <aside className="space-y-1 rounded-xl border border-border bg-card p-2 md:self-start">
         {SECTIONS.map((s) => {
           const on = sec === s.id;
           return (
-            <button key={s.id} onClick={() => setSec(s.id)}
-              className={cn("flex w-full items-start gap-2.5 rounded-lg px-3 py-2.5 text-left transition-all active:scale-[.98]", on ? "bg-muted" : "hover:bg-muted/60")}>
-              <s.icon className="mt-0.5 size-4" style={{ color: on ? accent : undefined }} />
+            <Button variant="ghost" key={s.id} onClick={() => setSec(s.id)}
+              className={cn("flex h-auto w-full justify-start items-start gap-2.5 rounded px-3 py-2.5 text-left transition-all active:scale-[.98]", on ? "bg-muted" : "hover:bg-muted/60")}>
+              <s.icon className={cn("mt-0.5 size-4", on && "text-brand")} />
               <span><span className="block text-[12.5px] font-bold">{s.label}</span><span className="block text-[11px] font-semibold text-muted-foreground">{s.hint}</span></span>
-            </button>
+            </Button>
           );
         })}
         <div className="px-3 pb-2 pt-3 text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground">Coming next</div>
-        {["Invoice Studio", "Project Flow", "Finance & Alerts"].map((l) => (
+        {["Project Flow", "Finance & Alerts"].map((l) => (
           <div key={l} className="px-3 py-1.5 text-[12px] font-semibold text-muted-foreground/70">{l}</div>
         ))}
       </aside>
-      <div key={sec} className="animate-in fade-in slide-in-from-bottom-1 duration-300">
-        {sec === "brand" ? <BrandKitPanel c={c} accent={accent} /> : <PrefixPanel c={c} accent={accent} />}
+      <div key={sec} className="min-w-0 animate-in fade-in slide-in-from-bottom-1 duration-300">
+        {sec === "brand" ? <BrandKitPanel c={c} accent={accent} /> : sec === "invoice" ? <InvoiceStudio companyId={c.id} /> : <PrefixPanel c={c} accent={accent} />}
       </div>
     </div>
   );
