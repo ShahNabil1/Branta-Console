@@ -108,7 +108,8 @@ async function cf(path: string, init?: { method?: string; body?: unknown }) {
   if (!t) return { ok: false, status: 0, body: { errors: [{ message: "Cloudflare is not configured." }] } } as Res;
   return call(`https://api.cloudflare.com/client/v4${path}`, { Authorization: `Bearer ${t}` }, init);
 }
-export async function inboundRouting(address: string, create = false) {
+export async function inboundRouting(address: string, create = false, target: string = INBOX_GMAIL) {
+  const INBOX = target.toLowerCase();
   const addr = address.toLowerCase();
   const domain = addr.split("@")[1] ?? "";
   const z = await cf(`/zones?name=${encodeURIComponent(domain)}`);
@@ -119,11 +120,11 @@ export async function inboundRouting(address: string, create = false) {
   type Rule = { id: string; enabled: boolean; matchers: { field?: string; value?: string }[]; actions: { type: string; value?: string[] }[] };
   const rules = (list.body?.result ?? []) as Rule[];
   const hit = rules.find((r) => r.matchers.some((m) => m.field === "to" && m.value?.toLowerCase() === addr));
-  const forwards = hit?.actions.some((a) => a.type === "forward" && a.value?.map((v) => v.toLowerCase()).includes(INBOX_GMAIL));
-  if (hit && forwards && hit.enabled) return { state: "routed" as const, domain, message: `${addr} → ${INBOX_GMAIL}` };
+  const forwards = hit?.actions.some((a) => a.type === "forward" && a.value?.map((v) => v.toLowerCase()).includes(INBOX));
+  if (hit && forwards && hit.enabled) return { state: "routed" as const, domain, message: `${addr} → ${INBOX}` };
   if (!create) return { state: hit ? ("wrong_target" as const) : ("missing" as const), domain, message: hit ? `${addr} forwards somewhere else.` : `No routing rule for ${addr} yet.` };
-  const body = { name: `Branta Console: ${addr}`, enabled: true, matchers: [{ type: "literal", field: "to", value: addr }], actions: [{ type: "forward", value: [INBOX_GMAIL] }] };
+  const body = { name: `Branta Console: ${addr}`, enabled: true, matchers: [{ type: "literal", field: "to", value: addr }], actions: [{ type: "forward", value: [INBOX] }] };
   const w = hit ? await cf(`/zones/${zone.id}/email/routing/rules/${hit.id}`, { method: "PUT", body }) : await cf(`/zones/${zone.id}/email/routing/rules`, { method: "POST", body });
   if (!w.ok) return { state: "no_access" as const, domain, message: w.body?.errors?.[0]?.message ?? "Could not create rule." };
-  return { state: "routed" as const, domain, message: `${addr} → ${INBOX_GMAIL}` };
+  return { state: "routed" as const, domain, message: `${addr} → ${INBOX}` };
 }

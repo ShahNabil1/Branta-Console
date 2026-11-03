@@ -30,6 +30,14 @@ async function gate(ctx: { supabase: unknown; userId: string }, slug: string) {
   return { co: co as { id: string; slug: string; name: string }, admin: supabaseAdmin as Any };
 }
 
+/** Gmail that receives this company's mail: its own connected account, else the shared Inbox Gmail. */
+async function inboxTarget(companyId: string) {
+  const { getAccount } = await import("@/lib/company-google.server");
+  const { INBOX_GMAIL } = await import("@/lib/company-email.server");
+  const a = await getAccount(companyId).catch(() => null);
+  return a?.is_active && a.refresh_token_enc ? (a.google_email as string) : INBOX_GMAIL;
+}
+
 async function row(admin: Any, companyId: string, provider: P) {
   const { data } = await admin.from("company_email_providers").select("*")
     .eq("company_id", companyId).eq("provider", provider).maybeSingle();
@@ -61,7 +69,7 @@ export const getEmailIntegrations = createServerFn({ method: "GET" })
       resendWebhookUrl: m.webhookUrl("resend", co.slug),
       resendEvents: [...m.RESEND_EVENTS],
       brevoEvents: [...m.BREVO_EVENTS],
-      inboxGmail: m.INBOX_GMAIL,
+      inboxGmail: await inboxTarget(co.id),
       inbox: await inboxView(admin, co.id),
     };
   });
@@ -234,7 +242,7 @@ export const checkInboundRouting = createServerFn({ method: "POST" })
     const { data: own } = await admin.from("company_email_providers").select("id").eq("company_id", co.id).eq("sender_email", data.email).eq("is_active", true).limit(1);
     if (!own?.length) throw new Error("Only a configured sender address can be routed.");
     const m = await import("@/lib/company-email.server");
-    return m.inboundRouting(data.email, data.create);
+    return m.inboundRouting(data.email, data.create, await inboxTarget(co.id));
   });
 
 export const sendProviderTest = createServerFn({ method: "POST" })
@@ -296,7 +304,7 @@ export const startInboxVerification = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { co, admin } = await gate(context, data.slug);
     const m = await import("@/lib/company-email.server");
-    if (data.email === m.INBOX_GMAIL) throw new Error("Use the company address that forwards to the Inbox, not the Inbox Gmail itself.");
+    if (data.email === m.INBOX_GMAIL || data.email === (await inboxTarget(co.id))) throw new Error("Use the company address that forwards to the Inbox, not the Inbox Gmail itself.");
     const cur = await inboxView(admin, co.id);
     const code = `BRANTA-${m.randomToken(6).toUpperCase()}`;
     const patch: Any = { company_id: co.id, email: data.email, probe_code: code, probe_started_at: new Date().toISOString(), updated_by: context.userId };
@@ -320,14 +328,14 @@ export const checkInboxVerification = createServerFn({ method: "POST" })
     type Msg = { payload?: { headers?: H[] } };
     let list: L;
     try {
-      list = await callGateway<L>({ connector: "google_mail", path: "/gmail/v1/users/me/messages", query: { q: `"${cur.probe_code}" newer_than:2d`, includeSpamTrash: true, maxResults: 5 } });
+      list = await callGateway<L>({ connector: "google_mail", companyId: co.id, path: "/gmail/v1/users/me/messages", query: { q: `"${cur.probe_code}" newer_than:2d`, includeSpamTrash: true, maxResults: 5 } });
     } catch (e) {
       return { ok: false, message: `Could not read the Inbox Gmail: ${e instanceof Error ? e.message : "error"}` };
     }
     const ids = list.messages ?? [];
     if (!ids.length) return { ok: false, message: `No email with code ${cur.probe_code} has arrived yet. Routing may be missing, or give it a minute.` };
     for (const { id } of ids) {
-      const msg = await callGateway<Msg>({ connector: "google_mail", path: `/gmail/v1/users/me/messages/${encodeURIComponent(id)}`, query: { format: "metadata", metadataHeaders: ["To", "Cc", "Delivered-To", "X-Forwarded-To", "X-Original-To", "Subject"] } });
+      const msg = await callGateway<Msg>({ connector: "google_mail", companyId: co.id, path: `/gmail/v1/users/me/messages/${encodeURIComponent(id)}`, query: { format: "metadata", metadataHeaders: ["To", "Cc", "Delivered-To", "X-Forwarded-To", "X-Original-To", "Subject"] } });
       const hs = msg.payload?.headers ?? [];
       const hit = hs.some((h) => ["to", "cc", "delivered-to", "x-forwarded-to", "x-original-to"].includes(h.name.toLowerCase()) && h.value.toLowerCase().includes(cur.email));
       if (hit) {
@@ -348,7 +356,7 @@ export const sendInboxProbe = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { co, admin } = await gate(context, data.slug);
     const m = await import("@/lib/company-email.server");
-    if (data.email === m.INBOX_GMAIL) throw new Error("Use the company address that forwards to the Inbox, not the Inbox Gmail itself.");
+    if (data.email === m.INBOX_GMAIL || data.email === (await inboxTarget(co.id))) throw new Error("Use the company address that forwards to the Inbox, not the Inbox Gmail itself.");
     const cur = await inboxView(admin, co.id);
     const code = `BRANTA-${m.randomToken(6).toUpperCase()}`;
     const patch: Any = { company_id: co.id, email: data.email, probe_code: code, probe_started_at: new Date().toISOString(), updated_by: context.userId };
@@ -401,9 +409,9 @@ export const pollInboxProbe = createServerFn({ method: "POST" })
     // Gmail check (whether or not Resend has reported delivery yet)
     type H = { name: string; value: string };
     try {
-      const list = await callGateway<{ messages?: { id: string }[] }>({ connector: "google_mail", path: "/gmail/v1/users/me/messages", query: { q: `"${cur.probe_code}" newer_than:1d`, includeSpamTrash: true, maxResults: 5 } });
+      const list = await callGateway<{ messages?: { id: string }[] }>({ connector: "google_mail", companyId: co.id, path: "/gmail/v1/users/me/messages", query: { q: `"${cur.probe_code}" newer_than:1d`, includeSpamTrash: true, maxResults: 5 } });
       for (const { id } of list.messages ?? []) {
-        const msg = await callGateway<{ payload?: { headers?: H[] } }>({ connector: "google_mail", path: `/gmail/v1/users/me/messages/${encodeURIComponent(id)}`, query: { format: "metadata", metadataHeaders: ["To", "Delivered-To", "X-Forwarded-To", "X-Original-To"] } });
+        const msg = await callGateway<{ payload?: { headers?: H[] } }>({ connector: "google_mail", companyId: co.id, path: `/gmail/v1/users/me/messages/${encodeURIComponent(id)}`, query: { format: "metadata", metadataHeaders: ["To", "Delivered-To", "X-Forwarded-To", "X-Original-To"] } });
         const hit = (msg.payload?.headers ?? []).some((h) => ["to", "delivered-to", "x-forwarded-to", "x-original-to"].includes(h.name.toLowerCase()) && h.value.toLowerCase().includes(cur.email));
         if (hit) {
           await admin.from("company_inbox_addresses").update({ verified_at: new Date().toISOString(), probe_code: null, updated_by: context.userId }).eq("company_id", co.id);

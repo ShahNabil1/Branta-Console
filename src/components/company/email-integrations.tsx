@@ -13,6 +13,7 @@ import {
   setDefaultProvider, verifyEmailProvider, sendInboxProbe, pollInboxProbe, verifyResendWebhook, type Check as CheckT, type ProviderView,
 } from "@/lib/company-email.functions";
 import { cn } from "@/lib/utils";
+import { GoogleAccountCard } from "@/components/company/google-account-card";
 
 type P = "resend" | "brevo";
 const META: Record<P, { name: string; color: string; tag: string; keyPh: string; keyHelp: string }> = {
@@ -40,6 +41,7 @@ export function EmailIntegrations({ slug, accent }: { slug: string; accent: stri
             <p className="text-[12px] font-semibold text-muted-foreground">Used only for {d.company.name}'s Leads, Invoices and Inbox replies. Connect one or both.</p>
           </div>
         </div>
+        <GoogleAccountCard slug={slug} accent={accent} fallback="brantatech@gmail.com" />
         <InboxAddress slug={slug} accent={accent} inbox={d.inbox} gmail={d.inboxGmail} />
         {!d.inbox?.verified_at && (
           <div className="relative mt-4 flex items-center gap-2 rounded-lg border border-dashed border-border bg-muted/30 px-3 py-2 text-[12px] font-semibold text-muted-foreground">

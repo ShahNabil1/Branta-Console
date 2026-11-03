@@ -73,6 +73,7 @@ import { Route as AuthenticatedAppProjectsIndexRouteImport } from './routes/_aut
 import { Route as AuthenticatedAppProjectsIdRouteImport } from './routes/_authenticated/app.projects.$id'
 import { Route as ApiPublicBrevoWebhookRouteImport } from './routes/api/public/brevo.webhook'
 import { Route as ApiPublicExpensesVoucherDotpdfRouteImport } from './routes/api/public/expenses.$voucher[.]pdf'
+import { Route as ApiPublicGoogleOauthCallbackRouteImport } from './routes/api/public/google-oauth.callback'
 import { Route as ApiPublicHooksInvoiceRemindersRouteImport } from './routes/api/public/hooks/invoice-reminders'
 import { Route as ApiPublicHooksNotificationsDrainRouteImport } from './routes/api/public/hooks/notifications-drain'
 import { Route as ApiPublicIncomeVoucherDotpdfRouteImport } from './routes/api/public/income.$voucher[.]pdf'
@@ -455,6 +456,12 @@ const ApiPublicExpensesVoucherDotpdfRoute =
     path: '/api/public/expenses/$voucher.pdf',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicGoogleOauthCallbackRoute =
+  ApiPublicGoogleOauthCallbackRouteImport.update({
+    id: '/api/public/google-oauth/callback',
+    path: '/api/public/google-oauth/callback',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksInvoiceRemindersRoute =
   ApiPublicHooksInvoiceRemindersRouteImport.update({
     id: '/api/public/hooks/invoice-reminders',
@@ -584,6 +591,7 @@ export interface FileRoutesByFullPath {
   '/app/projects/$id': typeof AuthenticatedAppProjectsIdRoute
   '/api/public/brevo/webhook': typeof ApiPublicBrevoWebhookRoute
   '/api/public/expenses/$voucher.pdf': typeof ApiPublicExpensesVoucherDotpdfRoute
+  '/api/public/google-oauth/callback': typeof ApiPublicGoogleOauthCallbackRoute
   '/api/public/hooks/invoice-reminders': typeof ApiPublicHooksInvoiceRemindersRoute
   '/api/public/hooks/notifications-drain': typeof ApiPublicHooksNotificationsDrainRoute
   '/api/public/income/$voucher.pdf': typeof ApiPublicIncomeVoucherDotpdfRoute
@@ -655,6 +663,7 @@ export interface FileRoutesByTo {
   '/app/projects/$id': typeof AuthenticatedAppProjectsIdRoute
   '/api/public/brevo/webhook': typeof ApiPublicBrevoWebhookRoute
   '/api/public/expenses/$voucher.pdf': typeof ApiPublicExpensesVoucherDotpdfRoute
+  '/api/public/google-oauth/callback': typeof ApiPublicGoogleOauthCallbackRoute
   '/api/public/hooks/invoice-reminders': typeof ApiPublicHooksInvoiceRemindersRoute
   '/api/public/hooks/notifications-drain': typeof ApiPublicHooksNotificationsDrainRoute
   '/api/public/income/$voucher.pdf': typeof ApiPublicIncomeVoucherDotpdfRoute
@@ -734,6 +743,7 @@ export interface FileRoutesById {
   '/_authenticated/app/projects/$id': typeof AuthenticatedAppProjectsIdRoute
   '/api/public/brevo/webhook': typeof ApiPublicBrevoWebhookRoute
   '/api/public/expenses/$voucher.pdf': typeof ApiPublicExpensesVoucherDotpdfRoute
+  '/api/public/google-oauth/callback': typeof ApiPublicGoogleOauthCallbackRoute
   '/api/public/hooks/invoice-reminders': typeof ApiPublicHooksInvoiceRemindersRoute
   '/api/public/hooks/notifications-drain': typeof ApiPublicHooksNotificationsDrainRoute
   '/api/public/income/$voucher.pdf': typeof ApiPublicIncomeVoucherDotpdfRoute
@@ -813,6 +823,7 @@ export interface FileRouteTypes {
     | '/app/projects/$id'
     | '/api/public/brevo/webhook'
     | '/api/public/expenses/$voucher.pdf'
+    | '/api/public/google-oauth/callback'
     | '/api/public/hooks/invoice-reminders'
     | '/api/public/hooks/notifications-drain'
     | '/api/public/income/$voucher.pdf'
@@ -884,6 +895,7 @@ export interface FileRouteTypes {
     | '/app/projects/$id'
     | '/api/public/brevo/webhook'
     | '/api/public/expenses/$voucher.pdf'
+    | '/api/public/google-oauth/callback'
     | '/api/public/hooks/invoice-reminders'
     | '/api/public/hooks/notifications-drain'
     | '/api/public/income/$voucher.pdf'
@@ -962,6 +974,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/projects/$id'
     | '/api/public/brevo/webhook'
     | '/api/public/expenses/$voucher.pdf'
+    | '/api/public/google-oauth/callback'
     | '/api/public/hooks/invoice-reminders'
     | '/api/public/hooks/notifications-drain'
     | '/api/public/income/$voucher.pdf'
@@ -990,6 +1003,7 @@ export interface RootRouteChildren {
   ApiPublicR2HealthRoute: typeof ApiPublicR2HealthRoute
   ApiPublicBrevoWebhookRoute: typeof ApiPublicBrevoWebhookRoute
   ApiPublicExpensesVoucherDotpdfRoute: typeof ApiPublicExpensesVoucherDotpdfRoute
+  ApiPublicGoogleOauthCallbackRoute: typeof ApiPublicGoogleOauthCallbackRoute
   ApiPublicHooksInvoiceRemindersRoute: typeof ApiPublicHooksInvoiceRemindersRoute
   ApiPublicHooksNotificationsDrainRoute: typeof ApiPublicHooksNotificationsDrainRoute
   ApiPublicIncomeVoucherDotpdfRoute: typeof ApiPublicIncomeVoucherDotpdfRoute
@@ -1449,6 +1463,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicExpensesVoucherDotpdfRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/google-oauth/callback': {
+      id: '/api/public/google-oauth/callback'
+      path: '/api/public/google-oauth/callback'
+      fullPath: '/api/public/google-oauth/callback'
+      preLoaderRoute: typeof ApiPublicGoogleOauthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/invoice-reminders': {
       id: '/api/public/hooks/invoice-reminders'
       path: '/api/public/hooks/invoice-reminders'
@@ -1765,6 +1786,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicR2HealthRoute: ApiPublicR2HealthRoute,
   ApiPublicBrevoWebhookRoute: ApiPublicBrevoWebhookRoute,
   ApiPublicExpensesVoucherDotpdfRoute: ApiPublicExpensesVoucherDotpdfRoute,
+  ApiPublicGoogleOauthCallbackRoute: ApiPublicGoogleOauthCallbackRoute,
   ApiPublicHooksInvoiceRemindersRoute: ApiPublicHooksInvoiceRemindersRoute,
   ApiPublicHooksNotificationsDrainRoute: ApiPublicHooksNotificationsDrainRoute,
   ApiPublicIncomeVoucherDotpdfRoute: ApiPublicIncomeVoucherDotpdfRoute,

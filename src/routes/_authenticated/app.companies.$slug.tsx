@@ -54,6 +54,15 @@ function CompanyProfile() {
   const fn = useServerFn(getCompany);
   const q = useQuery({ queryKey: ["company", slug], queryFn: () => fn({ data: { slug } }) });
   const [tab, setTab] = useState("info");
+  // Return from Google connect: open Integrations, report the result once, clean the URL.
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    const g = sp.get("google");
+    if (sp.get("tab") === "integrations") setTab("integrations");
+    if (g === "ok") toast.success("Google account connected for Inbox & Calendar.");
+    else if (g === "error") toast.error(sp.get("google_msg") || "Google connection failed.");
+    if (sp.has("tab") || g) window.history.replaceState(null, "", window.location.pathname);
+  }, []);
   if (q.isLoading) return <div className="grid h-full place-items-center"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div>;
   const c = q.data;
   if (!c) return <div className="p-8 text-[13px] font-semibold text-muted-foreground">Company not found.</div>;
