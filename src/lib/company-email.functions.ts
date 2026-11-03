@@ -97,6 +97,7 @@ export const verifyEmailProvider = createServerFn({ method: "POST" })
     if (inbox.email !== data.senderEmail) throw new Error(`Sender email must be the verified Inbox address (${inbox.email}).`);
     const domain = data.senderEmail.split("@")[1];
     const checks: Check[] = [];
+    let brevoName = "";
 
     if (data.provider === "resend") {
       if (!key.startsWith("re_")) checks.push({ id: "fmt", label: "Key format", ok: false, detail: "Resend keys start with re_" });
@@ -128,14 +129,16 @@ export const verifyEmailProvider = createServerFn({ method: "POST" })
         else if (sender?.active) checks.push({ id: "name", label: "Sender name", ok: false, detail: "This sender has no name in Brevo. Add one in Brevo → Senders." });
         if (!dm.ok) checks.push({ id: "domain", label: "Read domains", ok: false, detail: `Brevo error ${dm.status}: ${dm.body?.message ?? ""}` });
         const d = ((dm.body?.domains ?? []) as { domain_name: string; authenticated: boolean; verified: boolean }[]).find((x) => x.domain_name.toLowerCase() === domain);
-        checks.push({ id: "domain", label: `Domain ${domain}`, ok: !!d?.authenticated, detail: d ? (d.authenticated ? "Authenticated (DKIM/DMARC)" : "Domain added but not authenticated — finish DNS in Brevo.") : `${domain} is not added in Brevo → Domains.` });
+        if (dm.ok) checks.push({ id: "domain", label: `Domain ${domain}`, ok: !!d?.authenticated, detail: d ? (d.authenticated ? "Authenticated (DKIM/DMARC)" : "Domain added but not authenticated — finish DNS in Brevo.") : `${domain} is not added in Brevo → Domains.` });
       }
     }
+    if (data.provider === "resend" && !data.senderName) checks.push({ id: "name", label: "Sender name", ok: false, detail: "Enter a sender name." });
+    const senderName = data.provider === "brevo" ? brevoName : data.senderName;
 
-    const ok = checks.every((c) => c.ok);
+    const ok = checks.every((c) => c.ok) && !!senderName;
     if (ok) {
       const patch: Any = {
-        company_id: co.id, provider: data.provider, sender_name: data.senderName, sender_email: data.senderEmail,
+        company_id: co.id, provider: data.provider, sender_name: senderName, sender_email: data.senderEmail,
         domain, domain_verified_at: new Date().toISOString(), is_active: true, updated_by: context.userId,
         last_check: { at: new Date().toISOString(), checks },
       };
