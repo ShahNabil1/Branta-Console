@@ -42,3 +42,4 @@
 - Company identity uses companies.logo_url/brand_kit, company-identity.ts and local pointers; PDF images embed server-only; no editor. Prefixes use companies.functions.ts + company_code_prefix() — why: consistent identity, offline PDFs, unique codes.
 - Company invoice branding resolves server-side via company-invoice-template.server.ts with immutable snapshots; no in-app editor — why: sisters never show Branta logos/contacts, issued documents never change. renderInvoicePdf forces PAYMENT INFORMATION (bank, note, QR) to Branta Tech for all companies — why: one group bank account.
 - WebMCP uses screen-owned hooks, shared actions and static telemetry — why: agents only use visible controls.
+- company_members.user_id and companies.ceo/coo_user_id store profiles.id (not auth uid); membership predicates (is_company_member, can_manage_company) must join profiles.user_id — why: comparing to auth.uid() directly made every company role silently fail.
