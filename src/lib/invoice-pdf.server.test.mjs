@@ -29,7 +29,9 @@ const fixture = {
 };
 
 describe("invoice PDF pagination", () => {
-  test("Admakai renders its own template and font without Branta QR or logos", async () => {
+  test("Admakai keeps its own identity but the payment section is always Branta Tech's", async () => {
+    // Sister identity (name, colours, font) stays; custom payment_info must be
+    // ignored — the single group bank account and its Bangla QR always render.
     const settings = { ...fixture.settings, use_branta_assets: false, company_name: "Admakai",
       company_email: "info@admakai.com", company_phone: null, company_website: "admakai.com",
       payment_info: "Account Name: Admakai", payment_note: "Pay to this account.", payment_intro: "Bank transfer",
@@ -39,7 +41,7 @@ describe("invoice PDF pagination", () => {
     const doc = await PDFDocument.load(bytes);
     expect(doc.getPageCount()).toBe(1);
     const images = doc.getPages()[0].node.Resources().lookupMaybe((await import("pdf-lib")).PDFName.of("XObject"), (await import("pdf-lib")).PDFDict);
-    expect(images?.keys().length ?? 0).toBe(0);
+    expect(images?.keys().length ?? 0).toBe(1); // the Branta Tech Bangla QR
     if (process.env.INVOICE_PDF_QA_DIR) await Bun.write(`${process.env.INVOICE_PDF_QA_DIR}/admakai.pdf`, bytes);
   });
   for (const mode of ["digital", "print"]) {
