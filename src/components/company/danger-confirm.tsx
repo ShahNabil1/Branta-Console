@@ -1,13 +1,14 @@
 import type { LucideIcon } from "lucide-react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Undo2, X } from "lucide-react";
+import { useState } from "react";
 import {
   AlertDialog, AlertDialogContent, AlertDialogTitle, AlertDialogDescription,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 
 /** Same look as the Google "Disconnect" confirmation, driven by the caller's data. */
-export function DangerConfirm({ open, icon: Icon, title, subject, points, confirmLabel, busy, onCancel, onConfirm }: {
-  open: boolean; icon: LucideIcon; title: string; subject: string; points: string[]; confirmLabel: string;
+export function DangerConfirm({ open, icon: Icon, title, subject, points, confirmLabel, cancelLabel = "Keep it", busy, onCancel, onConfirm }: {
+  open: boolean; icon: LucideIcon; title: string; subject: string; points: string[]; confirmLabel: string; cancelLabel?: string;
   busy?: boolean; onCancel: () => void; onConfirm: () => void;
 }) {
   return (
@@ -34,12 +35,29 @@ export function DangerConfirm({ open, icon: Icon, title, subject, points, confir
           ))}
         </ul>
         <div className="flex justify-end gap-2 border-t border-border bg-muted/30 px-6 py-3">
-          <Button variant="outline" size="sm" onClick={onCancel} disabled={busy}>Keep it</Button>
+          <Button variant="outline" size="sm" onClick={onCancel} disabled={busy}>{cancelLabel}</Button>
           <Button variant="destructive" size="sm" onClick={onConfirm} disabled={busy}>
             {busy ? <Loader2 className="size-3.5 animate-spin" /> : <Icon className="size-3.5" />} {confirmLabel}
           </Button>
         </div>
       </AlertDialogContent>
     </AlertDialog>
+  );
+}
+
+/** Cancel for view/edit forms: asks before discarding real changes, cancels instantly when nothing changed. */
+export function DiscardCancelButton({ dirty, disabled, onCancel, className, label = "Cancel" }: {
+  dirty: boolean; disabled?: boolean; onCancel: () => void; className?: string; label?: string;
+}) {
+  const [ask, setAsk] = useState(false);
+  return (
+    <>
+      <Button size="sm" variant="ghost" disabled={disabled} className={className ?? "h-7 gap-1 text-[12px] font-bold"}
+        onClick={() => (dirty ? setAsk(true) : onCancel())}><X className="size-3.5" /> {label}</Button>
+      <DangerConfirm open={ask} icon={Undo2} title="Discard unsaved changes?" subject="Your edits have not been saved yet."
+        points={["All changes made since you clicked Edit will be lost.", "The last saved version will be shown again.", "Choose No to keep editing."]}
+        confirmLabel="Yes, discard" cancelLabel="No, keep editing"
+        onCancel={() => setAsk(false)} onConfirm={() => { setAsk(false); onCancel(); }} />
+    </>
   );
 }
