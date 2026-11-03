@@ -12,6 +12,7 @@
 import type { PDFDocument, PDFFont, PDFImage, PDFPage, RGB } from "pdf-lib";
 import { brandEmailList, embedBrandLogo, generatedByLine, type GeneratedBy } from "@/lib/brand/pdf-brand.server";
 import { BANGLA_QR_MERCHANT_ID, BANGLA_QR_PNG_B64 } from "@/lib/brand/bangla-qr.server";
+import { embeddedCompanyImage } from "@/lib/brand/company-images.server";
 
 export type { GeneratedBy };
 
@@ -273,6 +274,8 @@ export function amountInWords(amount: number, currency: string): string {
 
 async function tryFetchImage(url: string): Promise<Uint8Array | null> {
   try {
+    const embedded = embeddedCompanyImage(url);
+    if (embedded) return embedded;
     const data = /^data:image\/(?:png|jpeg);base64,([a-z0-9+/=]+)$/i.exec(url);
     if (data?.[1]) return Uint8Array.from(atob(data[1]), c => c.charCodeAt(0));
     const res = await fetch(url);

@@ -3,6 +3,7 @@ import { Sparkles } from "lucide-react";
 import { useActiveCompany } from "./company-switcher";
 import { CompanyAvatar } from "./company-avatar";
 import { companyAccent, setActiveCompanySlug } from "@/lib/active-company";
+import { companyIdentity } from "@/lib/company-identity";
 
 // Group-wide pages stay reachable from every company workspace.
 const SHARED = ["/app/companies", "/app/employees", "/app/profile", "/app/settings", "/app/inbox", "/app/customers"];
@@ -21,7 +22,7 @@ export function WorkspaceGate({ children }: { children: React.ReactNode }) {
     <div className="grid min-h-full place-items-center p-6">
       <div className="relative w-full max-w-md overflow-hidden rounded-xl border border-border bg-card p-8 text-center shadow-sm animate-in fade-in zoom-in-95">
         <span className="pointer-events-none absolute -top-24 left-1/2 size-64 -translate-x-1/2 rounded-full blur-3xl" style={{ background: `color-mix(in oklab, ${accent} 20%, transparent)` }} />
-        <CompanyAvatar name={active.name} slug={active.slug} className="relative mx-auto size-14 rounded-xl text-[18px]" />
+        <CompanyAvatar name={active.name} slug={active.slug} iconUrl={companyIdentity(active.slug, active).icon} className="relative mx-auto size-14 rounded-xl text-[18px]" />
         <h2 className="relative mt-4 text-[18px] font-bold tracking-tight">{active.name} workspace is ready</h2>
         <p className="relative mt-1.5 text-[12.5px] font-medium text-muted-foreground">
           Nothing here yet. This company's records will appear here as they are added.

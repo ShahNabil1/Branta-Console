@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { PDFDocument } from "pdf-lib";
 import { renderInvoicePdf } from "./invoice-pdf.server.ts";
+import wordmark from "../assets/companies/admakai-wordmark.png.asset.json";
+import inverse from "../assets/companies/admakai-wordmark-inverse.png.asset.json";
 
 const fixture = {
   invoice: {
@@ -29,6 +31,20 @@ const fixture = {
 };
 
 describe("invoice PDF pagination", () => {
+  test("authentic Admakai artwork embeds offline alongside the shared Branta payment QR", async () => {
+    const settings = { ...fixture.settings, company_name: "Admakai", company_email: "hello@admakai.com",
+      company_website: "admakai.com", company_phone: null, use_branta_assets: false,
+      brand_color: "#111111", text_color: "#111111", panel_bg_color: "#F6F6F6",
+      logo_height: 34, logo_url: wordmark.url, logo_inverse_url: inverse.url,
+      signature_name: null, signature_title: null };
+    const bytes = await renderInvoicePdf({ ...fixture, settings });
+    const doc = await PDFDocument.load(bytes);
+    expect(doc.getPageCount()).toBe(1);
+    const { PDFName, PDFDict } = await import("pdf-lib");
+    const images = doc.getPage(0).node.Resources().lookupMaybe(PDFName.of("XObject"), PDFDict);
+    expect(images?.keys().length).toBe(3);
+    if (process.env.INVOICE_PDF_QA_DIR) await Bun.write(`${process.env.INVOICE_PDF_QA_DIR}/admakai-authentic.pdf`, bytes);
+  });
   test("Admakai keeps its own identity but the payment section is always Branta Tech's", async () => {
     // Sister identity (name, colours, font) stays; custom payment_info must be
     // ignored — the single group bank account and its Bangla QR always render.

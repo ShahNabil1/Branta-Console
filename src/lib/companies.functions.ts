@@ -13,6 +13,7 @@ export type CompanyRow = {
   is_holding: boolean; status: string; created_at: string;
   tagline?: string | null; description?: string | null; company_type?: string | null; industry?: string | null;
   founded_year?: number | null; support_email?: string | null; logo_url?: string | null;
+  brand_kit?: { logo_primary?: string | null; logo_inverse?: string | null; mark?: string | null; primary?: string; secondary?: string } | null;
   address_line1?: string | null; division?: string | null; district?: string | null;
   upazila?: string | null; post_office?: string | null; postcode?: string | null; updated_at?: string;
 };

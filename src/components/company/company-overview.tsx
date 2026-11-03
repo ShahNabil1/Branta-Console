@@ -7,6 +7,8 @@ import { getCompanyOverview } from "@/lib/company-overview.functions";
 import { CompanyAvatar } from "./company-avatar";
 import { companyAccent } from "@/lib/active-company";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useCompanies } from "./company-switcher";
+import { companyIdentity } from "@/lib/company-identity";
 
 function greeting() {
   const h = Number(new Intl.DateTimeFormat("en-US", { hour: "numeric", hour12: false, timeZone: "Asia/Dhaka" }).format(new Date()));
@@ -14,6 +16,8 @@ function greeting() {
 }
 
 export function CompanyOverview({ slug, name }: { slug: string; name: string }) {
+  const companies = useCompanies();
+  const identity = companyIdentity(slug, companies.data?.find(c => c.slug === slug));
   const fn = useServerFn(getCompanyOverview);
   const q = useQuery({ queryKey: ["company-overview", slug], queryFn: () => fn({ data: { company: slug } }), staleTime: 30_000 });
   const accent = companyAccent(slug);
@@ -30,7 +34,7 @@ export function CompanyOverview({ slug, name }: { slug: string; name: string }) 
       <header className="relative overflow-hidden rounded-xl border border-border bg-card p-6 shadow-sm animate-in fade-in slide-in-from-top-2">
         <span className="pointer-events-none absolute -right-16 -top-24 size-72 rounded-full blur-3xl" style={{ background: `color-mix(in oklab, ${accent} 22%, transparent)` }} />
         <div className="relative flex flex-wrap items-center gap-4">
-          <CompanyAvatar name={name} slug={slug} className="size-12 rounded-xl text-[16px]" />
+          <CompanyAvatar name={name} slug={slug} iconUrl={identity.icon} className="size-12 rounded-xl text-[16px]" />
           <div className="min-w-0 flex-1">
             <p className="text-[12px] font-semibold text-muted-foreground">{greeting()}</p>
             <h1 className="text-[20px] font-bold tracking-tight">{name} workspace</h1>

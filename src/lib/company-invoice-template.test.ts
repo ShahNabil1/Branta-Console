@@ -3,7 +3,7 @@ import { applyInvoiceDefaults, completeInvoiceTemplate, CompanyInvoiceTemplateSc
 import { loadInvoicePdfPayload } from "./invoice-pdf-signing.server";
 
 describe("company invoice templates", () => {
-  it("Admakai never enables Branta's logo, contacts or merchant QR", () => {
+  it("Admakai never enables Branta's company logo or contacts", () => {
     const settings = scopeInvoiceTemplate(completeInvoiceTemplate({ company_name: "Admakai", use_branta_assets: true }), false);
     expect(settings.use_branta_assets).toBe(false);
   });

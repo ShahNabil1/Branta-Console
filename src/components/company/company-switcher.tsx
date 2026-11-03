@@ -11,6 +11,8 @@ import { listCompanies } from "@/lib/companies.functions";
 import { setActiveCompanySlug, useActiveCompanySlug } from "@/lib/active-company";
 import { CompanyAvatar } from "./company-avatar";
 import { cn } from "@/lib/utils";
+import { companyIdentity } from "@/lib/company-identity";
+import { Button } from "@/components/ui/button";
 
 export function useCompanies() {
   const fn = useServerFn(listCompanies);
@@ -33,22 +35,23 @@ export function CompanySwitcher({ collapsed, canManage, holdingLogoUrl }: { coll
     if (active && slug && slug !== active.slug) setActiveCompanySlug(active.slug);
   }, [active, slug]);
   if (!active) return null;
-  const logo = (active as { logo_url?: string | null }).logo_url || (active.is_holding ? holdingLogoUrl : undefined);
+  const identity = companyIdentity(active.slug, active);
+  const logo = identity.logo || (active.is_holding ? holdingLogoUrl : undefined);
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button
+        <Button variant="ghost"
           type="button"
           aria-label={`Switch company (current: ${active.name})`}
           className={cn(
-            "group flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left transition-all hover:bg-muted active:scale-[0.99]",
+            "group flex h-auto w-full justify-start items-center gap-2 rounded-md px-1.5 py-1 text-left transition-all hover:bg-muted active:scale-[0.99]",
             collapsed && "md:justify-center md:px-0",
           )}
         >
           <span className={cn("min-w-0 flex-1", collapsed && "md:hidden")}>
             {logo ? (
-              <img src={logo} alt={active.name} className="h-6 w-auto max-w-full object-contain" />
+              <span className="block w-fit max-w-full rounded-sm bg-[var(--company-artwork-paper)] p-1"><img src={logo} alt={active.name} className="h-6 w-auto max-w-full object-contain" /></span>
             ) : (
               <span className="flex items-center gap-2">
                 <CompanyAvatar name={active.name} slug={active.slug} className="size-6" />
@@ -61,15 +64,11 @@ export function CompanySwitcher({ collapsed, canManage, holdingLogoUrl }: { coll
           </span>
           {collapsed && (
             <span className="hidden md:block">
-              {logo ? (
-                <img src={logo} alt={active.name} className="size-7 object-cover object-left" />
-              ) : (
-                <CompanyAvatar name={active.name} slug={active.slug} className="size-7" />
-              )}
+              <CompanyAvatar name={active.name} slug={active.slug} iconUrl={identity.icon} className="size-7" />
             </span>
           )}
           <ChevronsUpDown className={cn("size-3.5 shrink-0 text-muted-foreground transition-transform group-hover:text-brand group-data-[state=open]:rotate-180", collapsed && "md:hidden")} />
-        </button>
+        </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-64 p-1.5">
         <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
@@ -81,7 +80,7 @@ export function CompanySwitcher({ collapsed, canManage, holdingLogoUrl }: { coll
             onSelect={() => setActiveCompanySlug(c.slug)}
             className="gap-2.5 rounded-md py-2 transition-colors"
           >
-            <CompanyAvatar name={c.name} slug={c.slug} className="size-7" />
+            <CompanyAvatar name={c.name} slug={c.slug} iconUrl={companyIdentity(c.slug, c).icon} className="size-7" />
             <span className="min-w-0 flex-1">
               <span className="block truncate text-[12.5px] font-semibold">{c.name}</span>
               <span className="block truncate text-[11px] text-muted-foreground">{c.email}</span>

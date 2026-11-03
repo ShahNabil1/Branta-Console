@@ -40,10 +40,11 @@ const ACCENTS = [
   "var(--color-channel-email)",
 ];
 export function companyAccent(slug: string) {
+  if (slug === "admakai") return "var(--company-admakai-accent)";
   let h = 0;
   for (const c of slug) h = (h * 31 + c.charCodeAt(0)) >>> 0;
   return ACCENTS[h % ACCENTS.length];
 }
 export function companyInitials(name: string) {
-  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("");
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w.charAt(0).toUpperCase()).join("");
 }

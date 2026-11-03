@@ -19,6 +19,7 @@ import {
 import { cn } from "@/lib/utils";
 import { EmailIntegrations } from "@/components/company/email-integrations";
 import { CompanySettings } from "@/components/company/company-settings";
+import { companyIdentity } from "@/lib/company-identity";
 
 export const Route = createFileRoute("/_authenticated/app/companies/$slug")({
   head: () => ({
@@ -68,6 +69,7 @@ function CompanyProfile() {
   const c = q.data;
   if (!c) return <div className="p-8 text-[13px] font-semibold text-muted-foreground">Company not found.</div>;
   const accent = companyAccent(c.slug);
+  const identity = companyIdentity(c.slug, c);
 
   return (
     <div className="mx-auto max-w-6xl space-y-5 p-4 md:p-8">
@@ -79,11 +81,12 @@ function CompanyProfile() {
         <span className="pointer-events-none absolute -right-20 -top-24 size-72 rounded-full blur-3xl" style={{ background: `color-mix(in oklab, ${accent} 18%, transparent)` }} />
         <span className="absolute inset-x-0 top-0 h-1" style={{ background: accent }} />
         <div className="relative flex flex-wrap items-center gap-4">
-          {c.logo_url ? <img src={c.logo_url} alt="" className="size-16 rounded-xl object-contain ring-1 ring-border" />
-            : <CompanyAvatar name={c.name} slug={c.slug} className="size-16 rounded-xl text-[20px]" />}
+          <CompanyAvatar name={c.name} slug={c.slug} iconUrl={identity.icon} className="size-16 rounded-md text-[20px]" />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="truncate text-[24px] font-bold tracking-tight">{c.name}</h1>
+              <h1 className="min-w-0 text-[24px] font-bold">
+                {identity.logo ? <span className="block w-fit max-w-full rounded-sm bg-[var(--company-artwork-paper)] px-2 py-1"><img src={identity.logo} alt={c.name} className="h-8 w-auto max-w-full object-contain" /></span> : c.name}
+              </h1>
               {c.is_holding && <span className="rounded-full bg-brand/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-brand">Holding</span>}
               {c.company_type && <span className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider" style={{ background: `color-mix(in oklab, ${accent} 14%, transparent)`, color: accent }}>{c.company_type}</span>}
             </div>
@@ -114,7 +117,7 @@ function CompanyProfile() {
       </section>
 
       <div key={tab} className="animate-in fade-in slide-in-from-bottom-1 duration-300">
-        {tab === "info" ? <InfoTab c={c} accent={accent} /> : tab === "integrations" ? <EmailIntegrations slug={c.slug} accent={accent} /> : tab === "settings" ? <CompanySettings c={c} accent={accent} /> : <ComingSoon tab={TABS.find((t) => t.id === tab)!} accent={accent} />}
+        {tab === "info" ? <InfoTab c={c} accent={accent} /> : tab === "integrations" ? <EmailIntegrations slug={c.slug} accent={accent} /> : tab === "settings" ? <CompanySettings c={c} accent={accent} /> : <ComingSoon tab={TABS.find((t) => t.id === tab) ?? TABS[0]} accent={accent} />}
       </div>
     </div>
   );

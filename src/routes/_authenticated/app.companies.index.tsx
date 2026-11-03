@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { companyAccent, setActiveCompanySlug } from "@/lib/active-company";
+import { companyIdentity } from "@/lib/company-identity";
 
 export const Route = createFileRoute("/_authenticated/app/companies/")({
   validateSearch: z.object({ create: z.boolean().optional() }),
@@ -95,7 +96,7 @@ function CompaniesPage() {
               <span className="pointer-events-none absolute -right-12 -top-12 size-32 rounded-full opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-100" style={{ background: `color-mix(in oklab, ${accent} 25%, transparent)` }} />
               <span className="absolute inset-x-0 top-0 h-1 origin-left scale-x-0 transition-transform duration-300 group-hover:scale-x-100" style={{ background: accent }} />
               <div className="relative flex items-start gap-3">
-                <CompanyAvatar name={c.name} slug={c.slug} className="size-11 text-[14px] transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3" />
+                <CompanyAvatar name={c.name} slug={c.slug} iconUrl={companyIdentity(c.slug, c).icon} className="size-11 text-[14px] transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3" />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
                     <span className="truncate text-[15px] font-bold">{c.name}</span>
