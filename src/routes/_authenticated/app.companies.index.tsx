@@ -88,7 +88,7 @@ function CompaniesPage() {
                 <span className="inline-flex items-center gap-1"><Users className="size-3.5" /> {c.memberCount}</span>
                 <button
                   type="button"
-                  onClick={(e) => { e.preventDefault(); setActiveCompanySlug(c.slug); }}
+                  onClick={(e) => { e.preventDefault(); setActiveCompanySlug(c.slug); navigate({ href: c.is_holding ? "/app" : `/app/org/${c.slug}` }); }}
                   className="rounded-full border border-border px-2 py-0.5 font-bold text-foreground transition-all hover:border-brand hover:bg-brand hover:text-primary-foreground active:scale-90"
                 >
                   Switch

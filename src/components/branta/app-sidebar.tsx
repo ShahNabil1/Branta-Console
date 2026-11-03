@@ -42,6 +42,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { resolveActivePath } from "@/lib/nav-active";
+import { stripOrg } from "@/lib/org-path";
 import brandLogo from "@/assets/brand-logo.png.asset.json";
 import { getMyPermissions } from "@/lib/permissions.functions";
 import { CompanySwitcher, useActiveCompany } from "@/components/company/company-switcher";
@@ -183,7 +184,7 @@ export function AppSidebar() {
   const [peek, setPeek] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openFinanceGroups, setOpenFinanceGroups] = useState<string[]>([]);
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const pathname = stripOrg(useRouterState({ select: (s) => s.location.pathname }));
   const { active: activeCompany } = useActiveCompany();
   const peekTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const groupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);

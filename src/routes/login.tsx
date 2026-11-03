@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { lastPath } from "@/lib/org-path";
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { AlertCircle, Check, Copy, Eye, EyeOff, Fingerprint, Info, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
@@ -38,7 +39,7 @@ const CHALLENGE_REFRESH_COOLDOWN_MS = 30_000;
 
 const sanitizeRedirect = (r: string | undefined): string => {
   const safe = oauthReturnPath(r);
-  if (safe === "/" || safe.startsWith("/login")) return "/app";
+  if (safe === "/" || safe === "/app" || safe.startsWith("/login")) return lastPath() ?? "/app";
   return safe;
 };
 

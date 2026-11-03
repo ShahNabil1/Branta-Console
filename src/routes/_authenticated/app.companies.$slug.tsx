@@ -1,3 +1,4 @@
+import { useNavigate } from "@tanstack/react-router";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -53,6 +54,7 @@ const TABS: { id: string; label: string; icon: LucideIcon }[] = [
 const COMPANY_TYPES = ["Holding", "Sister concern", "Subsidiary", "Product", "Division"];
 
 function CompanyProfile() {
+  const navigate = useNavigate();
   const { slug } = Route.useParams();
   const fn = useServerFn(getCompany);
   const q = useQuery({ queryKey: ["company", slug], queryFn: () => fn({ data: { slug } }) });
@@ -98,7 +100,7 @@ function CompanyProfile() {
               {c.industry && <span className="text-muted-foreground">· {c.industry}</span>}
             </div>
           </div>
-          <Button onClick={() => setActiveCompanySlug(c.slug)} className="shadow-md shadow-brand/25 transition-all hover:-translate-y-0.5 active:scale-95">
+          <Button onClick={() => { setActiveCompanySlug(c.slug); navigate({ href: c.is_holding ? "/app" : `/app/org/${c.slug}` }); }} className="shadow-md shadow-brand/25 transition-all hover:-translate-y-0.5 active:scale-95">
             Open workspace
           </Button>
         </div>
