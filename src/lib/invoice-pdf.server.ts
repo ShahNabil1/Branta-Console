@@ -601,10 +601,12 @@ export async function renderInvoicePdf(
   const hasTerms = s.sections.terms !== false && Boolean(inv.terms);
   const hasNotes = s.sections.notes !== false && Boolean(inv.notes);
   if (s.sections.payment_info !== false) {
-    const infoText = s.payment_info ?? (s.use_branta_assets !== false ? DEFAULT_PAYMENT_INFO : "");
-    const noteText = s.payment_note ?? (s.use_branta_assets !== false ? DEFAULT_PAYMENT_NOTE : "");
+    // One group bank account: every company's invoice always shows the Branta Tech
+    // payment details, note, intro and Bangla QR — never a per-company override.
+    const infoText = DEFAULT_PAYMENT_INFO;
+    const noteText = DEFAULT_PAYMENT_NOTE;
     const intro =
-      s.payment_intro ?? (s.use_branta_assets !== false ? "Pay via bank transfer using the details below, or scan the Bangla QR with bKash, Nagad, Rocket or any mobile banking / bank app. After payment, kindly share the receipt or confirmation for verification." : "");
+      "Pay via bank transfer using the details below, or scan the Bangla QR with bKash, Nagad, Rocket or any mobile banking / bank app. After payment, kindly share the receipt or confirmation for verification.";
     const introLines = wrap(intro, font, 8.5, CONTENT_W - 28);
     // Legacy saved settings may still carry the retired bKash/Nagad wallet lines — never render them.
     const infoLines = infoText
@@ -614,7 +616,9 @@ export async function renderInvoicePdf(
       .filter((l) => !/^(bkash|bikash|nagad|rocket)\s*:/i.test(l));
     const noteLines = wrap(noteText, font, 8, CONTENT_W - 28);
     // Local-currency merchant QR only; never imply it accepts foreign currency.
-    const qrImage = cur === "BDT" && s.use_branta_assets !== false
+    // The QR pays into the single Branta Tech merchant account, so it appears on
+    // every company's BDT invoice.
+    const qrImage = cur === "BDT"
       ? await pdf.embedPng(Uint8Array.from(atob(BANGLA_QR_PNG_B64), (c) => c.charCodeAt(0)))
       : null;
     const qrW = 104;
