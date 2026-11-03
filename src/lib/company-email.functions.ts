@@ -198,6 +198,75 @@ export const verifyResendWebhook = createServerFn({ method: "POST" })
   });
 
 /**
+ * Step 2 (Resend): staged, fully automatic webhook setup with the Full access key.
+ *  account  → key valid + can read webhooks
+ *  clean    → delete duplicate hooks pointing at this company's endpoint
+ *  register → create (or repair events/status of) the hook
+ *  verify   → read back from Resend, store the signing secret encrypted
+ */
+const ResendStage = z.enum(["account", "clean", "register", "verify"]);
+export const connectResendWebhook = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({ slug: Slug, stage: ResendStage.default("account") }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { co, admin } = await gate(context, data.slug);
+    const m = await import("@/lib/company-email.server");
+    const r = await row(admin, co.id, "resend");
+    if (!r?.is_active || !r.domain_verified_at) throw new Error("Verify the API key first.");
+    const key = (await m.open(r.api_key_enc))!;
+    const fail = (id: string, label: string, res: { status: number; body: Any }) =>
+      ({ ok: false, checks: [{ id, label, ok: false, detail: `Resend error ${res.status}${res.body?.name ? ` (${res.body.name})` : ""}: ${res.body?.message ?? "no message returned"}` }] as Check[] });
+    type W = { id: string; endpoint: string; events: string[]; status?: string; signing_secret?: string };
+    const url = m.webhookUrl("resend", co.slug);
+    const norm = (u: string) => (u ?? "").replace(/\/+$/, "");
+    const list = await m.resend(key, "/webhooks");
+    if (!list.ok) return fail("list", list.status === 401 || list.status === 403 ? "API key can't manage webhooks (needs Full access)" : "Read webhooks", list);
+    const mine = ((list.body?.data ?? []) as W[]).filter((w) => norm(w.endpoint) === url);
+
+    if (data.stage === "account") {
+      return { ok: true, checks: [{ id: "account", label: "Resend account", ok: true, detail: `Full access confirmed · ${(list.body?.data ?? []).length} webhook(s) in account` }] as Check[] };
+    }
+    if (data.stage === "clean") {
+      const extra = mine.slice(1);
+      for (const s of extra) {
+        const d = await m.resend(key, `/webhooks/${s.id}`, { method: "DELETE" });
+        if (!d.ok && d.status !== 404) return fail("clean", `Remove duplicate webhook ${s.id}`, d);
+      }
+      return { ok: true, checks: [{ id: "clean", label: "Old webhooks", ok: true, detail: extra.length ? `Removed ${extra.length} duplicate hook(s)` : "None to clean" }] as Check[] };
+    }
+    const hook = mine[0];
+    if (data.stage === "register") {
+      if (!hook) {
+        const c = await m.resend(key, "/webhooks", { method: "POST", body: { endpoint: url, events: [...m.RESEND_EVENTS] } });
+        if (!c.ok) return fail("create", "Create webhook", c);
+        if (c.body?.signing_secret) await admin.from("company_email_providers").update({ webhook_secret_enc: await m.seal(c.body.signing_secret), webhook_secret_hint: m.hint(c.body.signing_secret), webhook_verified_at: null }).eq("id", r.id);
+        return { ok: true, checks: [{ id: "create", label: "Webhook created", ok: true, detail: `ID ${c.body?.id} · ${m.RESEND_EVENTS.length} events` }] as Check[] };
+      }
+      const missing = m.RESEND_EVENTS.filter((e) => !(hook.events ?? []).includes(e));
+      if (!missing.length && (hook.status ?? "enabled") === "enabled") return { ok: true, checks: [{ id: "found", label: "Webhook already registered", ok: true, detail: `ID ${hook.id}` }] as Check[] };
+      const events = Array.from(new Set([...(hook.events ?? []), ...m.RESEND_EVENTS]));
+      const u = await m.resend(key, `/webhooks/${hook.id}`, { method: "PATCH", body: { endpoint: url, events, status: "enabled" } });
+      if (!u.ok) return fail("repair", "Update webhook", u);
+      return { ok: true, checks: [{ id: "repair", label: "Webhook repaired", ok: true, detail: missing.length ? `Added ${missing.join(", ")}` : "Re-enabled" }] as Check[] };
+    }
+    if (!hook) return { ok: false, checks: [{ id: "verify", label: "Webhook in Resend", ok: false, detail: "Resend did not return the webhook after creating it. Retry." }] as Check[] };
+    const g = await m.resend(key, `/webhooks/${hook.id}`);
+    if (!g.ok) return fail("verify", "Read webhook back", g);
+    const w = g.body as W;
+    const missing = m.RESEND_EVENTS.filter((e) => !(w.events ?? []).includes(e));
+    const secret = w.signing_secret ?? (await m.open(r.webhook_secret_enc));
+    const checks: Check[] = [
+      { id: "url", label: "Endpoint URL", ok: norm(w.endpoint) === url, detail: norm(w.endpoint) === url ? "Matches this company's endpoint" : `Resend has ${w.endpoint}` },
+      { id: "status", label: "Webhook enabled", ok: (w.status ?? "enabled") === "enabled", detail: w.status ?? "enabled" },
+      { id: "events", label: "Required events", ok: !missing.length, detail: missing.length ? `Missing in Resend: ${missing.join(", ")}` : `All ${m.RESEND_EVENTS.length} events active` },
+      { id: "secret", label: "Signing secret", ok: !!secret, detail: secret ? "Fetched from Resend · stored encrypted" : "Resend returned no signing secret." },
+    ];
+    const ok = checks.every((c) => c.ok);
+    if (ok) await admin.from("company_email_providers").update({ webhook_secret_enc: await m.seal(secret!), webhook_secret_hint: m.hint(secret!), webhook_verified_at: new Date().toISOString(), webhook_events: w.events, updated_by: context.userId }).eq("id", r.id);
+    return { ok, checks };
+  });
+
+/**
  * Step 2 (Brevo): staged, fully automatic webhook setup. The UI calls each stage in order
  * and drives a 0–100% progress bar from the real results:
  *  account  → key still valid with Brevo
