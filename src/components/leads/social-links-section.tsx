@@ -1,3 +1,4 @@
+import { DiscardCancelButton } from "@/components/company/danger-confirm";
 // Social Links section for a lead — icon dropdown + URL + label.
 // After adding, the URL collapses into a clickable icon chip with its label.
 import { useMemo, useState } from "react";
@@ -194,6 +195,9 @@ export function SocialLinksSection({
   const [draftLabel, setDraftLabel] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<{
+  const [editBase, setEditBase] = useState<string | null>(null);
+  useEffect(() => { setEditBase(editDraft ? JSON.stringify(editDraft) : null); // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingId]);
     platform: SocialPlatform;
     url: string;
     label: string;
@@ -330,19 +334,8 @@ export function SocialLinksSection({
                       )}
                     </Button>
 
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 rounded-sm"
-                      onClick={() => {
-                        setEditingId(null);
-                        setEditDraft(null);
-                      }}
-                      aria-label="Cancel"
-                    >
-                      <X className="size-3.5" />
-                    </Button>
+                    <DiscardCancelButton dirty={JSON.stringify(editDraft) !== editBase} label="" className="h-8 w-8 rounded-sm p-0"
+                      onCancel={() => { setEditingId(null); setEditDraft(null); }} />
                   </div>
                 );
               }

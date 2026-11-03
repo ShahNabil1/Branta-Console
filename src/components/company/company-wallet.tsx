@@ -1,3 +1,4 @@
+import { DiscardCancelButton } from "@/components/company/danger-confirm";
 import { useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -236,7 +237,7 @@ function LoanDialog({ open, onClose, companyId, companyName }: { open: boolean; 
           </label>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={busy}>Cancel</Button>
+          <DiscardCancelButton dirty={!!(amount || purpose.trim() || tenure)} className="h-9" onCancel={onClose} disabled={busy} />
           <Button onClick={submit} disabled={!valid || busy || (!!tenure && (Number(tenure) < 1 || Number(tenure) > 60))}>
             {busy && <Loader2 className="size-3.5 animate-spin" />} Send request
           </Button>

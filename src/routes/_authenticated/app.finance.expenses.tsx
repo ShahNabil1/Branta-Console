@@ -1,3 +1,4 @@
+import { DiscardCancelButton } from "@/components/company/danger-confirm";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -230,6 +231,9 @@ function ExpensesPage() {
   const [form, setForm] = useState(emptyForm);
   const [items, setItems] = useState<ExpenseItem[]>([]);
   const [receipts, setReceipts] = useState<ReceiptDraft[]>([]);
+  const [formSnap, setFormSnap] = useState("");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (open) setFormSnap(JSON.stringify({ form, receipts })); }, [open]);
   const [uploading, setUploading] = useState(false);
   const [viewer, setViewer] = useState<{ url: string; name: string } | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -959,7 +963,7 @@ function ExpensesPage() {
               <ExpenseReceiptsEditor receipts={receipts} onChange={setReceipts} />
             </div>
             <div className="mt-4 flex justify-end gap-2">
-              <Button variant="ghost" onClick={() => { setOpen(false); setEditingId(null); }} className="h-9 rounded-sm" disabled={add.isPending}>Cancel</Button>
+              <DiscardCancelButton dirty={JSON.stringify({ form, receipts }) !== formSnap} onCancel={() => { setOpen(false); setEditingId(null); }} className="h-9 rounded-sm" disabled={add.isPending} />
               <Button onClick={() => add.mutate()} disabled={add.isPending || !form.amount}
                 className="h-9 rounded-sm bg-primary hover:bg-brand-700">
                 {(add.isPending || uploading) && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}

@@ -1,3 +1,4 @@
+import { DiscardCancelButton } from "@/components/company/danger-confirm";
 // Work updates feed, work submissions (+ manager review), and finance-only panel.
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -95,7 +96,7 @@ export function WorkUpdatesFeed({ taskId, me, canPost, onChanged }: { taskId: st
                       <div className="mt-1.5 grid gap-1.5">
                         <textarea rows={2} className={cn(input, "h-auto py-2")} value={editing.body} onChange={(e) => setEditing({ id: u.id, body: e.target.value })} />
                         <div className="flex justify-end gap-2">
-                          <button onClick={() => setEditing(null)} className="h-8 rounded-md px-3 text-[12.5px] font-semibold text-muted-foreground hover:bg-muted">Cancel</button>
+                          <DiscardCancelButton dirty={editing.body !== u.body} className="h-8" onCancel={() => setEditing(null)} />
                           <button onClick={() => editing.body.trim() && em.mutate({ id: u.id, body: editing.body.trim() })} className="h-8 rounded-md bg-primary px-3 text-[12.5px] font-semibold text-primary-foreground">Save</button>
                         </div>
                       </div>

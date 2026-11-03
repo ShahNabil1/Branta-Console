@@ -1,3 +1,4 @@
+import { DiscardCancelButton } from "@/components/company/danger-confirm";
 // Social Links section for the current employee's profile.
 // Icon dropdown + URL (WhatsApp: BD number with fixed prefix) + label dropdown → chip.
 import { useMemo, useState } from "react";
@@ -141,6 +142,9 @@ export function ProfileSocialLinksSection() {
   const [draft, setDraft] = useState<Draft>(empty);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<Draft | null>(null);
+  const [editBase, setEditBase] = useState<string | null>(null);
+  useEffect(() => { setEditBase(editDraft ? JSON.stringify(editDraft) : null); // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingId]);
 
   const addM = useMutation({
     mutationFn: () =>
@@ -217,19 +221,8 @@ export function ProfileSocialLinksSection() {
                       <Check className="size-3.5" />
                     )}
                   </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 rounded-sm"
-                    onClick={() => {
-                      setEditingId(null);
-                      setEditDraft(null);
-                    }}
-                    aria-label="Cancel"
-                  >
-                    <X className="size-3.5" />
-                  </Button>
+                  <DiscardCancelButton dirty={JSON.stringify(editDraft) !== editBase} label="" className="h-8 w-8 rounded-sm p-0"
+                    onCancel={() => { setEditingId(null); setEditDraft(null); }} />
                   {editErr && <p className="w-full text-[11.5px] text-destructive">{editErr}</p>}
                 </div>
               );
