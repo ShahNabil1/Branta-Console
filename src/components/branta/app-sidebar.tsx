@@ -250,9 +250,17 @@ export function AppSidebar() {
     const isAdmin = perms.isAdmin ?? perms.isSuperAdmin;
     const isManagement = Boolean(isAdmin || perms.isManager);
     const isSuperAdmin = perms.isSuperAdmin ?? false;
-    const isFinance = perms.isFinance ?? isAdmin;
+    const sister = activeCompany && !activeCompany.is_holding;
+    const ceo = Boolean(sister && (activeCompany as { canManage?: boolean }).canManage);
+    const isFinance = Boolean(perms.isFinance ?? isAdmin) || ceo;
+    // In a sister workspace, Branta Finance staff (not admin/CEO) only see Customers + Finance.
+    if (sister && !isAdmin && !ceo && perms.isFinance) {
+      return NAV.map((g) => g.label === "Finance" ? g : { ...g, items: g.items.filter((it) => it.to === "/app/customers") })
+        .filter((g) => g.items.length > 0);
+    }
     return NAV.map((g) => {
       if (g.label === "Admin" && !isAdmin) return { ...g, items: [] };
+      if (ceo && g.label !== "Admin") return g;
       if (g.label === "Finance") return isFinance ? g : { ...g, items: [] };
       return {
         ...g,
@@ -264,7 +272,7 @@ export function AppSidebar() {
         }),
       };
     }).filter((g) => (g.label === "Finance" ? isFinance : g.items.length > 0));
-  }, [permsQ.data]);
+  }, [permsQ.data, activeCompany]);
 
   const toggleFinanceGroup = (label: string) => {
     setOpenFinanceGroups((current) =>
