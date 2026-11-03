@@ -2116,6 +2116,71 @@ export type Database = {
           },
         ]
       }
+      inbox_replies: {
+        Row: {
+          body_html: string | null
+          body_text: string
+          cc_emails: string[]
+          company_id: string
+          created_at: string
+          from_email: string
+          from_name: string | null
+          gmail_thread_id: string
+          id: string
+          lead_id: string | null
+          provider: string
+          provider_message_id: string | null
+          sent_at: string
+          sent_by: string | null
+          subject: string | null
+          to_emails: string[]
+        }
+        Insert: {
+          body_html?: string | null
+          body_text: string
+          cc_emails?: string[]
+          company_id: string
+          created_at?: string
+          from_email: string
+          from_name?: string | null
+          gmail_thread_id: string
+          id?: string
+          lead_id?: string | null
+          provider: string
+          provider_message_id?: string | null
+          sent_at?: string
+          sent_by?: string | null
+          subject?: string | null
+          to_emails?: string[]
+        }
+        Update: {
+          body_html?: string | null
+          body_text?: string
+          cc_emails?: string[]
+          company_id?: string
+          created_at?: string
+          from_email?: string
+          from_name?: string | null
+          gmail_thread_id?: string
+          id?: string
+          lead_id?: string | null
+          provider?: string
+          provider_message_id?: string | null
+          sent_at?: string
+          sent_by?: string | null
+          subject?: string | null
+          to_emails?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inbox_replies_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       income_vouchers: {
         Row: {
           amount: number
