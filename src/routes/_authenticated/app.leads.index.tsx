@@ -1,3 +1,4 @@
+import { useActiveCompany } from "@/components/company/company-switcher";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
@@ -140,10 +141,11 @@ function LeadsPage() {
   const listUsers = useServerFn(listAssignableUsers);
   const listStatusOpts = useServerFn(listLeadStatusOptions);
   const createDraft = useServerFn(createDraftLead);
+  const workspace = useActiveCompany().active?.slug ?? null;
 
   const leadsQuery = useQuery({
-    queryKey: ["leads", "list"],
-    queryFn: () => list(),
+    queryKey: ["leads", "list", workspace],
+    queryFn: () => list({ data: { workspace } }),
     staleTime: 15_000,
   });
 
@@ -198,7 +200,7 @@ function LeadsPage() {
 
   // Draft flow kept for the empty state / drafts page.
   const createDraftM = useMutation({
-    mutationFn: () => createDraft(),
+    mutationFn: () => createDraft({ data: { workspace } }),
     onSuccess: (row) => {
       qc.invalidateQueries({ queryKey: ["leads"] });
       navigate({

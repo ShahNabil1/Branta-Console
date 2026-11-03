@@ -1,3 +1,4 @@
+import { useActiveCompany } from "@/components/company/company-switcher";
 // Mobile-first "New lead" structured form. Full-screen bottom sheet on phones,
 // centered dialog on larger screens. Three short steps + sticky save bar.
 import { useEffect, useMemo, useState } from "react";
@@ -83,6 +84,7 @@ export function LeadFormSheet({
 }) {
   const qc = useQueryClient();
   const createFn = useServerFn(createLead);
+  const workspace = useActiveCompany().active?.slug ?? null;
   const srcFn = useServerFn(listLeadSourceOptions);
   const svcFn = useServerFn(listLeadServiceOptions);
   const stFn = useServerFn(listLeadStatusOptions);
@@ -149,6 +151,7 @@ export function LeadFormSheet({
       const phone = normalizePhone(f.phone.trim());
       return createFn({
         data: {
+          workspace,
           name: f.name.trim(),
           company: f.company.trim() || null,
           contact_person: f.contact_person.trim() || null,
