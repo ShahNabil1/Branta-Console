@@ -164,7 +164,7 @@ export function CreateCompanyWizard({ open, onOpenChange, onCreated }: { open: b
           ) : (
             <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
           )}
-          <span className="ml-auto text-[11px] font-semibold text-muted-foreground">Step {step + 1} of 3</span>
+          <span className="ml-auto text-[11px] font-semibold text-muted-foreground">{"\n"}</span>
           {step < 2 ? (
             <Button onClick={next} className="gap-1.5 shadow-md shadow-brand/25 transition-all hover:-translate-y-px active:scale-95">
               Next <ArrowRight className="size-4" />
