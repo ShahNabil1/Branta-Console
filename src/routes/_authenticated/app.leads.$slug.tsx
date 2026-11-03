@@ -26,6 +26,11 @@ export const Route = createFileRoute("/_authenticated/app/leads/$slug")({
   head: ({ params }) => ({
     meta: [
       { title: `Lead ${params.slug} · Branta Tech Console` },
+      { name: "description", content: "Manage lead details, email conversations and meetings in Branta Tech Console." },
+      { property: "og:title", content: `Lead ${params.slug} · Branta Tech Console` },
+      { property: "og:description", content: "Manage lead details, email conversations and meetings in Branta Tech Console." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { name: "robots", content: "noindex" },
     ],
   }),
