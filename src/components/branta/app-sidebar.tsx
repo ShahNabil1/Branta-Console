@@ -44,7 +44,7 @@ import { cn } from "@/lib/utils";
 import { resolveActivePath } from "@/lib/nav-active";
 import brandLogo from "@/assets/brand-logo.png.asset.json";
 import { getMyPermissions } from "@/lib/permissions.functions";
-import { CompanySwitcher } from "@/components/company/company-switcher";
+import { CompanySwitcher, useActiveCompany } from "@/components/company/company-switcher";
 import { GmailMark } from "@/components/company/google-account-card";
 
 type IconType = ComponentType<{ className?: string; strokeWidth?: number }>;
@@ -184,6 +184,7 @@ export function AppSidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openFinanceGroups, setOpenFinanceGroups] = useState<string[]>([]);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { active: activeCompany } = useActiveCompany();
   const peekTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const groupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -380,7 +381,26 @@ export function AppSidebar() {
               >
                 {exp ? group.label : <span className="h-px w-5 bg-border" />}
               </div>
-              {group.label === "Finance" ? (
+              {group.label === "Finance" && activeCompany && !activeCompany.is_holding ? (
+                <div className="space-y-0.5">
+                  {(() => {
+                    const active = pathname === `/app/companies/${activeCompany.slug}`;
+                    return (
+                      <Link
+                        to="/app/companies/$slug"
+                        params={{ slug: activeCompany.slug }}
+                        search={{ tab: "wallet" } as never}
+                        title={!exp ? "Wallet" : undefined}
+                        className={itemClass(active)}
+                      >
+                        <ActiveBar show={active} />
+                        <IconTile icon={Wallet} tone="brand" active={active} />
+                        {exp && <span className="truncate">Wallet</span>}
+                      </Link>
+                    );
+                  })()}
+                </div>
+              ) : group.label === "Finance" ? (
                 <div className="space-y-0.5">
                   {FINANCE_NAV.map((fg) => {
                     const open = openFinanceGroups.includes(fg.label) && exp;
