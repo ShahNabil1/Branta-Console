@@ -1,9 +1,9 @@
 # Roadmap
 
 ## Agent integrations
-- [ ] Add OAuth-protected, caller-scoped read tools and consent with safe login return handling.
-- [ ] Add browser-local read/search tools on the Leads screen with shared controls and telemetry.
-- [ ] Extract the MCP catalog and test authorization rules; verify available preview flows.
+- [x] Add OAuth-protected, caller-scoped lead/customer read tools and consent with safe login return handling; no contact or finance values.
+- [x] Add WebMCP read/search tools on the Leads screen with shared controls and telemetry; authenticated runtime registration is unverified without an available session.
+- [x] Extract the two-tool MCP catalog; 13 access/return/company tests pass; preview confirms missing-request error, preserved login return and anonymous MCP 401.
 - [ ] Verify hosted OAuth and approve/deny end-to-end; requires Supabase OAuth activation at republish (discovery currently feature_disabled) and an authenticated session.
 
 ## Phase 2 — Company Invoice Studio
