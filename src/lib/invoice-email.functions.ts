@@ -244,6 +244,22 @@ export async function internalSendInvoiceEmail(opts: {
     sections: { description: true, installments: true, stakeholders: false, notes: true, footer: true },
   };
 
+  // Sister-company invoices send only through that company's own verified provider — never Branta's.
+  const { data: invCo } = await (supabaseAdmin as never as { from: (t: string) => any }) // eslint-disable-line @typescript-eslint/no-explicit-any
+    .from("invoices").select("company_id, companies:company_id(is_holding, name, email)").eq("id", payload.invoice.id).maybeSingle();
+  const sisterCo = invCo?.companies && !invCo.companies.is_holding ? invCo.companies as { name: string; email: string | null } : null;
+  let own: { provider: string; fromName: string; fromEmail: string; apiKey: string } | null = null;
+  if (sisterCo) {
+    const { resolveCompanySender } = await import("@/lib/company-email.server");
+    own = await resolveCompanySender(invCo.company_id as string);
+    if (!own) throw new Error(`${sisterCo.name} has no verified email provider yet. Connect Resend or Brevo in the company Settings.`);
+    Object.assign(settings, {
+      from_name: own.fromName, from_email: own.fromEmail, reply_to: own.fromEmail,
+      brand_color: pdfSettings.brand_color || "#111827",
+      footer_html: `<p>— ${sisterCo.name}</p>`,
+    });
+  }
+
   const pdfBytes = await renderInvoicePdf({
     invoice: payload.invoice,
     customer: payload.customer,
@@ -322,11 +338,7 @@ export async function internalSendInvoiceEmail(opts: {
     const eventId = (eventRow as { id: string }).id;
 
     try {
-      const resp = await callGateway<{ id: string }>({
-        connector: "resend",
-        path: "/emails",
-        method: "POST",
-        body: {
+      const mailBody = {
           from: `${settings.from_name} <${settings.from_email}>`,
           to: [r.email],
           reply_to: settings.reply_to || undefined,
@@ -340,8 +352,23 @@ export async function internalSendInvoiceEmail(opts: {
             { name: "invoice_slug", value: payload.invoice.slug },
             { name: "invoice_event_id", value: eventId },
           ],
-        },
-      });
+      };
+      let resp: { id: string };
+      if (!own) {
+        resp = await callGateway<{ id: string }>({ connector: "resend", path: "/emails", method: "POST", body: mailBody });
+      } else {
+        const m = await import("@/lib/company-email.server");
+        const r2 = own.provider === "brevo"
+          ? await m.brevo(own.apiKey, "/smtp/email", { method: "POST", body: {
+              sender: { name: own.fromName, email: own.fromEmail }, to: [{ email: r.email }], replyTo: { email: own.fromEmail },
+              subject, htmlContent: html, attachment: [{ name: `Invoice-${payload.invoice.slug}.pdf`, content: pdfBase64 }],
+              tags: [`invoice_id:${payload.invoice.id}`, `invoice_slug:${payload.invoice.slug}`, `invoice_event_id:${eventId}`],
+            } })
+          : await m.resend(own.apiKey, "/emails", { method: "POST", body: mailBody });
+        if (!r2.ok) throw new Error(`${own.provider} rejected the email [${r2.status}]: ${JSON.stringify(r2.body).slice(0, 300)}`);
+        const b = r2.body as { id?: string; messageId?: string };
+        resp = { id: b.id ?? b.messageId ?? "" };
+      }
       await supabaseAdmin.from("invoice_email_events").update({
         status: "sent",
         provider_message_id: resp.id,
