@@ -39,7 +39,7 @@ export const Route = createFileRoute("/.lovable/oauth/consent")({
     return data;
   },
   pendingComponent: () => <main className="grid min-h-screen place-items-center bg-background"><Loader2 className="size-6 animate-spin text-primary" aria-label="Loading authorization" /></main>,
-  errorComponent: ({ error }) => <ConsentFrame><h1 className="text-xl font-semibold">Connection unavailable</h1><p role="alert" className="mt-3 text-sm text-muted-foreground">{error.message}</p><Button asChild variant="outline" className="mt-6"><Link to="/login">Return to sign in</Link></Button></ConsentFrame>,
+  errorComponent: ({ error }) => <ConsentFrame><h1 className="text-xl font-semibold">Connection unavailable</h1><p role="alert" className="mt-3 text-sm text-muted-foreground">{error instanceof Error ? error.message : "Could not load this authorization request."}</p><Button asChild variant="outline" className="mt-6"><Link to="/login">Return to sign in</Link></Button></ConsentFrame>,
   component: Consent,
 });
 
