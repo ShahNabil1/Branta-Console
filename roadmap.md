@@ -1,5 +1,9 @@
 # Roadmap
 
+## Download feedback and activity exit
+- [ ] Keep Download icon with shared action loader, Downloading label and disabled pending state.
+- [ ] Let Activity's shared drawer closing animation finish before unmounting; verify desktop/mobile behavior.
+
 ## Receipt gallery and action cleanup
 - [x] Remove duplicate voucher view/download/edit menu actions.
 - [x] Reuse Create Expense receipt thumbnails/lightbox with all attachments, per-file downloads and desktop PDF viewing.
