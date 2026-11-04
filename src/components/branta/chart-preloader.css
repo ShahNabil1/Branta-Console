@@ -166,7 +166,7 @@
 }
 .dv-tile { height: 0; padding-bottom: 38%; border: 1px solid #E5E7EB; border-radius: 4px; background: rgba(255,255,255,.7); }
 .dv-status {
-  left: 50%; bottom: -14%;
+  left: 50%; bottom: -9%;
   transform: translateX(-50%);
   display: flex; align-items: center; gap: 8px; white-space: nowrap;
   padding: 6px 12px; border: 1px solid #E5E7EB; border-radius: 4px; background: #fff;
