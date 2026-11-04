@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { TestLoader } from "@/components/ui/test-loader";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, Loader2, RefreshCw, Send, XCircle } from "lucide-react";
@@ -58,7 +59,7 @@ export function ProviderTest({ slug, provider, sender }: { slug: string; provide
         {(error || q.error || data?.sendError) && <p role="alert" className="text-[12px] text-destructive">{error ?? data?.sendError ?? (q.error instanceof Error ? q.error.message : "Tracking unavailable")}</p>}
         {run && <>
           {data?.messageId && <div className="break-all font-mono text-[10.5px] text-muted-foreground">Message ID: {data.messageId}</div>}
-          <div className="flex items-center justify-between text-[12px] font-semibold"><span>Webhook events <span className="font-mono text-muted-foreground">({data?.events.length ?? 0})</span></span><Button size="icon" variant="ghost" aria-label="Refresh delivery events" onClick={() => { setWatchUntil(Date.now() + 5 * 60_000); void q.refetch(); }}><RefreshCw className={cn("size-3.5", q.isFetching && "animate-spin")} /></Button></div>
+          <div className="flex items-center justify-between text-[12px] font-semibold"><span>Webhook events <span className="font-mono text-muted-foreground">({data?.events.length ?? 0})</span></span><Button size="icon" variant="ghost" aria-label="Refresh delivery events" onClick={() => { setWatchUntil(Date.now() + 5 * 60_000); void q.refetch(); }}><TestLoader tone="refresh" active={q.isFetching} /></Button></div>
           {data?.events.length ? <ol className="max-h-80 space-y-2 overflow-y-auto">
             {data.events.map((event) => <li key={event.id} className="border-l-2 border-border pl-3">
               <div className="flex flex-wrap justify-between gap-1 text-[12px]"><b>{event.event}</b><time className="font-mono text-[10px] text-muted-foreground" dateTime={event.occurred_at}>{new Date(event.occurred_at).toLocaleString()}</time></div>

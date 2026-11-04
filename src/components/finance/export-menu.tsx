@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { TestLoader } from "@/components/ui/test-loader";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Download, Loader2, FileSpreadsheet, FileText, FileType } from "lucide-react";
@@ -111,7 +112,7 @@ function GenericExportMenu({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="sm" className="h-8 rounded-sm text-[12px]" disabled={!!busy}>
-          {busy ? <Loader2 className="mr-1.5 size-3.5 animate-spin" /> : <Download className="mr-1.5 size-3.5" />}
+          {busy ? <TestLoader tone="export" className="mr-1.5" /> : <Download className="mr-1.5 size-3.5" />}
           {busy ? "Exporting…" : "Export"}
         </Button>
       </DropdownMenuTrigger>
@@ -210,7 +211,7 @@ function ExpenseExportDialog({
   return (
     <>
       <Button variant="outline" size="sm" className="h-8 rounded-sm text-[12px]" onClick={() => onOpen(true)} disabled={!!busy}>
-        {busy ? <Loader2 className="mr-1.5 size-3.5 animate-spin" /> : <Download className="mr-1.5 size-3.5" />}
+        {busy ? <TestLoader tone="export" className="mr-1.5" /> : <Download className="mr-1.5 size-3.5" />}
         {busy ? "Exporting…" : "Export"}
       </Button>
       <Dialog open={open} onOpenChange={onOpen}>
@@ -265,13 +266,13 @@ function ExpenseExportDialog({
 
           <DialogFooter className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:space-x-0">
             <Button disabled={!!busy || invalid} onClick={() => void doExport("pdf")} className="h-9 rounded-sm text-[12.5px]">
-              {busy === "pdf" ? <Loader2 className="mr-1.5 size-3.5 animate-spin" /> : <FileText className="mr-1.5 size-3.5" />} PDF report
+              {busy === "pdf" ? <TestLoader tone="export" className="mr-1.5" /> : <FileText className="mr-1.5 size-3.5" />} PDF report
             </Button>
             <Button variant="outline" disabled={!!busy || invalid} onClick={() => void doExport("xlsx")} className="h-9 rounded-sm text-[12.5px]">
-              {busy === "xlsx" ? <Loader2 className="mr-1.5 size-3.5 animate-spin" /> : <FileSpreadsheet className="mr-1.5 size-3.5" />} Excel
+              {busy === "xlsx" ? <TestLoader tone="export" className="mr-1.5" /> : <FileSpreadsheet className="mr-1.5 size-3.5" />} Excel
             </Button>
             <Button variant="outline" disabled={!!busy || invalid} onClick={() => void doExport("csv")} className="h-9 rounded-sm text-[12.5px]">
-              {busy === "csv" ? <Loader2 className="mr-1.5 size-3.5 animate-spin" /> : <FileType className="mr-1.5 size-3.5" />} CSV
+              {busy === "csv" ? <TestLoader tone="export" className="mr-1.5" /> : <FileType className="mr-1.5 size-3.5" />} CSV
             </Button>
           </DialogFooter>
         </DialogContent>

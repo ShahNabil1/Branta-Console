@@ -1,4 +1,5 @@
 import { toast } from "sonner";
+import { TestLoader } from "@/components/ui/test-loader";
 import admakaiLogo from "@/assets/apps/admakai.png";
 import { Switch } from "@/components/ui/switch";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -467,7 +468,7 @@ function CreateEmployeeModal({
                 disabled={manualRouting || !gmailOk || gmailStatus === "checking"}
                 className="inline-flex h-9 shrink-0 items-center gap-1 rounded-sm border border-border bg-card px-3 text-[12px] font-semibold text-foreground hover:bg-muted disabled:opacity-50"
               >
-                {gmailStatus === "checking" ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
+                <TestLoader tone="verify" active={gmailStatus === "checking"} />
                 {gmailStatus === "pending" ? "Check again" : "Verify"}
               </button>
             </div>
@@ -610,7 +611,7 @@ function CreateEmployeeModal({
                 {routeMsg && <div className="mt-2 text-[11px] text-rose-600">{routeMsg}</div>}
                 {routeStage !== "active" && (
                   <button type="button" onClick={runRouting} disabled={routeBusy || !!localError || local.length < LOCAL_MIN} className="mt-3 inline-flex h-8 items-center gap-1.5 rounded-sm bg-brand px-3 text-[12px] font-semibold text-white transition-colors hover:bg-brand-700 disabled:opacity-50">
-                    {routeBusy ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
+                    <TestLoader tone="white" active={routeBusy} />
                     {routeStage === "error" ? "Try again" : "Set up routing"}
                   </button>
                 )}
@@ -853,7 +854,7 @@ function DestinationsPanel() {
         <div className="flex gap-1.5">
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search Gmail…" className="h-9 min-w-0 flex-1 rounded-sm border border-border bg-card px-3 text-[13px] outline-none focus:border-brand focus:ring-1 focus:ring-brand" />
           <button type="button" onClick={() => dest.refetch()} aria-label="Refresh" className="grid size-9 shrink-0 place-items-center rounded-sm border border-border transition-colors hover:bg-muted">
-            <RefreshCw className={cn("size-3.5", dest.isFetching && "animate-spin")} />
+            <TestLoader tone="refresh" active={dest.isFetching} />
           </button>
         </div>
         <div className="flex gap-1">

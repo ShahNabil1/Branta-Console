@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { TestLoader } from "@/components/ui/test-loader";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -153,7 +154,7 @@ function SalaryReportPage() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="sm" className="h-8 rounded-sm text-[12px]" disabled={!!busy}>
-              {busy ? <Loader2 className="mr-1.5 size-3.5 animate-spin" /> : <Download className="mr-1.5 size-3.5" />}
+              {busy ? <TestLoader tone="export" className="mr-1.5" /> : <Download className="mr-1.5 size-3.5" />}
               {busy ? "Exporting…" : "Export"}
             </Button>
           </DropdownMenuTrigger>

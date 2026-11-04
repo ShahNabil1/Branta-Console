@@ -1,4 +1,5 @@
 import { IntegrationRequired, useIntegrationGate } from "@/components/company/setup-required";
+import { TestLoader } from "@/components/ui/test-loader";
 import { useSearch as useSearchRR, useParams as useParamsRR, useNavigate as useNavigateRR } from "@tanstack/react-router";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -193,9 +194,7 @@ function InboxPageInner() {
             className="grid size-7 place-items-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
             title="Refresh"
           >
-            <RefreshCw
-              className={cn("size-3.5", syncMut.isPending && "animate-spin")}
-            />
+            <TestLoader tone="refresh" active={syncMut.isPending} />
           </button>
         </div>
         <div className="hairline-b flex flex-wrap gap-1 px-3 py-2">

@@ -1,4 +1,5 @@
 import { useActiveCompany } from "@/components/company/company-switcher";
+import { TestLoader } from "@/components/ui/test-loader";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -144,8 +145,8 @@ export function OperationsPage() {
         </div>
         <div className="flex items-center gap-2">
           <span className="hidden text-[11.5px] text-muted-foreground sm:inline">Updated {formatTime(data.generated_at)}</span>
-          <Button variant="outline" size="sm" loading={operations.isFetching} onClick={() => operations.refetch()} aria-label="Refresh operations">
-            <RefreshCw /> Refresh
+          <Button variant="outline" size="sm" disabled={operations.isFetching} onClick={() => operations.refetch()} aria-label="Refresh operations">
+            <TestLoader tone="refresh" active={operations.isFetching} /> Refresh
           </Button>
         </div>
       </header>

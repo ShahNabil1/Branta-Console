@@ -1,4 +1,5 @@
 import { useSearch as useSearchRR, useParams as useParamsRR, useNavigate as useNavigateRR } from "@tanstack/react-router";
+import { TestLoader } from "@/components/ui/test-loader";
 import { useActiveCompany } from "@/components/company/company-switcher";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -382,11 +383,7 @@ export function LeadsPage() {
               qc.invalidateQueries({ queryKey: ["lead-status-options"] });
             }}
           >
-            {leadsQuery.isFetching ? (
-              <Loader2 className="size-3.5 animate-spin md:mr-1.5" />
-            ) : (
-              <RefreshCw className="size-3.5 md:mr-1.5" />
-            )}
+            <TestLoader tone="refresh" active={leadsQuery.isFetching} className="size-4 md:mr-1.5" />
             <span className="hidden md:inline">Refresh</span>
           </Button>
           {canManageLeads && (
