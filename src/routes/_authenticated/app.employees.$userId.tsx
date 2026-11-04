@@ -1,3 +1,4 @@
+import { AlertDialog, AlertDialogContent } from "@/components/ui/alert-dialog";
 import { ConfirmHeader, ConfirmFooter } from "@/components/ui/confirm-surface";
 import { TestLoader } from "@/components/ui/test-loader";
 import { DiscardCancelButton } from "@/components/company/danger-confirm";
@@ -682,9 +683,8 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
         url={p.avatar_url}
         name={p.full_name ?? e.brantaId}
       />
-      <Dialog open={resetOpen} onOpenChange={resetOpenChange}>
-        <DialogContent className="w-[calc(100vw-2rem)] max-w-md max-h-[calc(100dvh-2rem)] gap-0 overflow-hidden overflow-y-auto p-0" onInteractOutside={(event) => { if (resetMut.isPending) event.preventDefault(); }} onEscapeKeyDown={(event) => { if (resetMut.isPending) event.preventDefault(); }}>
-          <DialogTitle className="sr-only">{resetResult ? "Temporary password created" : "Reset employee password"}</DialogTitle>
+      <AlertDialog open={resetOpen} onOpenChange={resetOpenChange}>
+        <AlertDialogContent className="w-[calc(100vw-2rem)] max-w-md max-h-[calc(100dvh-2rem)] gap-0 overflow-hidden overflow-y-auto p-0" onEscapeKeyDown={(event: KeyboardEvent) => { if (resetMut.isPending) event.preventDefault(); }}>
           <ConfirmHeader tone={resetResult ? "neutral" : "warning"} icon={KeyRound} title={resetResult ? "Temporary password created" : "Reset employee password"} subject={<span className="break-all font-mono">{e.email}</span>} />
           {resetResult ? (
             <div className="space-y-4 px-6 py-4">
@@ -720,8 +720,8 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
             <ConfirmFooter><Button variant="outline" size="sm" disabled={resetMut.isPending} onClick={() => resetOpenChange(false)}>Cancel</Button><Button size="sm" className="gap-1.5 transition-transform active:scale-95" disabled={resetMut.isPending} onClick={() => resetMut.mutate()}>{resetMut.isPending ? <TestLoader className="size-3.5" tone="white" active /> : <KeyRound className="size-3.5" />}Reset password</Button></ConfirmFooter>
             </>
           )}
-        </DialogContent>
-      </Dialog>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Employee ID + Job Role */}
       <section className="rounded-lg border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
