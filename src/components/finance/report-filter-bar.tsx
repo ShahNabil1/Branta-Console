@@ -327,7 +327,6 @@ export function ReportFilterBar({
           </label>
         </div>
         </div>
-        </div>
       </div>
 
       {/* Row 3 — active chips */}
