@@ -125,7 +125,7 @@ function ProviderPanel({ p, slug, v, data, both, open, onToggle, locked }: { p: 
     if (!silent) { setBusy("test"); setChecks(null); }
     try {
       const r = await test({ data: { slug, provider: p } });
-      if (!silent) { setChecks(r.checks); r.ok ? toast.success(`${m.name} is working.`) : toast.error(r.checks.find((c) => !c.ok)?.detail ?? "Check failed"); }
+      if (!silent) { setChecks(r.checks); if (r.ok) toast.success(`${m.name} is working.`); else toast.error(r.checks.find((c) => !c.ok)?.detail ?? "Check failed"); }
       else if (!r.ok) setChecks(r.checks);
     } catch (e) { if (!silent) toast.error(err(e)); } finally { if (!silent) setBusy(null); }
   };
