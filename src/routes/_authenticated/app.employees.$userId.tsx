@@ -681,11 +681,11 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
         name={p.full_name ?? e.brantaId}
       />
       <Dialog open={resetOpen} onOpenChange={resetOpenChange}>
-        <DialogContent className="w-[calc(100vw-2rem)] max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto" onInteractOutside={(event) => { if (resetMut.isPending) event.preventDefault(); }} onEscapeKeyDown={(event) => { if (resetMut.isPending) event.preventDefault(); }}>
-          <DialogHeader><DialogTitle>{resetResult ? "Temporary password created" : "Reset employee password"}</DialogTitle></DialogHeader>
-          <p className="break-all font-mono text-xs text-muted-foreground">{e.email}</p>
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-md max-h-[calc(100dvh-2rem)] gap-0 overflow-hidden overflow-y-auto p-0" onInteractOutside={(event) => { if (resetMut.isPending) event.preventDefault(); }} onEscapeKeyDown={(event) => { if (resetMut.isPending) event.preventDefault(); }}>
+          <DialogTitle className="sr-only">{resetResult ? "Temporary password created" : "Reset employee password"}</DialogTitle>
+          <ConfirmHeader tone={resetResult ? "neutral" : "warning"} icon={KeyRound} title={resetResult ? "Temporary password created" : "Reset employee password"} subject={<span className="break-all font-mono">{e.email}</span>} />
           {resetResult ? (
-            <div className="space-y-4">
+            <div className="space-y-4 px-6 py-4">
               <p role="status" className={cn("text-sm", resetResult.emailStatus === "failed" ? "text-destructive" : "text-muted-foreground")}>
                 {resetResult.emailStatus === "accepted" ? "Email accepted for sending. Delivery is not yet confirmed." : "Email could not be sent. Copy the password and share it securely with the employee."}
               </p>
@@ -702,15 +702,21 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
               <Button className="w-full" onClick={() => resetOpenChange(false)}>Done</Button>
             </div>
           ) : (
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">A temporary password replaces the current password. Telegram, passkeys and other account settings stay unchanged.</p>
+            <>
+            <div className="space-y-4 px-6 py-4">
+              <ul className="space-y-2 text-[12.5px] font-semibold">
+                <li className="flex items-start gap-2"><span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-amber-500" />A temporary password replaces the current password</li>
+                <li className="flex items-start gap-2"><span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-amber-500" />Employee must choose a new password after signing in</li>
+                <li className="flex items-start gap-2"><span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-status-converted" />Telegram, passkeys and other account settings stay unchanged</li>
+              </ul>
               <RadioGroup value={resetTwoFactor ? "reset" : "keep"} onValueChange={(value) => setResetTwoFactor(value === "reset")} disabled={resetMut.isPending}>
                 <label className="flex cursor-pointer items-start gap-3 rounded-sm border border-border p-3"><RadioGroupItem value="keep" className="mt-0.5" /><span><span className="block text-sm font-medium">Password only — keep 2FA</span><span className="text-xs text-muted-foreground">Use the existing authenticator when signing in.</span></span></label>
                 <label className="flex cursor-pointer items-start gap-3 rounded-sm border border-border p-3"><RadioGroupItem value="reset" className="mt-0.5" /><span><span className="block text-sm font-medium">Password + reset authenticator 2FA</span><span className="text-xs text-muted-foreground">Remove TOTP factors; set up an authenticator again after signing in. Passkeys remain.</span></span></label>
               </RadioGroup>
               {resetMut.isError && <p role="alert" className="text-sm text-destructive">{resetMut.error instanceof Error ? resetMut.error.message : "Reset failed"}</p>}
-              <div className="flex flex-wrap justify-end gap-2"><Button variant="outline" disabled={resetMut.isPending} onClick={() => resetOpenChange(false)}>Cancel</Button><Button disabled={resetMut.isPending} onClick={() => resetMut.mutate()}>{resetMut.isPending ? <Loader2 className="size-4 animate-spin" /> : <KeyRound className="size-4" />}Reset password</Button></div>
             </div>
+            <ConfirmFooter><Button variant="outline" size="sm" disabled={resetMut.isPending} onClick={() => resetOpenChange(false)}>Cancel</Button><Button size="sm" className="gap-1.5 transition-transform active:scale-95" disabled={resetMut.isPending} onClick={() => resetMut.mutate()}>{resetMut.isPending ? <TestLoader className="size-3.5" tone="white" active /> : <KeyRound className="size-3.5" />}Reset password</Button></ConfirmFooter>
+            </>
           )}
         </DialogContent>
       </Dialog>
