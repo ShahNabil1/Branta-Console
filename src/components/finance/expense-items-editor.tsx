@@ -47,6 +47,7 @@ export function ExpenseItemsEditor({
   items,
   onChange,
   currency,
+  maxTotal,
 }: {
   items: ExpenseItem[];
   onChange: (next: ExpenseItem[]) => void;
