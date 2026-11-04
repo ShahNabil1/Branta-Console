@@ -3,7 +3,7 @@ import { TestLoader } from "@/components/ui/test-loader";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { CheckCircle2, Loader2, RefreshCw, Unplug, XCircle } from "lucide-react";
+import { CheckCircle2, Loader2, Unplug, XCircle } from "lucide-react";
 import { AlertDialog, AlertDialogContent, AlertDialogTitle, AlertDialogDescription } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { disconnectGoogle, getGoogleConnection, startGoogleConnect, testGoogleConnection } from "@/lib/company-google.functions";
@@ -111,7 +111,7 @@ export function GoogleAccountCard({ slug, accent }: { slug: string; accent: stri
           <span className="text-[12px] font-semibold text-destructive">Google sign-in isn't configured</span>
         ) : a ? (
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" onClick={runTest} disabled={!!busy}>{busy === "test" ? <TestLoader /> : <RefreshCw className="size-3.5" />} Test</Button>
+            <Button size="sm" variant="outline" onClick={runTest} disabled={!!busy}><TestLoader /> Test</Button>
             <Button size="sm" variant="outline" className="shrink-0 gap-2 bg-card px-3 font-semibold text-foreground" onClick={() => setConfirm("switch")} disabled={!!busy}><img src={switchAccountIcon.url} alt="" aria-hidden="true" width={20} height={20} className="size-5 shrink-0 object-contain" /> Switch account</Button>
             <Button size="sm" variant="destructive" onClick={() => setConfirm("disc")} disabled={!!busy}><Unplug className="size-3.5" /> Disconnect</Button>
           </div>
