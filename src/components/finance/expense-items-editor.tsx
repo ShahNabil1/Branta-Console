@@ -1,6 +1,7 @@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 import { ListChecks, Plus, Trash2 } from "lucide-react";
 
 export type ExpenseItem = {
@@ -71,10 +72,23 @@ export function ExpenseItemsEditor({
     }
     onChange(next);
   };
+  const removeItem = async (idx: number) => {
+    const it = items[idx];
+    const filled = !!it.name.trim() || !!it.note.trim() || !!it.unit.trim() || (Number(it.quantity) || 0) !== 1;
+    if (filled) {
+      const ok = await confirmAction({
+        title: "Remove this line item?",
+        description: `“${it.name.trim() || `Line #${idx + 1}`}” — ${currency} ${itemTotal(it).toLocaleString()} will be removed from this expense.`,
+        tone: "danger",
+        confirmLabel: "Yes, remove",
+      });
+      if (!ok) return;
+    }
+    onChange(items.filter((_, k) => k !== idx));
+  };
   const addItem = () => {
     const used = sumItems(items);
     const prefill = cap ? Math.max(0, cap - used) : 0;
-    if (cap && prefill <= 0) { toast.error("The expense amount is already fully itemised", { id: "items-cap" }); return; }
     onChange([...items, { ...emptyItem(), unit_price: prefill }]);
   };
 
@@ -109,7 +123,7 @@ export function ExpenseItemsEditor({
               <span className="font-mono text-[10.5px] font-bold text-muted-foreground">#{String(idx + 1).padStart(2, "0")}</span>
               <div className="flex items-center gap-1.5">
                 <span className="font-mono text-[12.5px] font-bold tabular-nums">{currency} {itemTotal(it).toLocaleString()}</span>
-                <button type="button" onClick={() => onChange(items.filter((_, k) => k !== idx))}
+                <button type="button" onClick={() => void removeItem(idx)}
                   className="grid size-7 place-items-center rounded-md text-muted-foreground transition-all hover:bg-rose-50 hover:text-rose-600 active:scale-90"
                   aria-label="Remove line"><Trash2 className="size-3.5" /></button>
               </div>
