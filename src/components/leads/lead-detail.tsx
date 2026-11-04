@@ -1,3 +1,5 @@
+import { UserMinus } from "lucide-react";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 import { IntegrationRequired, useIntegrationGate } from "@/components/company/setup-required";
 import { DiscardCancelButton } from "@/components/company/danger-confirm";
 // Full-page Lead detail with Overview / Emails / Meetings tabs.
@@ -1799,8 +1801,7 @@ function TeammatesSection({ lead }: { lead: LeadRow }) {
             key={c.id}
             contact={c}
             onDelete={() => {
-              if (confirm(`Remove ${c.name || c.email} from this lead?`))
-                delM.mutate(c.id);
+              void confirmAction({ tone: "danger", icon: UserMinus, title: "Remove this contact?", subject: c.name || c.email, points: ["They stop receiving lead emails and meeting invites.", "Past emails and history stay unchanged."], confirmLabel: "Remove" }).then((ok) => ok && delM.mutate(c.id));
             }}
             onMakePrimary={() => primaryM.mutate(c.id)}
           />

@@ -49,6 +49,14 @@ const ConfirmContext = React.createContext<
   ((options: ConfirmOptions) => Promise<boolean>) | null
 >(null);
 
+let globalConfirm: ((options: ConfirmOptions) => Promise<boolean>) | null = null;
+
+/** Imperative confirm usable outside hooks (event handlers anywhere). Requires <ConfirmProvider/>. */
+export function confirmAction(options: ConfirmOptions): Promise<boolean> {
+  if (!globalConfirm) return Promise.resolve(false);
+  return globalConfirm(options);
+}
+
 export function ConfirmProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = React.useState<InternalState>({
     open: false,
@@ -69,6 +77,11 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
       });
     });
   }, []);
+
+  React.useEffect(() => {
+    globalConfirm = confirm;
+    return () => { if (globalConfirm === confirm) globalConfirm = null; };
+  }, [confirm]);
 
   const finish = (value: boolean) => {
     const r = resolverRef.current;
