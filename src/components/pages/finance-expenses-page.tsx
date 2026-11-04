@@ -36,11 +36,12 @@ import { ExportMenu } from "@/components/finance/export-menu";
 import { formatCategory } from "@/lib/expense-categories";
 import { ReasonDialog } from "@/components/finance/reason-dialog";
 import { ExpenseLogsDialog } from "@/components/finance/expense-logs-dialog";
+import { ExpenseCard } from "@/components/finance/expense-card";
 import { logExpenseAction } from "@/lib/expense-logs.functions";
 import { InsufficientFundDialog, useFundOptions } from "@/components/finance/fund-move-dialog";
 import { parseInsufficient } from "@/lib/fund-ops.functions";
 import { defaultFilters, type ReportFilters } from "@/lib/report-filters";
-import { Loader2, Plus, Trash2, Receipt, Eye, Download, X, FileText, ImageOff, Printer, Stamp, Pencil, Link2, History } from "lucide-react";
+import { Loader2, Plus, Trash2, Receipt, Eye, Download, X, FileText, ImageOff, Printer, Stamp, Pencil, Link2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { TestLoader } from "@/components/ui/test-loader";
@@ -91,16 +92,6 @@ async function uploadToBucket(file: File, prefix: string) {
   return path;
 }
 
-
-const CAT_TONE: Record<string, { chip: string; bar: string }> = {
-  salary: { chip: "bg-violet-50 text-violet-700 ring-violet-200", bar: "bg-violet-500" },
-  tools: { chip: "bg-sky-50 text-sky-700 ring-sky-200", bar: "bg-sky-500" },
-  ads: { chip: "bg-pink-50 text-pink-700 ring-pink-200", bar: "bg-pink-500" },
-  office: { chip: "bg-amber-50 text-amber-700 ring-amber-200", bar: "bg-amber-500" },
-  misc: { chip: "bg-slate-100 text-slate-700 ring-slate-200", bar: "bg-slate-400" },
-  tax: { chip: "bg-rose-50 text-rose-700 ring-rose-200", bar: "bg-rose-500" },
-  refund: { chip: "bg-emerald-50 text-emerald-700 ring-emerald-200", bar: "bg-emerald-500" },
-};
 
 const CATEGORIES: ExpenseCategory[] = ["salary", "tools", "ads", "office", "misc", "tax", "refund"];
 
@@ -608,7 +599,7 @@ export function ExpensesPage() {
         }))}
       />
 
-      <div className="grid w-full min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid w-full min-w-0 gap-3 md:grid-cols-2 2xl:grid-cols-3">
         {visible.length === 0 ? (
           <div className="col-span-full rounded-lg border border-dashed border-border bg-card px-6 py-16 text-center">
             <span className="mx-auto grid size-12 place-items-center rounded-xl bg-brand/10 text-brand"><Receipt className="size-6" /></span>
@@ -616,31 +607,17 @@ export function ExpensesPage() {
             <p className="mt-1 text-[12.5px] text-muted-foreground">Record {activeCompany?.name ?? "the company"}'s first expense with its receipt.</p>
             <Button onClick={startCreate} className="mt-4 gap-1.5"><Plus className="size-4" /> Add expense</Button>
           </div>
-        ) : visible.map((r, idx) => {
-          const tone = CAT_TONE[r.category] ?? CAT_TONE.misc;
+        ) : visible.map((r) => {
           const receipts = (r.attachments ?? []).length || (r.receipt_url ? 1 : 0);
           return (
-          <div
-            key={`m-${r.id}`}
-            id={`exp-m-${r.id}`}
-            data-exp-id={r.id}
-            style={{ animationDelay: `${Math.min(idx, 12) * 35}ms` }}
-            className={cn("group relative flex flex-col overflow-hidden rounded-lg border border-border bg-card p-5 shadow-sm transition-all duration-200 animate-in fade-in slide-in-from-bottom-2 fill-mode-both hover:-translate-y-1 hover:border-transparent hover:shadow-xl",
-              highlightId === r.id && "ring-2 ring-brand")}
-          >
-            <span className={cn("absolute inset-x-0 top-0 h-1 origin-left scale-x-0 transition-transform duration-300 group-hover:scale-x-100", tone.bar)} />
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex min-w-0 items-center gap-2.5">
-                <span className={cn("grid size-9 shrink-0 place-items-center rounded-lg ring-1 ring-inset transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3", tone.chip)}><Receipt className="size-4" /></span>
-                <div className="min-w-0">
-                  <div className="truncate font-mono text-[11.5px] font-bold">{r.voucher_no ?? "—"}</div>
-                  <span className={cn("mt-0.5 inline-flex rounded-full px-2 py-px text-[10px] font-bold uppercase tracking-wider", tone.chip)}>{formatCategory(r.category)}</span>
-                </div>
-              </div>
-              <div className="flex shrink-0 items-center gap-1">
-                {r.signed_voucher_url && <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-700">Signed</span>}
-                <RowActionsMenu>
-                  <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]"
+          <ExpenseCard key={r.id} record={r} category={formatCategory(r.category)} amount={`− ${fmt(r.amount, r.currency)}`}
+            receiptCount={receipts} highlighted={highlightId === r.id}
+            onActivity={() => setLogsFor({ id: r.id, voucher: r.voucher_no })}
+            onView={() => viewVoucher(r.id, r.voucher_no)}
+            onDownload={() => downloadVoucher(r.id, r.voucher_no, r.signed_voucher_url)}
+            onEdit={() => setAskEditFor(r)}
+            menu={<RowActionsMenu>
+                  <Button size="sm" variant="ghost" className="hidden h-8 w-full rounded-sm text-[12px] sm:inline-flex"
                     disabled={!r.voucher_no} onClick={() => viewVoucher(r.id, r.voucher_no)}>
                     <Eye className="mr-2 size-3.5" /> View voucher
                   </Button>
@@ -690,10 +667,6 @@ export function ExpensesPage() {
                     disabled={!r.voucher_no} onClick={() => copyLink(r.voucher_no)}>
                     <Link2 className="mr-2 size-3.5" /> Copy private link
                   </Button>
-                  <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]"
-                    onClick={() => setLogsFor({ id: r.id, voucher: r.voucher_no })}>
-                    <History className="mr-2 size-3.5" /> Activity log
-                  </Button>
                   <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]" onClick={() => setAskEditFor(r)}>
                     <Pencil className="mr-2 size-3.5" /> Edit expense
                   </Button>
@@ -701,27 +674,8 @@ export function ExpensesPage() {
                     onClick={() => setAskDeleteFor(r)}>
                     <Trash2 className="mr-2 size-3.5" /> Delete (Recycle Bin)
                   </Button>
-                </RowActionsMenu>
-              </div>
-            </div>
-            <div className="mt-3 line-clamp-1 text-[14.5px] font-bold">{r.vendor || formatCategory(r.category)}</div>
-            <p className="mt-0.5 line-clamp-2 min-h-[2.25rem] text-[12px] text-muted-foreground">{r.request_purpose || r.notes || "No purpose noted"}</p>
-            <div className="mt-3 font-mono text-[19px] font-bold text-rose-600">− {fmt(r.amount, r.currency)}</div>
-            <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5 border-t border-border pt-3 text-[11.5px]">
-              <div className="min-w-0"><dt className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Date</dt><dd className="truncate font-semibold">{new Date(r.spent_on).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</dd></div>
-              <div className="min-w-0"><dt className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Method</dt><dd className="truncate font-semibold">{r.payment_method ?? "—"}</dd></div>
-              <div className="min-w-0"><dt className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Requested by</dt><dd className="truncate font-semibold">{r.requested_by_name ?? "—"}</dd></div>
-              <div className="min-w-0"><dt className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Department</dt><dd className="truncate font-semibold">{r.department ?? "—"}</dd></div>
-            </dl>
-            <div className="mt-3 flex items-center justify-between gap-2">
-              <span className="truncate font-mono text-[10.5px] text-muted-foreground">{r.txn_id ? `TrxID ${r.txn_id}` : "No TrxID"} · {receipts} receipt{receipts === 1 ? "" : "s"}</span>
-              <div className="flex shrink-0 items-center gap-0.5 opacity-70 transition-opacity group-hover:opacity-100">
-                <Button size="sm" variant="ghost" className="h-7 rounded-md px-2" disabled={!r.voucher_no} onClick={() => viewVoucher(r.id, r.voucher_no)} title="View voucher"><Eye className="size-3.5" /></Button>
-                <Button size="sm" variant="ghost" className="h-7 rounded-md px-2" disabled={!r.voucher_no} onClick={() => downloadVoucher(r.id, r.voucher_no, r.signed_voucher_url)} title="Download voucher"><Download className="size-3.5" /></Button>
-                <Button size="sm" variant="ghost" className="h-7 rounded-md px-2" onClick={() => setAskEditFor(r)} title="Edit"><Pencil className="size-3.5" /></Button>
-              </div>
-            </div>
-          </div>
+                </RowActionsMenu>}
+          />
           );
         })}
       </div>

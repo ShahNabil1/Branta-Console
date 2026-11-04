@@ -5,8 +5,8 @@ import {
   ACTION_LABEL,
   type ExpenseLogRow,
 } from "@/lib/expense-logs.functions";
-import { Button } from "@/components/ui/button";
-import { Loader2, X, History, ArrowRight } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Loader2, History, ArrowRight } from "lucide-react";
 
 /** Dhaka time (GMT+6) — the whole team reads timestamps in local time. */
 function fmtWhen(iso: string) {
@@ -23,14 +23,6 @@ function fmtWhen(iso: string) {
     }) + " (GMT+6)"
   );
 }
-
-const TONE: Record<string, string> = {
-  created: "bg-emerald-50 text-emerald-700",
-  updated: "bg-amber-50 text-amber-700",
-  deleted: "bg-rose-50 text-rose-700",
-  restored: "bg-emerald-50 text-emerald-700",
-  purged: "bg-rose-50 text-rose-700",
-};
 
 function Counts({ logs }: { logs: ExpenseLogRow[] }) {
   const tally = new Map<string, number>();
@@ -74,33 +66,30 @@ export function ExpenseLogsDialog({
   const logs = q.data ?? [];
 
   return (
-    <div className="fixed inset-0 z-[65] grid place-items-center bg-background/80 p-2 sm:p-4" onClick={onClose}>
-      <div
-        className="flex max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden rounded-md border border-border bg-card shadow-lg"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <div className="flex min-w-0 items-center gap-2">
-            <History className="size-4 shrink-0 text-muted-foreground" />
+    <Sheet open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <SheetContent side="right" className="flex w-full min-w-0 flex-col gap-0 p-0 sm:max-w-2xl">
+        <SheetHeader className="border-b border-border bg-muted/30 px-5 py-5 pr-14 text-left sm:px-6 sm:pr-14">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="grid size-10 shrink-0 place-items-center rounded-lg border border-border bg-card text-primary"><History className="size-5" /></span>
             <div className="min-w-0">
-              <h3 className="truncate text-[14px] font-semibold">Activity log</h3>
-              <p className="truncate font-mono text-[11.5px] text-muted-foreground">
+              <SheetTitle className="text-[16px] font-bold">Activity log</SheetTitle>
+              <SheetDescription className="mt-1 break-words font-mono text-[11.5px] [overflow-wrap:anywhere]">
                 {voucherNo ?? expenseId.slice(0, 8)}
-              </p>
+                {q.data ? ` · ${logs.length} event${logs.length === 1 ? "" : "s"}` : ""}
+              </SheetDescription>
             </div>
           </div>
-          <Button size="sm" variant="ghost" className="h-8 rounded-sm px-2" onClick={onClose}>
-            <X className="size-4" />
-          </Button>
-        </div>
+        </SheetHeader>
 
         {logs.length > 0 && <Counts logs={logs} />}
 
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-6 sm:px-6">
           {q.isLoading ? (
             <div className="grid h-40 place-items-center">
               <Loader2 className="size-5 animate-spin text-muted-foreground" />
             </div>
+          ) : q.isError ? (
+            <p role="alert" className="py-10 text-center text-[12.5px] text-destructive">Activity could not be loaded.</p>
           ) : logs.length === 0 ? (
             <p className="px-4 py-10 text-center text-[12.5px] text-muted-foreground">
               No activity recorded yet.
@@ -108,24 +97,22 @@ export function ExpenseLogsDialog({
           ) : (
             <ol className="divide-y divide-border">
               {logs.map((l) => (
-                <li key={l.id} className="px-4 py-3">
-                  <div className="flex flex-wrap items-center gap-2">
+                <li key={l.id} className="relative min-w-0 py-4 pl-5 before:absolute before:left-0 before:top-5 before:size-1.5 before:rounded-full before:bg-primary">
+                  <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1">
                     <span
-                      className={`rounded-sm px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide ${
-                        TONE[l.action] ?? "bg-muted text-muted-foreground"
-                      }`}
+                      className="min-w-0 break-words text-[12px] font-bold text-foreground [overflow-wrap:anywhere]"
                     >
                       {ACTION_LABEL[l.action] ?? l.action}
                     </span>
-                    <span className="text-[12.5px] font-semibold">
+                    <span className="min-w-0 break-words text-right text-[11.5px] font-semibold [overflow-wrap:anywhere]">
                       {l.actor_name || (l.actor_id ? l.actor_id.slice(0, 8) : "System")}
                     </span>
-                    <span className="font-mono text-[11.5px] text-muted-foreground">
+                    <span className="col-span-2 font-mono text-[10.5px] text-muted-foreground">
                       {fmtWhen(l.created_at)}
                     </span>
                   </div>
                   {l.reason && (
-                    <p className="mt-1.5 rounded-sm border-l-2 border-primary bg-muted/40 px-2 py-1.5 text-[12.5px] font-medium leading-snug">
+                    <p className="mt-2 break-words rounded-sm border-l-2 border-primary bg-muted/40 px-3 py-2 text-[12px] font-medium leading-relaxed [overflow-wrap:anywhere]">
                       Reason: {l.reason}
                     </p>
                   )}
@@ -134,14 +121,14 @@ export function ExpenseLogsDialog({
                       {l.changes.map((c, i) => (
                         <li
                           key={i}
-                          className="flex flex-wrap items-center gap-1.5 text-[12px] leading-snug"
+                          className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-1.5 text-[12px] leading-snug"
                         >
-                          <span className="font-semibold">{c.field}:</span>
-                          <span className="rounded-sm bg-rose-50 px-1.5 py-0.5 text-rose-700 line-through">
+                          <span className="col-span-3 break-words font-semibold [overflow-wrap:anywhere]">{c.field}:</span>
+                          <span className="min-w-0 break-words rounded-sm bg-muted px-2 py-1 text-muted-foreground line-through [overflow-wrap:anywhere]">
                             {c.before ?? "—"}
                           </span>
-                          <ArrowRight className="size-3 text-muted-foreground" />
-                          <span className="rounded-sm bg-emerald-50 px-1.5 py-0.5 font-medium text-emerald-700">
+                          <ArrowRight className="mt-1 size-3 shrink-0 text-muted-foreground" />
+                          <span className="min-w-0 break-words rounded-sm bg-accent px-2 py-1 font-medium text-accent-foreground [overflow-wrap:anywhere]">
                             {c.after ?? "—"}
                           </span>
                         </li>
@@ -153,7 +140,7 @@ export function ExpenseLogsDialog({
             </ol>
           )}
         </div>
-      </div>
-    </div>
+      </SheetContent>
+    </Sheet>
   );
 }
