@@ -1,9 +1,10 @@
 # Roadmap
 
 ## Company webhook repair
-- [ ] Add inline Fix with the uploaded stationary/animated gear icon, Fixing and disabled pending state for Resend/Brevo webhook issues.
-- [ ] Replace only company-owned webhooks, rotate encrypted provider-specific credentials, verify all supported events and refresh health checks.
-- [ ] Run repair/isolation/failure tests and verify the button; real signed-in provider repair requires an available external-auth session.
+- [x] Add inline Fix with the uploaded stationary/animated gear icon, Fixing and disabled pending state for Resend/Brevo webhook issues.
+- [x] Replace only company-owned webhooks, rotate encrypted provider-specific credentials, verify all supported events and refresh health checks; Resend lists all pages for repair and health checks.
+- [x] Seven repair/isolation/failure tests and nine existing webhook/email tests pass; actual Fix button verified at 390/1280 with loaded static/GIF icons, stable dimensions, disabled pending state and restored button; no browser runtime errors. Build telemetry is unavailable this turn.
+- [ ] Verify real signed-in company Fix → provider replacement → encrypted credential readback → health UI; external unmanaged auth has no available test session.
 
 ## Receipt loading indicators
 - [x] Use the shared download loader for thumbnails and Branta-icon refresh animation inside receipt previews, lasting through media load.
