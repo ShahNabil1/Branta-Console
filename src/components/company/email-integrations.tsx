@@ -1478,24 +1478,7 @@ function FinanceSender({ slug, v }: { slug: string; v: ProviderView }) {
   };
   const isDefault = !v.finance_sender_email && !v.finance_sender_name;
   return (
-    <div className="relative mt-4 overflow-hidden rounded-xl border border-border bg-background p-4">
-      <span className="absolute inset-y-0 left-0 w-1" style={{ background: META.resend.color }} />
-      <div className="flex flex-wrap items-center gap-3">
-        <span className="grid size-9 shrink-0 place-items-center rounded-md border border-border bg-card">
-          <ProviderLogo p="resend" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <h3 className="text-[13.5px] font-bold">Finance sender (Invoices & reminders)</h3>
-          <div className="text-[11.5px] font-semibold text-muted-foreground">
-            Every invoice email and reminder is sent through Resend from this name and address.
-          </div>
-        </div>
-        {isDefault && !editing && (
-          <span className="rounded-full bg-muted px-2 py-0.5 text-[10.5px] font-bold text-muted-foreground">
-            Default
-          </span>
-        )}
-      </div>
+    <div className="mt-auto border-t border-border pt-3 animate-in fade-in duration-300">
       {editing ? (
         <div className="mt-3 grid gap-3 animate-in fade-in sm:grid-cols-2">
           <label className="space-y-1">
@@ -1581,12 +1564,18 @@ function FinanceSender({ slug, v }: { slug: string; v: ProviderView }) {
           </div>
         </div>
       ) : (
-        <div className="mt-3 flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2">
-          <Send className="size-3.5 text-muted-foreground" />
-          <span className="flex-1 truncate text-[13px] font-semibold">
-            {curName} <span className="font-mono text-muted-foreground">&lt;{curEmail}&gt;</span>
+        <div className="flex items-center gap-2">
+          <Send className="size-3.5 shrink-0 text-muted-foreground" />
+          <span className="flex-1 truncate text-[12.5px] font-semibold">
+            <span className="text-muted-foreground">Invoice sender:</span> {curName}{" "}
+            <span className="font-mono text-muted-foreground">&lt;{curEmail}&gt;</span>
+            {isDefault && (
+              <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-[10.5px] font-bold text-muted-foreground">
+                Default
+              </span>
+            )}
           </span>
-          <Button size="sm" variant="outline" className="shrink-0 gap-2 bg-card px-3 font-semibold text-foreground" onClick={() => setAsk(true)}>
+          <Button size="sm" variant="outline" className="h-8 shrink-0 gap-2 bg-card px-3 font-semibold text-foreground" onClick={() => setAsk(true)}>
             <img src={switchAccountIcon.url} alt="" aria-hidden="true" width={20} height={20} className="size-5 shrink-0 object-contain" /> Change sender
           </Button>
           <ChangeConfirm
