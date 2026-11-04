@@ -1,0 +1,89 @@
+.animated-border-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-height: 44px;
+  padding: 10px 28px;
+  border: 0;
+  border-radius: var(--abb-radius);
+  background: var(--abb-surface);
+  color: var(--abb-label);
+  box-shadow: inset 0 0 14px -8px var(--abb-accent);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.25;
+  cursor: pointer;
+}
+
+.animated-border-button .abb-content {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.animated-border-button .abb-outline {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.animated-border-button .abb-outline rect {
+  x: var(--abb-inset);
+  y: var(--abb-inset);
+  width: calc(100% - var(--abb-stroke));
+  height: calc(100% - var(--abb-stroke));
+  rx: var(--abb-path-radius);
+  ry: var(--abb-path-radius);
+  fill: none;
+  stroke-width: var(--abb-stroke);
+}
+
+.animated-border-button .abb-track {
+  stroke: var(--abb-track);
+}
+
+.animated-border-button .abb-highlight {
+  stroke: var(--abb-accent);
+  stroke-dasharray: 36 64;
+  filter: drop-shadow(0 0 2px var(--abb-accent));
+  animation: abb-travel var(--abb-duration) linear infinite;
+}
+
+@keyframes abb-travel {
+  0%   { stroke-dashoffset: 0;    stroke-dasharray: 36 64; }
+  25%  { stroke-dashoffset: -25;  stroke-dasharray: 10 90; }
+  50%  { stroke-dashoffset: -50;  stroke-dasharray: 36 64; }
+  75%  { stroke-dashoffset: -75;  stroke-dasharray: 58 42; }
+  100% { stroke-dashoffset: -100; stroke-dasharray: 36 64; }
+}
+
+.animated-border-button:focus-visible {
+  outline: 2px solid var(--abb-accent);
+  outline-offset: 3px;
+}
+
+.animated-border-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.animated-border-button[data-animate="false"] .abb-highlight,
+.animated-border-button:disabled .abb-highlight {
+  animation: none;
+  stroke-dasharray: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animated-border-button .abb-highlight {
+    animation: none;
+    stroke-dasharray: none;
+  }
+}
