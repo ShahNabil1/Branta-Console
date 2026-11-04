@@ -1,3 +1,4 @@
+import { ConfirmSurface } from "@/components/ui/confirm-surface";
 import { DiscardCancelButton } from "@/components/company/danger-confirm";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -179,23 +180,8 @@ function Confirm({
   onCancel: () => void; onConfirm: () => void;
 }) {
   return (
-    <AlertDialog open={open} onOpenChange={(o) => !o && onCancel()}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>{title}</AlertDialogTitle>
-          <AlertDialogDescription>{body}</AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            onClick={onConfirm}
-            className={destructive ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}
-          >
-            {action}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <ConfirmSurface open={open} tone={destructive ? "danger" : "info"} title={title} description={body}
+      confirmLabel={action} onCancel={onCancel} onConfirm={onConfirm} />
   );
 }
 

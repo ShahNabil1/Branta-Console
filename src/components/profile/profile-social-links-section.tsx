@@ -1,3 +1,4 @@
+import { confirmAction } from "@/components/ui/confirm-dialog";
 import { DiscardCancelButton } from "@/components/company/danger-confirm";
 // Social Links section for the current employee's profile.
 // Icon dropdown + URL (WhatsApp: BD number with fixed prefix) + label dropdown → chip.
@@ -273,7 +274,7 @@ export function ProfileSocialLinksSection() {
                     type="button"
                     className="inline-flex size-6 items-center justify-center rounded-sm text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive focus:opacity-100 group-hover:opacity-100"
                     onClick={() => {
-                      if (confirm(`Remove this ${displayName} link?`)) deleteM.mutate(row.id);
+                      void confirmAction({ tone: "danger", icon: Trash2, title: `Remove this ${displayName} link?`, subject: "It disappears from the profile.", confirmLabel: "Remove" }).then((ok) => ok && deleteM.mutate(row.id));
                     }}
                     aria-label="Delete"
                   >

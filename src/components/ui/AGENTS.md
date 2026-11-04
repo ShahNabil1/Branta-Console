@@ -1,0 +1,1 @@
+- Every confirmation renders through confirm-surface.tsx (useConfirm/confirmAction, DangerConfirm, ReasonDialog, ConfirmHeader/ConfirmTypedField); no native confirm() — why: one change updates all.

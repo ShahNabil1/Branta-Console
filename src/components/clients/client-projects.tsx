@@ -1,3 +1,4 @@
+import { confirmAction } from "@/components/ui/confirm-dialog";
 // One Client → Multiple Projects / Jobs. Mobile-first cards + bottom sheet form.
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -111,7 +112,7 @@ function ProjectCard({ p, customerId, canSeeFinance, onEdit }: { p: ClientProjec
         </div>
         <button onClick={onEdit} aria-label="Edit" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-muted"><Pencil className="size-4" /></button>
         <button
-          onClick={() => confirm(`Archive "${p.title}"?`) && m.mutate({ archive: true })}
+          onClick={() => void confirmAction({ tone: "warning", icon: Archive, title: "Archive this project?", subject: p.title, points: ["It is hidden from active project lists.", "All history is kept."], confirmLabel: "Archive" }).then((ok) => ok && m.mutate({ archive: true }))}
           aria-label="Archive"
           className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-muted"
         ><Archive className="size-4" /></button>

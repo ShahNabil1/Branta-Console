@@ -1,3 +1,5 @@
+import { ConfirmSurface } from "@/components/ui/confirm-surface";
+import { FileUp } from "lucide-react";
 import { DiscardCancelButton } from "@/components/company/danger-confirm";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -1380,38 +1382,10 @@ function AvatarUploader({
       </Dialog>
 
       {/* Remove confirmation */}
-      <Dialog open={confirmRemove} onOpenChange={setConfirmRemove}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="text-[14px]">
-              Remove profile picture?
-            </DialogTitle>
-          </DialogHeader>
-          <p className="text-[12.5px] text-muted-foreground">
-            Your profile will show the default placeholder until you upload a
-            new photo.
-          </p>
-          <div className="mt-2 flex items-center justify-end gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 rounded-sm text-[12px]"
-              onClick={() => setConfirmRemove(false)}
-            >
-              <X className="mr-1.5 size-3" />
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              className="h-8 rounded-sm bg-red-600 text-[12px] text-white hover:bg-red-700"
-              onClick={doRemove}
-            >
-              <Trash2 className="mr-1.5 size-3" />
-              Remove
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ConfirmSurface open={confirmRemove} tone="danger" icon={Trash2} title="Remove profile picture?"
+        subject="The default placeholder will be shown."
+        points={["Your current photo is removed from your profile.", "You can upload a new photo any time."]}
+        confirmLabel="Remove" onCancel={() => setConfirmRemove(false)} onConfirm={doRemove} />
     </div>
   );
 }
@@ -1427,27 +1401,11 @@ function ReplaceConfirm({
   onConfirm: () => void;
 }) {
   return (
-    <AlertDialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Replace this file?</AlertDialogTitle>
-          <AlertDialogDescription>
-            The new file will be saved right away and the current one will be replaced.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            onClick={() => {
-              onClose();
-              onConfirm();
-            }}
-          >
-            Choose new file
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <ConfirmSurface open={open} tone="info" icon={FileUp} title="Replace this file?"
+      subject="The current file will be replaced."
+      points={["The new file is saved right away.", "The current file is replaced."]}
+      safeLast={false} confirmLabel="Choose new file"
+      onCancel={onClose} onConfirm={() => { onClose(); onConfirm(); }} />
   );
 }
 

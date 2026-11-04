@@ -1,3 +1,4 @@
+import { confirmAction } from "@/components/ui/confirm-dialog";
 // Client Tasks / Work Orders — list, create sheet, detail sheet with parcel-style tracking + team.
 import { useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -260,7 +261,7 @@ export function TaskDetailSheet({ task, users, onClose }: { task: ClientTask; us
             </div>
             <div className="mt-2"><FinancePanel taskId={task.id} /></div>
             {task.can_manage && (
-              <button onClick={() => confirm(`Archive "${task.title}"? History is kept.`) && arch.mutate()} className="mt-2 inline-flex h-10 items-center justify-center gap-2 rounded-md border border-border text-[13px] font-semibold text-muted-foreground hover:bg-muted">
+              <button onClick={() => void confirmAction({ tone: "warning", icon: Archive, title: "Archive this task?", subject: task.title, points: ["It is hidden from active task lists.", "All history is kept."], confirmLabel: "Archive" }).then((ok) => ok && arch.mutate())} className="mt-2 inline-flex h-10 items-center justify-center gap-2 rounded-md border border-border text-[13px] font-semibold text-muted-foreground hover:bg-muted">
                 <Archive className="size-4" /> Archive task
               </button>
             )}

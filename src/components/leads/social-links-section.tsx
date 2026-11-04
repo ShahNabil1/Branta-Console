@@ -1,3 +1,4 @@
+import { confirmAction } from "@/components/ui/confirm-dialog";
 import { DiscardCancelButton } from "@/components/company/danger-confirm";
 // Social Links section for a lead — icon dropdown + URL + label.
 // After adding, the URL collapses into a clickable icon chip with its label.
@@ -388,8 +389,7 @@ export function SocialLinksSection({
                           type="button"
                           className="inline-flex size-6 items-center justify-center rounded-sm text-muted-foreground opacity-0 transition-opacity hover:bg-red-50 hover:text-red-600 group-hover:opacity-100"
                           onClick={() => {
-                            if (confirm(`Remove this ${displayName} link?`))
-                              deleteM.mutate(row.id);
+                            void confirmAction({ tone: "danger", icon: Trash2, title: `Remove this ${displayName} link?`, subject: "It disappears from this lead.", confirmLabel: "Remove" }).then((ok) => ok && deleteM.mutate(row.id));
                           }}
                           aria-label="Delete"
                         >
