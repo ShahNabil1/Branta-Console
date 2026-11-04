@@ -16,6 +16,8 @@ import { useStrictSecurity } from "@/hooks/use-strict-security";
 import { Toaster } from "@/components/ui/sonner";
 import { ConfirmProvider } from "@/components/ui/confirm-dialog";
 import { DevToolsShield } from "@/components/branta/devtools-shield";
+import { markBooted } from "@/lib/boot-splash";
+import { useRouterState } from "@tanstack/react-router";
 
 function NotFoundComponent() {
   return (
@@ -135,13 +137,24 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   errorComponent: lazy(() => Promise.resolve({ default: ErrorComponent })),
 });
 
+const BOOT_CSS = `html,body{background:#F9FAFB}
+#boot-splash{position:fixed;inset:0;z-index:2147482999;display:grid;place-items:center;background-color:#F9FAFB;background-image:radial-gradient(60% 50% at 12% 10%,rgba(229,106,23,.16),transparent 70%),radial-gradient(55% 45% at 90% 15%,rgba(6,182,212,.14),transparent 70%),radial-gradient(60% 50% at 85% 90%,rgba(99,102,241,.14),transparent 70%),radial-gradient(50% 45% at 10% 88%,rgba(16,185,129,.12),transparent 70%),linear-gradient(160deg,#FFFFFF 0%,#F9FAFB 55%,#FFF7F0 100%)}
+#boot-splash span{width:calc(clamp(220px,min(46vw,60vh),520px)*.056);aspect-ratio:1;border-radius:50%;background:#E56A17;animation:boot-breathe 1.4s ease-in-out infinite}
+@keyframes boot-breathe{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(.82);opacity:.75}}
+@media (prefers-reduced-motion:reduce){#boot-splash span{animation:none}}
+html[data-booted] #boot-splash{display:none}`;
+
+
 function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="en" translate="no" className="notranslate">
       <head>
         <HeadContent />
+        {/* Boot splash: painted from the very first HTML byte so the domain never shows a white screen. */}
+        <style dangerouslySetInnerHTML={{ __html: BOOT_CSS }} />
       </head>
       <body translate="no" className="notranslate">
+        <div id="boot-splash" aria-hidden="true"><span /></div>
         {children}
         <Scripts />
       </body>
@@ -153,6 +166,12 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
   useStrictSecurity();
+  // Non-app screens (login etc.) hide the boot splash once the router settles;
+  // /app hands off to the full preloader, which hides it on mount.
+  const settled = useRouterState({
+    select: (s) => s.status === "idle" && !s.isLoading && !s.location.pathname.startsWith("/app") && s.location.pathname !== "/",
+  });
+  useEffect(() => { if (settled) markBooted(); }, [settled]);
 
   useEffect(() => {
     const { data } = supabase.auth.onAuthStateChange((event) => {

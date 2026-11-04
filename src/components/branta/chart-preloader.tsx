@@ -1,4 +1,5 @@
-import type { CSSProperties } from "react";
+import { useEffect, type CSSProperties } from "react";
+import { markBooted } from "@/lib/boot-splash";
 import "./chart-preloader.css";
 
 /** One full cycle of the chart animation, in ms (matches --load-speed). */
@@ -28,6 +29,7 @@ export function ChartPreloader({
   /** Override the cycle length (preview only). */
   speedMs?: number;
 }) {
+  useEffect(() => { markBooted(); }, []);
   const style: CSSProperties & Record<string, string | number> = { opacity: leaving ? 0 : 1 };
   if (speedMs) style["--load-speed"] = `${speedMs}ms`;
   if (scrubAt !== undefined) style["--t"] = `${scrubAt}ms`;

@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
+import { useIsFetching, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { ChartPreloader, PRELOADER_CYCLE_MS } from "@/components/branta/chart-preloader";
 
@@ -54,16 +54,27 @@ function AppShell() {
 
   // Play at least one full preloader cycle per page load; meanwhile the shell
   // renders underneath so every page query starts fetching in the background.
+  // Reveal only once the page's data has settled (capped so it never hangs).
   const [cycleDone, setCycleDone] = useState(introPlayed);
+  const [capHit, setCapHit] = useState(introPlayed);
   const [gone, setGone] = useState(introPlayed);
+  const fetching = useIsFetching();
+  const [settled, setSettled] = useState(false);
   useEffect(() => {
     if (introPlayed) return;
     const t = setTimeout(() => setCycleDone(true), PRELOADER_CYCLE_MS);
-    return () => clearTimeout(t);
+    const cap = setTimeout(() => setCapHit(true), PRELOADER_CYCLE_MS + 10_000);
+    return () => { clearTimeout(t); clearTimeout(cap); };
   }, []);
+  // Debounce "no queries fetching" so chained queries don't cause an early reveal.
+  useEffect(() => {
+    if (fetching > 0) { setSettled(false); return; }
+    const t = setTimeout(() => setSettled(true), 250);
+    return () => clearTimeout(t);
+  }, [fetching]);
   const blocked =
     status.data?.mustChangePassword || status.data?.mustLinkTelegram || status.isLoading;
-  const leaving = cycleDone && !blocked;
+  const leaving = cycleDone && !blocked && (settled || capHit);
   useEffect(() => {
     if (!leaving || gone) return;
     introPlayed = true;
@@ -71,12 +82,15 @@ function AppShell() {
     return () => clearTimeout(t);
   }, [leaving, gone]);
 
-  const overlay = gone ? null : <ChartPreloader leaving={leaving} />;
-  if (blocked) return overlay ?? <ChartPreloader />;
+  // The overlay stays the first child at a stable position so it is never
+  // remounted (a remount restarts the CSS animation mid-cycle).
+  const overlay = gone && !blocked ? null : <ChartPreloader leaving={leaving} />;
+  if (blocked) return <>{overlay}</>;
 
   return (
+    <>
+    {overlay}
     <div className="flex h-screen w-full flex-col overflow-hidden bg-background">
-      {overlay}
       <ImpersonationBanner />
       <div className="flex min-h-0 w-full flex-1 overflow-hidden">
         <AppSidebar />
@@ -93,6 +107,7 @@ function AppShell() {
       <InboxNotifier />
       <TransferNotifier />
     </div>
+    </>
   );
 }
 
