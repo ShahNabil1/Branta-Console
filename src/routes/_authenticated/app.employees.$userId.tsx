@@ -1,5 +1,7 @@
 import { AnimatedBorderButton } from "@/components/AnimatedBorderButton";
 import { AlertDialog, AlertDialogContent } from "@/components/ui/alert-dialog";
+import { CalendarClock, Mail } from "lucide-react";
+import { UnderlineTabs } from "@/components/ui/underline-tabs";
 import { ConfirmHeader, ConfirmFooter } from "@/components/ui/confirm-surface";
 import { TestLoader } from "@/components/ui/test-loader";
 import { DiscardCancelButton } from "@/components/company/danger-confirm";
@@ -11,16 +13,8 @@ import { SessionHistoryLog } from "@/components/profile/session-history-log";
 // Employee detail page: full profile, RBAC, lead assignment, ban / delete,
 // password reset, one-click impersonation, wallet + sessions.
 import { useEffect, useMemo, useState } from "react";
-import {
-  createFileRoute,
-  Link,
-  useNavigate,
-} from "@tanstack/react-router";
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   ArrowLeft,
@@ -83,20 +77,12 @@ import {
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { OffboardDialog } from "@/components/employee/offboard-dialog";
 import { checkIsAdmin, deleteEmployee } from "@/lib/employees.functions";
-import {
-  adminUnsubscribeTelegram,
-  getEmployeeTelegramStatus,
-} from "@/lib/telegram.functions";
+import { adminUnsubscribeTelegram, getEmployeeTelegramStatus } from "@/lib/telegram.functions";
 import { clearBackup, isImpersonating, readBackup, writeBackup } from "@/lib/impersonation";
 import { BarcodeSvg, downloadBarcodePng } from "@/components/employee/BarcodeSvg";
 import { TelegramIcon } from "@/components/social/telegram-icon";
 import { Input } from "@/components/ui/input";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -110,9 +96,17 @@ export const Route = createFileRoute("/_authenticated/app/employees/$userId")({
   head: () => ({
     meta: [
       { title: "Employee Profile · Branta Tech" },
-      { name: "description", content: "Review and manage an employee profile, access, wallet, sessions, and assigned leads." },
+      {
+        name: "description",
+        content:
+          "Review and manage an employee profile, access, wallet, sessions, and assigned leads.",
+      },
       { property: "og:title", content: "Employee Profile · Branta Tech" },
-      { property: "og:description", content: "Review and manage an employee profile, access, wallet, sessions, and assigned leads." },
+      {
+        property: "og:description",
+        content:
+          "Review and manage an employee profile, access, wallet, sessions, and assigned leads.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -128,9 +122,6 @@ const ROLE_OPTIONS: { value: EmployeeRole; label: string; note: string }[] = [
   { value: "super_admin", label: "Super admin", note: "Full unrestricted access" },
 ];
 
-
-
-
 function EmployeeDetailPage() {
   const { userId: segment } = Route.useParams();
   const resolveFn = useServerFn(resolveEmployeeSlug);
@@ -144,11 +135,23 @@ function EmployeeDetailPage() {
   useEffect(() => {
     const s = resolved.data?.slug;
     if (s && s !== segment && typeof window !== "undefined") {
-      window.history.replaceState(window.history.state, "", window.location.pathname.replace(segment, encodeURIComponent(s)) + window.location.search + window.location.hash);
+      window.history.replaceState(
+        window.history.state,
+        "",
+        window.location.pathname.replace(segment, encodeURIComponent(s)) +
+          window.location.search +
+          window.location.hash,
+      );
     }
   }, [resolved.data?.slug, segment]);
-  if (resolved.isError) return <div className="p-8 text-sm text-muted-foreground">Employee not found.</div>;
-  if (!resolved.data) return <div className="flex items-center gap-2 p-8 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>;
+  if (resolved.isError)
+    return <div className="p-8 text-sm text-muted-foreground">Employee not found.</div>;
+  if (!resolved.data)
+    return (
+      <div className="flex items-center gap-2 p-8 text-sm text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+      </div>
+    );
   return <EmployeeDetailInner userId={resolved.data.userId} />;
 }
 
@@ -211,7 +214,12 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
   const onTgUnsub = async () => {
     const ok = await confirm({
       title: "Unsubscribe Telegram?",
-      subject: <><TelegramIcon className="size-3.5 shrink-0" /> {tgStatus.data?.username ? "@" + tgStatus.data.username : e.email}</>,
+      subject: (
+        <>
+          <TelegramIcon className="size-3.5 shrink-0" />{" "}
+          {tgStatus.data?.username ? "@" + tgStatus.data.username : e.email}
+        </>
+      ),
       icon: <TelegramIcon className="size-5" />,
       points: [
         "All Branta Tech Telegram notifications stop for this employee.",
@@ -269,8 +277,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
 
   const resendOnboardingMut = useMutation({
     mutationFn: () => resendOnboardingFn({ data: { userId } }),
-    onSuccess: () =>
-      toast.success("Onboarding instructions re-sent with a new temporary password"),
+    onSuccess: () => toast.success("Onboarding instructions re-sent with a new temporary password"),
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
 
@@ -280,8 +287,16 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
   const delMut = useMutation({
     mutationFn: () => deleteFn({ data: { userId } }),
     onSuccess: (res) => {
-      if (res.result === "deleted") toast.success("Employee permanently deleted (no business history)");
-      else toast.success(`Employee deactivated — sign-in blocked, history kept (${Object.entries(res.blockers ?? {}).map(([k, v]) => `${v} ${k}`).join(", ") || "no records"}).`);
+      if (res.result === "deleted")
+        toast.success("Employee permanently deleted (no business history)");
+      else
+        toast.success(
+          `Employee deactivated — sign-in blocked, history kept (${
+            Object.entries(res.blockers ?? {})
+              .map(([k, v]) => `${v} ${k}`)
+              .join(", ") || "no records"
+          }).`,
+        );
       navigate({ to: "/app/employees" });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
@@ -292,8 +307,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
     onSuccess: async (res) => {
       try {
         const { data: cur } = await supabase.auth.getSession();
-        if (!cur.session)
-          throw new Error("No active admin session to preserve.");
+        if (!cur.session) throw new Error("No active admin session to preserve.");
         writeBackup({
           access_token: cur.session.access_token,
           refresh_token: cur.session.refresh_token,
@@ -323,8 +337,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
   const jobRoleDirty = jobRoleDraft !== null && jobRoleDraft !== currentJobRole;
 
   const saveJobRole = useMutation({
-    mutationFn: () =>
-      setJobRoleFn({ data: { userId, jobRole: jobRoleValue.trim() || null } }),
+    mutationFn: () => setJobRoleFn({ data: { userId, jobRole: jobRoleValue.trim() || null } }),
     onSuccess: () => {
       toast.success("Job role updated");
       setJobRoleDraft(null);
@@ -333,7 +346,9 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
 
-  const [tab, setTab] = useState<"profile" | "wallet" | "permissions" | "schedule" | "workspaces">("profile");
+  const [tab, setTab] = useState<"profile" | "wallet" | "permissions" | "schedule" | "workspaces">(
+    "profile",
+  );
   const [avatarOpen, setAvatarOpen] = useState(false);
 
   if (admin.isLoading || detail.isLoading) {
@@ -452,7 +467,10 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
   const resetOpenChange = (open: boolean) => {
     if (resetMut.isPending) return;
     setResetOpen(open);
-    if (!open) { setResetResult(null); resetMut.reset(); }
+    if (!open) {
+      setResetResult(null);
+      resetMut.reset();
+    }
   };
 
   const onboardingPending = !e.passwordResetPending && e.mustChangePassword;
@@ -471,13 +489,15 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
     resendOnboardingMut.mutate();
   };
 
-
   const onDelete = () => setOffOpen(true);
 
   const initial = (p.full_name ?? e.brantaId).slice(0, 1).toUpperCase();
 
   return (
-    <div key={userId} className="mx-auto flex w-full max-w-screen-xl flex-col gap-4 p-3 animate-in fade-in slide-in-from-bottom-1 duration-300 sm:p-5 lg:p-6 2xl:max-w-screen-2xl">
+    <div
+      key={userId}
+      className="mx-auto flex w-full max-w-screen-xl flex-col gap-4 p-3 animate-in fade-in slide-in-from-bottom-1 duration-300 sm:p-5 lg:p-6 2xl:max-w-screen-2xl"
+    >
       {/* Header */}
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 lg:flex lg:justify-between">
         <div className="flex min-w-0 items-center gap-3">
@@ -496,7 +516,9 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
             </h1>
           </div>
         </div>
-        <div className="col-span-2 row-start-2 lg:order-none"><EmployeePager segment={userId} /></div>
+        <div className="col-span-2 row-start-2 lg:order-none">
+          <EmployeePager segment={userId} />
+        </div>
         <div className="hidden flex-wrap items-center gap-2 lg:flex">
           {onboardingPending && (
             <button
@@ -573,7 +595,9 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
               onClick={onImpersonate}
               disabled={impMut.isPending || e.isBanned}
               className="inline-flex h-8 items-center gap-1.5 rounded-md border shadow-sm border-brand/40 bg-brand/10 px-3 text-xs font-semibold text-brand hover:bg-brand/20 disabled:opacity-60"
-              title={e.isBanned ? "Unban this employee before impersonating" : "Sign in as this employee"}
+              title={
+                e.isBanned ? "Unban this employee before impersonating" : "Sign in as this employee"
+              }
             >
               {impMut.isPending ? (
                 <Loader2 className="size-3.5 animate-spin" />
@@ -601,17 +625,33 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
             )}
             Delete
           </AnimatedBorderButton>
-          <OffboardDialog userId={userId} open={offOpen} onOpenChange={setOffOpen} onFinished={() => { void qc.invalidateQueries({ queryKey: ["employees.list"] }); navigate({ to: "/app/employees" }); }} />
+          <OffboardDialog
+            userId={userId}
+            open={offOpen}
+            onOpenChange={setOffOpen}
+            onFinished={() => {
+              void qc.invalidateQueries({ queryKey: ["employees.list"] });
+              navigate({ to: "/app/employees" });
+            }}
+          />
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="icon" className="shrink-0 rounded-sm lg:hidden" aria-label="Employee actions">
+            <Button
+              variant="outline"
+              size="icon"
+              className="shrink-0 rounded-sm lg:hidden"
+              aria-label="Employee actions"
+            >
               <MoreHorizontal className="size-4" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-64">
             {onboardingPending && (
-              <DropdownMenuItem onSelect={onResendOnboarding} disabled={resendOnboardingMut.isPending}>
+              <DropdownMenuItem
+                onSelect={onResendOnboarding}
+                disabled={resendOnboardingMut.isPending}
+              >
                 <MailPlus /> Re-send onboarding
               </DropdownMenuItem>
             )}
@@ -624,15 +664,23 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
             <DropdownMenuItem onSelect={onBan} disabled={banMut.isPending}>
               {e.isBanned ? <Unlock /> : <Ban />} {e.isBanned ? "Unban account" : "Ban account"}
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={onTgUnsub} disabled={tgUnsub.isPending || !tgStatus.data?.linked}>
-              <TelegramIcon className="size-4" /> {tgStatus.data?.linked ? "Unsubscribe Telegram" : "Telegram not linked"}
+            <DropdownMenuItem
+              onSelect={onTgUnsub}
+              disabled={tgUnsub.isPending || !tgStatus.data?.linked}
+            >
+              <TelegramIcon className="size-4" />{" "}
+              {tgStatus.data?.linked ? "Unsubscribe Telegram" : "Telegram not linked"}
             </DropdownMenuItem>
             {canSuperAdmin && (
               <DropdownMenuItem onSelect={onImpersonate} disabled={impMut.isPending || e.isBanned}>
                 <LogIn /> Impersonate
               </DropdownMenuItem>
             )}
-            <DropdownMenuItem onSelect={onDelete} disabled={delMut.isPending} className="text-destructive focus:text-destructive">
+            <DropdownMenuItem
+              onSelect={onDelete}
+              disabled={delMut.isPending}
+              className="text-destructive focus:text-destructive"
+            >
               <Trash2 /> Delete employee
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -671,11 +719,12 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
               <RoleBadge role={e.role} />
               <StatusBadge banned={e.isBanned} />
             </div>
-
           </div>
           <dl className="col-span-2 grid w-full grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1 border-t border-border pt-3 text-[12px] sm:col-span-1 sm:ml-auto sm:w-auto sm:border-0 sm:pt-0">
             <dt className="text-muted-foreground">Created</dt>
-            <dd className="min-w-0 break-words font-mono text-right">{new Date(e.createdAt).toLocaleString()}</dd>
+            <dd className="min-w-0 break-words font-mono text-right">
+              {new Date(e.createdAt).toLocaleString()}
+            </dd>
             <dt className="text-muted-foreground">Last sign-in</dt>
             <dd className="min-w-0 break-words font-mono text-right">
               {e.lastSignInAt ? new Date(e.lastSignInAt).toLocaleString() : "Never"}
@@ -691,40 +740,141 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
         name={p.full_name ?? e.brantaId}
       />
       <AlertDialog open={resetOpen} onOpenChange={resetOpenChange}>
-        <AlertDialogContent className="w-[calc(100vw-2rem)] max-w-md max-h-[calc(100dvh-2rem)] gap-0 overflow-hidden overflow-y-auto p-0" onEscapeKeyDown={(event: KeyboardEvent) => { if (resetMut.isPending) event.preventDefault(); }}>
-          <ConfirmHeader tone={resetResult ? "neutral" : "warning"} icon={KeyRound} title={resetResult ? "Temporary password created" : "Reset employee password"} subject={<span className="break-all font-mono">{e.email}</span>} />
+        <AlertDialogContent
+          className="w-[calc(100vw-2rem)] max-w-md max-h-[calc(100dvh-2rem)] gap-0 overflow-hidden overflow-y-auto p-0"
+          onEscapeKeyDown={(event: KeyboardEvent) => {
+            if (resetMut.isPending) event.preventDefault();
+          }}
+        >
+          <ConfirmHeader
+            tone={resetResult ? "neutral" : "warning"}
+            icon={KeyRound}
+            title={resetResult ? "Temporary password created" : "Reset employee password"}
+            subject={<span className="break-all font-mono">{e.email}</span>}
+          />
           {resetResult ? (
             <div className="space-y-4 px-6 py-4">
-              <p role="status" className={cn("text-sm", resetResult.emailStatus === "failed" ? "text-destructive" : "text-muted-foreground")}>
-                {resetResult.emailStatus === "accepted" ? "Email accepted for sending. Delivery is not yet confirmed." : "Email could not be sent. Copy the password and share it securely with the employee."}
+              <p
+                role="status"
+                className={cn(
+                  "text-sm",
+                  resetResult.emailStatus === "failed"
+                    ? "text-destructive"
+                    : "text-muted-foreground",
+                )}
+              >
+                {resetResult.emailStatus === "accepted"
+                  ? "Email accepted for sending. Delivery is not yet confirmed."
+                  : "Email could not be sent. Copy the password and share it securely with the employee."}
               </p>
-              {!resetResult.twoFactorResetComplete && <p role="alert" className="text-sm text-destructive">The password was reset, but some authenticator factors could not be removed. Retry the 2FA reset if needed.</p>}
+              {!resetResult.twoFactorResetComplete && (
+                <p role="alert" className="text-sm text-destructive">
+                  The password was reset, but some authenticator factors could not be removed. Retry
+                  the 2FA reset if needed.
+                </p>
+              )}
               <div className="flex min-w-0 items-center gap-3 rounded-sm border border-border bg-muted p-3">
-                <code className="min-w-0 flex-1 select-all break-all text-lg">{resetResult.tempPassword}</code>
-                <Button variant="outline" size="icon" aria-label="Copy temporary password" onClick={async () => {
-                  try { await navigator.clipboard.writeText(resetResult.tempPassword); toast.success("Temporary password copied"); }
-                  catch { toast.error("Copy unavailable. Select and copy the password manually."); }
-                }}><Copy className="size-4" /></Button>
+                <code className="min-w-0 flex-1 select-all break-all text-lg">
+                  {resetResult.tempPassword}
+                </code>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  aria-label="Copy temporary password"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(resetResult.tempPassword);
+                      toast.success("Temporary password copied");
+                    } catch {
+                      toast.error("Copy unavailable. Select and copy the password manually.");
+                    }
+                  }}
+                >
+                  <Copy className="size-4" />
+                </Button>
               </div>
-              <p className="text-xs text-muted-foreground">This password is shown only here. Closing this dialog clears it. The employee must choose a new password after signing in.</p>
+              <p className="text-xs text-muted-foreground">
+                This password is shown only here. Closing this dialog clears it. The employee must
+                choose a new password after signing in.
+              </p>
               <MailActivity emails={[e.email, p.personal_gmail ?? ""]} />
-              <Button className="w-full" onClick={() => resetOpenChange(false)}>Done</Button>
+              <Button className="w-full" onClick={() => resetOpenChange(false)}>
+                Done
+              </Button>
             </div>
           ) : (
             <>
-            <div className="space-y-4 px-6 py-4">
-              <ul className="space-y-2 text-[12.5px] font-semibold">
-                <li className="flex items-start gap-2"><span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-amber-500" />A temporary password replaces the current password</li>
-                <li className="flex items-start gap-2"><span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-amber-500" />Employee must choose a new password after signing in</li>
-                <li className="flex items-start gap-2"><span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-status-converted" />Telegram, passkeys and other account settings stay unchanged</li>
-              </ul>
-              <RadioGroup value={resetTwoFactor ? "reset" : "keep"} onValueChange={(value) => setResetTwoFactor(value === "reset")} disabled={resetMut.isPending}>
-                <label className="flex cursor-pointer items-start gap-3 rounded-sm border border-border p-3"><RadioGroupItem value="keep" className="mt-0.5" /><span><span className="block text-sm font-medium">Password only — keep 2FA</span><span className="text-xs text-muted-foreground">Use the existing authenticator when signing in.</span></span></label>
-                <label className="flex cursor-pointer items-start gap-3 rounded-sm border border-border p-3"><RadioGroupItem value="reset" className="mt-0.5" /><span><span className="block text-sm font-medium">Password + reset authenticator 2FA</span><span className="text-xs text-muted-foreground">Remove TOTP factors; set up an authenticator again after signing in. Passkeys remain.</span></span></label>
-              </RadioGroup>
-              {resetMut.isError && <p role="alert" className="text-sm text-destructive">{resetMut.error instanceof Error ? resetMut.error.message : "Reset failed"}</p>}
-            </div>
-            <ConfirmFooter><Button variant="outline" size="sm" disabled={resetMut.isPending} onClick={() => resetOpenChange(false)}>Cancel</Button><Button size="sm" className="gap-1.5 transition-transform active:scale-95" disabled={resetMut.isPending} onClick={() => resetMut.mutate()}>{resetMut.isPending ? <TestLoader className="size-3.5" tone="white" active /> : <KeyRound className="size-3.5" />}Reset password</Button></ConfirmFooter>
+              <div className="space-y-4 px-6 py-4">
+                <ul className="space-y-2 text-[12.5px] font-semibold">
+                  <li className="flex items-start gap-2">
+                    <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-amber-500" />A
+                    temporary password replaces the current password
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-amber-500" />
+                    Employee must choose a new password after signing in
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-status-converted" />
+                    Telegram, passkeys and other account settings stay unchanged
+                  </li>
+                </ul>
+                <RadioGroup
+                  value={resetTwoFactor ? "reset" : "keep"}
+                  onValueChange={(value) => setResetTwoFactor(value === "reset")}
+                  disabled={resetMut.isPending}
+                >
+                  <label className="flex cursor-pointer items-start gap-3 rounded-sm border border-border p-3">
+                    <RadioGroupItem value="keep" className="mt-0.5" />
+                    <span>
+                      <span className="block text-sm font-medium">Password only — keep 2FA</span>
+                      <span className="text-xs text-muted-foreground">
+                        Use the existing authenticator when signing in.
+                      </span>
+                    </span>
+                  </label>
+                  <label className="flex cursor-pointer items-start gap-3 rounded-sm border border-border p-3">
+                    <RadioGroupItem value="reset" className="mt-0.5" />
+                    <span>
+                      <span className="block text-sm font-medium">
+                        Password + reset authenticator 2FA
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        Remove TOTP factors; set up an authenticator again after signing in.
+                        Passkeys remain.
+                      </span>
+                    </span>
+                  </label>
+                </RadioGroup>
+                {resetMut.isError && (
+                  <p role="alert" className="text-sm text-destructive">
+                    {resetMut.error instanceof Error ? resetMut.error.message : "Reset failed"}
+                  </p>
+                )}
+              </div>
+              <ConfirmFooter>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={resetMut.isPending}
+                  onClick={() => resetOpenChange(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  className="gap-1.5 transition-transform active:scale-95"
+                  disabled={resetMut.isPending}
+                  onClick={() => resetMut.mutate()}
+                >
+                  {resetMut.isPending ? (
+                    <TestLoader className="size-3.5" tone="white" active />
+                  ) : (
+                    <KeyRound className="size-3.5" />
+                  )}
+                  Reset password
+                </Button>
+              </ConfirmFooter>
             </>
           )}
         </AlertDialogContent>
@@ -752,13 +902,18 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
                   <CopyBtn value={p.employee_code} />
                 </div>
                 <div className="w-full overflow-hidden rounded-sm border border-border bg-white">
-                  <BarcodeSvg value={p.employee_code} height={70} className="mx-auto block h-auto max-w-full" />
+                  <BarcodeSvg
+                    value={p.employee_code}
+                    height={70}
+                    className="mx-auto block h-auto max-w-full"
+                  />
                 </div>
                 <div className="mt-2">
                   <button
                     onClick={() =>
-                      p.employee_code && downloadBarcodePng(p.employee_code, `${p.employee_code}.png`).catch(
-                        (err) => toast.error(err instanceof Error ? err.message : "Download failed"),
+                      p.employee_code &&
+                      downloadBarcodePng(p.employee_code, `${p.employee_code}.png`).catch((err) =>
+                        toast.error(err instanceof Error ? err.message : "Download failed"),
                       )
                     }
                     className="inline-flex min-h-8 w-full items-center justify-center gap-1.5 rounded-sm border border-border bg-card px-2.5 py-1.5 text-[12px] font-semibold hover:bg-muted sm:w-auto"
@@ -819,42 +974,43 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
         </div>
       </section>
 
-
       {/* Tabs */}
-      <div className="flex w-fit max-w-full items-center gap-1 overflow-x-auto rounded-full border border-border bg-card p-1 shadow-sm whitespace-nowrap">
-        <TabBtn active={tab === "profile"} onClick={() => setTab("profile")} icon={UserCog}>
-          Profile
-        </TabBtn>
-        <TabBtn active={tab === "wallet"} onClick={() => setTab("wallet")} icon={Wallet}>
-          Wallet &amp; Earnings
-        </TabBtn>
-        <TabBtn active={tab === "schedule"} onClick={() => setTab("schedule")} icon={UserCog}>
-          Shift Schedule
-        </TabBtn>
-        <TabBtn
-          active={tab === "permissions"}
-          onClick={() => setTab("permissions")}
-          icon={ShieldCheck}
-        >
-          Permissions
-        </TabBtn>
-        <TabBtn active={tab === "workspaces"} onClick={() => setTab("workspaces")} icon={Building2}>
-          Workspaces
-        </TabBtn>
-      </div>
+      <UnderlineTabs
+        className="border-b border-border"
+        ariaLabel="Employee sections"
+        value={tab}
+        onChange={(t) => setTab(t)}
+        items={
+          [
+            { id: "profile", label: "Profile", icon: UserCog },
+            { id: "wallet", label: "Wallet & Earnings", icon: Wallet },
+            { id: "schedule", label: "Shift Schedule", icon: CalendarClock },
+            { id: "permissions", label: "Permissions", icon: ShieldCheck },
+            { id: "workspaces", label: "Workspaces", icon: Building2 },
+          ] as const satisfies readonly { id: typeof tab; label: string; icon: typeof UserCog }[]
+        }
+      />
 
       {tab === "profile" ? (
-        <><ProfileTab e={e} />
+        <>
+          <ProfileTab e={e} />
           <section className="mt-4 rounded-lg border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
-            <h3 className="mb-3 text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Payment methods</h3>
+            <h3 className="mb-3 text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+              Payment methods
+            </h3>
             {(e.profile.payment_methods ?? []).length === 0 ? (
-              <p className="text-[12.5px] italic text-muted-foreground">N/A — no bank or MFS account saved yet.</p>
+              <p className="text-[12.5px] italic text-muted-foreground">
+                N/A — no bank or MFS account saved yet.
+              </p>
             ) : (
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                {(e.profile.payment_methods as PaymentMethodLite[]).map((m) => <PaymentMethodCard key={m.id} m={m} />)}
+                {(e.profile.payment_methods as PaymentMethodLite[]).map((m) => (
+                  <PaymentMethodCard key={m.id} m={m} />
+                ))}
               </div>
             )}
-          </section></>
+          </section>
+        </>
       ) : tab === "wallet" ? (
         <WalletTab userId={userId} walletFn={walletFn} />
       ) : tab === "schedule" ? (
@@ -863,60 +1019,60 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
         <WorkspaceAccess userId={userId} />
       ) : (
         <div className="space-y-4">
-      {/* RBAC */}
-      <section className="rounded-lg border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
-        <div className="mb-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="size-4 text-brand" strokeWidth={2} />
-            <h2 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-              Roles & access (RBAC)
-            </h2>
-          </div>
-          {rolesDirty && (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setSelectedRoles(null)}
-                className="h-7 rounded-sm border border-border bg-card px-2 text-[11.5px] hover:bg-muted"
-              >
-                Reset
-              </button>
-              <button
-                onClick={() => saveRoles.mutate()}
-                disabled={saveRoles.isPending}
-                className="inline-flex h-7 items-center gap-1 rounded-sm bg-brand px-2.5 text-[11.5px] font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
-              >
-                {saveRoles.isPending && <Loader2 className="size-3 animate-spin" />}
-                Save
-              </button>
-            </div>
-          )}
-        </div>
-        <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
-          {ROLE_OPTIONS.map((r) => {
-            const active = roles.includes(r.value);
-            const disabled = r.value === "super_admin" && !canSuperAdmin;
-            return (
-              <button
-                key={r.value}
-                type="button"
-                onClick={() => !disabled && toggleRole(r.value)}
-                disabled={disabled}
-                className={cn(
-                  "rounded-sm border px-3 py-2.5 text-left transition-colors",
-                  active ? "border-brand bg-brand/5" : "border-border bg-card hover:bg-muted",
-                  disabled && "cursor-not-allowed opacity-50",
-                )}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="text-[12.5px] font-semibold">{r.label}</div>
-                  {active && <Check className="size-3.5 text-brand" strokeWidth={2.5} />}
+          {/* RBAC */}
+          <section className="rounded-lg border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
+            <div className="mb-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="size-4 text-brand" strokeWidth={2} />
+                <h2 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                  Roles & access (RBAC)
+                </h2>
+              </div>
+              {rolesDirty && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setSelectedRoles(null)}
+                    className="h-7 rounded-sm border border-border bg-card px-2 text-[11.5px] hover:bg-muted"
+                  >
+                    Reset
+                  </button>
+                  <button
+                    onClick={() => saveRoles.mutate()}
+                    disabled={saveRoles.isPending}
+                    className="inline-flex h-7 items-center gap-1 rounded-sm bg-brand px-2.5 text-[11.5px] font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
+                  >
+                    {saveRoles.isPending && <Loader2 className="size-3 animate-spin" />}
+                    Save
+                  </button>
                 </div>
-                <div className="mt-0.5 text-[10.5px] text-muted-foreground">{r.note}</div>
-              </button>
-            );
-          })}
-        </div>
-      </section>
+              )}
+            </div>
+            <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
+              {ROLE_OPTIONS.map((r) => {
+                const active = roles.includes(r.value);
+                const disabled = r.value === "super_admin" && !canSuperAdmin;
+                return (
+                  <button
+                    key={r.value}
+                    type="button"
+                    onClick={() => !disabled && toggleRole(r.value)}
+                    disabled={disabled}
+                    className={cn(
+                      "rounded-sm border px-3 py-2.5 text-left transition-colors",
+                      active ? "border-brand bg-brand/5" : "border-border bg-card hover:bg-muted",
+                      disabled && "cursor-not-allowed opacity-50",
+                    )}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="text-[12.5px] font-semibold">{r.label}</div>
+                      {active && <Check className="size-3.5 text-brand" strokeWidth={2.5} />}
+                    </div>
+                    <div className="mt-0.5 text-[10.5px] text-muted-foreground">{r.note}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
           <AppAccessSection userId={userId} roles={e.roles} allowedApps={e.allowedApps} />
           {canSuperAdmin && <PermissionsTab userId={userId} />}
         </div>
@@ -924,26 +1080,39 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
 
       <Sheet open={logsOpen} onOpenChange={setLogsOpen}>
         <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-[640px]">
-          <DrawerHero title="Activity logs" subtitle={`Mail delivery and sign-in sessions for ${e.profile.full_name ?? e.email}`}>
-            <div className="relative mt-4 flex gap-1 rounded-full border border-border bg-card p-1 shadow-sm">
-              {(["mail", "sessions"] as const).map((t) => (
-                <button key={t} onClick={() => setLogsTab(t)} className={cn("h-8 flex-1 rounded-full text-[12.5px] font-semibold transition-all duration-200 active:scale-95", logsTab === t ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:bg-muted hover:text-foreground")}>
-                  {t === "mail" ? "Mail delivery" : "Sessions & logout"}
-                </button>
-              ))}
-            </div>
+          <DrawerHero
+            title="Activity logs"
+            subtitle={`Mail delivery and sign-in sessions for ${e.profile.full_name ?? e.email}`}
+          >
+            <UnderlineTabs
+              className="-mb-5 mt-4"
+              ariaLabel="Log type"
+              value={logsTab}
+              onChange={setLogsTab}
+              items={[
+                { id: "mail", label: "Mail delivery", icon: Mail },
+                { id: "sessions", label: "Sessions & logout", icon: LogOut },
+              ]}
+            />
           </DrawerHero>
-          <div key={logsTab} className="flex-1 overflow-y-auto p-5 animate-in fade-in slide-in-from-right-2 duration-300">
+          <div
+            key={logsTab}
+            className="flex-1 overflow-y-auto p-5 animate-in fade-in slide-in-from-right-2 duration-300"
+          >
             {logsTab === "mail" ? (
               <MailActivity emails={[e.email, e.profile.personal_gmail ?? ""]} />
             ) : (
-              <SessionsSection userId={userId} listFn={sessionsFn} revokeFn={revokeSessionFn} confirm={confirm} qc={qc} />
+              <SessionsSection
+                userId={userId}
+                listFn={sessionsFn}
+                revokeFn={revokeSessionFn}
+                confirm={confirm}
+                qc={qc}
+              />
             )}
           </div>
         </SheetContent>
       </Sheet>
-
-
     </div>
   );
 }
@@ -985,12 +1154,16 @@ function EditNameDialog({ e }: { e: EmployeeDetail }) {
   const [fullName, setFullName] = useState("");
   const [busy, setBusy] = useState(false);
   const init = () => setFullName(e.profile.full_name ?? "");
-  const dirty = fullName.trim() !== (e.profile.full_name ?? "") || fullName.trim() !== (e.profile.legal_full_name ?? "");
+  const dirty =
+    fullName.trim() !== (e.profile.full_name ?? "") ||
+    fullName.trim() !== (e.profile.legal_full_name ?? "");
   const valid = fullName.trim().length >= 2;
   const save = async () => {
     setBusy(true);
     try {
-      await fn({ data: { userId: e.userId, fullName: fullName.trim(), legalFullName: fullName.trim() } });
+      await fn({
+        data: { userId: e.userId, fullName: fullName.trim(), legalFullName: fullName.trim() },
+      });
       toast.success("Name updated");
       await qc.invalidateQueries({ queryKey: ["employee.detail"] });
       setOpen(false);
@@ -1001,8 +1174,23 @@ function EditNameDialog({ e }: { e: EmployeeDetail }) {
     }
   };
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (o) init(); setOpen(o); }}>
-      <Button type="button" variant="outline" size="sm" className="ml-auto h-7 rounded-sm text-[12px]" onClick={() => { init(); setOpen(true); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (o) init();
+        setOpen(o);
+      }}
+    >
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="ml-auto h-7 rounded-sm text-[12px]"
+        onClick={() => {
+          init();
+          setOpen(true);
+        }}
+      >
         Edit name
       </Button>
       <DialogContent className="max-w-md">
@@ -1012,7 +1200,11 @@ function EditNameDialog({ e }: { e: EmployeeDetail }) {
         <div className="space-y-3">
           <label className="block space-y-1 text-[12px] font-medium">
             <span>Full name (as on NID / passport)</span>
-            <Input value={fullName} onChange={(ev) => setFullName(ev.target.value)} className="h-9 rounded-sm" />
+            <Input
+              value={fullName}
+              onChange={(ev) => setFullName(ev.target.value)}
+              className="h-9 rounded-sm"
+            />
           </label>
           <div className="flex justify-end gap-2 pt-1">
             <DiscardCancelButton dirty={dirty} className="h-8" onCancel={() => setOpen(false)} />
@@ -1026,13 +1218,24 @@ function EditNameDialog({ e }: { e: EmployeeDetail }) {
   );
 }
 
-type AddrF = { address_line1?: string | null; division?: string | null; district?: string | null; upazila?: string | null; post_office?: string | null; postcode?: string | null };
+type AddrF = {
+  address_line1?: string | null;
+  division?: string | null;
+  district?: string | null;
+  upazila?: string | null;
+  post_office?: string | null;
+  postcode?: string | null;
+};
 const fmtAddrBd = (r: AddrF) => {
   const po = [r.post_office, r.postcode].filter(Boolean).join("-");
-  const s = [r.address_line1?.trim().replace(/[,.\s]+$/, ""), po, r.upazila, r.district, r.division].filter(Boolean).join(", ");
+  const s = [r.address_line1?.trim().replace(/[,.\s]+$/, ""), po, r.upazila, r.district, r.division]
+    .filter(Boolean)
+    .join(", ");
   return s ? `${s}.` : null;
 };
-const VerifiedTick = () => <BadgeCheck className="size-4 shrink-0 fill-[#0866FF] text-white" aria-label="Verified" />;
+const VerifiedTick = () => (
+  <BadgeCheck className="size-4 shrink-0 fill-[#0866FF] text-white" aria-label="Verified" />
+);
 
 function BdFlagIcon() {
   return (
@@ -1048,13 +1251,20 @@ function PhoneField({ label, value }: { label: string; value: string | null }) {
   const intl = digits ? `+880${digits}` : null;
   return (
     <div>
-      <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">{label}</div>
+      <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+        {label}
+      </div>
       {intl ? (
         <div className="mt-0.5 flex items-center gap-1.5">
           <BdFlagIcon />
-          <span className="font-mono text-[13px] font-medium">+880 {digits.slice(0, 4)}-{digits.slice(4)}</span>
+          <span className="font-mono text-[13px] font-medium">
+            +880 {digits.slice(0, 4)}-{digits.slice(4)}
+          </span>
           <CopyBtn value={intl} />
-          <a href={`tel:${intl}`} className="ml-1 inline-flex h-6 items-center gap-1 rounded-sm border border-border px-2 text-[11px] font-semibold text-brand hover:bg-brand/10">
+          <a
+            href={`tel:${intl}`}
+            className="ml-1 inline-flex h-6 items-center gap-1 rounded-sm border border-border px-2 text-[11px] font-semibold text-brand hover:bg-brand/10"
+          >
             <Phone className="size-3" /> Call
           </a>
         </div>
@@ -1065,10 +1275,22 @@ function PhoneField({ label, value }: { label: string; value: string | null }) {
   );
 }
 
-function IconEmailField({ label, value, icon, verified }: { label: string; value: string | null; icon: React.ReactNode; verified: boolean }) {
+function IconEmailField({
+  label,
+  value,
+  icon,
+  verified,
+}: {
+  label: string;
+  value: string | null;
+  icon: React.ReactNode;
+  verified: boolean;
+}) {
   return (
     <div>
-      <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">{label}</div>
+      <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+        {label}
+      </div>
       {value ? (
         <div className="mt-0.5 flex items-center gap-1.5">
           {icon}
@@ -1086,7 +1308,12 @@ function IconEmailField({ label, value, icon, verified }: { label: string; value
 function ProfileTab({ e }: { e: EmployeeDetail }) {
   const p = e.profile;
   let present: (AddrF & { same?: boolean }) | null = null;
-  try { const j = p.address_line2?.trim().startsWith("{") ? JSON.parse(p.address_line2) : null; if (j && typeof j === "object") present = j; } catch { /* legacy */ }
+  try {
+    const j = p.address_line2?.trim().startsWith("{") ? JSON.parse(p.address_line2) : null;
+    if (j && typeof j === "object") present = j;
+  } catch {
+    /* legacy */
+  }
   const perm = fmtAddrBd(p);
   const pres = present?.same ? perm : present ? fmtAddrBd(present) : null;
   return (
@@ -1100,46 +1327,102 @@ function ProfileTab({ e }: { e: EmployeeDetail }) {
       </div>
       <div className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
         <Field label="Full name" value={p.full_name} copy />
-        <IconEmailField label="Work email" value={e.email} verified={e.workEmailVerified} icon={<img src="/favicon-96x96.png" alt="Branta" className="size-4 rounded-full object-contain" />} />
-        <IconEmailField label="Personal Gmail" value={p.personal_gmail} verified={!!e.gmailSource} icon={e.gmailSource === "cloudflare" ? <CloudflareLogo /> : <GoogleG />} />
+        <IconEmailField
+          label="Work email"
+          value={e.email}
+          verified={e.workEmailVerified}
+          icon={
+            <img
+              src="/favicon-96x96.png"
+              alt="Branta"
+              className="size-4 rounded-full object-contain"
+            />
+          }
+        />
+        <IconEmailField
+          label="Personal Gmail"
+          value={p.personal_gmail}
+          verified={!!e.gmailSource}
+          icon={e.gmailSource === "cloudflare" ? <CloudflareLogo /> : <GoogleG />}
+        />
         <PhoneField label="Phone" value={p.phone_primary} />
         <PhoneField label="Alt. phone" value={p.phone_alt} />
       </div>
 
       <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {([["Permanent", perm], ["Present", pres]] as const).map(([k, v]) => (
+        {(
+          [
+            ["Permanent", perm],
+            ["Present", pres],
+          ] as const
+        ).map(([k, v]) => (
           <div key={k} className="rounded-sm border border-border bg-muted/30 p-3">
             <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
               <span>{k} address</span>
-              {k === "Present" && present?.same && <span className="normal-case tracking-normal text-[11px]">Same as permanent</span>}
+              {k === "Present" && present?.same && (
+                <span className="normal-case tracking-normal text-[11px]">Same as permanent</span>
+              )}
             </div>
             <div className="mt-1 flex items-start gap-1.5">
-              <span className={cn("min-w-0 flex-1 text-[13px]", v ? "font-medium" : "italic text-muted-foreground/60")}>{v ?? "N/A"}</span>
+              <span
+                className={cn(
+                  "min-w-0 flex-1 text-[13px]",
+                  v ? "font-medium" : "italic text-muted-foreground/60",
+                )}
+              >
+                {v ?? "N/A"}
+              </span>
               {v && <CopyBtn value={v} />}
             </div>
           </div>
         ))}
       </div>
 
-      <div className="mt-5 mb-2 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Social profiles</div>
+      <div className="mt-5 mb-2 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+        Social profiles
+      </div>
       {e.socialLinks.length ? (
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {e.socialLinks.map((l) => {
             const meta = PLATFORM_META[l.platform as SocialPlatform];
             const wa = l.platform === "whatsapp";
-            const handle = wa ? `+88${waNumberFromUrl(l.url)}` : l.url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "");
+            const handle = wa
+              ? `+88${waNumberFromUrl(l.url)}`
+              : l.url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "");
             return (
-              <div key={l.id} className="flex items-center gap-2.5 rounded-sm border border-border bg-card p-2.5 hover:border-brand/40">
-                <span className="grid size-8 shrink-0 place-items-center rounded-sm text-white" style={{ background: meta?.color ?? "#334155" }}>{meta?.svg}</span>
+              <div
+                key={l.id}
+                className="flex items-center gap-2.5 rounded-sm border border-border bg-card p-2.5 hover:border-brand/40"
+              >
+                <span
+                  className="grid size-8 shrink-0 place-items-center rounded-sm text-white"
+                  style={{ background: meta?.color ?? "#334155" }}
+                >
+                  {meta?.svg}
+                </span>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5 text-[12.5px] font-semibold">
                     {meta?.name ?? l.platform}
-                    {l.label && <span className="rounded-sm bg-muted px-1.5 py-px text-[10px] font-medium text-muted-foreground">{l.label}</span>}
+                    {l.label && (
+                      <span className="rounded-sm bg-muted px-1.5 py-px text-[10px] font-medium text-muted-foreground">
+                        {l.label}
+                      </span>
+                    )}
                   </div>
-                  <div className="truncate font-mono text-[11px] text-muted-foreground" title={l.url}>{handle}</div>
+                  <div
+                    className="truncate font-mono text-[11px] text-muted-foreground"
+                    title={l.url}
+                  >
+                    {handle}
+                  </div>
                 </div>
                 <CopyBtn value={l.url} />
-                <a href={l.url} target="_blank" rel="noreferrer" className="inline-flex h-6 items-center gap-1 rounded-sm border border-border px-2 text-[11px] font-semibold text-brand hover:bg-brand/10">
+                <a
+                  href={l.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex h-6 items-center gap-1 rounded-sm border border-border px-2 text-[11px] font-semibold text-brand hover:bg-brand/10"
+                >
                   {wa ? "Chat" : "Open"} <ExternalLink className="size-3" />
                 </a>
               </div>
@@ -1147,7 +1430,9 @@ function ProfileTab({ e }: { e: EmployeeDetail }) {
           })}
         </div>
       ) : (
-        <div className="rounded-sm border border-dashed border-border p-3 text-[12px] italic text-muted-foreground">No social profiles linked yet</div>
+        <div className="rounded-sm border border-dashed border-border p-3 text-[12px] italic text-muted-foreground">
+          No social profiles linked yet
+        </div>
       )}
 
       <div className="mt-5 mb-2 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
@@ -1186,7 +1471,6 @@ function WalletTab({
     queryKey: ["employee.wallet", userId],
     queryFn: () => walletFn({ data: { userId } }),
   });
-
 
   if (wallet.isLoading) {
     return (
@@ -1228,19 +1512,41 @@ function WalletTab({
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {balances.flatMap((b) => [
-              <BalanceCard key={`${b.currency}-locked`} label="Locked" value={b.locked} currency={b.currency} tone="muted" />,
-              <BalanceCard key={`${b.currency}-avail`} label="Available" value={b.available} currency={b.currency} tone="brand" />,
-              <BalanceCard key={`${b.currency}-req`} label="Requested" value={b.requested} currency={b.currency} tone="amber" />,
-              <BalanceCard key={`${b.currency}-paid`} label="Lifetime paid" value={b.paid} currency={b.currency} tone="emerald" />,
+              <BalanceCard
+                key={`${b.currency}-locked`}
+                label="Locked"
+                value={b.locked}
+                currency={b.currency}
+                tone="muted"
+              />,
+              <BalanceCard
+                key={`${b.currency}-avail`}
+                label="Available"
+                value={b.available}
+                currency={b.currency}
+                tone="brand"
+              />,
+              <BalanceCard
+                key={`${b.currency}-req`}
+                label="Requested"
+                value={b.requested}
+                currency={b.currency}
+                tone="amber"
+              />,
+              <BalanceCard
+                key={`${b.currency}-paid`}
+                label="Lifetime paid"
+                value={b.paid}
+                currency={b.currency}
+                tone="emerald"
+              />,
             ])}
           </div>
         )}
         {lifetimeCurrencies.length > 0 && (
           <div className="mt-3 text-[11.5px] text-muted-foreground">
             Lifetime payout total:{" "}
-            {lifetimeCurrencies
-              .map((c) => currencyFmt(lifetimePaid[c] ?? 0, c))
-              .join(" · ")}
+            {lifetimeCurrencies.map((c) => currencyFmt(lifetimePaid[c] ?? 0, c)).join(" · ")}
           </div>
         )}
       </section>
@@ -1257,70 +1563,88 @@ function WalletTab({
           <p className="text-[12.5px] text-muted-foreground">No payouts yet.</p>
         ) : (
           <>
-          <div className="divide-y divide-border rounded-sm border border-border sm:hidden">
-            {payouts.map((r) => (
-              <div key={r.id} className="space-y-2 p-3">
-                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
-                  <div className="min-w-0">
-                    <div className="font-mono text-[11px] font-semibold uppercase text-muted-foreground">Invoice</div>
-                    {r.invoice_slug ? (
-                      <Link to="/app/finance/invoices/$slug" params={{ slug: r.invoice_slug }} className="block truncate font-mono text-[13px] font-semibold text-brand hover:underline">
-                        {r.invoice_slug}
-                      </Link>
-                    ) : <span>—</span>}
-                  </div>
-                  <div className="shrink-0 text-right font-mono text-[14px] font-bold">{currencyFmt(Number(r.amount), r.currency)}</div>
-                </div>
-                <div className="flex flex-wrap items-center justify-between gap-2 text-[12px] text-muted-foreground">
-                  <span className="font-medium">{r.installment_label ?? "No installment label"}</span>
-                  <PayoutStatusBadge status={r.status} />
-                  <span className="w-full font-mono">{new Date(r.paid_at ?? r.requested_at ?? r.unlocked_at ?? r.created_at).toLocaleDateString()}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="hidden overflow-x-auto rounded-sm border border-border sm:block">
-            <table className="min-w-[620px] w-full text-left text-[12.5px]">
-              <thead className="bg-muted text-[10.5px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-                <tr>
-                  <th className="px-3 py-2">Invoice</th>
-                  <th className="px-3 py-2">Installment</th>
-                  <th className="px-3 py-2 text-right">Amount</th>
-                  <th className="px-3 py-2">Status</th>
-                  <th className="px-3 py-2">When</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {payouts.map((r) => (
-                  <tr key={r.id}>
-                    <td className="px-3 py-1.5 font-mono">
+            <div className="divide-y divide-border rounded-sm border border-border sm:hidden">
+              {payouts.map((r) => (
+                <div key={r.id} className="space-y-2 p-3">
+                  <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+                    <div className="min-w-0">
+                      <div className="font-mono text-[11px] font-semibold uppercase text-muted-foreground">
+                        Invoice
+                      </div>
                       {r.invoice_slug ? (
                         <Link
                           to="/app/finance/invoices/$slug"
                           params={{ slug: r.invoice_slug }}
-                          className="text-brand hover:underline"
+                          className="block truncate font-mono text-[13px] font-semibold text-brand hover:underline"
                         >
                           {r.invoice_slug}
                         </Link>
                       ) : (
-                        "—"
+                        <span>—</span>
                       )}
-                    </td>
-                    <td className="px-3 py-1.5">{r.installment_label ?? "—"}</td>
-                    <td className="px-3 py-1.5 text-right font-mono">
+                    </div>
+                    <div className="shrink-0 text-right font-mono text-[14px] font-bold">
                       {currencyFmt(Number(r.amount), r.currency)}
-                    </td>
-                    <td className="px-3 py-1.5">
-                      <PayoutStatusBadge status={r.status} />
-                    </td>
-                    <td className="px-3 py-1.5 font-mono text-[11.5px] text-muted-foreground">
-                      {new Date(r.paid_at ?? r.requested_at ?? r.unlocked_at ?? r.created_at).toLocaleDateString()}
-                    </td>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-[12px] text-muted-foreground">
+                    <span className="font-medium">
+                      {r.installment_label ?? "No installment label"}
+                    </span>
+                    <PayoutStatusBadge status={r.status} />
+                    <span className="w-full font-mono">
+                      {new Date(
+                        r.paid_at ?? r.requested_at ?? r.unlocked_at ?? r.created_at,
+                      ).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="hidden overflow-x-auto rounded-sm border border-border sm:block">
+              <table className="min-w-[620px] w-full text-left text-[12.5px]">
+                <thead className="bg-muted text-[10.5px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                  <tr>
+                    <th className="px-3 py-2">Invoice</th>
+                    <th className="px-3 py-2">Installment</th>
+                    <th className="px-3 py-2 text-right">Amount</th>
+                    <th className="px-3 py-2">Status</th>
+                    <th className="px-3 py-2">When</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {payouts.map((r) => (
+                    <tr key={r.id}>
+                      <td className="px-3 py-1.5 font-mono">
+                        {r.invoice_slug ? (
+                          <Link
+                            to="/app/finance/invoices/$slug"
+                            params={{ slug: r.invoice_slug }}
+                            className="text-brand hover:underline"
+                          >
+                            {r.invoice_slug}
+                          </Link>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                      <td className="px-3 py-1.5">{r.installment_label ?? "—"}</td>
+                      <td className="px-3 py-1.5 text-right font-mono">
+                        {currencyFmt(Number(r.amount), r.currency)}
+                      </td>
+                      <td className="px-3 py-1.5">
+                        <PayoutStatusBadge status={r.status} />
+                      </td>
+                      <td className="px-3 py-1.5 font-mono text-[11.5px] text-muted-foreground">
+                        {new Date(
+                          r.paid_at ?? r.requested_at ?? r.unlocked_at ?? r.created_at,
+                        ).toLocaleDateString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </>
         )}
       </section>
@@ -1336,47 +1660,21 @@ function WalletTab({
           <p className="text-[12.5px] text-muted-foreground">No withdrawal requests.</p>
         ) : (
           <>
-          <div className="divide-y divide-border rounded-sm border border-border sm:hidden">
-            {withdrawals.map((w) => (
-              <div key={w.id} className="space-y-2 p-3">
-                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
-                  <div className="min-w-0 font-mono text-[11px] font-medium text-muted-foreground">{new Date(w.requested_at).toLocaleString()}</div>
-                  <div className="shrink-0 font-mono text-[14px] font-bold">{currencyFmt(Number(w.amount), w.currency)}</div>
-                </div>
-                <WithdrawStatusBadge status={w.status} />
-                <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-[12px]">
-                  <dt className="text-muted-foreground">Transfer ref</dt>
-                  <dd className="min-w-0 break-all font-mono font-semibold">{w.transfer_ref ? <span className="inline-flex items-center gap-1">{w.transfer_ref}<CopyBtn value={w.transfer_ref} small /></span> : "—"}</dd>
-                  <dt className="text-muted-foreground">Note</dt>
-                  <dd className="min-w-0 break-words font-medium">{w.admin_note ?? "—"}</dd>
-                </dl>
-              </div>
-            ))}
-          </div>
-          <div className="hidden overflow-x-auto rounded-sm border border-border sm:block">
-            <table className="min-w-[720px] w-full text-left text-[12.5px]">
-              <thead className="bg-muted text-[10.5px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-                <tr>
-                  <th className="px-3 py-2">Requested</th>
-                  <th className="px-3 py-2 text-right">Amount</th>
-                  <th className="px-3 py-2">Status</th>
-                  <th className="px-3 py-2">Transfer ref</th>
-                  <th className="px-3 py-2">Note</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {withdrawals.map((w) => (
-                  <tr key={w.id}>
-                    <td className="px-3 py-1.5 font-mono text-[11.5px]">
+            <div className="divide-y divide-border rounded-sm border border-border sm:hidden">
+              {withdrawals.map((w) => (
+                <div key={w.id} className="space-y-2 p-3">
+                  <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+                    <div className="min-w-0 font-mono text-[11px] font-medium text-muted-foreground">
                       {new Date(w.requested_at).toLocaleString()}
-                    </td>
-                    <td className="px-3 py-1.5 text-right font-mono">
+                    </div>
+                    <div className="shrink-0 font-mono text-[14px] font-bold">
                       {currencyFmt(Number(w.amount), w.currency)}
-                    </td>
-                    <td className="px-3 py-1.5">
-                      <WithdrawStatusBadge status={w.status} />
-                    </td>
-                    <td className="px-3 py-1.5 font-mono text-[11.5px]">
+                    </div>
+                  </div>
+                  <WithdrawStatusBadge status={w.status} />
+                  <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-[12px]">
+                    <dt className="text-muted-foreground">Transfer ref</dt>
+                    <dd className="min-w-0 break-all font-mono font-semibold">
                       {w.transfer_ref ? (
                         <span className="inline-flex items-center gap-1">
                           {w.transfer_ref}
@@ -1385,15 +1683,54 @@ function WalletTab({
                       ) : (
                         "—"
                       )}
-                    </td>
-                    <td className="px-3 py-1.5 text-[11.5px] text-muted-foreground">
-                      {w.admin_note ?? "—"}
-                    </td>
+                    </dd>
+                    <dt className="text-muted-foreground">Note</dt>
+                    <dd className="min-w-0 break-words font-medium">{w.admin_note ?? "—"}</dd>
+                  </dl>
+                </div>
+              ))}
+            </div>
+            <div className="hidden overflow-x-auto rounded-sm border border-border sm:block">
+              <table className="min-w-[720px] w-full text-left text-[12.5px]">
+                <thead className="bg-muted text-[10.5px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                  <tr>
+                    <th className="px-3 py-2">Requested</th>
+                    <th className="px-3 py-2 text-right">Amount</th>
+                    <th className="px-3 py-2">Status</th>
+                    <th className="px-3 py-2">Transfer ref</th>
+                    <th className="px-3 py-2">Note</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {withdrawals.map((w) => (
+                    <tr key={w.id}>
+                      <td className="px-3 py-1.5 font-mono text-[11.5px]">
+                        {new Date(w.requested_at).toLocaleString()}
+                      </td>
+                      <td className="px-3 py-1.5 text-right font-mono">
+                        {currencyFmt(Number(w.amount), w.currency)}
+                      </td>
+                      <td className="px-3 py-1.5">
+                        <WithdrawStatusBadge status={w.status} />
+                      </td>
+                      <td className="px-3 py-1.5 font-mono text-[11.5px]">
+                        {w.transfer_ref ? (
+                          <span className="inline-flex items-center gap-1">
+                            {w.transfer_ref}
+                            <CopyBtn value={w.transfer_ref} small />
+                          </span>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                      <td className="px-3 py-1.5 text-[11.5px] text-muted-foreground">
+                        {w.admin_note ?? "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </>
         )}
       </section>
@@ -1594,13 +1931,15 @@ function SessionsSection({
                 const label = `${s.browser ?? "Browser"} · ${s.device ?? "Device"}`;
                 const geo = [s.city, s.region, s.country].filter(Boolean).join(", ");
                 return (
-                  <li key={s.id} className="flex flex-col items-stretch gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+                  <li
+                    key={s.id}
+                    className="flex flex-col items-stretch gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
+                  >
                     <div className="min-w-0">
                       <div className="break-words text-[13px] font-semibold">{label}</div>
                       <div className="mt-0.5 break-words text-[11.5px] font-medium text-muted-foreground">
                         {s.os ?? "—"} · {s.ip ?? "—"}
-                        {geo && ` · ${geo}`} · last seen{" "}
-                        {new Date(s.last_seen_at).toLocaleString()}
+                        {geo && ` · ${geo}`} · last seen {new Date(s.last_seen_at).toLocaleString()}
                       </div>
                     </div>
                     <button
@@ -1641,9 +1980,7 @@ function AvatarDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-md overflow-hidden p-0 sm:w-full">
         <DialogHeader className="border-b border-border px-4 py-2.5">
-          <DialogTitle className="text-[13px] font-semibold">
-            Avatar · {name}
-          </DialogTitle>
+          <DialogTitle className="text-[13px] font-semibold">Avatar · {name}</DialogTitle>
         </DialogHeader>
         <div className="grid place-items-center bg-muted/40 p-4">
           <img src={url} alt="" className="max-h-[65vh] max-w-full rounded-sm object-contain" />
@@ -1716,7 +2053,9 @@ function CopyBtn({ value, small }: { value: string; small?: boolean }) {
           await navigator.clipboard.writeText(value);
           setCopied(true);
           setTimeout(() => setCopied(false), 1400);
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       }}
       className={cn(
         "grid place-items-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -1725,7 +2064,10 @@ function CopyBtn({ value, small }: { value: string; small?: boolean }) {
       aria-label="Copy"
     >
       {copied ? (
-        <Check className={cn(small ? "size-2.5" : "size-3", "text-emerald-600")} strokeWidth={2.5} />
+        <Check
+          className={cn(small ? "size-2.5" : "size-3", "text-emerald-600")}
+          strokeWidth={2.5}
+        />
       ) : (
         <Copy className={cn(small ? "size-2.5" : "size-3")} strokeWidth={1.75} />
       )}
@@ -1791,8 +2133,24 @@ function AssignLeadsPanel({
   onUnassign,
 }: {
   userId: string;
-  assigned: { id: string; slug: string; lead_code: string; name: string; company: string | null; status: string }[];
-  onSearch: (q: string) => Promise<{ id: string; slug: string; lead_code: string; name: string; company: string | null; status: string }[]>;
+  assigned: {
+    id: string;
+    slug: string;
+    lead_code: string;
+    name: string;
+    company: string | null;
+    status: string;
+  }[];
+  onSearch: (q: string) => Promise<
+    {
+      id: string;
+      slug: string;
+      lead_code: string;
+      name: string;
+      company: string | null;
+      status: string;
+    }[]
+  >;
   onAssign: (leadId: string) => Promise<void>;
   onUnassign: (leadId: string) => Promise<void>;
 }) {
@@ -1849,7 +2207,10 @@ function AssignLeadsPanel({
       ) : (
         <ul className="divide-y divide-border rounded-sm border border-border">
           {assigned.map((l) => (
-            <li key={l.id} className="flex flex-col items-stretch gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+            <li
+              key={l.id}
+              className="flex flex-col items-stretch gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
+            >
               <div className="min-w-0">
                 <Link
                   to="/app/leads/$slug"
@@ -1868,7 +2229,11 @@ function AssignLeadsPanel({
                 disabled={pending === l.id}
                 className="inline-flex h-8 w-full items-center justify-center gap-1 rounded-sm border border-border bg-card px-2 text-[11.5px] font-semibold hover:bg-muted disabled:opacity-60 sm:w-auto"
               >
-                {pending === l.id ? <Loader2 className="size-3 animate-spin" /> : <X className="size-3" />}
+                {pending === l.id ? (
+                  <Loader2 className="size-3 animate-spin" />
+                ) : (
+                  <X className="size-3" />
+                )}
                 Unassign
               </button>
             </li>
@@ -1902,7 +2267,10 @@ function AssignLeadsPanel({
         {results.length > 0 && (
           <ul className="mt-2 max-h-56 divide-y divide-border overflow-y-auto rounded-sm border border-border">
             {results.map((r) => (
-              <li key={r.id} className="flex flex-col items-stretch gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+              <li
+                key={r.id}
+                className="flex flex-col items-stretch gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
+              >
                 <div className="min-w-0">
                   <div className="break-words text-[13px] font-semibold">
                     <span className="font-mono text-[11.5px] text-muted-foreground">{r.slug}</span>{" "}
@@ -1982,7 +2350,6 @@ const PERMISSION_ROWS: {
   },
 ];
 
-
 function PermissionsTab({ userId }: { userId: string }) {
   const qc = useQueryClient();
   const getFn = useServerFn(getUserPermissions);
@@ -1999,10 +2366,7 @@ function PermissionsTab({ userId }: { userId: string }) {
       setFn({ data: { userId, key: v.key, value: v.value } }),
     onMutate: async (v) => {
       await qc.cancelQueries({ queryKey: ["employee.permissions", userId] });
-      const prev = qc.getQueryData<UserPermissions>([
-        "employee.permissions",
-        userId,
-      ]);
+      const prev = qc.getQueryData<UserPermissions>(["employee.permissions", userId]);
       if (prev) {
         qc.setQueryData(["employee.permissions", userId], {
           ...prev,
@@ -2044,20 +2408,17 @@ function PermissionsTab({ userId }: { userId: string }) {
         <h2 className="text-[13px] font-semibold">Lead permissions</h2>
       </div>
       <p className="mb-4 text-[11.5px] text-muted-foreground">
-        Only super admins can change these. Toggles apply on top of the
-        employee&apos;s existing role and only affect the leads they already
-        own.
+        Only super admins can change these. Toggles apply on top of the employee&apos;s existing
+        role and only affect the leads they already own.
       </p>
 
       <ul className="grid grid-cols-1 divide-y divide-border rounded-sm border border-border md:grid-cols-2 md:divide-y-0">
         {PERMISSION_ROWS.map((row) => {
           const dependsOnAccess =
-            row.key === "customer_view_all" ||
-            row.key === "customer_view_detail";
+            row.key === "customer_view_all" || row.key === "customer_view_detail";
           const gatedOff = dependsOnAccess && !perms.customer_access;
           const value = gatedOff ? false : perms[row.key];
-          const pending =
-            mut.isPending && mut.variables?.key === row.key;
+          const pending = mut.isPending && mut.variables?.key === row.key;
           const disabled = mut.isPending || gatedOff;
           return (
             <li
@@ -2067,17 +2428,11 @@ function PermissionsTab({ userId }: { userId: string }) {
               }`}
             >
               <div className="min-w-0">
-                <div className="text-[12.5px] font-semibold text-foreground">
-                  {row.label}
-                </div>
-                <div className="mt-0.5 text-[11px] text-muted-foreground">
-                  {row.hint}
-                </div>
+                <div className="text-[12.5px] font-semibold text-foreground">{row.label}</div>
+                <div className="mt-0.5 text-[11px] text-muted-foreground">{row.hint}</div>
               </div>
               <div className="flex items-center gap-2 pt-1">
-                {pending && (
-                  <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
-                )}
+                {pending && <Loader2 className="size-3.5 animate-spin text-muted-foreground" />}
                 <Switch
                   checked={value}
                   disabled={disabled}
@@ -2102,19 +2457,33 @@ function PermissionsTab({ userId }: { userId: string }) {
           );
         })}
       </ul>
-
     </section>
   );
 }
 
-function AppAccessSection({ userId, roles, allowedApps }: { userId: string; roles: readonly string[]; allowedApps: string[] }) {
+function AppAccessSection({
+  userId,
+  roles,
+  allowedApps,
+}: {
+  userId: string;
+  roles: readonly string[];
+  allowedApps: string[];
+}) {
   const qc = useQueryClient();
   const saveFn = useServerFn(updateEmployeeAllowedApps);
   const isSuper = roles.includes("super_admin");
   const on = isSuper || allowedApps.includes("admakai");
   const m = useMutation({
     mutationFn: (next: boolean) =>
-      saveFn({ data: { userId, allowedApps: next ? [...new Set([...allowedApps, "admakai"])] as "admakai"[] : allowedApps.filter((a) => a !== "admakai") as "admakai"[] } }),
+      saveFn({
+        data: {
+          userId,
+          allowedApps: next
+            ? ([...new Set([...allowedApps, "admakai"])] as "admakai"[])
+            : (allowedApps.filter((a) => a !== "admakai") as "admakai"[]),
+        },
+      }),
     onSuccess: (_d, next) => {
       toast.success(next ? "Admakai access granted" : "Admakai access revoked");
       qc.invalidateQueries({ queryKey: ["employee.detail", userId] });
@@ -2124,7 +2493,9 @@ function AppAccessSection({ userId, roles, allowedApps }: { userId: string; role
   return (
     <section className="rounded-lg border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
       <h3 className="text-[13px] font-semibold text-foreground">Connected App Permissions</h3>
-      <p className="mt-0.5 text-[12px] text-muted-foreground">Sister concerns this employee can sign in to with Branta Console.</p>
+      <p className="mt-0.5 text-[12px] text-muted-foreground">
+        Sister concerns this employee can sign in to with Branta Console.
+      </p>
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-sm border border-border p-3">
         <div className="flex min-w-0 items-center gap-3">
           <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-border bg-background">
@@ -2146,7 +2517,12 @@ function AppAccessSection({ userId, roles, allowedApps }: { userId: string; role
                     : "border-border bg-muted text-muted-foreground",
                 )}
               >
-                <span className={cn("size-1.5 rounded-full", on ? "bg-emerald-500" : "bg-muted-foreground/50")} />
+                <span
+                  className={cn(
+                    "size-1.5 rounded-full",
+                    on ? "bg-emerald-500" : "bg-muted-foreground/50",
+                  )}
+                />
                 {on ? "Access granted" : "No access"}
               </span>
             )}
@@ -2164,7 +2540,12 @@ function AppAccessSection({ userId, roles, allowedApps }: { userId: string; role
             on ? "bg-primary" : "bg-muted-foreground/30",
           )}
         >
-          <span className={cn("inline-block size-4 rounded-full bg-background shadow transition-transform", on ? "translate-x-4" : "translate-x-0.5")} />
+          <span
+            className={cn(
+              "inline-block size-4 rounded-full bg-background shadow transition-transform",
+              on ? "translate-x-4" : "translate-x-0.5",
+            )}
+          />
         </button>
       </div>
     </section>
