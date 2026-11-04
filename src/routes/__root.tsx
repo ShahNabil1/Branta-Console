@@ -147,6 +147,8 @@ const BOOT_CSS = `html,body{background:#F9FAFB}
 @keyframes bs-core{0%{transform:scale(.6);opacity:0}20%,80%{transform:scale(1);opacity:1}100%{transform:scale(.96);opacity:1}}
 @keyframes bs-ring{0%,25%{transform:scale(.5);opacity:0}45%{transform:scale(1);opacity:1}60%{transform:scale(.94);opacity:.8}75%{transform:scale(1);opacity:1}100%{transform:scale(2.6);opacity:0}}
 @media (prefers-reduced-motion:reduce){#boot-splash *{animation:none!important}}
+#boot-splash{transition:opacity .22s ease}
+html[data-booting] #boot-splash{opacity:0;pointer-events:none}
 html[data-booted] #boot-splash{display:none}`;
 
 

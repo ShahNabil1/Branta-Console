@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useIsFetching, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { ChartPreloader, PRELOADER_CYCLE_MS } from "@/components/branta/chart-preloader";
+import { markBooted } from "@/lib/boot-splash";
 
 // Module flag: the intro plays once per page load (login/refresh), not on
 // every remount of the shell.
@@ -52,20 +53,23 @@ function AppShell() {
     }
   }, [status.data, navigate]);
 
-  // Play at least one full preloader cycle per page load; meanwhile the shell
-  // renders underneath so every page query starts fetching in the background.
-  // Reveal only once the page's data has settled (capped so it never hangs).
-  const [cycleDone, setCycleDone] = useState(introPlayed);
-  const [capHit, setCapHit] = useState(introPlayed);
-  const [gone, setGone] = useState(introPlayed);
+  // Dashboard Dissolve plays only right after sign-in (flag set by /login).
+  // A plain refresh keeps the static boot splash until real data has settled.
+  const [fresh] = useState(() => {
+    if (introPlayed || typeof window === "undefined") return false;
+    try { return sessionStorage.getItem("branta_fresh_login") === "1"; } catch { return false; }
+  });
+  const [cycleDone, setCycleDone] = useState(!fresh);
+  const [capHit, setCapHit] = useState(false);
+  const [gone, setGone] = useState(!fresh);
   const fetching = useIsFetching();
   const [settled, setSettled] = useState(false);
   useEffect(() => {
-    if (introPlayed) return;
+    const cap = setTimeout(() => setCapHit(true), (fresh ? PRELOADER_CYCLE_MS : 0) + 10_000);
+    if (!fresh) return () => clearTimeout(cap);
     const t = setTimeout(() => setCycleDone(true), PRELOADER_CYCLE_MS);
-    const cap = setTimeout(() => setCapHit(true), PRELOADER_CYCLE_MS + 10_000);
     return () => { clearTimeout(t); clearTimeout(cap); };
-  }, []);
+  }, [fresh]);
   // Debounce "no queries fetching" so chained queries don't cause an early reveal.
   useEffect(() => {
     if (fetching > 0) { setSettled(false); return; }
@@ -76,15 +80,18 @@ function AppShell() {
     status.data?.mustChangePassword || status.data?.mustLinkTelegram || status.isLoading;
   const leaving = cycleDone && !blocked && (settled || capHit);
   useEffect(() => {
-    if (!leaving || gone) return;
+    if (!leaving) return;
     introPlayed = true;
+    try { sessionStorage.removeItem("branta_fresh_login"); } catch { /* ignore */ }
+    if (!fresh) { markBooted(); return; }
+    if (gone) return;
     const t = setTimeout(() => setGone(true), 300);
     return () => clearTimeout(t);
-  }, [leaving, gone]);
+  }, [leaving, gone, fresh]);
 
   // The overlay stays the first child at a stable position so it is never
   // remounted (a remount restarts the CSS animation mid-cycle).
-  const overlay = gone && !blocked ? null : <ChartPreloader leaving={leaving} />;
+  const overlay = !fresh || (gone && !blocked) ? null : <ChartPreloader leaving={leaving} />;
   if (blocked) return <>{overlay}</>;
 
   return (

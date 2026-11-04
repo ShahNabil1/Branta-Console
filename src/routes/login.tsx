@@ -120,6 +120,7 @@ function LoginPage() {
     // Start the Console preloader right away (no intermediate splash); the
     // session is registered behind it before the dashboard opens.
     setEntering(true);
+    try { sessionStorage.setItem("branta_fresh_login", "1"); } catch { /* ignore */ }
     try {
       const key = ensureSessionKey();
       const { collectDeviceHints } = await import("@/lib/device-hints");
