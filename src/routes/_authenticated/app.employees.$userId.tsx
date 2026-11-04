@@ -582,18 +582,18 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
               Impersonate
             </button>
           )}
-          <button
+          <AnimatedBorderButton
             onClick={onDelete}
             disabled={delMut.isPending}
-            className="inline-flex h-9 items-center gap-1.5 rounded-sm border border-rose-300 bg-rose-50 px-3 text-[12.5px] font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-60"
+            animate={!delMut.isPending}
           >
             {delMut.isPending ? (
-              <Loader2 className="size-3.5 animate-spin" />
+              <Loader2 className="size-4 animate-spin" />
             ) : (
-              <Trash2 className="size-3.5" strokeWidth={2} />
+              <Trash2 className="size-4" strokeWidth={2} />
             )}
             Delete
-          </button>
+          </AnimatedBorderButton>
           <OffboardDialog userId={userId} open={offOpen} onOpenChange={setOffOpen} onFinished={() => { void qc.invalidateQueries({ queryKey: ["employees.list"] }); navigate({ to: "/app/employees" }); }} />
         </div>
         <DropdownMenu>
