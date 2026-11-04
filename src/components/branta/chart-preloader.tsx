@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 import "./chart-preloader.css";
 
 /** One full cycle of the chart animation, in ms (matches --load-speed). */
-export const PRELOADER_CYCLE_MS = 7000;
+export const PRELOADER_CYCLE_MS = 5000;
 
 export function ChartPreloader({
   leaving = false,
