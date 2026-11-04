@@ -74,7 +74,7 @@ export function ExpenseItemsEditor({
   };
   const removeItem = async (idx: number) => {
     const it = items[idx];
-    const filled = !!it.name.trim() || !!it.note.trim() || (Number(it.unit_price) || 0) > 0;
+    const filled = !!it.name.trim() || !!it.note.trim() || !!it.unit.trim() || (Number(it.quantity) || 0) !== 1;
     if (filled) {
       const ok = await confirmAction({
         title: "Remove this line item?",
