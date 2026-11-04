@@ -41,7 +41,7 @@ import { logExpenseAction } from "@/lib/expense-logs.functions";
 import { InsufficientFundDialog, useFundOptions } from "@/components/finance/fund-move-dialog";
 import { parseInsufficient } from "@/lib/fund-ops.functions";
 import { defaultFilters, type ReportFilters } from "@/lib/report-filters";
-import { Loader2, Plus, Trash2, Receipt, Eye, Download, X, FileText, ImageOff, Printer, Stamp, Pencil, Link2, History } from "lucide-react";
+import { Loader2, Plus, Trash2, Receipt, Eye, Download, X, FileText, ImageOff, Printer, Stamp, Pencil, Link2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { TestLoader } from "@/components/ui/test-loader";
@@ -92,16 +92,6 @@ async function uploadToBucket(file: File, prefix: string) {
   return path;
 }
 
-
-const CAT_TONE: Record<string, { chip: string; bar: string }> = {
-  salary: { chip: "bg-violet-50 text-violet-700 ring-violet-200", bar: "bg-violet-500" },
-  tools: { chip: "bg-sky-50 text-sky-700 ring-sky-200", bar: "bg-sky-500" },
-  ads: { chip: "bg-pink-50 text-pink-700 ring-pink-200", bar: "bg-pink-500" },
-  office: { chip: "bg-amber-50 text-amber-700 ring-amber-200", bar: "bg-amber-500" },
-  misc: { chip: "bg-slate-100 text-slate-700 ring-slate-200", bar: "bg-slate-400" },
-  tax: { chip: "bg-rose-50 text-rose-700 ring-rose-200", bar: "bg-rose-500" },
-  refund: { chip: "bg-emerald-50 text-emerald-700 ring-emerald-200", bar: "bg-emerald-500" },
-};
 
 const CATEGORIES: ExpenseCategory[] = ["salary", "tools", "ads", "office", "misc", "tax", "refund"];
 

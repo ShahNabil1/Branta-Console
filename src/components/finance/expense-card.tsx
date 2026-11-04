@@ -7,13 +7,13 @@ export interface ExpenseCardRecord {
   id: string;
   voucher_no: string | null;
   vendor: string | null;
-  request_purpose: string | null;
+  request_purpose?: string | null;
   notes: string | null;
   spent_on: string;
-  payment_method: string | null;
+  payment_method?: string | null;
   requested_by_name?: string | null;
-  department: string | null;
-  txn_id: string | null;
+  department?: string | null;
+  txn_id?: string | null;
   signed_voucher_url: string | null;
 }
 
