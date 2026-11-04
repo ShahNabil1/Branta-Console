@@ -32,7 +32,6 @@ import {
   PieChart,
   Gauge,
   Contact,
-  History,
   ArrowDownToLine,
   CalendarClock,
   Puzzle,
