@@ -3,7 +3,11 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { CheckCircle2, CircleDashed, Loader2, MinusCircle, ShieldAlert, XCircle, Archive } from "lucide-react";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogContent } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { ConfirmHeader, ConfirmTypedField } from "@/components/ui/confirm-surface";
+import { TestLoader } from "@/components/ui/test-loader";
+import { UserX } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { offboardPreflight, offboardStep, type StepResult } from "@/lib/employee-offboard.functions";
 import { cn } from "@/lib/utils";
@@ -59,12 +63,10 @@ export function OffboardDialog({ userId, open, onOpenChange, onFinished }: {
   };
 
   return (
-    <Dialog open={open} onOpenChange={close}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Remove employee{d ? ` · ${d.name}` : ""}</DialogTitle>
-          <DialogDescription>{d?.email}</DialogDescription>
-        </DialogHeader>
+    <AlertDialog open={open} onOpenChange={close}>
+      <AlertDialogContent className="max-h-[92vh] overflow-hidden overflow-y-auto p-0 sm:max-w-lg">
+        <ConfirmHeader tone="danger" icon={UserX} title={`Remove employee${d ? ` · ${d.name}` : ""}`} subject={d?.email ?? "Checking…"} />
+        <div className="px-6 py-4">
 
         {pre.isLoading ? (
           <div className="flex items-center gap-2 py-6 text-[13px] text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Checking records, routing and access…</div>
@@ -100,7 +102,7 @@ export function OffboardDialog({ userId, open, onOpenChange, onFinished }: {
                 return (
                   <li key={s} className="flex gap-2 text-[13px]">
                     <span className="mt-0.5">
-                      {running === s ? <Loader2 className="size-4 animate-spin text-brand" />
+                      {running === s ? <TestLoader className="size-4" active />
                         : !r ? <CircleDashed className="size-4 text-muted-foreground" />
                         : r.status === "done" ? <CheckCircle2 className="size-4 text-emerald-600" />
                         : r.status === "failed" ? <XCircle className="size-4 text-destructive" />
@@ -117,9 +119,8 @@ export function OffboardDialog({ userId, open, onOpenChange, onFinished }: {
 
             {!started && (
               <div className="space-y-2">
-                <label className="block text-[12px] text-muted-foreground">Type <b className="font-mono text-foreground">{confirmText}</b> to confirm</label>
-                <input value={typed} onChange={(e) => setTyped(e.target.value)} className="h-9 w-full rounded-sm border border-border bg-card px-3 font-mono text-[13px] outline-none focus:border-brand focus:ring-1 focus:ring-brand" />
-                <button type="button" disabled={typed.trim() !== confirmText} onClick={() => run()} className="h-9 w-full rounded-sm bg-destructive text-[13px] font-semibold text-destructive-foreground disabled:opacity-50">
+                <ConfirmTypedField text={confirmText} value={typed} onChange={setTyped} />
+                <button type="button" disabled={typed.trim() !== confirmText} onClick={() => run()} className="h-9 w-full rounded-md bg-destructive text-[13px] font-semibold text-destructive-foreground shadow-sm transition-transform active:scale-[.98] disabled:opacity-50">
                   <ShieldAlert className="mr-1.5 inline size-4" />{d.canHardDelete ? "Delete permanently" : "Deactivate & revoke all access"}
                 </button>
               </div>
@@ -135,7 +136,13 @@ export function OffboardDialog({ userId, open, onOpenChange, onFinished }: {
             )}
           </div>
         ) : null}
-      </DialogContent>
-    </Dialog>
+        </div>
+        {!running && (
+          <div className="flex justify-end gap-2 border-t border-border bg-muted/30 px-6 py-3">
+            <Button variant="outline" size="sm" onClick={() => close(false)}>{finished || outcome ? "Close" : "Cancel"}</Button>
+          </div>
+        )}
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
