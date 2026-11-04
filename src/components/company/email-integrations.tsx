@@ -296,14 +296,13 @@ function ProviderLogo({ p }: { p: P }) {
 
 type Data = Awaited<ReturnType<typeof getEmailIntegrations>>;
 
-function Setup({ p, slug, v, data, both }: { p: P; slug: string; v: ProviderView | null; data: Data; both: boolean }) {
+function Setup({ p, slug, v, data }: { p: P; slug: string; v: ProviderView | null; data: Data }) {
   const m = META[p];
   const step1 = !!v?.domain_verified_at, step2 = !!v?.webhook_verified_at;
-  const [step, setStep] = useState(step1 ? (step2 ? 3 : 2) : 1);
+  const [step, setStep] = useState(step1 ? 2 : 1);
   const steps: { n: number; label: string; icon: LucideIcon; done: boolean }[] = [
     { n: 1, label: "Sender & API key", icon: KeyRound, done: step1 },
     { n: 2, label: "Webhook", icon: Webhook, done: step2 },
-    { n: 3, label: "Test & Inbox", icon: Inbox, done: step1 && step2 },
   ];
   return (
     <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
@@ -321,15 +320,14 @@ function Setup({ p, slug, v, data, both }: { p: P; slug: string; v: ProviderView
                 </span>
                 <span className="hidden sm:inline">{s.label}</span>
               </button>
-              {i < 2 && <span className={cn("h-0.5 w-6 rounded-full transition-colors", s.done ? "bg-status-converted" : "bg-border")} />}
+              {i < steps.length - 1 && <span className={cn("h-0.5 w-6 rounded-full transition-colors", s.done ? "bg-status-converted" : "bg-border")} />}
             </div>
           );
         })}
       </div>
-      <div key={step} className="p-5 animate-in fade-in slide-in-from-right-2 duration-300">
+      <div key={step} className="min-h-[420px] p-5 animate-in fade-in duration-200">
         {step === 1 && <StepKey p={p} slug={slug} v={v} inboxEmail={data.inbox!.email} companyName={data.company.name} onDone={() => setStep(2)} />}
-        {step === 2 && (p === "resend" ? <StepAutoHook p="resend" slug={slug} v={v} data={data} onDone={() => setStep(3)} /> : <StepAutoHook p="brevo" slug={slug} v={v} data={data} onDone={() => setStep(3)} />)}
-        {step === 3 && <StepFinish p={p} slug={slug} v={v} both={both} />}
+        {step === 2 && <StepAutoHook p={p} slug={slug} v={v} data={data} onDone={() => { /* panel switches to connected view */ }} />}
       </div>
     </section>
   );
