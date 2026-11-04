@@ -626,3 +626,53 @@ export const setFinanceSender = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true, email: value ?? r.sender_email, name: name ?? r.sender_name };
   });
+
+/**
+ * One-click health test for a connected provider (read-only).
+ * Resend: API key (HTTP status + latency), domain, webhook.
+ * Brevo: account, sender + domain (DKIM), webhook.
+ */
+export const testEmailProvider = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({ slug: Slug, provider: Provider }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { co, admin } = await gate(context, data.slug);
+    const m = await import("@/lib/company-email.server");
+    const r = await row(admin, co.id, data.provider);
+    if (!r?.is_active || !r.domain_verified_at) throw new Error("This provider is not connected.");
+    const key = await m.open(r.api_key_enc);
+    if (!key) throw new Error("Provider credentials are missing. Disconnect and connect again.");
+    const domain = (r.domain || String(r.sender_email).split("@")[1]).toLowerCase();
+    const timed = async <T,>(f: () => Promise<T>) => { const t = Date.now(); const v = await f(); return { v, ms: Date.now() - t }; };
+    const checks: (Check & { kind: "api" | "domain" | "webhook" })[] = [];
+    const norm = (u: string) => (u ?? "").replace(/\/+$/, "");
+
+    if (data.provider === "resend") {
+      const { v: d, ms } = await timed(() => m.resend(key, "/domains"));
+      checks.push({ id: "api", kind: "api", label: "Resend API", ok: d.ok, detail: d.ok ? `HTTP ${d.status} · ${ms} ms · Full access` : `HTTP ${d.status} · ${d.body?.message ?? "rejected"}` });
+      const dom = d.ok ? ((d.body?.data ?? []) as { name: string; status: string; region?: string }[]).find((x) => x.name.toLowerCase() === domain) : null;
+      checks.push({ id: "domain", kind: "domain", label: "Domain", ok: dom?.status === "verified", detail: !d.ok ? "Could not read domains" : dom ? `${domain} · ${dom.status}${dom.region ? ` · ${dom.region}` : ""}` : `${domain} not found in Resend` });
+      const w = await m.resend(key, "/webhooks");
+      const hook = w.ok ? ((w.body?.data ?? []) as { id: string; endpoint: string; events: string[]; status?: string }[]).find((x) => norm(x.endpoint) === m.webhookUrl("resend", co.slug)) : null;
+      const missing = hook ? m.RESEND_EVENTS.filter((e) => !(hook.events ?? []).includes(e)) : [];
+      const hookOk = !!hook && (hook.status ?? "enabled") === "enabled" && !missing.length;
+      checks.push({ id: "webhook", kind: "webhook", label: "Webhook", ok: hookOk, detail: !w.ok ? `HTTP ${w.status} · could not read webhooks` : !hook ? "This company's webhook is missing in Resend" : missing.length ? `Missing: ${missing.join(", ")}` : `${hook.status ?? "enabled"} · ${hook.events.length} events` });
+    } else {
+      const { v: a, ms } = await timed(() => m.brevo(key, "/account"));
+      checks.push({ id: "api", kind: "api", label: "Brevo account", ok: a.ok, detail: a.ok ? `HTTP ${a.status} · ${ms} ms · ${a.body?.companyName ?? a.body?.email ?? "account"}` : `HTTP ${a.status} · ${a.status === 401 ? "key rejected or IP not authorised" : a.body?.message ?? "error"}` });
+      const [s, dm] = await Promise.all([m.brevo(key, "/senders"), m.brevo(key, "/senders/domains")]);
+      const sender = s.ok ? ((s.body?.senders ?? []) as { email: string; active: boolean }[]).find((x) => x.email.toLowerCase() === String(r.sender_email).toLowerCase()) : null;
+      const dd = dm.ok ? ((dm.body?.domains ?? []) as { domain_name: string; authenticated: boolean }[]).find((x) => x.domain_name.toLowerCase() === domain) : null;
+      checks.push({ id: "domain", kind: "domain", label: "Sender & domain", ok: !!sender?.active && !!dd?.authenticated, detail: !s.ok || !dm.ok ? "Could not read senders/domains" : !sender ? `${r.sender_email} is not a Brevo sender` : !sender.active ? "Sender not active" : !dd ? `${domain} not added in Brevo` : dd.authenticated ? `${r.sender_email} active · ${domain} authenticated` : `${domain} not authenticated (DKIM/DMARC)` });
+      const token = await m.open(r.webhook_secret_enc);
+      const url = token ? m.webhookUrl("brevo", co.slug, token) : null;
+      const w = await m.brevo(key, "/webhooks?type=transactional");
+      const none = !w.ok && w.status === 400 && w.body?.code === "document_not_found";
+      const hook = url && (w.ok || none) ? ((none ? [] : w.body?.webhooks ?? []) as { url: string; events: string[] }[]).find((x) => x.url === url) : null;
+      const missing = hook ? m.BREVO_EVENTS.filter((e) => !(hook.events ?? []).includes(e)) : [];
+      checks.push({ id: "webhook", kind: "webhook", label: "Webhook", ok: !!hook && !missing.length, detail: !w.ok && !none ? `HTTP ${w.status} · could not read webhooks` : !hook ? "This company's webhook is missing in Brevo" : missing.length ? `Missing: ${missing.join(", ")}` : `Transactional · ${hook.events.length} events` });
+    }
+    const ok = checks.every((c) => c.ok);
+    await admin.from("company_email_providers").update({ last_check: { at: new Date().toISOString(), checks } }).eq("id", r.id);
+    return { ok, checks };
+  });
