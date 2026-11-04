@@ -53,6 +53,7 @@ import resendWordmarkBlack from "@/assets/email/resend-wordmark-black.png.asset.
 import brevoIcon from "@/assets/email/brevo-icon.png.asset.json";
 import brevoWordmark from "@/assets/email/brevo-wordmark.png.asset.json";
 import switchAccountIcon from "@/assets/integrations/switch-account.png.asset.json";
+import verifiedIcon from "@/assets/company/connection-verified.png.asset.json";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -1390,9 +1391,7 @@ function InboxAddress({
                   onClick={() => begin(inbox.email)}
                   className="group inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-card px-3.5 text-[12.5px] font-bold text-foreground shadow-sm transition-all hover:-translate-y-px hover:border-status-converted/40 hover:shadow-md"
                 >
-                  <span className="grid size-5 place-items-center rounded-full bg-status-converted/15 text-status-converted transition-transform group-hover:scale-110">
-                    <Sparkles className="size-3" />
-                  </span>
+                  <img src={verifiedIcon.url} alt="" aria-hidden="true" width={20} height={20} className="size-5 shrink-0 object-contain transition-transform group-hover:scale-110" />
                   Auto-verify
                   <ArrowRight className="size-3.5 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
                 </button>
