@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Eye, History, Pencil, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { ExpenseDownloadButton } from "./expense-download-button";
 import { cn } from "@/lib/utils";
 
@@ -18,11 +19,12 @@ export interface ExpenseCardRecord {
   signed_voucher_url: string | null;
 }
 
-export function ExpenseCard({ record: r, category, amount, receiptCount, highlighted, downloading = false, menu, onActivity, onView, onDownload, onEdit }: {
+export function ExpenseCard({ record: r, category, amount, receiptCount, requestedByAvatar, highlighted, downloading = false, menu, onActivity, onView, onDownload, onEdit }: {
   record: ExpenseCardRecord;
   category: string;
   amount: string;
   receiptCount: number;
+  requestedByAvatar?: string | null;
   highlighted?: boolean;
   downloading?: boolean;
   menu: ReactNode;
@@ -53,7 +55,7 @@ export function ExpenseCard({ record: r, category, amount, receiptCount, highlig
       </header>
       <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
         <h3 className="min-w-0 break-words text-[13px] font-bold leading-5 [overflow-wrap:anywhere]">{r.vendor || category}</h3>
-        <span className="min-w-0 max-w-[11rem] break-words text-right font-mono text-[13px] font-bold leading-5 text-destructive [overflow-wrap:anywhere]">{amount}</span>
+        <span className="min-w-0 max-w-[12rem] break-words text-right font-mono text-[16px] font-bold leading-6 text-destructive [overflow-wrap:anywhere]">{amount}</span>
       </div>
       <p className="mt-0.5 line-clamp-1 text-[11.5px] leading-5 text-muted-foreground" title={r.request_purpose || r.notes || undefined}>{r.request_purpose || r.notes || "No purpose noted"}</p>
       <dl className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-2 border-t border-border pt-2.5 text-[11.5px]">
@@ -64,7 +66,13 @@ export function ExpenseCard({ record: r, category, amount, receiptCount, highlig
           ["Department", r.department],
         ].map(([label, value]) => <div key={label} className="min-w-0">
           <dt className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">{label}</dt>
-          <dd className="truncate font-semibold" title={value ?? undefined}>{value || "—"}</dd>
+          <dd className="flex h-6 min-w-0 items-center gap-1.5 font-semibold" title={value ?? undefined}>
+            {label === "Requested by" && value && <Avatar className="size-5 border border-border">
+              <AvatarImage src={requestedByAvatar || undefined} alt={value} className="object-cover" />
+              <AvatarFallback className="text-[8px] font-bold text-muted-foreground">{value.trim().split(/\s+/).slice(0, 2).map(part => part[0]).join("").toUpperCase()}</AvatarFallback>
+            </Avatar>}
+            <span className="min-w-0 truncate">{value || "—"}</span>
+          </dd>
         </div>)}
       </dl>
       <div className="mt-2.5 truncate font-mono text-[10px] text-muted-foreground" title={r.txn_id ?? undefined}>
