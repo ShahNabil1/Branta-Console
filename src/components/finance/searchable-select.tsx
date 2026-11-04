@@ -114,7 +114,7 @@ export function SearchableSelect({
         {searchable && <div className="flex items-center border-b border-border px-2">
           <Search className="size-3.5 text-muted-foreground" />
           <input
-            autoFocus
+            data-dropdown-search
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search name, email, phone, slug…"
