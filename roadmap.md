@@ -1,5 +1,9 @@
 # Roadmap
 
+## Receipt loading indicators
+- [x] Use the shared download loader for thumbnails and Branta-icon refresh animation inside receipt previews, lasting through media load.
+- [x] Actual components verified at 390/1280: correct thumbnail/Branta loaders, logo renders, both clear after media loads, no frame shift or runtime errors; three receipt tests pass and build OK. Real signed-in storage remains unverified with external unmanaged auth.
+
 ## Expense card hierarchy and creator
 - [x] Emphasize category, vendor and purpose; show Added by name/avatar from the expense creator, separately from Requested by.
 - [x] Actual cards verified at 320/390/1280: distinct creator/requester avatars, clearer text, no overflow, working download feedback; build OK. Signed-in real employee readback remains unavailable with external unmanaged auth.

@@ -1,0 +1,21 @@
+.brand-media-loader-ring {
+  animation: brand-media-ring 2s ease-out infinite;
+}
+.brand-media-loader-core {
+  animation: brand-media-core 2s cubic-bezier(.3, 1.4, .5, 1) infinite;
+}
+@keyframes brand-media-core {
+  0% { transform: scale(.6); opacity: 0; }
+  20%, 80% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(.96); opacity: 1; }
+}
+@keyframes brand-media-ring {
+  0%, 25% { transform: scale(.5); opacity: 0; }
+  45% { transform: scale(1); opacity: 1; }
+  60% { transform: scale(.94); opacity: .8; }
+  75% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .brand-media-loader-ring, .brand-media-loader-core { animation: none; }
+}
