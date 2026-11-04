@@ -1,11 +1,12 @@
 // Expense audit trail + Recycle Bin server functions.
 // Every meaningful action on an expense (create, edit, delete, restore, view,
-// download, print, receipt access, sealed copy, share link) is written to
+// download, receipt access, sealed copy, share link) is written to
 // public.expense_activity_logs so Finance has an A-to-Z history per voucher.
 import { dbError } from "@/lib/db-errors";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { expenseReadActionSchema } from "./expense-log-action";
 
 export type ExpenseLogAction =
   | "created"
@@ -15,7 +16,6 @@ export type ExpenseLogAction =
   | "purged"
   | "voucher_viewed"
   | "voucher_downloaded"
-  | "voucher_printed"
   | "receipt_viewed"
   | "receipt_downloaded"
   | "sealed_uploaded"
@@ -137,20 +137,14 @@ export const listExpenseLogs = createServerFn({ method: "GET" })
     return attachActorNames(context.supabase, (rows ?? []) as unknown as ExpenseLogRow[]);
   });
 
-/** Records a read-type action (view / download / print) triggered in the UI. */
+/** Records a read-type action (view / download) triggered in the UI. */
 export const logExpenseAction = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { expenseId: string; action: ExpenseLogAction; detail?: string | null }) =>
     z
       .object({
         expenseId: z.string().uuid(),
-        action: z.enum([
-          "voucher_viewed",
-          "voucher_downloaded",
-          "voucher_printed",
-          "receipt_viewed",
-          "receipt_downloaded",
-        ]),
+        action: expenseReadActionSchema,
         detail: z.string().max(300).nullable().optional(),
       })
       .parse(d),

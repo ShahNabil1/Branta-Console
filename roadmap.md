@@ -1,5 +1,9 @@
 # Roadmap
 
+## Retire expense letterhead print
+- [x] Remove expense menu print action and its dedicated handler; reject new print audit events without deleting old history or changing salary/invoice printing.
+- [x] Nine tests pass including rejecting new print logs and retaining download logs; actual card/gallery/preview download checks pass at 390/1280 and build OK. Signed-in expense menu remains unverified without an available external-auth session.
+
 ## Expense download result feedback
 - [x] Apply shared pending, red failure and green success feedback to voucher cards, receipt preview/gallery and sealed-copy viewer downloads.
 - [x] Actual card/gallery/preview checks pass at 390/1280: failed fetch, red Failed, retry, nonempty PNG download, green Downloaded, icon restoration and stable size; 13 tests pass and build OK. Real signed-in stored-file verification remains blocked by external unmanaged auth without an available session.

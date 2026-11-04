@@ -45,7 +45,7 @@ import { logExpenseAction } from "@/lib/expense-logs.functions";
 import { InsufficientFundDialog, useFundOptions } from "@/components/finance/fund-move-dialog";
 import { parseInsufficient } from "@/lib/fund-ops.functions";
 import { defaultFilters, type ReportFilters } from "@/lib/report-filters";
-import { Loader2, Plus, Trash2, Receipt, Eye, X, FileText, ImageOff, Printer, Stamp, Pencil, Link2 } from "lucide-react";
+import { Loader2, Plus, Trash2, Receipt, Eye, X, FileText, ImageOff, Stamp, Pencil, Link2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { ExpenseDrawerContent, ExpenseDrawerHeader } from "@/components/finance/expense-drawer";
@@ -277,9 +277,9 @@ export function ExpensesPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [pdfViewer, setPdfViewer] = useState<{ url: string; name: string } | null>(null);
   // Audit trail: mandatory reason before edit/delete, per-voucher activity log,
-  // and silent logging of every view / download / print.
+  // and silent logging of every view / download.
   const logAction = useServerFn(logExpenseAction);
-  const track = (expenseId: string, action: "voucher_viewed" | "voucher_downloaded" | "voucher_printed" | "receipt_viewed" | "receipt_downloaded", detail?: string) => {
+  const track = (expenseId: string, action: "voucher_viewed" | "voucher_downloaded" | "receipt_viewed" | "receipt_downloaded", detail?: string) => {
     void logAction({ data: { expenseId, action, detail: detail ?? null } }).catch(() => {});
   };
   const [editReason, setEditReason] = useState<string | null>(null);
@@ -383,16 +383,6 @@ export function ExpensesPage() {
     finally { setBusyId(null); }
   };
 
-
-  const openVoucher = async (id: string, mode: "digital" | "print") => {
-    try {
-      setBusyId(id + mode);
-      track(id, mode === "print" ? "voucher_printed" : "voucher_viewed");
-      const { url } = await voucherUrlFn({ data: { id, mode } });
-      window.open(url, "_blank", "noopener,noreferrer");
-    } catch (e) { toast.error((e as Error).message); }
-    finally { setBusyId(null); }
-  };
 
   const uploadSigned = async (id: string, file: File) => {
     try {
@@ -616,10 +606,6 @@ export function ExpensesPage() {
             onDownload={() => downloadVoucher(r.id, r.voucher_no, r.signed_voucher_url)}
             onEdit={() => setAskEditFor(r)}
             menu={<RowActionsMenu>
-                  <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]"
-                    disabled={!r.voucher_no} onClick={() => openVoucher(r.id, "print")}>
-                    <Printer className="mr-2 size-3.5" /> Print on letterhead
-                  </Button>
                   {receipts > 0 && <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]"
                     onClick={() => setReceiptGallery(r)}><Receipt className="mr-2 size-3.5" />Receipts / proof · {receipts}</Button>}
                   {r.signed_voucher_url ? (
