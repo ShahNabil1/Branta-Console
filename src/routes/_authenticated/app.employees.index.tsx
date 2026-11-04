@@ -837,6 +837,35 @@ function StepGuide({ title, items }: { title: string; items: string[] }) {
   );
 }
 
+const EMPTY_COPY = {
+  all: { title: "No destinations yet", body: "Gmail destinations appear here once they're added in Cloudflare Email Routing." },
+  verified: { title: "No verified destinations", body: "Destinations show up here after the owner confirms Cloudflare's verification email." },
+  unrouted: { title: "Every address is routed", body: "All verified destinations already have a forwarding rule. Nothing needs attention." },
+  pending: { title: "Nothing pending", body: "Every destination has confirmed Cloudflare's verification email." },
+} as const;
+
+function RoutingEmpty({ tone, title, body, action }: { tone: "empty" | "error" | "setup"; title: string; body: string; action?: { label: string; onClick: () => void } }) {
+  const ring = tone === "error" ? "bg-rose-500/10 text-rose-600" : tone === "setup" ? "bg-brand/10 text-brand" : "bg-emerald-500/10 text-emerald-600";
+  return (
+    <div className="relative my-4 overflow-hidden rounded-lg border border-border bg-card px-6 py-10 text-center shadow-sm animate-in fade-in-0 zoom-in-95 duration-300">
+      <div className="pointer-events-none absolute -right-12 -top-16 size-44 rounded-full bg-brand/10 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-20 -left-10 size-44 rounded-full bg-sky-500/10 blur-3xl" />
+      <div className="relative mx-auto flex w-fit items-center">
+        <div className="grid size-11 place-items-center rounded-xl border border-border bg-card shadow-sm"><GmailMark className="size-5" /></div>
+        <div className="h-px w-8 bg-gradient-to-r from-border via-brand/50 to-border" />
+        <div className={cn("grid size-11 place-items-center rounded-xl border border-border shadow-sm", ring)}>
+          {tone === "error" ? <X className="size-5" /> : tone === "setup" ? <CloudflareMark className="size-6" /> : <Search className="size-5" />}
+        </div>
+      </div>
+      <div className="relative mt-4 text-[14px] font-bold tracking-tight text-foreground">{title}</div>
+      <p className="relative mx-auto mt-1 max-w-xs text-[12.5px] leading-relaxed text-muted-foreground">{body}</p>
+      {action && (
+        <button type="button" onClick={action.onClick} className="relative mt-4 inline-flex h-8 items-center rounded-md border border-border bg-card px-3 text-[12px] font-semibold shadow-sm transition-all hover:-translate-y-0.5 hover:bg-muted active:scale-95">{action.label}</button>
+      )}
+    </div>
+  );
+}
+
 function DestinationsPanel() {
   const listFn = useServerFn(listDestinationRoutes);
   const delFn = useServerFn(deleteCloudflareRoute);
@@ -868,28 +897,47 @@ function DestinationsPanel() {
     <div className="flex min-h-0 flex-1 flex-col animate-in fade-in-0 duration-300">
       <div className="shrink-0 space-y-2 border-b border-border px-4 py-3 sm:px-5">
         <div className="flex gap-1.5">
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search Gmail…" className="h-9 min-w-0 flex-1 rounded-sm border border-border bg-card px-3 text-[13px] outline-none focus:border-brand focus:ring-1 focus:ring-brand" />
+          <label className="group relative flex h-9 min-w-0 flex-1 items-center rounded-md border border-border bg-card shadow-sm transition-all focus-within:border-brand focus-within:shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-brand)_14%,transparent)]">
+            <Search className="pointer-events-none ml-3 size-3.5 shrink-0 text-muted-foreground transition-colors group-focus-within:text-brand" />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search Gmail destinations…" aria-label="Search Gmail destinations" className="h-full min-w-0 flex-1 bg-transparent px-2 text-[13px] outline-none placeholder:text-muted-foreground/70" />
+            {q ? (
+              <button type="button" onClick={() => setQ("")} aria-label="Clear search" className="mr-1.5 grid size-6 place-items-center rounded-full text-muted-foreground transition-all hover:bg-muted hover:text-foreground active:scale-90"><X className="size-3.5" /></button>
+            ) : (
+              <kbd className="mr-2 hidden rounded border border-border bg-muted px-1.5 font-mono text-[10px] text-muted-foreground sm:inline">{counts.all}</kbd>
+            )}
+          </label>
           <button type="button" onClick={() => dest.refetch()} aria-label="Refresh" className="grid size-9 shrink-0 place-items-center rounded-sm border border-border transition-colors hover:bg-muted">
             <TestLoader tone="refresh" active={dest.isFetching} />
           </button>
         </div>
-        <div className="flex gap-1">
-          {(["all", "verified", "unrouted", "pending"] as const).map((f) => (
-            <button key={f} type="button" onClick={() => setFilter(f)} className={cn("rounded-sm border px-2 py-1 text-[11px] font-semibold capitalize transition-colors", filter === f ? "border-brand bg-brand/5 text-brand" : "border-border text-muted-foreground hover:text-foreground")}>
-              {f} <span className="font-mono">{counts[f]}</span>
-            </button>
-          ))}
-        </div>
+        <UnderlineTabs
+          className="-mb-3"
+          size="sm"
+          ariaLabel="Destination filter"
+          value={filter}
+          onChange={setFilter}
+          items={[
+            { id: "all", label: "All", count: counts.all },
+            { id: "verified", label: "Verified", count: counts.verified, lead: <span className="size-1.5 rounded-full bg-emerald-500" /> },
+            { id: "unrouted", label: "Unrouted", count: counts.unrouted, lead: <span className="size-1.5 rounded-full bg-amber-500" /> },
+            { id: "pending", label: "Pending", count: counts.pending, lead: <span className="size-1.5 rounded-full bg-rose-500" /> },
+          ]}
+        />
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-2 sm:px-5">
         {dest.isLoading ? (
           <div className="flex items-center gap-2 py-6 text-[12px] text-muted-foreground"><Loader2 className="size-3.5 animate-spin" /> Loading from Cloudflare…</div>
         ) : dest.isError ? (
-          <div className="py-6 text-[12px] text-rose-600">{dest.error instanceof Error ? dest.error.message : "Failed to load."}</div>
+          <RoutingEmpty tone="error" title="Couldn't reach Cloudflare" body={dest.error instanceof Error ? dest.error.message : "Failed to load."} action={{ label: "Try again", onClick: () => dest.refetch() }} />
         ) : dest.data && !dest.data.configured ? (
-          <div className="py-6 text-[12px] text-muted-foreground">Cloudflare Email Routing is not configured.</div>
+          <RoutingEmpty tone="setup" title="Email Routing isn't connected" body="Connect Cloudflare Email Routing to manage Gmail destinations and forwarding rules here." />
         ) : items.length === 0 ? (
-          <div className="py-6 text-[12px] text-muted-foreground">No addresses match.</div>
+          <RoutingEmpty
+            tone="empty"
+            title={q.trim() ? `No match for “${q.trim()}”` : EMPTY_COPY[filter].title}
+            body={q.trim() ? "Try a different Gmail address, or clear the search to see every destination." : EMPTY_COPY[filter].body}
+            action={q.trim() ? { label: "Clear search", onClick: () => setQ("") } : filter !== "all" ? { label: "Show all destinations", onClick: () => setFilter("all") } : undefined}
+          />
         ) : (
           <ul className="space-y-2.5 py-1">
             {items.map((d) => {
