@@ -29,7 +29,7 @@ import { useConfirm } from "@/components/ui/confirm-dialog";
 import { ReportFilterBar } from "@/components/finance/report-filter-bar";
 import { RowActionsMenu } from "@/components/finance/responsive-record-list";
 import { PageHero } from "@/components/branta/page-hero";
-import { ExpenseItemsEditor, sumItems, type ExpenseItem } from "@/components/finance/expense-items-editor";
+import { ExpenseItemsEditor, type ExpenseItem } from "@/components/finance/expense-items-editor";
 import { ExpenseReceiptsEditor, type ReceiptDraft } from "@/components/finance/expense-receipts-editor";
 
 import { ExportMenu } from "@/components/finance/export-menu";
@@ -900,11 +900,8 @@ export function ExpensesPage() {
               </div>
               <ExpenseItemsEditor
                 items={items}
-                onChange={(next) => {
-                  setItems(next);
-                  const s = sumItems(next);
-                  if (next.length) setForm((f) => ({ ...f, amount: s ? String(s) : f.amount }));
-                }}
+                onChange={setItems}
+                maxTotal={Number(form.amount) || 0}
                 currency={form.currency}
               />
             </>)}
