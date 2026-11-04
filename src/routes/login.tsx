@@ -21,7 +21,7 @@ import { beginPasskeyLogin, finishPasskeyLogin } from "@/lib/passkeys.functions"
 import { ensureSessionKey } from "@/hooks/use-session-watcher";
 import { claimPasskeySession } from "@/lib/session-assurance.functions";
 import { oauthReturnPath } from "@/lib/oauth-return-path";
-import { showBootSplash } from "@/lib/boot-splash";
+import { ChartPreloader } from "@/components/branta/chart-preloader";
 
 
 const TURNSTILE_SITE_KEY = "0x4AAAAAACNbiRh7P7qtgkXG";
@@ -115,9 +115,11 @@ function LoginPage() {
   const [passkeyStage, setPasskeyStage] = useState<"device" | "verify" | "done">("device");
   const [passkeyError, setPasskeyError] = useState<string | null>(null);
 
-  const finalizeAndGo = async (opts?: { viaPasskey?: boolean }) => {
-    // Show the branded splash immediately; the Console preloader takes over on mount.
-    showBootSplash();
+  const [entering, setEntering] = useState(false);
+  const finalizeAndGo = async (_opts?: { viaPasskey?: boolean }) => {
+    // Start the Console preloader right away (no intermediate splash); the
+    // session is registered behind it before the dashboard opens.
+    setEntering(true);
     try {
       const key = ensureSessionKey();
       const { collectDeviceHints } = await import("@/lib/device-hints");
@@ -613,6 +615,7 @@ function LoginPage() {
 
   return (
     <div className="flex min-h-screen bg-card">
+      {entering && <ChartPreloader />}
       {/* Left rail */}
       <aside className={cn("relative hidden w-[45%] flex-col justify-between overflow-hidden bg-zinc-950 p-12 text-white", !ssoApp && "lg:flex")}>
         <div className="z-10 flex items-center gap-3">
