@@ -1922,7 +1922,7 @@ function InlineConnect({
         </div>
       </div>
       {error && (
-        <p className="absolute right-0 top-full mt-1 w-[min(720px,calc(100vw-6rem))] whitespace-nowrap text-right text-[11.5px] font-semibold text-destructive animate-in fade-in" title={error}>
+        <p className="absolute right-0 top-full mt-1 w-max max-w-[min(760px,calc(100vw-8rem))] text-right leading-snug text-[11.5px] font-semibold text-destructive animate-in fade-in" title={error}>
           {error}
         </p>
       )}
