@@ -16,6 +16,8 @@ import { useStrictSecurity } from "@/hooks/use-strict-security";
 import { Toaster } from "@/components/ui/sonner";
 import { ConfirmProvider } from "@/components/ui/confirm-dialog";
 import { DevToolsShield } from "@/components/branta/devtools-shield";
+import { markBooted } from "@/lib/boot-splash";
+import { useRouterState } from "@tanstack/react-router";
 
 function NotFoundComponent() {
   return (
@@ -142,10 +144,6 @@ const BOOT_CSS = `html,body{background:#F9FAFB}
 @media (prefers-reduced-motion:reduce){#boot-splash span{animation:none}}
 html[data-booted] #boot-splash{display:none}`;
 
-/** Hide the static boot splash once a real screen (or the app preloader) is painted. */
-export function markBooted() {
-  if (typeof document !== "undefined") document.documentElement.dataset.booted = "1";
-}
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
@@ -168,6 +166,12 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
   useStrictSecurity();
+  // Non-app screens (login etc.) hide the boot splash once the router settles;
+  // /app hands off to the full preloader, which hides it on mount.
+  const settled = useRouterState({
+    select: (s) => s.status === "idle" && !s.isLoading && !s.location.pathname.startsWith("/app") && s.location.pathname !== "/",
+  });
+  useEffect(() => { if (settled) markBooted(); }, [settled]);
 
   useEffect(() => {
     const { data } = supabase.auth.onAuthStateChange((event) => {
