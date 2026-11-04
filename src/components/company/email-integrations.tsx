@@ -375,8 +375,7 @@ function ProviderPanel({
         {connected ? (
           <div className="flex flex-wrap gap-2 animate-in fade-in duration-500">
             <Button size="sm" variant="outline" onClick={() => runTest(false)} disabled={!!busy}>
-              {busy === "test" ? <TestLoader /> : <RefreshCw className="size-3.5" />}{" "}
-              Test
+              <TestLoader /> Test
             </Button>
             {both && !v!.is_default && (
               <Button
@@ -1871,7 +1870,7 @@ function InlineConnect({
             {pct >= 100 ? (
               <CheckCircle2 className="size-4 shrink-0 text-status-converted" />
             ) : (
-              <Loader2 className="size-4 shrink-0 animate-spin" style={{ color: m.color }} />
+              <TestLoader className="size-5" />
             )}
             <span
               key={stage}
