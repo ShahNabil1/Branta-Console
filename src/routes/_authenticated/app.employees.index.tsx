@@ -9,7 +9,23 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { listDestinationRoutes, deleteCloudflareRoute } from "@/lib/employee-offboard.functions";
 import { Progress } from "@/components/ui/progress";
 import { useConfirm } from "@/components/ui/confirm-dialog";
-import { Trash2 } from "lucide-react";
+import { Trash2, CircleCheck, CircleX } from "lucide-react";
+import { AnimatedBorderButton } from "@/components/AnimatedBorderButton";
+import { GmailMark } from "@/components/company/google-account-card";
+import cfRoutingIcon from "@/assets/integrations/cloudflare-email-routing.png.asset.json";
+
+const ROW_DELETE_STYLE = { height: 28, padding: "0 10px", fontSize: 11 } as const;
+function RowDeleteButton({ disabled, onClick, label, ariaLabel }: { disabled: boolean; onClick: () => void; label: string; ariaLabel?: string }) {
+  return (
+    <AnimatedBorderButton onClick={onClick} disabled={disabled} animate={!disabled} aria-label={ariaLabel} accent="#ffffff" surface="var(--color-destructive)" track="rgba(255,255,255,0.25)" labelColor="#ffffff" radius={6} strokeWidth={1.5} className="shrink-0" style={ROW_DELETE_STYLE}>
+      <Trash2 className="size-3.5" strokeWidth={2} />
+      {label}
+    </AnimatedBorderButton>
+  );
+}
+function RoutingIcon() {
+  return <img src={cfRoutingIcon.url} alt="Cloudflare Email Routing" className="size-5 shrink-0 object-cover" />;
+}
 import { useServerFn } from "@tanstack/react-start";
 import {
   AlertCircle,
@@ -881,25 +897,28 @@ function DestinationsPanel() {
               return (
               <li key={d.email} className={cn("overflow-hidden rounded-md border bg-card shadow-sm transition-colors", d.verified ? (d.rules.length ? "border-border" : "border-amber-200") : "border-amber-300")}>
                 <div className="flex items-start gap-3 p-3">
-                  <div className={cn("grid size-8 shrink-0 place-items-center rounded-md", d.verified ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700")}><Mail className="size-4" /></div>
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate font-mono text-[12.5px] font-semibold text-foreground">{d.email}</div>
-                    <div className="mt-1 flex flex-wrap gap-1">
-                      <span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-semibold", d.verified ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700")}>{d.verified ? "Verified" : "Pending verification"}</span>
-                      <span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-semibold", d.rules.length ? "border-border bg-muted text-foreground" : "border-amber-200 bg-amber-50 text-amber-700")}>{d.rules.length ? `${d.rules.length} forwarding rule${d.rules.length > 1 ? "s" : ""}` : "Unrouted"}</span>
+                  <div className="grid size-8 shrink-0 place-items-center rounded-md border border-border bg-card"><GmailMark className="size-4" /></div>
+                  <div className="min-w-0 flex-1 self-center">
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <span className="truncate font-mono text-[12.5px] font-semibold text-foreground">{d.email}</span>
+                      {d.verified ? <CircleCheck className="size-4 shrink-0 text-emerald-600" aria-label="Verified" /> : <CircleX className="size-4 shrink-0 text-amber-600" aria-label="Pending verification" />}
                     </div>
                   </div>
-                  <button type="button" disabled={!!busy} onClick={() => remove("destination", d.email, d.rules.map((r) => r.from))} className="inline-flex h-7 shrink-0 items-center gap-1 rounded-sm border border-border px-2 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 disabled:opacity-50"><Trash2 className="size-3.5" /> Remove</button>
+                  <RowDeleteButton disabled={!!busy} onClick={() => remove("destination", d.email, d.rules.map((r) => r.from))} label="Remove" />
                 </div>
                 <div className="border-t border-border bg-muted/30 px-3 py-2">
                   {d.rules.length === 0 ? (
-                    <div className="text-[11.5px] text-muted-foreground">No routing rules yet — no Branta address forwards here.</div>
+                    <div className="flex items-center gap-2 rounded-sm border border-border bg-card px-2 py-1.5" title="No Branta address forwards here">
+                      <RoutingIcon />
+                      <span className="h-0.5 flex-1 rounded-full bg-gradient-to-r from-brand via-amber-400 to-rose-500" />
+                      <CircleX className="size-4 shrink-0 text-rose-600" aria-label="Not routed" />
+                    </div>
                   ) : (
                     <ul className="space-y-1">
                       {d.rules.map((r) => (
                         <li key={r.id} className="group flex items-center justify-between gap-2 rounded-sm border border-border bg-card px-2 py-1.5 text-[11.5px]">
-                          <span className="min-w-0 truncate"><span className="font-mono font-semibold">{r.from}</span> <span className="text-muted-foreground">→ forwards here</span>{!r.enabled && <span className="ml-1 rounded-full bg-muted px-1.5 text-[10px] font-semibold">Disabled</span>}</span>
-                          <button type="button" disabled={!!busy} onClick={() => remove("rule", r.from, [])} aria-label={`Delete rule ${r.from}`} className="grid size-6 shrink-0 place-items-center rounded-sm text-muted-foreground transition-colors hover:bg-rose-50 hover:text-rose-700 disabled:opacity-50"><Trash2 className="size-3.5" /></button>
+                          <span className="flex min-w-0 items-center gap-1.5"><RoutingIcon /><span className="truncate font-mono font-semibold">{r.from}</span>{r.enabled ? <CircleCheck className="size-4 shrink-0 text-emerald-600" aria-label="Forwarding active" /> : <span className="rounded-full bg-muted px-1.5 text-[10px] font-semibold">Disabled</span>}</span>
+                          <RowDeleteButton disabled={!!busy} onClick={() => remove("rule", r.from, [])} label="Delete" ariaLabel={`Delete rule ${r.from}`} />
                         </li>
                       ))}
                     </ul>
