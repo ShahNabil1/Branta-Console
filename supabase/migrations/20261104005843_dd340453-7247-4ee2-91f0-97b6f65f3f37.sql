@@ -1,0 +1,2 @@
+UPDATE public.company_inbox_addresses i SET verified_at = NULL, probe_code = NULL, probe_started_at = NULL
+WHERE NOT EXISTS (SELECT 1 FROM public.company_google_accounts g WHERE g.company_id = i.company_id AND g.is_active AND g.refresh_token_enc IS NOT NULL);
