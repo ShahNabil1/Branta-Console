@@ -1,8 +1,12 @@
 import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect } from "react";
-import { Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ChartPreloader, PRELOADER_CYCLE_MS } from "@/components/branta/chart-preloader";
+
+// Module flag: the intro plays once per page load (login/refresh), not on
+// every remount of the shell.
+let introPlayed = false;
 import { AppSidebar } from "@/components/branta/app-sidebar";
 import { TopBar } from "@/components/branta/top-bar";
 import { CommandPalette } from "@/components/branta/command-palette";
@@ -48,23 +52,31 @@ function AppShell() {
     }
   }, [status.data, navigate]);
 
-  if (
-    status.data?.mustChangePassword ||
-    status.data?.mustLinkTelegram ||
-    status.isLoading
-  ) {
-    return (
-      <div className="grid h-screen w-full place-items-center bg-background text-muted-foreground">
-        <div className="flex items-center gap-2 text-[13px]">
-          <Loader2 className="size-4 animate-spin" />
-          Preparing your workspace…
-        </div>
-      </div>
-    );
-  }
+  // Play at least one full preloader cycle per page load; meanwhile the shell
+  // renders underneath so every page query starts fetching in the background.
+  const [cycleDone, setCycleDone] = useState(introPlayed);
+  const [gone, setGone] = useState(introPlayed);
+  useEffect(() => {
+    if (introPlayed) return;
+    const t = setTimeout(() => setCycleDone(true), PRELOADER_CYCLE_MS);
+    return () => clearTimeout(t);
+  }, []);
+  const blocked =
+    status.data?.mustChangePassword || status.data?.mustLinkTelegram || status.isLoading;
+  const leaving = cycleDone && !blocked;
+  useEffect(() => {
+    if (!leaving || gone) return;
+    introPlayed = true;
+    const t = setTimeout(() => setGone(true), 300);
+    return () => clearTimeout(t);
+  }, [leaving, gone]);
+
+  const overlay = gone ? null : <ChartPreloader leaving={leaving} />;
+  if (blocked) return overlay ?? <ChartPreloader />;
 
   return (
     <div className="flex h-screen w-full flex-col overflow-hidden bg-background">
+      {overlay}
       <ImpersonationBanner />
       <div className="flex min-h-0 w-full flex-1 overflow-hidden">
         <AppSidebar />
