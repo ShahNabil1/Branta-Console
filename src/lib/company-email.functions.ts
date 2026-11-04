@@ -432,6 +432,34 @@ export const verifyResendWebhook = createServerFn({ method: "POST" })
  *  verify   → read back from Resend, store the signing secret encrypted
  */
 const ResendStage = z.enum(["account", "clean", "register", "verify"]);
+/** One authenticated repair; no client-controlled hook IDs or secrets. */
+export const repairCompanyWebhook = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({ slug: Slug, provider: Provider }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { co, admin } = await gate(context, data.slug);
+    const m = await import("@/lib/company-email.server");
+    const { replaceCompanyWebhook } = await import("@/lib/company-webhook-repair");
+    const r = await row(admin, co.id, data.provider);
+    if (!r?.is_active || !r.domain_verified_at) throw new Error("Verify the provider API key and domain first.");
+    const key = await m.open(r.api_key_enc);
+    if (!key) throw new Error("The company's provider API key is missing. Connect the provider first.");
+    return replaceCompanyWebhook({
+      provider: data.provider,
+      baseUrl: m.webhookUrl(data.provider, co.slug),
+      companyName: co.name,
+      events: data.provider === "resend" ? m.RESEND_EVENTS : m.BREVO_EVENTS,
+      call: (path, init) => data.provider === "resend" ? m.resend(key, path, init) : m.brevo(key, path, init),
+      seal: m.seal,
+      token: m.randomToken,
+      save: async (patch) => {
+        const { error } = await admin.from("company_email_providers")
+          .update({ ...patch, updated_by: context.userId }).eq("id", r.id).eq("company_id", co.id);
+        if (error) throw new Error("Could not save the company's webhook settings. Retry Fix.");
+      },
+    });
+  });
+
 export const connectResendWebhook = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) =>

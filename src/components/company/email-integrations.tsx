@@ -1,5 +1,6 @@
 import { DisconnectButton as SharedDisconnectButton } from "@/components/ui/disconnect-button";
 import { TestLoader } from "@/components/ui/test-loader";
+import { WebhookFixButton } from "@/components/company/webhook-fix-button";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -38,6 +39,7 @@ import {
   setDefaultProvider,
   setFinanceSender,
   testEmailProvider,
+  repairCompanyWebhook,
   verifyEmailProvider,
   sendInboxProbe,
   pollInboxProbe,
@@ -283,9 +285,11 @@ function ProviderPanel({
   const [flowing, setFlowing] = useState(false);
   const connected = !flowing && !!v?.domain_verified_at && !!v?.webhook_verified_at;
   const test = useServerFn(testEmailProvider);
+  const repair = useServerFn(repairCompanyWebhook);
   const def = useServerFn(setDefaultProvider);
   const refresh = useRefresh(slug);
-  const [busy, setBusy] = useState<"test" | "def" | null>(null);
+  const [busy, setBusy] = useState<"test" | "def" | "fix" | null>(null);
+  const fixingRef = useRef(false);
   const [checks, setChecks] = useState<TestCheck[] | null>(null);
   const domain = v ? v.domain || v.sender_email.split("@")[1] : "";
 
@@ -316,6 +320,24 @@ function ProviderPanel({
   }, [connected]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const failed = (k: string) => checks?.find((c) => c.kind === k && !c.ok);
+  const fixWebhook = async () => {
+    if (fixingRef.current || busy) return;
+    fixingRef.current = true;
+    setBusy("fix");
+    try {
+      await repair({ data: { slug, provider: p } });
+      const result = await test({ data: { slug, provider: p } });
+      setChecks(result.checks);
+      await refresh();
+      if (result.checks.find(c => c.kind === "webhook")?.ok) toast.success(`${m.name} webhook fixed.`);
+      else toast.error("Webhook was registered, but its check still needs attention.");
+    } catch (e) {
+      toast.error(err(e));
+    } finally {
+      fixingRef.current = false;
+      setBusy(null);
+    }
+  };
   const chips =
     p === "resend"
       ? [
@@ -462,7 +484,7 @@ function ProviderPanel({
                   <span className="grid size-9 shrink-0 place-items-center rounded-lg border border-border bg-background shadow-sm">
                     <I className="size-4" style={{ color: m.color }} />
                   </span>
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1 text-[13px] font-bold">
                       {c.label}
                       {c.ok ? (
@@ -480,6 +502,9 @@ function ProviderPanel({
                       {c.ok ? "Working" : "Issue"}
                     </div>
                   </div>
+                  {c.kind === "webhook" && !c.ok && (
+                    <WebhookFixButton fixing={busy === "fix"} disabled={locked || !!busy} onClick={() => void fixWebhook()} />
+                  )}
                 </div>
                 <p className="relative mt-2 break-words text-[11.5px] font-semibold text-muted-foreground">
                   {c.detail}
