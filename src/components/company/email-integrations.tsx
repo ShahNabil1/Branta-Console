@@ -1323,6 +1323,21 @@ function InboxAddress({
   const reached = (k: string) =>
     run && run.stage !== "failed" ? order.indexOf(run.stage) >= order.indexOf(k) : false;
 
+  if (!gmail)
+    return (
+      <div className="relative mt-4 flex items-center gap-3 overflow-hidden rounded-xl border border-dashed border-border bg-muted/30 p-4">
+        <span className="grid size-9 shrink-0 place-items-center rounded-md border border-border bg-card opacity-60">
+          <GmailMark className="size-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h3 className="text-[13.5px] font-bold">In-app Gmail Inbox Address</h3>
+          <div className="text-[11.5px] font-semibold text-muted-foreground">
+            Connect this company's Google account above first. The address must be verified again after connecting.
+          </div>
+        </div>
+      </div>
+    );
+
   return (
     <div className="relative mt-4 overflow-hidden rounded-xl border border-border bg-background p-4">
       <span
