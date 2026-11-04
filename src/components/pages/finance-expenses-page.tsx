@@ -259,6 +259,8 @@ export function ExpensesPage() {
   });
 
   const [open, setOpen] = useState(false);
+  const [step, setStep] = useState(0);
+  const canNext = (i: number) => i < 0 || (i === 0 ? Number(form.amount) > 0 && !!form.spent_on : true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [items, setItems] = useState<ExpenseItem[]>([]);
