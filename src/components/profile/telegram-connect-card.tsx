@@ -1,3 +1,5 @@
+import { TestLoader } from "@/components/ui/test-loader";
+import { DisconnectButton, DisconnectIcon } from "@/components/ui/disconnect-button";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -171,30 +173,26 @@ export function TelegramConnectCard() {
                   </div>
                 )}
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                disabled={unlink.isPending}
+              <DisconnectButton
+                busy={unlink.isPending}
                 onClick={async () => {
                   const ok = await confirm({
+                    icon: DisconnectIcon,
                     title: "Unlink Telegram?",
-                    description:
-                      "You will stop receiving Branta Tech notifications on this Telegram chat. You can reconnect any time.",
+                    subject: status.data?.username ? `@${status.data.username}` : undefined,
+                    points: [
+                      "Branta Tech notifications stop on this Telegram chat.",
+                      "You can reconnect any time.",
+                      "Past notifications stay unchanged.",
+                    ],
                     confirmLabel: "Unlink",
                     tone: "danger",
                   });
                   if (ok) unlink.mutate();
                 }}
               >
-                {unlink.isPending ? (
-                  <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-                ) : (
-                  <Unlink className="mr-1.5 size-3.5" />
-                )}
                 Unlink Telegram
-              </Button>
+              </DisconnectButton>
             </div>
           ) : (
             <div className="mt-3 space-y-2">
@@ -236,13 +234,15 @@ export function TelegramConnectCard() {
             type="button"
             variant="outline"
             size="sm"
-            className="h-7 px-2 text-[11.5px]"
+            className="h-7 gap-1.5 px-2.5 text-[11.5px] transition-transform active:scale-95"
             disabled={register.isPending}
             onClick={() => register.mutate()}
           >
             {register.isPending ? (
-              <Loader2 className="mr-1.5 size-3 animate-spin" />
-            ) : null}
+              <TestLoader className="size-3.5" active />
+            ) : (
+              <Webhook className="size-3.5" />
+            )}
             Register webhook
           </Button>
         </div>

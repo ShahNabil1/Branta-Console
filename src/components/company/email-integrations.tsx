@@ -1,3 +1,4 @@
+import { DisconnectButton as SharedDisconnectButton } from "@/components/ui/disconnect-button";
 import { TestLoader } from "@/components/ui/test-loader";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -517,17 +518,13 @@ function DisconnectButton({ p, slug, v }: { p: P; slug: string; v: ProviderView 
   };
   return (
     <>
-      <Button
-        size="sm"
-        variant="destructive"
+      <SharedDisconnectButton
         disabled={!!busy}
         onClick={() => {
           setConfirm(true);
           void loadPreview();
         }}
-      >
-        <Unplug className="size-3.5" /> Disconnect
-      </Button>
+      />
       <DangerConfirm
         open={confirm}
         icon={Unplug}

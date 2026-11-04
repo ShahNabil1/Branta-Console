@@ -1,3 +1,4 @@
+import { DisconnectButton, DisconnectIcon } from "@/components/ui/disconnect-button";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { BadgeCheck, Unlink } from "lucide-react";
@@ -128,13 +129,10 @@ export function GoogleGmailConnect({
             />
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => void confirmAction({ tone: "danger", icon: Unlink, title: "Disconnect Gmail?", subject: email, points: ["This address is removed from your profile.", "Your profile photo stays unchanged."], confirmLabel: "Disconnect" }).then((ok) => ok && onDisconnect())}
-          className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-sm border border-destructive/30 bg-destructive/5 px-2.5 text-[11.5px] font-medium text-destructive transition-colors hover:bg-destructive/10"
-        >
-          <Unlink className="h-3.5 w-3.5" /> Disconnect
-        </button>
+        <DisconnectButton
+          className="shrink-0"
+          onClick={() => void confirmAction({ tone: "danger", icon: DisconnectIcon, title: "Disconnect Gmail?", subject: email, points: ["This address is removed from your profile.", "Your profile photo stays unchanged."], confirmLabel: "Disconnect" }).then((ok) => ok && onDisconnect())}
+        />
       </div>
     );
   }
