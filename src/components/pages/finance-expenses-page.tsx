@@ -195,6 +195,8 @@ export function ExpensesPage() {
     value: e.user_id,
     label: e.full_name ?? e.user_id.slice(0, 8),
     hint: e.employee_code ?? undefined,
+    sub: e.job_role,
+    avatar: e.avatar_url ?? "",
     keywords: [e.full_name, e.employee_code, e.job_role],
   }));
 

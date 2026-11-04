@@ -2094,7 +2094,7 @@ export const listEmployeesForFinance = createServerFn({ method: "GET" })
 
     const { data, error } = await context.supabase
       .from("profiles")
-      .select("user_id, full_name, employee_code, job_role")
+      .select("user_id, full_name, employee_code, job_role, avatar_url")
       .is("deactivated_at" as never, null)
       .order("full_name");
     if (error) throw dbError(error);
@@ -2103,6 +2103,7 @@ export const listEmployeesForFinance = createServerFn({ method: "GET" })
       full_name: string | null;
       employee_code: string | null;
       job_role: string | null;
+      avatar_url: string | null;
     }[];
     // Emails are only returned to Finance/Admin users.
     const { data: isFin } = await context.supabase.rpc("is_finance_admin", {
