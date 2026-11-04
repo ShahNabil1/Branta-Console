@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { googlePopupResponse } from "@/lib/google-popup-protocol";
 
 // Google OAuth return for a company's dedicated Gmail + Calendar account.
 // Trust comes only from the HMAC-signed state minted by startGoogleConnect.
@@ -11,7 +12,10 @@ export const Route = createFileRoute("/api/public/google-oauth/callback")({
         const g = await import("@/lib/company-google.server");
         const st = await g.verifyState(url.searchParams.get("state") ?? "");
         const back = (slug: string | null, status: string, msg?: string) => {
-          const to = new URL(slug ? `/app/companies/${slug}` : "/app/companies", st?.o || origin);
+          if (st?.p && st.o === origin) {
+            return googlePopupResponse({ type: "company-google-connected", popupId: st.p, slug: st.s, status: status === "ok" ? "ok" : "error", message: msg?.slice(0, 240) }, origin);
+          }
+          const to = new URL(slug ? `/app/companies/${slug}` : "/app/companies", origin);
           to.searchParams.set("tab", "integrations");
           to.searchParams.set("google", status);
           if (msg) to.searchParams.set("google_msg", msg.slice(0, 240));

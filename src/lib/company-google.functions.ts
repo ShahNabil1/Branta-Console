@@ -47,12 +47,12 @@ export const getGoogleConnection = createServerFn({ method: "GET" })
 
 export const startGoogleConnect = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => Slug.extend({ hint: z.string().email().max(254).optional() }).parse(i))
+  .inputValidator((i: unknown) => Slug.extend({ hint: z.string().email().max(254).optional(), popupId: z.string().uuid().optional() }).parse(i))
   .handler(async ({ data, context }) => {
     const { co } = await gate(context, data.slug);
     const g = await import("@/lib/company-google.server");
     const origin = new URL(getRequest().url).origin;
-    const state = await g.signState({ c: co.id, s: co.slug, u: context.userId, o: origin });
+    const state = await g.signState({ c: co.id, s: co.slug, u: context.userId, o: origin, p: data.popupId });
     return { url: g.authUrl(state, origin, data.hint) };
   });
 

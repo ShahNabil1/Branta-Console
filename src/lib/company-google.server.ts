@@ -40,7 +40,7 @@ async function hmacKey() {
 const b64u = (u: Uint8Array) => btoa(String.fromCharCode(...u)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 const unb64u = (s: string) => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0));
 
-export type OAuthState = { c: string; s: string; u: string; o: string; n: string; exp: number };
+export type OAuthState = { c: string; s: string; u: string; o: string; n: string; exp: number; p?: string };
 export async function signState(st: Omit<OAuthState, "n" | "exp">) {
   const full: OAuthState = { ...st, n: crypto.randomUUID(), exp: Date.now() + 10 * 60_000 };
   const body = b64u(enc.encode(JSON.stringify(full)));
