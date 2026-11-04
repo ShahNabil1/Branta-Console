@@ -37,7 +37,7 @@ import { formatCategory } from "@/lib/expense-categories";
 import { ReasonDialog } from "@/components/finance/reason-dialog";
 import { ExpenseLogsDialog } from "@/components/finance/expense-logs-dialog";
 import { logExpenseAction } from "@/lib/expense-logs.functions";
-import { FundSelect, InsufficientFundDialog, useFundOptions } from "@/components/finance/fund-move-dialog";
+import { InsufficientFundDialog, useFundOptions } from "@/components/finance/fund-move-dialog";
 import { parseInsufficient } from "@/lib/fund-ops.functions";
 import { defaultFilters, type ReportFilters } from "@/lib/report-filters";
 import { Loader2, Plus, Trash2, Receipt, Eye, Download, X, FileText, Printer, Stamp, Pencil, Link2, History } from "lucide-react";
@@ -759,18 +759,11 @@ export function ExpensesPage() {
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label className="text-[10.5px] font-extrabold uppercase tracking-wider text-foreground/70">Category</label>
-                  <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value as ExpenseCategory })}
-                    className="mt-1.5 h-10 w-full cursor-pointer rounded-lg border border-border bg-card px-3 text-[13px] font-semibold capitalize shadow-sm outline-none transition-all hover:border-foreground/25 focus:border-brand focus:shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-brand)_15%,transparent)] focus-visible:ring-0 focus-visible:border-brand focus-visible:shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-brand)_15%,transparent)]">
-                    {CATEGORIES.map((c) => <option key={c} value={c}>{formatCategory(c)}</option>)}
-                  </select>
+                  <div className="mt-1.5"><SearchableSelect searchable={false} items={CATEGORIES.map((c) => ({ value: c, label: formatCategory(c) }))} value={form.category} onChange={(v) => v && setForm({ ...form, category: v as ExpenseCategory })} /></div>
                 </div>
                 <div>
                   <label className="text-[10.5px] font-extrabold uppercase tracking-wider text-foreground/70">Currency</label>
-                  <select value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value as Currency })}
-                    className="mt-1.5 h-10 w-full cursor-pointer rounded-lg border border-border bg-card px-3 text-[13px] font-semibold shadow-sm outline-none transition-all hover:border-foreground/25 focus:border-brand focus:shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-brand)_15%,transparent)] focus-visible:ring-0 focus-visible:border-brand focus-visible:shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-brand)_15%,transparent)]">
-                    <option value="BDT">BDT</option>
-                    <option value="USD">USD</option>
-                  </select>
+                  <div className="mt-1.5"><SearchableSelect searchable={false} items={[{ value: "BDT", label: "৳ BDT", hint: "Bangladeshi Taka" }, { value: "USD", label: "$ USD", hint: "US Dollar" }]} value={form.currency} onChange={(v) => v && setForm({ ...form, currency: v as Currency })} /></div>
                 </div>
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -793,11 +786,7 @@ export function ExpensesPage() {
                 </div>
                 <div>
                   <label className="text-[10.5px] font-extrabold uppercase tracking-wider text-foreground/70">Department</label>
-                  <select value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })}
-                    className="mt-1.5 h-10 w-full cursor-pointer rounded-lg border border-border bg-card px-3 text-[13px] font-semibold shadow-sm outline-none transition-all hover:border-foreground/25 focus:border-brand focus:shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-brand)_15%,transparent)] focus-visible:ring-0 focus-visible:border-brand focus-visible:shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-brand)_15%,transparent)]">
-                    <option value="">— Select —</option>
-                    {DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
-                  </select>
+                  <div className="mt-1.5"><SearchableSelect clearable searchable={false} items={DEPARTMENTS.map((d) => ({ value: d, label: d }))} value={form.department} onChange={(v) => setForm({ ...form, department: v })} placeholder="— Select department —" /></div>
                 </div>
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -843,7 +832,7 @@ export function ExpensesPage() {
                 <div className="rounded-xl border border-border bg-muted/30 p-3.5 transition-colors hover:border-foreground/15">
                   <label className="text-[10.5px] font-extrabold uppercase tracking-wider text-foreground/70">Paying fund (Fund Ledger · optional)</label>
                   <div className="mt-1.5">
-                    <FundSelect value={form.paying_fund_id} onChange={(v) => setForm({ ...form, paying_fund_id: v })} funds={fundOpts.data ?? []} placeholder="— Not charged to a fund —" />
+                    <SearchableSelect clearable items={(fundOpts.data ?? []).map((f) => ({ value: f.id, label: f.name, hint: `available ৳ ${f.available.toLocaleString()}`, keywords: [f.code] }))} value={form.paying_fund_id} onChange={(v) => setForm({ ...form, paying_fund_id: v })} placeholder="— Not charged to a fund —" emptyText="No fund matches" />
                   </div>
                   {selectedFund && Number(form.amount) > selectedFund.available && (
                     <p className="mt-1 text-[11.5px] font-medium text-destructive">Amount is above this fund's available balance.</p>
@@ -864,35 +853,37 @@ export function ExpensesPage() {
                   <SearchableSelect
                     items={invoiceItems}
                     value={form.linked_invoice_id}
-                    onChange={(v) => setForm({ ...form, linked_invoice_id: v })}
+                    onChange={(v) => setForm({ ...form, linked_invoice_id: v, is_project_cost: v ? form.is_project_cost : false })}
+                    clearable
                     placeholder="— Not linked to a client project —"
                     emptyText="No invoice matches"
                   />
                 </div>
-                <label className="mt-2 flex items-start gap-2 text-[12.5px]">
-                  <input
-                    type="checkbox"
-                    className="mt-0.5 size-3.5 accent-[hsl(var(--primary))]"
-                    checked={form.is_project_cost}
-                    disabled={!form.linked_invoice_id}
-                    onChange={(e) => setForm({ ...form, is_project_cost: e.target.checked })}
-                  />
-                  <span>
-                    Count as project cost
-                    <span className="block text-[11.5px] text-muted-foreground">
-                      Deducted from that invoice total before the stakeholder split — net distributable updates automatically.
-                    </span>
-                  </span>
-                </label>
+                <div className="grid transition-[grid-template-rows,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
+                  style={{ gridTemplateRows: form.linked_invoice_id ? "1fr" : "0fr", opacity: form.linked_invoice_id ? 1 : 0 }}
+                  aria-hidden={!form.linked_invoice_id} inert={!form.linked_invoice_id}>
+                  <div className="min-h-0 overflow-hidden">
+                    <button type="button" role="switch" aria-checked={form.is_project_cost}
+                      onClick={() => setForm((f) => ({ ...f, is_project_cost: !f.is_project_cost }))}
+                      className={cn("mt-3 flex w-full items-start gap-3 rounded-lg border p-3 text-left transition-all duration-200 active:scale-[0.99]",
+                        form.is_project_cost ? "border-brand/40 bg-brand/5 shadow-sm" : "border-border bg-card hover:border-foreground/20")}>
+                      <span className={cn("relative mt-0.5 h-5 w-9 shrink-0 rounded-full transition-colors duration-200", form.is_project_cost ? "bg-brand" : "bg-muted-foreground/30")}>
+                        <span className={cn("absolute top-0.5 size-4 rounded-full bg-card shadow transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]", form.is_project_cost ? "left-[18px]" : "left-0.5")} />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block text-[13px] font-bold">Count as project cost</span>
+                        <span className="mt-0.5 block text-[11.5px] font-medium leading-snug text-muted-foreground">
+                          Deducted from that invoice total before the stakeholder split — net distributable updates automatically.
+                        </span>
+                      </span>
+                    </button>
+                  </div>
+                </div>
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label className="text-[10.5px] font-extrabold uppercase tracking-wider text-foreground/70">Payment method</label>
-                  <select value={form.payment_method} onChange={(e) => setForm({ ...form, payment_method: e.target.value })}
-                    className="mt-1.5 h-10 w-full cursor-pointer rounded-lg border border-border bg-card px-3 text-[13px] font-semibold shadow-sm outline-none transition-all hover:border-foreground/25 focus:border-brand focus:shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-brand)_15%,transparent)] focus-visible:ring-0 focus-visible:border-brand focus-visible:shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-brand)_15%,transparent)]">
-                    <option value="">— Select —</option>
-                    {PAYMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
-                  </select>
+                  <div className="mt-1.5"><SearchableSelect clearable searchable={false} items={PAYMENT_METHODS.map((m) => ({ value: m, label: m }))} value={form.payment_method} onChange={(v) => setForm({ ...form, payment_method: v })} placeholder="— Select method —" /></div>
                 </div>
                 <div>
                   <label className="text-[10.5px] font-extrabold uppercase tracking-wider text-foreground/70">Transaction ID (TrxID)</label>

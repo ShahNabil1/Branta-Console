@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Check, ChevronsUpDown, Plus, Search } from "lucide-react";
+import { Check, ChevronsUpDown, Plus, Search, X } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -26,6 +26,10 @@ interface Props {
   onAdd?: () => void;
   className?: string;
   disabled?: boolean;
+  /** Hide the search box (short fixed lists). */
+  searchable?: boolean;
+  /** Show a "clear selection" row when a value is chosen. */
+  clearable?: boolean;
 }
 
 /**
@@ -54,6 +58,8 @@ export function SearchableSelect({
   onAdd,
   className,
   disabled,
+  searchable = true,
+  clearable = false,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -103,7 +109,7 @@ export function SearchableSelect({
         </Button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] overflow-hidden rounded-lg p-0 shadow-xl">
-        <div className="flex items-center border-b border-border px-2">
+        {searchable && <div className="flex items-center border-b border-border px-2">
           <Search className="size-3.5 text-muted-foreground" />
           <input
             autoFocus
@@ -112,8 +118,14 @@ export function SearchableSelect({
             placeholder="Search name, email, phone, slug…"
             className="h-9 w-full bg-transparent px-2 text-[13px] outline-none placeholder:text-muted-foreground"
           />
-        </div>
+        </div>}
         <div className="max-h-64 overflow-y-auto py-1">
+          {clearable && value && (
+            <button type="button" onClick={() => { onChange(""); setOpen(false); setQ(""); }}
+              className="flex w-full items-center gap-2 border-b border-border px-2.5 py-1.5 text-left text-[12.5px] font-semibold text-rose-600 transition-colors hover:bg-rose-50">
+              <X className="size-3.5" /> Clear selection
+            </button>
+          )}
           {filtered.length === 0 ? (
             <div className="px-3 py-6 text-center text-[12px] text-muted-foreground">{emptyText}</div>
           ) : (
