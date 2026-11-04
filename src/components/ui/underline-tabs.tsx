@@ -18,9 +18,16 @@ export type UnderlineTabItem<T extends string> = {
 };
 
 export function UnderlineTabs<T extends string>({
-  items, value, onChange, accent, className, size = "md", stretch = false, ariaLabel,
+  items,
+  value,
+  onChange,
+  accent,
+  className,
+  size = "md",
+  stretch = false,
+  ariaLabel,
 }: {
-  items: UnderlineTabItem<T>[];
+  items: readonly UnderlineTabItem<T>[];
   value: T;
   onChange?: (id: T) => void;
   /** CSS colour for the underline/active icon. Defaults to brand. */
@@ -31,7 +38,11 @@ export function UnderlineTabs<T extends string>({
   ariaLabel?: string;
 }) {
   const navRef = useRef<HTMLDivElement>(null);
-  const [bar, setBar] = useState<{ left: number; width: number; ready: boolean }>({ left: 0, width: 0, ready: false });
+  const [bar, setBar] = useState<{ left: number; width: number; ready: boolean }>({
+    left: 0,
+    width: 0,
+    ready: false,
+  });
 
   useLayoutEffect(() => {
     const nav = navRef.current;
@@ -39,7 +50,11 @@ export function UnderlineTabs<T extends string>({
     const measure = () => {
       const el = nav.querySelector<HTMLElement>(`[data-tab-id="${CSS.escape(value)}"]`);
       if (!el) return;
-      setBar((b) => ({ left: el.offsetLeft + 8, width: Math.max(0, el.offsetWidth - 16), ready: b.width > 0 }));
+      setBar((b) => ({
+        left: el.offsetLeft + 8,
+        width: Math.max(0, el.offsetWidth - 16),
+        ready: b.width > 0,
+      }));
       el.scrollIntoView?.({ block: "nearest", inline: "nearest" });
     };
     measure();
@@ -50,8 +65,15 @@ export function UnderlineTabs<T extends string>({
 
   const color = accent ?? "var(--color-brand)";
   return (
-    <div ref={navRef} role="tablist" aria-label={ariaLabel}
-      className={cn("relative flex gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden", className)}>
+    <div
+      ref={navRef}
+      role="tablist"
+      aria-label={ariaLabel}
+      className={cn(
+        "relative flex gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+        className,
+      )}
+    >
       {items.map((t) => {
         const on = t.id === value;
         const Icon = t.icon;
@@ -63,23 +85,60 @@ export function UnderlineTabs<T extends string>({
         );
         const inner = (
           <>
-            {Icon && <Icon className="size-3.5 transition-transform duration-200 group-hover:scale-110" style={on ? { color } : undefined} />}
+            {Icon && (
+              <Icon
+                className="size-3.5 transition-transform duration-200 group-hover:scale-110"
+                style={on ? { color } : undefined}
+              />
+            )}
             {t.lead}
             <span className="whitespace-nowrap">{t.label}</span>
             {t.count !== undefined && (
-              <span className={cn("rounded-full px-1.5 font-mono text-[10.5px] tabular-nums transition-colors", on ? "bg-foreground/90 text-background" : "bg-muted text-muted-foreground")}>{t.count}</span>
+              <span
+                className={cn(
+                  "rounded-full px-1.5 font-mono text-[10.5px] tabular-nums transition-colors",
+                  on ? "bg-foreground/90 text-background" : "bg-muted text-muted-foreground",
+                )}
+              >
+                {t.count}
+              </span>
             )}
           </>
         );
         return t.to ? (
-          <Link key={t.id} to={t.to} data-tab-id={t.id} role="tab" aria-selected={on} className={cls} onClick={() => onChange?.(t.id)}>{inner}</Link>
+          <Link
+            key={t.id}
+            to={t.to}
+            data-tab-id={t.id}
+            role="tab"
+            aria-selected={on}
+            className={cls}
+            onClick={() => onChange?.(t.id)}
+          >
+            {inner}
+          </Link>
         ) : (
-          <button key={t.id} type="button" data-tab-id={t.id} role="tab" aria-selected={on} className={cls} onClick={() => onChange?.(t.id)}>{inner}</button>
+          <button
+            key={t.id}
+            type="button"
+            data-tab-id={t.id}
+            role="tab"
+            aria-selected={on}
+            className={cls}
+            onClick={() => onChange?.(t.id)}
+          >
+            {inner}
+          </button>
         );
       })}
-      <span aria-hidden
-        className={cn("pointer-events-none absolute bottom-0 h-0.5 rounded-full", bar.ready && "transition-[left,width] duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]")}
-        style={{ left: bar.left, width: bar.width, background: color }} />
+      <span
+        aria-hidden
+        className={cn(
+          "pointer-events-none absolute bottom-0 h-0.5 rounded-full",
+          bar.ready && "transition-[left,width] duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
+        )}
+        style={{ left: bar.left, width: bar.width, background: color }}
+      />
     </div>
   );
 }

@@ -32,7 +32,9 @@ function ProfileLayout() {
         <UnderlineTabs
           className="mx-auto mt-4 max-w-5xl px-4"
           ariaLabel="Profile sections"
-          value={TABS.find((t) => pathname === t.to || pathname.startsWith(t.to + "/"))?.to ?? TABS[0].to}
+          value={
+            TABS.find((t) => pathname === t.to || pathname.startsWith(t.to + "/"))?.to ?? TABS[0].to
+          }
           items={TABS.map((t) => ({ id: t.to, label: t.label, icon: t.icon, to: t.to }))}
         />
       </div>
