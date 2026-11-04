@@ -53,7 +53,9 @@ async function inboxTarget(companyId: string) {
   const { getAccount } = await import("@/lib/company-google.server");
   const { INBOX_GMAIL } = await import("@/lib/company-email.server");
   const a = await getAccount(companyId).catch(() => null);
-  return a?.is_active && a.refresh_token_enc ? (a.google_email as string) : INBOX_GMAIL;
+  void INBOX_GMAIL;
+  // Zero fallback: without the company's own connected Google account there is no Inbox target.
+  return a?.is_active && a.refresh_token_enc ? (a.google_email as string) : null;
 }
 
 async function row(admin: Any, companyId: string, provider: P) {
@@ -846,7 +848,9 @@ export const checkInboundRouting = createServerFn({ method: "POST" })
       .limit(1);
     if (!own?.length) throw new Error("Only a configured sender address can be routed.");
     const m = await import("@/lib/company-email.server");
-    return m.inboundRouting(data.email, data.create, await inboxTarget(co.id));
+    const target = await inboxTarget(co.id);
+    if (!target) throw new Error("Connect this company's Google account first.");
+    return m.inboundRouting(data.email, data.create, target);
   });
 
 export const sendProviderTest = createServerFn({ method: "POST" })

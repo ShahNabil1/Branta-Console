@@ -220,8 +220,8 @@ export function EmailIntegrations({ slug, accent }: { slug: string; accent: stri
             <h2 className="text-[16px] font-bold">Email & Calendar</h2>
           </div>
         </div>
-        <GoogleAccountCard slug={slug} accent={accent} fallback="brantatech@gmail.com" />
-        <InboxAddress slug={slug} accent={accent} inbox={d.inbox} gmail={d.inboxGmail} />
+        <GoogleAccountCard slug={slug} accent={accent} />
+        <InboxAddress slug={slug} accent={accent} inbox={d.inboxGmail ? d.inbox : null} gmail={d.inboxGmail} />
         {!d.inbox?.verified_at && (
           <div className="relative mt-4 flex items-center gap-2 rounded-lg border border-dashed border-border bg-muted/30 px-3 py-2 text-[12px] font-semibold text-muted-foreground">
             <Lock className="size-3.5" /> Verify the Inbox address first — Resend and Brevo unlock
@@ -1204,7 +1204,7 @@ function InboxAddress({
   slug: string;
   accent: string;
   inbox: Data["inbox"];
-  gmail: string;
+  gmail: string | null;
 }) {
   const send = useServerFn(sendInboxProbe);
   const poll = useServerFn(pollInboxProbe);
