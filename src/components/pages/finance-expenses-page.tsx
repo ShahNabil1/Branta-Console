@@ -609,6 +609,7 @@ export function ExpensesPage() {
           return (
           <ExpenseCard key={r.id} record={r} category={formatCategory(r.category)} amount={`− ${fmt(r.amount, r.currency)}`}
             receiptCount={receipts} highlighted={highlightId === r.id}
+            requestedByAvatar={employeeItems.find(employee => employee.value === r.requested_by)?.avatar}
             downloading={busyId === r.id + "dl"}
             onActivity={() => setLogsFor({ id: r.id, voucher: r.voucher_no, createdAt: r.created_at })}
             onView={() => viewVoucher(r.id, r.voucher_no)}
