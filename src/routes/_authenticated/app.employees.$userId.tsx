@@ -207,8 +207,14 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
   const onTgUnsub = async () => {
     const ok = await confirm({
       title: "Unsubscribe Telegram?",
-      description:
-        "This employee will stop receiving all Branta Tech Telegram notifications until they reconnect.",
+      subject: <><TelegramIcon className="size-3.5 shrink-0" /> {tgStatus.data?.username ? "@" + tgStatus.data.username : e.email}</>,
+      icon: <TelegramIcon className="size-5" />,
+      points: [
+        "All Branta Tech Telegram notifications stop for this employee.",
+        "The linked Telegram account is removed from the Console.",
+        "They can reconnect any time from their profile.",
+        "Past notifications and history stay unchanged.",
+      ],
       confirmLabel: "Unsubscribe",
       tone: "warning",
     });
@@ -396,7 +402,14 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
   const onImpersonate = async () => {
     const ok = await confirm({
       title: "Impersonate this employee?",
-      description: `You will be signed in as ${e.email}. All actions will be logged. Use the amber banner to exit.`,
+      subject: e.email,
+      icon: LogIn,
+      points: [
+        `You will be signed in as ${e.email} and see the Console exactly as they do.`,
+        "Every action you take is logged under your own account for audit.",
+        "Use the amber banner at the top to exit and return to your account.",
+        "Their password, sessions and 2FA stay unchanged.",
+      ],
       confirmLabel: "Impersonate",
       tone: "warning",
     });
@@ -407,11 +420,21 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
   const onBan = async () => {
     const ok = await confirm({
       title: e.isBanned ? "Unban this account?" : "Ban this account?",
-      description: e.isBanned
-        ? "The employee will be able to sign in again."
-        : "The employee will be signed out and blocked from signing in.",
+      subject: e.email,
+      icon: e.isBanned ? Unlock : Ban,
+      points: e.isBanned
+        ? [
+            `${e.email} can sign in to the Console again.`,
+            "Their previous roles and workspace access come back as they were.",
+            "Records and history stay unchanged.",
+          ]
+        : [
+            "All active sessions are signed out immediately.",
+            `${e.email} is blocked from signing in until unbanned.`,
+            "Records, wallet and history stay unchanged.",
+          ],
       confirmLabel: e.isBanned ? "Unban" : "Ban",
-      tone: e.isBanned ? "info" : "warning",
+      tone: e.isBanned ? "info" : "danger",
     });
     if (!ok) return;
     banMut.mutate(!e.isBanned);

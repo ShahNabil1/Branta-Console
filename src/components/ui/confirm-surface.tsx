@@ -121,6 +121,12 @@ export function ConfirmSurface({
 
   const IconComp = asIcon(icon);
   const BtnIcon = IconComp ?? t.icon;
+  // A plain description without points renders as a consequence bullet, so every
+  // confirmation shares the same bullet-list look.
+  if (!points?.length && description) {
+    points = [description];
+    description = undefined;
+  }
 
   return (
     <AlertDialog open={open} onOpenChange={(o) => !o && !busy && onCancel()}>

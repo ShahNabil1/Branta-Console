@@ -220,18 +220,7 @@ export function OffboardDialog({
               </ul>
 
               {!started && (
-                <div className="space-y-2">
-                  <ConfirmTypedField text={confirmText} value={typed} onChange={setTyped} />
-                  <button
-                    type="button"
-                    disabled={typed.trim() !== confirmText}
-                    onClick={() => run()}
-                    className="h-9 w-full rounded-md bg-destructive text-[13px] font-semibold text-destructive-foreground shadow-sm transition-transform active:scale-[.98] disabled:opacity-50"
-                  >
-                    <ShieldAlert className="mr-1.5 inline size-4" />
-                    {d.canHardDelete ? "Delete permanently" : "Deactivate & revoke all access"}
-                  </button>
-                </div>
+                <ConfirmTypedField text={confirmText} value={typed} onChange={setTyped} />
               )}
 
               {!running && started && failed.length > 0 && (
@@ -270,6 +259,18 @@ export function OffboardDialog({
             <Button variant="outline" size="sm" onClick={() => close(false)}>
               {finished || outcome ? "Close" : "Cancel"}
             </Button>
+            {!started && d && (
+              <Button
+                variant="destructive"
+                size="sm"
+                disabled={typed.trim() !== confirmText}
+                onClick={() => run()}
+                className="gap-1.5 transition-transform active:scale-95"
+              >
+                <ShieldAlert className="size-3.5" />
+                {d.canHardDelete ? "Delete permanently" : "Deactivate & revoke access"}
+              </Button>
+            )}
           </div>
         )}
       </AlertDialogContent>
