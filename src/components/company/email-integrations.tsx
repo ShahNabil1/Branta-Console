@@ -326,7 +326,7 @@ function ProviderPanel({
         ];
 
   return (
-    <div className="relative mt-4 flex min-h-[188px] flex-col overflow-hidden rounded-xl border border-border bg-background p-4 transition-shadow hover:shadow-md">
+    <div className="relative mt-4 flex min-h-[112px] flex-col overflow-hidden rounded-xl border border-border bg-background p-4 transition-shadow hover:shadow-md">
       <span className="absolute inset-y-0 left-0 w-1" style={{ background: m.color }} />
       <div className="flex flex-wrap items-center gap-3">
         <span className="grid size-10 shrink-0 place-items-center rounded-lg border border-border bg-card shadow-sm">
