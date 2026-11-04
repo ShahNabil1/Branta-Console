@@ -8,6 +8,10 @@ export type SearchableItem = {
   value: string;
   label: string;
   hint?: string | null;
+  /** Secondary line, e.g. job role. */
+  sub?: string | null;
+  /** Avatar URL; "" shows initials. Undefined = no avatar column. */
+  avatar?: string | null;
   /** Extra strings included when matching search input. */
   keywords?: (string | null | undefined)[];
 };
@@ -28,6 +32,18 @@ interface Props {
  * Lightweight searchable select. Uses a native input + filtered list so it
  * works without depending on cmdk edge cases and stays keyboard-friendly.
  */
+function Avatar({ src, name, size = 22 }: { src?: string | null; name: string; size?: number }) {
+  const [err, setErr] = useState(false);
+  const ini = name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("") || "?";
+  return src && !err ? (
+    <img src={src} alt="" onError={() => setErr(true)} style={{ width: size, height: size }}
+      className="shrink-0 rounded-full object-cover ring-2 ring-card shadow-sm" />
+  ) : (
+    <span style={{ width: size, height: size }}
+      className="grid shrink-0 place-items-center rounded-full bg-brand/10 text-[9.5px] font-extrabold text-brand ring-2 ring-card">{ini}</span>
+  );
+}
+
 export function SearchableSelect({
   items,
   value,
@@ -65,12 +81,13 @@ export function SearchableSelect({
           role="combobox"
           disabled={disabled}
           className={cn(
-            "h-9 w-full justify-between rounded-sm border-input px-2 text-[13px] font-normal",
+            "h-10 w-full justify-between rounded-lg border-border bg-card px-3 text-[13px] font-semibold shadow-sm transition-all hover:border-foreground/25 hover:bg-card data-[state=open]:border-brand data-[state=open]:shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-brand)_15%,transparent)]",
             !selected && "text-muted-foreground",
             className,
           )}
         >
-          <span className="truncate text-left">
+          <span className="flex min-w-0 items-center gap-2 truncate text-left">
+            {selected?.avatar !== undefined && selected && <Avatar src={selected.avatar} name={selected.label} />}
             {selected ? (
               <>
                 {selected.label}
@@ -85,7 +102,7 @@ export function SearchableSelect({
           <ChevronsUpDown className="ml-2 size-3.5 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] rounded-sm p-0">
+      <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] overflow-hidden rounded-lg p-0 shadow-xl">
         <div className="flex items-center border-b border-border px-2">
           <Search className="size-3.5 text-muted-foreground" />
           <input
@@ -112,14 +129,18 @@ export function SearchableSelect({
                     setQ("");
                   }}
                   className={cn(
-                    "flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-[13px] hover:bg-muted/70",
-                    active && "bg-muted",
+                    "flex w-full items-center gap-2.5 px-2.5 py-1.5 text-left text-[13px] font-semibold transition-colors hover:bg-muted/70",
+                    active && "bg-brand/5",
                   )}
                 >
                   <Check className={cn("size-3.5 shrink-0", active ? "opacity-100 text-primary" : "opacity-0")} />
-                  <span className="flex-1 truncate">
-                    {it.label}
-                    {it.hint && <span className="ml-1.5 text-[11.5px] text-muted-foreground">{it.hint}</span>}
+                  {it.avatar !== undefined && <Avatar src={it.avatar} name={it.label} size={28} />}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate">
+                      {it.label}
+                      {it.hint && <span className="ml-1.5 font-mono text-[11px] font-medium text-muted-foreground">{it.hint}</span>}
+                    </span>
+                    {it.sub && <span className="block truncate text-[11px] font-medium text-muted-foreground">{it.sub}</span>}
                   </span>
                 </button>
               );
