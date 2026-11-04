@@ -1,9 +1,10 @@
 # Roadmap
 
 ## Compact expense cards and activity drawer
-- [ ] Compact cards with inline vendor/amount, visible header activity action and labelled Edit/Download buttons; hide voucher View on mobile.
-- [ ] Replace shared expense activity popup with the standard side drawer, preserving history and all log details.
-- [ ] Verify card and drawer layout and interactions at phone, tablet and desktop sizes.
+- [x] Compact cards with inline vendor/amount, visible header activity action and labelled Edit/Download buttons; hide voucher View on mobile.
+- [x] Replace shared expense activity popup with the standard side drawer, preserving history and all log details.
+- [x] Actual-component fixture checks pass at 320, 390, 768, 1280 and 1920px: no overflow, correct View visibility, Edit/Download callbacks, log history and close. Build OK.
+- [ ] Verify real signed-in expense actions and history readback; external unmanaged auth has no available test session.
 
 ## Mobile dropdown keyboard
 - [x] Reproduce automatic search focus in the shared dropdown on a touch viewport.
