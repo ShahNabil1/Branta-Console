@@ -111,7 +111,7 @@ export function ConfirmHeader({ tone = "danger", icon, title, subject }: {
 }) {
   const t = TONE[tone];
   const IconComp = asIcon(icon);
-  const iconNode = IconComp ? <IconComp className="size-5" /> : icon ? icon : <t.icon className="size-5" />;
+  const iconNode = IconComp ? <IconComp className="size-5" /> : icon ? (icon as React.ReactNode) : <t.icon className="size-5" />;
   return (
     <div className={cn("relative px-6 pb-4 pt-6", t.bg)}>
       <span className={cn("pointer-events-none absolute -right-10 -top-12 size-36 rounded-full blur-3xl", t.glow)} />
