@@ -55,7 +55,10 @@ export function UnderlineTabs<T extends string>({
         width: Math.max(0, el.offsetWidth - 16),
         ready: b.width > 0,
       }));
-      el.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+      // Scroll only the strip horizontally — never the page.
+      const l = el.offsetLeft, r = l + el.offsetWidth;
+      if (l < nav.scrollLeft) nav.scrollTo({ left: l - 8, behavior: "smooth" });
+      else if (r > nav.scrollLeft + nav.clientWidth) nav.scrollTo({ left: r - nav.clientWidth + 8, behavior: "smooth" });
     };
     measure();
     const ro = new ResizeObserver(measure);
