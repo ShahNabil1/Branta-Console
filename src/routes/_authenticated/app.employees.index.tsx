@@ -860,7 +860,7 @@ function DestinationsPanel() {
   };
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"all" | "verified" | "unrouted" | "pending">("all");
-  const dest = useQuery({ queryKey: ["cf.destinations"], queryFn: () => listFn(), staleTime: 30_000 });
+  const dest = useQuery({ queryKey: ["cf.destinations"], queryFn: () => listFn(), staleTime: 30_000, refetchOnMount: "always" });
   const items = (dest.data?.items ?? []).filter((d) =>
     (filter === "all" || (filter === "verified" && d.verified) || (filter === "pending" && !d.verified) || (filter === "unrouted" && d.verified && d.rules.length === 0)) && d.email.includes(q.trim().toLowerCase()));
   const counts = { all: dest.data?.items.length ?? 0, verified: dest.data?.items.filter((d) => d.verified).length ?? 0, pending: dest.data?.items.filter((d) => !d.verified).length ?? 0, unrouted: dest.data?.items.filter((d) => d.verified && d.rules.length === 0).length ?? 0 };
