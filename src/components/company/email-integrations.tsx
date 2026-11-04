@@ -48,6 +48,9 @@ import resendLogo from "@/assets/email/resend.webp.asset.json";
 import brevoLogo from "@/assets/email/brevo.webp.asset.json";
 import resendMarkWhite from "@/assets/email/resend-mark-white.png.asset.json";
 import resendWordmarkWhite from "@/assets/email/resend-wordmark-white.png.asset.json";
+import resendWordmarkBlack from "@/assets/email/resend-wordmark-black.png.asset.json";
+import brevoIcon from "@/assets/email/brevo-icon.png.asset.json";
+import brevoWordmark from "@/assets/email/brevo-wordmark.png.asset.json";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -329,20 +332,13 @@ function ProviderPanel({
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2 text-[14px] font-bold">
-            {p === "resend" ? (
-              <span
-                className="inline-flex items-center rounded-md px-2 py-1"
-                style={{ background: m.color }}
-              >
-                <img
-                  src={resendWordmarkWhite.url}
-                  alt="Resend"
-                  className="h-2.5 w-auto object-contain"
-                />
-              </span>
-            ) : (
-              m.name
-            )}
+            <span className="inline-flex items-center rounded-md border border-border bg-card px-2 py-1 shadow-sm">
+              <img
+                src={p === "resend" ? resendWordmarkBlack.url : brevoWordmark.url}
+                alt={m.name}
+                className="h-3 w-auto object-contain"
+              />
+            </span>
             {connected ? (
               <span className="inline-flex items-center gap-1 rounded-full bg-status-converted/10 px-2 py-0.5 text-[11px] font-bold text-status-converted">
                 <CheckCircle2 className="size-3" /> Connected
@@ -422,21 +418,36 @@ function ProviderPanel({
                 <img
                   src={resendMarkWhite.url}
                   alt=""
-                  className="size-3.5 shrink-0 object-contain"
+                  className="size-4 shrink-0 object-contain"
                 />
-                {v ? (
-                  "Continue setup"
-                ) : (
+                <span className="font-semibold tracking-tight">
+                  {v ? "Continue setup" : "Connect"}
+                </span>
+                {!v && (
                   <img
                     src={resendWordmarkWhite.url}
-                    alt="Connect Resend"
+                    alt="Resend"
                     className="h-3 w-auto object-contain"
                   />
                 )}
               </>
             ) : (
               <>
-                <KeyRound className="size-3.5" /> {v ? "Continue setup" : `Connect ${m.name}`}
+                <span className="grid size-5 shrink-0 place-items-center rounded-full bg-card">
+                  <img src={brevoIcon.url} alt="" className="size-4 object-contain" />
+                </span>
+                <span className="font-semibold tracking-tight">
+                  {v ? "Continue setup" : "Connect"}
+                </span>
+                {!v && (
+                  <span className="inline-flex items-center rounded-full bg-card px-1.5 py-0.5">
+                    <img
+                      src={brevoWordmark.url}
+                      alt="Brevo"
+                      className="h-2.5 w-auto object-contain"
+                    />
+                  </span>
+                )}
               </>
             )}
           </Button>
