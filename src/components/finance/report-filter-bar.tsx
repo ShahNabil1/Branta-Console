@@ -169,7 +169,7 @@ export function ReportFilterBar({
               onKeyDown={(e) => { if (e.key === "Escape") set({ search: "" }); }}
               placeholder="Search vendor, note, code…"
               aria-label="Search"
-              className="h-8 w-full rounded-full border border-border bg-muted/40 pl-8 pr-14 text-[12px] text-foreground outline-none transition-all duration-200 placeholder:text-muted-foreground/80 hover:border-foreground/20 focus:border-brand focus:bg-card focus:shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-brand)_15%,transparent)] sm:w-56 sm:focus:w-72"
+              className="h-8 w-full rounded-full border border-border bg-muted/40 pl-8 pr-14 text-[12px] text-foreground outline-none transition-all duration-200 placeholder:text-muted-foreground/80 hover:border-foreground/20 focus:border-brand focus:bg-card focus:shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-brand)_15%,transparent)] sm:w-64"
             />
             {filters.search ? (
               <button type="button" aria-label="Clear search" onClick={() => { set({ search: "" }); searchRef.current?.focus(); }}
@@ -199,8 +199,14 @@ export function ReportFilterBar({
       </div>
 
       {/* Row 2 — advanced facets */}
-      {open && (
-        <div className="grid grid-cols-1 gap-3 border-b border-border bg-muted/20 p-3 animate-in fade-in slide-in-from-top-1 duration-200 sm:grid-cols-2 lg:grid-cols-4">
+      <div
+        className="grid transition-[grid-template-rows,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
+        style={{ gridTemplateRows: open ? "1fr" : "0fr", opacity: open ? 1 : 0 }}
+        aria-hidden={!open}
+        inert={!open}
+      >
+        <div className="min-h-0 overflow-hidden">
+        <div className="grid grid-cols-1 gap-3 border-b border-border bg-muted/20 p-3 sm:grid-cols-2 lg:grid-cols-4">
           {kind === "finance" && (
             <label className="space-y-1">
               <span className="block text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground">Transaction type</span>
@@ -320,7 +326,9 @@ export function ReportFilterBar({
               onChange={(e) => set({ maxAmount: e.target.value === "" ? null : Number(e.target.value) })} />
           </label>
         </div>
-      )}
+        </div>
+        </div>
+      </div>
 
       {/* Row 3 — active chips */}
       <div className="flex flex-wrap items-center gap-1.5 p-2.5">
