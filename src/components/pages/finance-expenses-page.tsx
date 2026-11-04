@@ -1,3 +1,4 @@
+import { UnderlineTabs } from "@/components/ui/underline-tabs";
 import { useActiveCompany } from "@/components/company/company-switcher";
 import { getCompanyFundConfig, getCompanyWallet } from "@/lib/company-wallet.functions";
 import { DiscardCancelButton } from "@/components/company/danger-confirm";
@@ -569,22 +570,18 @@ export function ExpensesPage() {
 
       <ReportFilterBar filters={filters} onChange={setFilters} kind="expense" />
 
-      <div className="-mx-0.5 flex items-center gap-1.5 overflow-x-auto px-0.5 pb-0.5" role="group" aria-label="Filter by category">
-        {(["", ...CATEGORIES] as string[]).map((c) => {
-          const active = c ? filters.categories[0] === c : filters.categories.length === 0;
-          const n = (q.data ?? []).filter((r) => r.currency === filters.currency && (!c || r.category === c)
-            && (filters.preset === "all" || (r.spent_on >= filters.from && r.spent_on <= filters.to))).length;
-          return (
-            <button key={c || "all"} type="button" onClick={() => setFilters({ ...filters, categories: c ? [c] : [] })}
-              className={`shrink-0 rounded-sm px-2.5 py-1 text-[12px] font-medium transition-colors ${
-                active ? "bg-primary text-primary-foreground" : "border border-border bg-card text-muted-foreground hover:text-foreground"
-              }`}>
-              {c ? formatCategory(c) : "All categories"} <span className="ml-1 font-mono text-[10.5px] opacity-75">{n}</span>
-            </button>
-          );
-        })}
-      </div>
-
+      <UnderlineTabs
+        ariaLabel="Filter by category"
+        className="border-b border-border"
+        value={filters.categories[0] ?? "__all"}
+        onChange={(c) => setFilters({ ...filters, categories: c === "__all" ? [] : [c] })}
+        items={(["__all", ...CATEGORIES] as string[]).map((c) => ({
+          id: c,
+          label: c === "__all" ? "All categories" : formatCategory(c),
+          count: (q.data ?? []).filter((r) => r.currency === filters.currency && (c === "__all" || r.category === c)
+            && (filters.preset === "all" || (r.spent_on >= filters.from && r.spent_on <= filters.to))).length,
+        }))}
+      />
 
       <div className="grid w-full min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {visible.length === 0 ? (
