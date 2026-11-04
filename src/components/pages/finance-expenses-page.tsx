@@ -936,6 +936,7 @@ export function ExpensesPage() {
       {receiptGallery && <ExpenseReceiptsGallery receipts={storedReceipts(receiptGallery)} voucherNo={receiptGallery.voucher_no}
         onClose={() => setReceiptGallery(null)}
         onView={r => track(receiptGallery.id, "receipt_viewed", r.name)}
+        onDownloaded={r => track(receiptGallery.id, "receipt_downloaded", r.name)}
         onDownload={r => { if (r.path) void downloadReceipt(r.path, receiptGallery.id); }} />}
 
       {viewer && (

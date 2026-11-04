@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Download, Eye, Paperclip } from "lucide-react";
 import { ReceiptPreview, ReceiptThumb, type ReceiptMedia } from "./receipt-media";
 
-export function ExpenseReceiptsGallery({ receipts, voucherNo, onClose, onView, onDownload }: {
-  receipts: ReceiptMedia[]; voucherNo: string | null; onClose: () => void; onView: (r: ReceiptMedia) => void; onDownload: (r: ReceiptMedia) => void;
+export function ExpenseReceiptsGallery({ receipts, voucherNo, onClose, onView, onDownload, onDownloaded }: {
+  receipts: ReceiptMedia[]; voucherNo: string | null; onClose: () => void; onView: (r: ReceiptMedia) => void; onDownload: (r: ReceiptMedia) => void; onDownloaded: (r: ReceiptMedia) => void;
 }) {
   const [index, setIndex] = useState<number | null>(null);
   const preview = (i: number) => { setIndex(i); const receipt = receipts[i]; if (receipt) onView(receipt); };
@@ -21,6 +21,6 @@ export function ExpenseReceiptsGallery({ receipts, voucherNo, onClose, onView, o
         </article>)}
       </div>
     </DialogContent></Dialog>
-    <ReceiptPreview receipts={receipts} index={index} onIndexChange={preview} onClose={() => setIndex(null)} onDownload={onDownload} />
+    <ReceiptPreview receipts={receipts} index={index} onIndexChange={preview} onClose={() => setIndex(null)} onDownload={onDownloaded} />
   </>;
 }
