@@ -115,6 +115,8 @@ function LoginPage() {
   const [passkeyError, setPasskeyError] = useState<string | null>(null);
 
   const finalizeAndGo = async (opts?: { viaPasskey?: boolean }) => {
+    // Show the branded splash immediately; the Console preloader takes over on mount.
+    showBootSplash();
     try {
       const key = ensureSessionKey();
       const { collectDeviceHints } = await import("@/lib/device-hints");
