@@ -30,6 +30,8 @@ import { ReportFilterBar } from "@/components/finance/report-filter-bar";
 import { RowActionsMenu } from "@/components/finance/responsive-record-list";
 import { PageHero } from "@/components/branta/page-hero";
 import { ExpenseItemsEditor, type ExpenseItem } from "@/components/finance/expense-items-editor";
+import { ExpenseReceiptsGallery } from "@/components/finance/expense-receipts-gallery";
+import { storedReceipts } from "@/components/finance/receipt-media";
 import { ExpenseReceiptsEditor, type ReceiptDraft } from "@/components/finance/expense-receipts-editor";
 
 import { ExportMenu } from "@/components/finance/export-menu";
@@ -268,6 +270,7 @@ export function ExpensesPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (open) setFormSnap(JSON.stringify({ form, receipts })); }, [open]);
   const [uploading, setUploading] = useState(false);
+  const [receiptGallery, setReceiptGallery] = useState<ExpenseRow | null>(null);
   const [viewer, setViewer] = useState<{ url: string; name: string } | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [pdfViewer, setPdfViewer] = useState<{ url: string; name: string } | null>(null);
@@ -609,7 +612,7 @@ export function ExpensesPage() {
             <Button onClick={startCreate} className="mt-4 gap-1.5"><Plus className="size-4" /> Add expense</Button>
           </div>
         ) : visible.map((r) => {
-          const receipts = (r.attachments ?? []).length || (r.receipt_url ? 1 : 0);
+          const receipts = storedReceipts(r).length;
           return (
           <ExpenseCard key={r.id} record={r} category={formatCategory(r.category)} amount={`− ${fmt(r.amount, r.currency)}`}
             receiptCount={receipts} highlighted={highlightId === r.id}
@@ -618,30 +621,12 @@ export function ExpensesPage() {
             onDownload={() => downloadVoucher(r.id, r.voucher_no, r.signed_voucher_url)}
             onEdit={() => setAskEditFor(r)}
             menu={<RowActionsMenu>
-                  <Button size="sm" variant="ghost" className="hidden h-8 w-full rounded-sm text-[12px] sm:inline-flex"
-                    disabled={!r.voucher_no} onClick={() => viewVoucher(r.id, r.voucher_no)}>
-                    <Eye className="mr-2 size-3.5" /> View voucher
-                  </Button>
-                  <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]"
-                    disabled={!r.voucher_no} onClick={() => downloadVoucher(r.id, r.voucher_no, r.signed_voucher_url)}>
-                    <Download className="mr-2 size-3.5" /> Download voucher
-                  </Button>
                   <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]"
                     disabled={!r.voucher_no} onClick={() => openVoucher(r.id, "print")}>
                     <Printer className="mr-2 size-3.5" /> Print on letterhead
                   </Button>
-                  {r.receipt_url && (
-                    <>
-                      <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]"
-                        onClick={() => openReceipt(r.receipt_url as string, r.id)}>
-                        <FileText className="mr-2 size-3.5" /> View receipt
-                      </Button>
-                      <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]"
-                        onClick={() => downloadReceipt(r.receipt_url as string, r.id)}>
-                        <Download className="mr-2 size-3.5" /> Download receipt
-                      </Button>
-                    </>
-                  )}
+                  {receipts > 0 && <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]"
+                    onClick={() => setReceiptGallery(r)}><Receipt className="mr-2 size-3.5" />Receipts / proof · {receipts}</Button>}
                   {r.signed_voucher_url ? (
                     <>
                       <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]"
@@ -667,9 +652,6 @@ export function ExpensesPage() {
                   <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]"
                     disabled={!r.voucher_no} onClick={() => copyLink(r.voucher_no)}>
                     <Link2 className="mr-2 size-3.5" /> Copy private link
-                  </Button>
-                  <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px]" onClick={() => setAskEditFor(r)}>
-                    <Pencil className="mr-2 size-3.5" /> Edit expense
                   </Button>
                   <Button size="sm" variant="ghost" className="h-8 w-full rounded-sm text-[12px] text-rose-600"
                     onClick={() => setAskDeleteFor(r)}>
@@ -950,6 +932,12 @@ export function ExpensesPage() {
           onClose={() => setLogsFor(null)}
         />
       )}
+
+      {receiptGallery && <ExpenseReceiptsGallery receipts={storedReceipts(receiptGallery)} voucherNo={receiptGallery.voucher_no}
+        onClose={() => setReceiptGallery(null)}
+        onView={r => track(receiptGallery.id, "receipt_viewed", r.name)}
+        onDownloaded={r => track(receiptGallery.id, "receipt_downloaded", r.name)}
+        onDownload={r => { if (r.path) void downloadReceipt(r.path, receiptGallery.id); }} />}
 
       {viewer && (
         <div className="fixed inset-0 z-[60] grid place-items-center bg-black/80 p-4" onClick={() => setViewer(null)}>

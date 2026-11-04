@@ -1,10 +1,9 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
-import { X, FileText, Image as ImageIcon, ImageOff, Paperclip, UploadCloud, Eye, ExternalLink, Download } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { X, Paperclip, UploadCloud } from "lucide-react";
+import { ReceiptThumb, ReceiptPreview } from "./receipt-media";
 import { SearchableSelect } from "@/components/finance/searchable-select";
 import { confirmAction } from "@/components/ui/confirm-dialog";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 export type ReceiptDraft = {
@@ -34,7 +33,7 @@ export function ExpenseReceiptsEditor({
   receipts: ReceiptDraft[];
   onChange: (next: ReceiptDraft[]) => void;
 }) {
-  const [preview, setPreview] = useState<{ url: string; name: string } | null>(null);
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [drag, setDrag] = useState(false);
   const addFiles = (files: FileList | null) => {
     if (!files?.length) return;
@@ -94,7 +93,7 @@ export function ExpenseReceiptsEditor({
           const { type, note } = splitCaption(r.caption);
           return (
             <div key={(r.path ?? r.name) + idx} className="flex items-start gap-3 rounded-lg border border-border bg-card p-2.5 shadow-sm transition-all animate-in fade-in slide-in-from-top-1 duration-200 hover:border-foreground/20">
-              <ReceiptThumb r={r} onOpen={(url) => setPreview({ url, name: r.name })} />
+              <ReceiptThumb r={r} onOpen={() => setPreviewIndex(idx)} />
               <div className="min-w-0 flex-1 space-y-2">
                 <div className="flex items-center justify-between gap-2">
                   <span className="truncate text-[12.5px] font-bold" title={r.name}>{r.name}</span>
@@ -134,36 +133,7 @@ export function ExpenseReceiptsEditor({
         )}
       </div>
 
-      <Dialog open={!!preview} onOpenChange={(v) => !v && setPreview(null)}>
-        <DialogContent className="max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-2xl overflow-hidden p-0 sm:w-full">
-          <DialogHeader className="border-b border-border px-4 py-2.5">
-            <DialogTitle className="truncate pr-8 text-[13px] font-semibold">Receipt · {preview?.name}</DialogTitle>
-          </DialogHeader>
-          <div className="grid place-items-center bg-muted/40 p-4">
-            {preview && /\.(heic|heif)$/i.test(preview.name) ? (
-              <div className="flex flex-col items-center gap-2.5 px-6 py-12 text-center">
-                <span className="grid size-14 place-items-center rounded-xl bg-brand/10 text-brand ring-1 ring-inset ring-brand/20">
-                  <ImageOff className="size-6" />
-                </span>
-                <div className="text-[13.5px] font-bold">HEIC preview isn't supported by browsers</div>
-                <p className="max-w-sm text-[12px] font-medium leading-relaxed text-muted-foreground">
-                  iPhone photos (.heic) can't be shown here — the file is stored safely. Download it to view, or convert it to JPG first.
-                </p>
-              </div>
-            ) : preview && <img src={preview.url} alt="" className="max-h-[70vh] max-w-full rounded-sm object-contain animate-in zoom-in-95 fade-in duration-200" />}
-          </div>
-          <div className="flex items-center justify-end gap-2 border-t border-border p-3">
-            <a href={preview?.url} target="_blank" rel="noreferrer noopener"
-              className="inline-flex h-8 items-center gap-1.5 rounded-sm border border-border bg-card px-2.5 text-[12px] font-medium hover:bg-muted">
-              <ExternalLink className="size-3.5" /> Open
-            </a>
-            <a href={preview?.url} download={preview?.name}
-              className="inline-flex h-8 items-center gap-1.5 rounded-sm bg-brand px-3 text-[12px] font-semibold text-white hover:bg-brand-700">
-              <Download className="size-3.5" /> Download
-            </a>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ReceiptPreview receipts={receipts} index={previewIndex} onIndexChange={setPreviewIndex} onClose={() => setPreviewIndex(null)} />
     </div>
   );
 }
@@ -178,57 +148,4 @@ function splitCaption(c: string) {
 }
 function joinCaption(type: string, note: string) {
   return note.trim() ? `${type} — ${note}` : type;
-}
-
-function ReceiptThumb({ r, onOpen }: { r: ReceiptDraft; onOpen: (url: string) => void }) {
-  const [url, setUrl] = useState<string | null>(null);
-  useEffect(() => {
-    if (r.isPdf) return;
-    if (r.file) {
-      const u = URL.createObjectURL(r.file);
-      setUrl(u);
-      return () => URL.revokeObjectURL(u);
-    }
-    if (r.path) {
-      let live = true;
-      void supabase.storage.from("expense-receipts").createSignedUrl(r.path, 600).then(({ data }) => {
-        if (live && data?.signedUrl) setUrl(data.signedUrl);
-      });
-      return () => { live = false; };
-    }
-  }, [r.file, r.path, r.isPdf]);
-
-  const heic = !r.isPdf && /\.(heic|heif)$/i.test(r.name);
-  if (heic) {
-    return (
-      <button type="button" disabled={!url} onClick={() => url && onOpen(url)} aria-label={`Preview ${r.name}`}
-        className="group/thumb relative grid size-16 shrink-0 cursor-pointer place-items-center rounded-lg border border-brand/25 bg-brand/[0.06] shadow-sm transition-colors hover:border-brand/50">
-        <span className="flex flex-col items-center gap-1 text-brand">
-          <ImageIcon className="size-5" />
-          <span className="rounded bg-brand px-1.5 py-px font-mono text-[8px] font-bold uppercase tracking-widest text-white">HEIC</span>
-        </span>
-        {url && (
-          <span className="absolute inset-0 grid place-items-center bg-foreground/45 opacity-0 transition-opacity duration-200 group-hover/thumb:opacity-100">
-            <Eye className="size-5 text-white" />
-          </span>
-        )}
-      </button>
-    );
-  }
-  if (r.isPdf || !url) {
-    return (
-      <span className="grid size-16 shrink-0 place-items-center rounded-lg border border-border bg-muted/50 text-muted-foreground">
-        {r.isPdf ? <FileText className="size-6 text-rose-600" /> : <ImageIcon className="size-6" />}
-      </span>
-    );
-  }
-  return (
-    <button type="button" onClick={() => onOpen(url)} aria-label={`Preview ${r.name}`}
-      className="group/thumb relative size-16 shrink-0 cursor-pointer overflow-hidden rounded-lg border border-border bg-muted shadow-sm">
-      <img src={url} alt="" className="size-full object-cover transition-transform duration-300 group-hover/thumb:scale-110" />
-      <span className="absolute inset-0 grid place-items-center bg-foreground/45 opacity-0 transition-opacity duration-200 group-hover/thumb:opacity-100">
-        <Eye className="size-5 text-white" />
-      </span>
-    </button>
-  );
 }
