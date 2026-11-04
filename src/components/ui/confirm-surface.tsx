@@ -213,7 +213,7 @@ export function ConfirmSurface({
               ) : (
                 !hideConfirmIcon && <BtnIcon className="size-3.5" />
               )}
-              {confirmLabel ?? (tone === "danger" ? "Delete" : "Confirm")}
+              {confirmLabel ?? "Confirm"}
             </Button>
           ))}
         </ConfirmFooter>
