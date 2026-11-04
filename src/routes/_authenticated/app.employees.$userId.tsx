@@ -821,27 +821,19 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
 
 
       {/* Tabs */}
-      <div className="flex w-fit max-w-full items-center gap-1 overflow-x-auto rounded-full border border-border bg-card p-1 shadow-sm whitespace-nowrap">
-        <TabBtn active={tab === "profile"} onClick={() => setTab("profile")} icon={UserCog}>
-          Profile
-        </TabBtn>
-        <TabBtn active={tab === "wallet"} onClick={() => setTab("wallet")} icon={Wallet}>
-          Wallet &amp; Earnings
-        </TabBtn>
-        <TabBtn active={tab === "schedule"} onClick={() => setTab("schedule")} icon={UserCog}>
-          Shift Schedule
-        </TabBtn>
-        <TabBtn
-          active={tab === "permissions"}
-          onClick={() => setTab("permissions")}
-          icon={ShieldCheck}
-        >
-          Permissions
-        </TabBtn>
-        <TabBtn active={tab === "workspaces"} onClick={() => setTab("workspaces")} icon={Building2}>
-          Workspaces
-        </TabBtn>
-      </div>
+      <UnderlineTabs
+        className="border-b border-border"
+        ariaLabel="Employee sections"
+        value={tab}
+        onChange={(t) => setTab(t)}
+        items={[
+          { id: "profile", label: "Profile", icon: UserCog },
+          { id: "wallet", label: "Wallet & Earnings", icon: Wallet },
+          { id: "schedule", label: "Shift Schedule", icon: CalendarClock },
+          { id: "permissions", label: "Permissions", icon: ShieldCheck },
+          { id: "workspaces", label: "Workspaces", icon: Building2 },
+        ] as const satisfies readonly { id: typeof tab; label: string; icon: typeof UserCog }[]}
+      />
 
       {tab === "profile" ? (
         <><ProfileTab e={e} />
@@ -925,13 +917,16 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
       <Sheet open={logsOpen} onOpenChange={setLogsOpen}>
         <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-[640px]">
           <DrawerHero title="Activity logs" subtitle={`Mail delivery and sign-in sessions for ${e.profile.full_name ?? e.email}`}>
-            <div className="relative mt-4 flex gap-1 rounded-full border border-border bg-card p-1 shadow-sm">
-              {(["mail", "sessions"] as const).map((t) => (
-                <button key={t} onClick={() => setLogsTab(t)} className={cn("h-8 flex-1 rounded-full text-[12.5px] font-semibold transition-all duration-200 active:scale-95", logsTab === t ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:bg-muted hover:text-foreground")}>
-                  {t === "mail" ? "Mail delivery" : "Sessions & logout"}
-                </button>
-              ))}
-            </div>
+            <UnderlineTabs
+              className="-mb-5 mt-4"
+              ariaLabel="Log type"
+              value={logsTab}
+              onChange={setLogsTab}
+              items={[
+                { id: "mail", label: "Mail delivery", icon: Mail },
+                { id: "sessions", label: "Sessions & logout", icon: LogOut },
+              ]}
+            />
           </DrawerHero>
           <div key={logsTab} className="flex-1 overflow-y-auto p-5 animate-in fade-in slide-in-from-right-2 duration-300">
             {logsTab === "mail" ? (

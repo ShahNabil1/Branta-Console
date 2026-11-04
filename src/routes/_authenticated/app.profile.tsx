@@ -28,28 +28,12 @@ function ProfileLayout() {
             </h1>
           </div>
         </div>
-        <nav className="mx-auto mt-4 flex max-w-5xl items-center gap-1 overflow-x-auto px-4">
-          {TABS.map((t) => {
-            const active =
-              pathname === t.to || pathname.startsWith(t.to + "/");
-            const Icon = t.icon;
-            return (
-              <Link
-                key={t.to}
-                to={t.to}
-                className={cn(
-                  "flex items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2.5 text-[12.5px] font-medium transition-colors",
-                  active
-                    ? "border-brand text-foreground"
-                    : "border-transparent text-muted-foreground hover:text-foreground",
-                )}
-              >
-                <Icon className="size-3.5" strokeWidth={1.75} />
-                {t.label}
-              </Link>
-            );
-          })}
-        </nav>
+        <UnderlineTabs
+          className="mx-auto mt-4 max-w-5xl px-4"
+          ariaLabel="Profile sections"
+          value={TABS.find((t) => pathname === t.to || pathname.startsWith(t.to + "/"))?.to ?? TABS[0].to}
+          items={TABS.map((t) => ({ id: t.to, label: t.label, icon: t.icon, to: t.to }))}
+        />
       </div>
       <Outlet />
     </div>

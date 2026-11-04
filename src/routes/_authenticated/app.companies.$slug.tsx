@@ -105,19 +105,7 @@ function CompanyProfile() {
           </Button>
         </div>
 
-        <nav className="relative -mb-6 mt-6 flex gap-1 overflow-x-auto border-t border-border pt-2">
-          {TABS.map((t) => {
-            const on = tab === t.id;
-            return (
-              <button key={t.id} onClick={() => setTab(t.id)}
-                className={cn("relative inline-flex shrink-0 items-center gap-1.5 rounded-t-md px-3 py-2.5 text-[12.5px] font-bold transition-all active:scale-95",
-                  on ? "text-foreground" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground")}>
-                <t.icon className="size-3.5" style={on ? { color: accent } : undefined} /> {t.label}
-                <span className={cn("absolute inset-x-2 bottom-0 h-0.5 rounded-full transition-all duration-300", on ? "opacity-100" : "scale-x-0 opacity-0")} style={{ background: accent }} />
-              </button>
-            );
-          })}
-        </nav>
+        <UnderlineTabs className="-mb-6 mt-6 border-t border-border pt-2" items={TABS} value={tab} onChange={setTab} accent={accent} ariaLabel="Company sections" />
       </section>
 
       <div key={tab} className="animate-in fade-in slide-in-from-bottom-1 duration-300">

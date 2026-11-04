@@ -109,22 +109,13 @@ export function EmployeesDirectory({
       />
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex gap-1 overflow-x-auto rounded-full border border-border bg-card p-1 shadow-sm">
-          {TABS.map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setFilter(t.key)}
-              className={cn(
-                "flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-semibold transition-all duration-200",
-                filter === t.key ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:bg-muted hover:text-foreground",
-              )}
-            >
-              {t.key !== "all" && <span className={cn("size-1.5 rounded-full", DOT[t.key])} />}
-              {t.label}
-              <span className="font-mono text-[11px] opacity-70">{counts[t.key]}</span>
-            </button>
-          ))}
-        </div>
+        <UnderlineTabs
+          className="border-b border-border"
+          ariaLabel="Presence filter"
+          value={filter}
+          onChange={setFilter}
+          items={TABS.map((t) => ({ id: t.key, label: t.label, count: counts[t.key], lead: t.key !== "all" ? <span className={cn("size-1.5 rounded-full", DOT[t.key])} /> : undefined }))}
+        />
         <label className="relative sm:w-72">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
           <input
