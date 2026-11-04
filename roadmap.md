@@ -1,5 +1,10 @@
 # Roadmap
 
+## Mobile dropdown keyboard
+- [x] Reproduce automatic search focus in the shared dropdown on a touch viewport.
+- [x] Prevent automatic mobile search focus and add Vendor Done/Enter dismissal.
+- [ ] Verify touch open, explicit search focus, selection and Vendor dismissal.
+
 ## Lead detail cleanup
 - [x] Remove the Docs tab and its exclusive generation/list/delete functions; preserve saved history.
 - [x] Remove the duplicate detail Status editor while retaining the workspace header status action.

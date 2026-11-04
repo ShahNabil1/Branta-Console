@@ -461,7 +461,7 @@ function SearchableSelect({
         <div className="absolute z-30 mt-1 w-full overflow-hidden rounded-sm border border-border bg-popover shadow-md">
           <div className="flex items-center gap-1.5 border-b border-border px-2.5 py-1.5">
             <Search className="size-3.5 text-muted-foreground" />
-            <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Type to search…" className="h-7 w-full bg-transparent text-[13px] outline-none placeholder:text-muted-foreground" />
+            <input data-dropdown-search value={q} onChange={(e) => setQ(e.target.value)} placeholder="Type to search…" className="h-7 w-full bg-transparent text-[13px] outline-none placeholder:text-muted-foreground" />
           </div>
           <div className="max-h-60 overflow-auto py-1">
             {filtered.length === 0 && (

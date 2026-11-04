@@ -789,6 +789,13 @@ export function ExpensesPage() {
                 <div>
                   <label className="text-[10.5px] font-extrabold uppercase tracking-wider text-foreground/70">Vendor</label>
                   <Input value={form.vendor} onChange={(e) => setForm({ ...form, vendor: e.target.value })}
+                    enterKeyHint="done"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                        e.preventDefault();
+                        e.currentTarget.blur();
+                      }
+                    }}
                     className="mt-1.5 h-10 rounded-lg text-[13px] font-semibold shadow-sm transition-all hover:border-foreground/25 focus:border-brand focus:shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-brand)_15%,transparent)] focus-visible:ring-0 focus-visible:border-brand focus-visible:shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-brand)_15%,transparent)]" placeholder="e.g. Figma, Google Ads, GP" />
                 </div>
                 <div>
