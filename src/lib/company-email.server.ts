@@ -11,10 +11,12 @@ export const RESEND_EVENTS = [
   "email.sent", "email.delivered", "email.delivery_delayed", "email.bounced",
   "email.complained", "email.opened", "email.clicked", "email.failed",
   "email.scheduled", "email.received", "email.suppressed",
+  "domain.created", "domain.updated", "domain.deleted",
+  "contact.created", "contact.updated", "contact.deleted", "contact.topics.updated",
 ] as const;
 export const BREVO_EVENTS = [
   "request", "delivered", "opened", "click", "hardBounce", "softBounce",
-  "spam", "blocked", "invalid", "deferred", "unsubscribed",
+  "spam", "blocked", "invalid", "deferred", "unsubscribed", "uniqueOpened",
 ] as const;
 
 export function publicBase() {

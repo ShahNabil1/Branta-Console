@@ -1,5 +1,6 @@
 import { DisconnectButton as SharedDisconnectButton } from "@/components/ui/disconnect-button";
 import { TestLoader } from "@/components/ui/test-loader";
+import { WebhookFixButton } from "@/components/company/webhook-fix-button";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -38,6 +39,7 @@ import {
   setDefaultProvider,
   setFinanceSender,
   testEmailProvider,
+  repairCompanyWebhook,
   verifyEmailProvider,
   sendInboxProbe,
   pollInboxProbe,
@@ -281,11 +283,14 @@ function ProviderPanel({
 }) {
   const m = META[p];
   const [flowing, setFlowing] = useState(false);
+  const configured = !flowing && !!v?.domain_verified_at;
   const connected = !flowing && !!v?.domain_verified_at && !!v?.webhook_verified_at;
   const test = useServerFn(testEmailProvider);
+  const repair = useServerFn(repairCompanyWebhook);
   const def = useServerFn(setDefaultProvider);
   const refresh = useRefresh(slug);
-  const [busy, setBusy] = useState<"test" | "def" | null>(null);
+  const [busy, setBusy] = useState<"test" | "def" | "fix" | null>(null);
+  const fixingRef = useRef(false);
   const [checks, setChecks] = useState<TestCheck[] | null>(null);
   const domain = v ? v.domain || v.sender_email.split("@")[1] : "";
 
@@ -310,12 +315,30 @@ function ProviderPanel({
   // Silent health check once on open: quiet when everything works.
   const autoRan = useRef(false);
   useEffect(() => {
-    if (autoRan.current || !connected) return;
+    if (autoRan.current || !configured) return;
     autoRan.current = true;
     void runTest(true);
-  }, [connected]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [configured]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const failed = (k: string) => checks?.find((c) => c.kind === k && !c.ok);
+  const fixWebhook = async () => {
+    if (fixingRef.current || busy) return;
+    fixingRef.current = true;
+    setBusy("fix");
+    try {
+      await repair({ data: { slug, provider: p } });
+      const result = await test({ data: { slug, provider: p } });
+      setChecks(result.checks);
+      await refresh();
+      if (result.checks.find(c => c.kind === "webhook")?.ok) toast.success(`${m.name} webhook fixed.`);
+      else toast.error("Webhook was registered, but its check still needs attention.");
+    } catch (e) {
+      toast.error(err(e));
+    } finally {
+      fixingRef.current = false;
+      setBusy(null);
+    }
+  };
   const chips =
     p === "resend"
       ? [
@@ -373,7 +396,7 @@ function ProviderPanel({
             )}
           </p>
         </div>
-        {connected ? (
+        {configured ? (
           <div className="flex flex-wrap gap-2 animate-in fade-in duration-500">
             <Button size="sm" variant="outline" onClick={() => runTest(false)} disabled={!!busy}>
               <TestLoader active={busy === "test"} /> Test
@@ -406,7 +429,7 @@ function ProviderPanel({
         )}
       </div>
 
-      {connected && (
+      {configured && (
         <div className="mt-3 flex flex-wrap gap-2">
           {chips.map((c) => {
             const bad = failed(c.k);
@@ -439,7 +462,7 @@ function ProviderPanel({
         </div>
       )}
 
-      {connected && checks && (
+      {configured && checks && (
         <div className="mt-3 grid gap-2 sm:grid-cols-3">
           {checks.map((c, i) => {
             const I = c.kind === "webhook" ? Webhook : c.kind === "domain" ? ShieldCheck : KeyRound;
@@ -462,7 +485,7 @@ function ProviderPanel({
                   <span className="grid size-9 shrink-0 place-items-center rounded-lg border border-border bg-background shadow-sm">
                     <I className="size-4" style={{ color: m.color }} />
                   </span>
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1 text-[13px] font-bold">
                       {c.label}
                       {c.ok ? (
@@ -480,6 +503,9 @@ function ProviderPanel({
                       {c.ok ? "Working" : "Issue"}
                     </div>
                   </div>
+                  {c.kind === "webhook" && !c.ok && (
+                    <WebhookFixButton fixing={busy === "fix"} disabled={locked || !!busy} onClick={() => void fixWebhook()} />
+                  )}
                 </div>
                 <p className="relative mt-2 break-words text-[11.5px] font-semibold text-muted-foreground">
                   {c.detail}
