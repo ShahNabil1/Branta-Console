@@ -1,6 +1,6 @@
 /* Chart preloader - CSS only, no JavaScript, SVG, images or libraries */
 .preloader-screen {
-  --load-speed: 3.55s;
+  --load-speed: 7s;
   --blue: #E56A17;
 }
 .preloader-screen {
@@ -249,4 +249,11 @@
   .preloader-card, .preloader-card * { animation: none !important; }
   .origin { opacity: 1; }
   .point, .connector, .bar, .gem, .gem-dot, .sparks { opacity: 0; }
+}
+
+/* Scrub mode (preview page): freeze every animation at time --t */
+.preloader-screen[data-scrub] .preloader-card,
+.preloader-screen[data-scrub] .preloader-card * {
+  animation-play-state: paused !important;
+  animation-delay: calc(var(--t, 0s) * -1) !important;
 }
