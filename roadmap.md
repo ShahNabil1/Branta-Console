@@ -1,5 +1,9 @@
 # Roadmap
 
+## Expense download result feedback
+- [ ] Apply shared pending, red failure and green success feedback to voucher cards, receipt preview/gallery and sealed-copy viewer downloads.
+- [ ] Check successful download, failed fetch and retry; retain existing real-session verification blocker.
+
 ## Stable premium receipt preview
 - [x] Remove all shared receipt Open actions; branded fixed responsive frame with stable header/footer across images, PDF and HEIC.
 - [x] Replace download icon with loader while pending in voucher card and receipt preview; restore on completion. Receipt download waits for complete file fetch.
