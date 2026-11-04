@@ -839,7 +839,7 @@ export function ExpensesPage() {
                 <div className="rounded-xl border border-border bg-muted/30 p-3.5 transition-colors hover:border-foreground/15">
                   <label className="text-[10.5px] font-extrabold uppercase tracking-wider text-foreground/70">Paying fund (Fund Ledger · optional)</label>
                   <div className="mt-1.5">
-                    <SearchableSelect clearable items={(fundOpts.data ?? []).map((f) => ({ value: f.id, label: f.name, hint: `available ৳ ${f.available.toLocaleString()}`, keywords: [f.code] }))} value={form.paying_fund_id} onChange={(v) => setForm({ ...form, paying_fund_id: v })} placeholder="— Not charged to a fund —" emptyText="No fund matches" />
+                    <SearchableSelect clearable items={(fundOpts.data ?? []).map((f) => ({ value: f.id, label: f.name, hint: `available ৳ ${f.available.toLocaleString()}`, sub: Number(form.amount) > f.available ? "Not enough balance for this amount" : null, disabled: Number(form.amount) > f.available && f.id !== form.paying_fund_id, keywords: [f.code] }))} value={form.paying_fund_id} onChange={(v) => setForm({ ...form, paying_fund_id: v })} placeholder="— Not charged to a fund —" emptyText="No fund matches" />
                   </div>
                   {selectedFund && Number(form.amount) > selectedFund.available && (
                     <p className="mt-1 text-[11.5px] font-medium text-destructive">Amount is above this fund's available balance.</p>
