@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ArrowUpRight, Briefcase, Mail, Phone, Plus, Search, UserPlus, Users } from "lucide-react";
+import { UnderlineTabs } from "@/components/ui/underline-tabs";
 import type { EmployeeRow } from "@/lib/employees.functions";
 import { useOnlineUsers, type PresenceInfo } from "@/hooks/use-presence";
 import { Button } from "@/components/ui/button";

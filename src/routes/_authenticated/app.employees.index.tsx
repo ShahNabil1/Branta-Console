@@ -1,5 +1,6 @@
 import { toast } from "sonner";
 import { TestLoader } from "@/components/ui/test-loader";
+import { UnderlineTabs } from "@/components/ui/underline-tabs";
 import admakaiLogo from "@/assets/apps/admakai.png";
 import { Switch } from "@/components/ui/switch";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -9,7 +10,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { listDestinationRoutes, deleteCloudflareRoute } from "@/lib/employee-offboard.functions";
 import { Progress } from "@/components/ui/progress";
 import { useConfirm } from "@/components/ui/confirm-dialog";
-import { Trash2, CircleCheck, CircleX } from "lucide-react";
+import { Trash2, CircleCheck, CircleX, Search, X } from "lucide-react";
 import { AnimatedBorderButton } from "@/components/AnimatedBorderButton";
 import { GmailMark } from "@/components/company/google-account-card";
 import cfRoutingIcon from "@/assets/integrations/cloudflare-email-routing.png.asset.json";

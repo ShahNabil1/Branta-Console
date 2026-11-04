@@ -1,5 +1,6 @@
 import { AnimatedBorderButton } from "@/components/AnimatedBorderButton";
 import { AlertDialog, AlertDialogContent } from "@/components/ui/alert-dialog";
+import { UnderlineTabs } from "@/components/ui/underline-tabs";
 import { ConfirmHeader, ConfirmFooter } from "@/components/ui/confirm-surface";
 import { TestLoader } from "@/components/ui/test-loader";
 import { DiscardCancelButton } from "@/components/company/danger-confirm";

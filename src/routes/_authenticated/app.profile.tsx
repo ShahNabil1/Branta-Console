@@ -1,5 +1,6 @@
 import { createFileRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
 import { User, Wallet, ShieldCheck } from "lucide-react";
+import { UnderlineTabs } from "@/components/ui/underline-tabs";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/app/profile")({
