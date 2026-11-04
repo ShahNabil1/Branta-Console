@@ -933,7 +933,7 @@ export function ExpensesPage() {
             </div>
           </div>
           <div className="flex items-center justify-between gap-2 border-t border-border bg-card px-6 py-3.5">
-            <DiscardCancelButton dirty={JSON.stringify({ form, receipts }) !== formSnap} onCancel={() => { setOpen(false); setEditingId(null); draftRef.current = false; }} className="h-9 rounded-md" disabled={add.isPending} />
+            <DiscardCancelButton dirty onCancel={() => { setOpen(false); setEditingId(null); draftRef.current = false; }} className="h-9 rounded-md" disabled={add.isPending} />
             <div className="flex items-center gap-2">
               {step > 0 && (
                 <Button variant="outline" onClick={() => setStep(step - 1)} disabled={add.isPending} className="h-9 gap-1 rounded-md">
