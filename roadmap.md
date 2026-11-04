@@ -1,5 +1,9 @@
 # Roadmap
 
+## Receipt loading indicators
+- [x] Use the shared download loader for thumbnails and Branta-icon refresh animation inside receipt previews, lasting through media load.
+- [ ] Verify pending and ready states on desktop/mobile without shifting the preview frame.
+
 ## Expense card hierarchy and creator
 - [x] Emphasize category, vendor and purpose; show Added by name/avatar from the expense creator, separately from Requested by.
 - [x] Actual cards verified at 320/390/1280: distinct creator/requester avatars, clearer text, no overflow, working download feedback; build OK. Signed-in real employee readback remains unavailable with external unmanaged auth.
