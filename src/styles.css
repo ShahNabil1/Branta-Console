@@ -320,6 +320,12 @@ html body[data-scroll-locked] { margin-right: 0 !important; padding-right: 0 !im
 .branta-toaster {
   --toast-life: 4500ms;
 }
+/* Radix modals set pointer-events:none on <body>; toasts must stay interactive above them. */
+[data-sonner-toaster].branta-toaster,
+[data-sonner-toaster].branta-toaster [data-sonner-toast],
+[data-sonner-toaster].branta-toaster [data-sonner-toast] * {
+  pointer-events: auto !important;
+}
 .branta-toaster [data-sonner-toast].branta-toast {
   isolation: isolate;
   box-shadow: 0 12px 32px -12px color-mix(in oklab, var(--color-brand) 35%, transparent), 0 2px 6px rgb(0 0 0 / 0.06);
@@ -329,10 +335,11 @@ html body[data-scroll-locked] { margin-right: 0 !important; padding-right: 0 !im
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  padding: 1.5px;
+  padding: 2.5px;
   background:
-    conic-gradient(from var(--toast-angle), transparent 0deg, transparent 250deg, var(--color-brand) 330deg, transparent 360deg),
-    color-mix(in oklab, var(--color-brand) 18%, var(--color-border));
+    conic-gradient(from var(--toast-angle), transparent 0deg, transparent 200deg, color-mix(in oklab, var(--color-brand) 40%, transparent) 260deg, var(--color-brand) 340deg, var(--color-brand) 352deg, transparent 360deg),
+    color-mix(in oklab, var(--color-brand) 22%, var(--color-border));
+  filter: drop-shadow(0 0 3px color-mix(in oklab, var(--color-brand) 55%, transparent));
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
@@ -357,11 +364,12 @@ html body[data-scroll-locked] { margin-right: 0 !important; padding-right: 0 !im
   border: 1px solid var(--color-border);
   background: var(--color-card);
   color: var(--color-muted-foreground);
-  transition: transform 0.2s, background 0.15s, color 0.15s;
+  cursor: pointer;
+  transition: transform 0.2s, background 0.15s, color 0.15s, border-color 0.15s;
 }
 .branta-toaster [data-sonner-toast] [data-close-button].branta-toast-close:hover {
-  background: var(--color-brand);
-  border-color: var(--color-brand);
+  background: #dc2626;
+  border-color: #dc2626;
   color: white;
   transform: translateY(-50%) rotate(90deg);
 }
