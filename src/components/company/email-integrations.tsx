@@ -326,7 +326,7 @@ function ProviderPanel({
         ];
 
   return (
-    <div className="relative mt-4 overflow-hidden rounded-xl border border-border bg-background p-4 transition-shadow hover:shadow-md">
+    <div className="relative mt-4 flex min-h-[188px] flex-col overflow-hidden rounded-xl border border-border bg-background p-4 transition-shadow hover:shadow-md">
       <span className="absolute inset-y-0 left-0 w-1" style={{ background: m.color }} />
       <div className="flex flex-wrap items-center gap-3">
         <span className="grid size-10 shrink-0 place-items-center rounded-lg border border-border bg-card shadow-sm">
@@ -1922,8 +1922,9 @@ function InlineConnect({
         </div>
       </div>
       {error && (
-        <p className="absolute right-0 top-full mt-1 w-max max-w-[min(760px,calc(100vw-8rem))] text-right leading-snug text-[11.5px] font-semibold text-destructive animate-in fade-in" title={error}>
-          {error}
+        <p className="absolute right-0 top-full mt-2 flex w-max max-w-[min(760px,calc(100vw-8rem))] items-start gap-2 rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-2 text-left text-[12px] font-semibold leading-snug text-destructive animate-in fade-in slide-in-from-top-1" title={error}>
+          <XCircle className="mt-px size-3.5 shrink-0" />
+          <span>{error}</span>
         </p>
       )}
     </div>
