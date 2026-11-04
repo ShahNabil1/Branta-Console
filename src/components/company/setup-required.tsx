@@ -90,7 +90,7 @@ export function IntegrationRequired({ feature, compact }: { feature: keyof typeo
         <div className="flex flex-col items-center text-center">
           <img src={noConnectionIcon.url} alt="" className="size-14 shrink-0" />
           <h2 className="mt-4 text-[18px] font-bold tracking-tight text-foreground">No connection</h2>
-          <p className="mt-1 max-w-[22rem] text-[13px] leading-relaxed font-medium text-muted-foreground">
+          <p className="mt-1 whitespace-nowrap text-[13px] font-medium text-muted-foreground">
             {companyName}'s Inbox opens here as soon as every step below is done.
           </p>
         </div>
