@@ -284,3 +284,21 @@ html body[data-scroll-locked] { margin-right: 0 !important; padding-right: 0 !im
 .branta-close:hover svg { transform: rotate(90deg); }
 .branta-close:active { transform: scale(0.88); }
 @media (prefers-reduced-motion: reduce) { .branta-modal, .branta-overlay { animation-duration: 1ms !important; } }
+
+.test-loader { aspect-ratio: 1; display: inline-grid; }
+.test-loader::before,
+.test-loader::after {
+  content: "";
+  grid-area: 1/1;
+  --c: no-repeat radial-gradient(farthest-side, #25b09b 92%, #0000);
+  background: var(--c) 50% 0, var(--c) 50% 100%, var(--c) 100% 50%, var(--c) 0 50%;
+  background-size: 24% 24%;
+  animation: l12 1s infinite;
+}
+.test-loader::before {
+  margin: 8%;
+  filter: hue-rotate(45deg);
+  background-size: 16% 16%;
+  animation-timing-function: linear;
+}
+@keyframes l12 { 100% { transform: rotate(.5turn); } }

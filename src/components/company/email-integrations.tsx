@@ -1,3 +1,4 @@
+import { TestLoader } from "@/components/ui/test-loader";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -374,11 +375,7 @@ function ProviderPanel({
         {connected ? (
           <div className="flex flex-wrap gap-2 animate-in fade-in duration-500">
             <Button size="sm" variant="outline" onClick={() => runTest(false)} disabled={!!busy}>
-              {busy === "test" ? (
-                <Loader2 className="size-3.5 animate-spin" />
-              ) : (
-                <RefreshCw className="size-3.5" />
-              )}{" "}
+              {busy === "test" ? <TestLoader /> : <RefreshCw className="size-3.5" />}{" "}
               Test
             </Button>
             {both && !v!.is_default && (
