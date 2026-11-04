@@ -98,5 +98,7 @@ export const disconnectGoogle = createServerFn({ method: "POST" })
     g.clearCache(co.id);
     // Keep the row as history; drop the credential.
     await admin.from("company_google_accounts").update({ is_active: false, refresh_token_enc: null, disconnected_at: new Date().toISOString() }).eq("company_id", co.id);
+    // The Inbox address forwarded to that Gmail can no longer receive mail: un-verify it.
+    await admin.from("company_inbox_addresses").update({ verified_at: null, probe_code: null, probe_started_at: null }).eq("company_id", co.id);
     return { ok: true };
   });

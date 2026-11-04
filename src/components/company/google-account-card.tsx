@@ -25,7 +25,7 @@ export function GoogleMark({ className }: { className?: string }) {
 type Check = { id: string; label: string; ok: boolean; detail: string };
 
 /** Dedicated Gmail + Calendar for one company. Falls back to the shared Inbox Gmail when not connected. */
-export function GoogleAccountCard({ slug, accent, fallback }: { slug: string; accent: string; fallback: string }) {
+export function GoogleAccountCard({ slug, accent }: { slug: string; accent: string }) {
   const get = useServerFn(getGoogleConnection);
   const start = useServerFn(startGoogleConnect);
   const test = useServerFn(testGoogleConnection);
@@ -85,7 +85,7 @@ export function GoogleAccountCard({ slug, accent, fallback }: { slug: string; ac
             {a && <span className="inline-flex items-center gap-1 rounded-full bg-status-converted/10 px-2 py-0.5 text-[11px] font-bold text-status-converted animate-in fade-in zoom-in-90"><CheckCircle2 className="size-3" /> Connected</span>}
           </div>
           <p className="truncate text-[12px] font-semibold text-muted-foreground">
-            {loading ? "Loading…" : a ? <>Mail and meetings use <b className="text-foreground">{a.email}</b></> : <>Not connected — using the shared <b className="text-foreground">{fallback}</b></>}
+            {loading ? "Loading…" : a ? <>Mail and meetings use <b className="text-foreground">{a.email}</b></> : "Not connected — Inbox and meetings stay off until you connect this company's Google account."}
           </p>
         </div>
         {loading ? <Loader2 className="size-4 animate-spin text-muted-foreground" /> : !data?.configured ? (
@@ -115,7 +115,6 @@ export function GoogleAccountCard({ slug, accent, fallback }: { slug: string; ac
       <ConfirmDialog
         kind={confirm}
         email={a?.email ?? ""}
-        fallback={fallback}
         busy={busy === "disc" || busy === "connect"}
         onCancel={() => setConfirm(null)}
         onConfirm={() => (confirm === "switch" ? connect() : runDisc())}
@@ -187,8 +186,8 @@ export function CalendarMark({ className }: { className?: string }) {
   );
 }
 
-function ConfirmDialog({ kind, email, fallback, busy, onCancel, onConfirm }: {
-  kind: "switch" | "disc" | null; email: string; fallback: string; busy: boolean; onCancel: () => void; onConfirm: () => void;
+function ConfirmDialog({ kind, email, busy, onCancel, onConfirm }: {
+  kind: "switch" | "disc" | null; email: string; busy: boolean; onCancel: () => void; onConfirm: () => void;
 }) {
   const sw = kind === "switch";
   const points = sw
@@ -200,7 +199,7 @@ function ConfirmDialog({ kind, email, fallback, busy, onCancel, onConfirm }: {
       ]
     : [
         `Gmail inbox and Calendar meetings stop using ${email || "this account"}.`,
-        `Mail falls back to the shared ${fallback} until you connect again.`,
+        "The In-app Inbox address is un-verified, and Inbox and meetings stop until you connect again.",
         "Saved access is removed from the Console right away.",
         "Past mail history and sent records stay unchanged.",
       ];
