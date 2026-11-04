@@ -60,30 +60,13 @@ export function ConfirmSurface({
   React.useEffect(() => { if (open) setTyped(""); }, [open]);
   const typedOk = !requireTypedText || typed.trim() === requireTypedText;
 
-  const IconComp = (typeof icon === "function" || (icon && typeof icon === "object" && "render" in (icon as object)))
-    ? (icon as LucideIcon) : null;
-  const iconNode = IconComp ? <IconComp className="size-5" /> : icon ? icon : <t.icon className="size-5" />;
+  const IconComp = asIcon(icon);
   const BtnIcon = IconComp ?? t.icon;
 
   return (
     <AlertDialog open={open} onOpenChange={(o) => !o && !busy && onCancel()}>
       <AlertDialogContent className={cn("max-h-[92vh] overflow-hidden overflow-y-auto p-0 sm:max-w-md", className)}>
-        <div className={cn("relative px-6 pb-4 pt-6", t.bg)}>
-          <span className={cn("pointer-events-none absolute -right-10 -top-12 size-36 rounded-full blur-3xl", t.glow)} />
-          <div className="relative flex items-center gap-3">
-            <span className={cn("grid size-11 shrink-0 place-items-center rounded-xl border bg-card shadow-sm animate-in zoom-in-75 duration-300", t.badge)}>
-              {iconNode}
-            </span>
-            <div className="min-w-0">
-              <AlertDialogTitle className="text-[15px] font-bold leading-tight">{title}</AlertDialogTitle>
-              {subject ? (
-                <AlertDialogDescription className="mt-0.5 flex items-center gap-1.5 truncate text-[12px] font-semibold">{subject}</AlertDialogDescription>
-              ) : (
-                <AlertDialogDescription className="sr-only">Confirm this action</AlertDialogDescription>
-              )}
-            </div>
-          </div>
-        </div>
+        <ConfirmHeader tone={tone} icon={icon} title={title} subject={subject} />
 
         {(description || points?.length || children || requireTypedText) && (
           <div className="space-y-3 px-6 py-4">
@@ -99,19 +82,11 @@ export function ConfirmSurface({
               </ul>
             )}
             {children}
-            {requireTypedText && (
-              <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
-                <p className="text-[11.5px] font-semibold text-muted-foreground">
-                  Type <span className="rounded-sm border border-border bg-card px-1.5 py-0.5 font-mono text-[11px] font-bold text-foreground">{requireTypedText}</span> to confirm.
-                </p>
-                <Input autoFocus value={typed} onChange={(e) => setTyped(e.target.value)} placeholder={requireTypedText}
-                  disabled={busy} className="h-9 bg-card font-mono text-[12.5px]" />
-              </div>
-            )}
+            {requireTypedText && <ConfirmTypedField text={requireTypedText} value={typed} onChange={setTyped} disabled={busy} />}
           </div>
         )}
 
-        <div className="flex justify-end gap-2 border-t border-border bg-muted/30 px-6 py-3">
+        <ConfirmFooter>
           <Button variant="outline" size="sm" onClick={onCancel} disabled={busy}>{cancelLabel}</Button>
           {confirmSlot ?? (
             <Button variant={t.btn} size="sm" onClick={onConfirm} disabled={busy || !typedOk || confirmDisabled}
@@ -120,8 +95,59 @@ export function ConfirmSurface({
               {confirmLabel ?? (tone === "danger" ? "Delete" : "Confirm")}
             </Button>
           )}
-        </div>
+        </ConfirmFooter>
       </AlertDialogContent>
     </AlertDialog>
   );
+}
+
+function asIcon(icon: unknown): LucideIcon | null {
+  return typeof icon === "function" || (!!icon && typeof icon === "object" && "render" in (icon as object)) ? (icon as LucideIcon) : null;
+}
+
+/** Shared tinted header (icon badge + title + subject). Use inside custom dialogs too. */
+export function ConfirmHeader({ tone = "danger", icon, title, subject }: {
+  tone?: ConfirmTone; icon?: LucideIcon | React.ReactNode; title: React.ReactNode; subject?: React.ReactNode;
+}) {
+  const t = TONE[tone];
+  const IconComp = asIcon(icon);
+  const iconNode = IconComp ? <IconComp className="size-5" /> : icon ? icon : <t.icon className="size-5" />;
+  return (
+    <div className={cn("relative px-6 pb-4 pt-6", t.bg)}>
+      <span className={cn("pointer-events-none absolute -right-10 -top-12 size-36 rounded-full blur-3xl", t.glow)} />
+      <div className="relative flex items-center gap-3">
+        <span className={cn("grid size-11 shrink-0 place-items-center rounded-xl border bg-card shadow-sm animate-in zoom-in-75 duration-300", t.badge)}>
+          {iconNode}
+        </span>
+        <div className="min-w-0">
+          <AlertDialogTitle className="text-[15px] font-bold leading-tight">{title}</AlertDialogTitle>
+          {subject ? (
+            <AlertDialogDescription className="mt-0.5 flex items-center gap-1.5 truncate text-[12px] font-semibold">{subject}</AlertDialogDescription>
+          ) : (
+            <AlertDialogDescription className="sr-only">Confirm this action</AlertDialogDescription>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Shared "Type X to confirm" field. */
+export function ConfirmTypedField({ text, value, onChange, disabled }: {
+  text: string; value: string; onChange: (v: string) => void; disabled?: boolean;
+}) {
+  return (
+    <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
+      <p className="text-[11.5px] font-semibold text-muted-foreground">
+        Type <span className="rounded-sm border border-border bg-card px-1.5 py-0.5 font-mono text-[11px] font-bold text-foreground">{text}</span> to confirm.
+      </p>
+      <Input autoFocus value={value} onChange={(e) => onChange(e.target.value)} placeholder={text}
+        disabled={disabled} className="h-9 bg-card font-mono text-[12.5px]" />
+    </div>
+  );
+}
+
+/** Shared footer bar. */
+export function ConfirmFooter({ children }: { children: React.ReactNode }) {
+  return <div className="flex justify-end gap-2 border-t border-border bg-muted/30 px-6 py-3">{children}</div>;
 }
