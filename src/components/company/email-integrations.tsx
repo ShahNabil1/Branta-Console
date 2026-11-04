@@ -3,44 +3,124 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
-  Check, CheckCircle2, ChevronDown, Copy, Inbox, KeyRound, Loader2, Lock, Mail, Pencil, RefreshCw,
-  Send, ShieldCheck, Star, Unplug, Webhook, X, XCircle, type LucideIcon,
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  Copy,
+  Inbox,
+  KeyRound,
+  Loader2,
+  Lock,
+  Mail,
+  Pencil,
+  RefreshCw,
+  Send,
+  ShieldCheck,
+  Star,
+  Unplug,
+  Webhook,
+  X,
+  XCircle,
+  type LucideIcon,
   Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  connectBrevoWebhook, connectResendWebhook, disconnectProvider, previewProviderDisconnect, getEmailIntegrations,
-  setDefaultProvider, setFinanceSender, verifyEmailProvider, sendInboxProbe, pollInboxProbe, type Check as CheckT, type ProviderView,
+  connectBrevoWebhook,
+  connectResendWebhook,
+  disconnectProvider,
+  previewProviderDisconnect,
+  getEmailIntegrations,
+  setDefaultProvider,
+  setFinanceSender,
+  testEmailProvider,
+  verifyEmailProvider,
+  sendInboxProbe,
+  pollInboxProbe,
+  type Check as CheckT,
+  type ProviderView,
 } from "@/lib/company-email.functions";
 import { cn } from "@/lib/utils";
 import { DangerConfirm, DiscardCancelButton } from "@/components/company/danger-confirm";
 import { GoogleAccountCard, GoogleMark, GmailMark } from "@/components/company/google-account-card";
 import resendLogo from "@/assets/email/resend.webp.asset.json";
 import brevoLogo from "@/assets/email/brevo.webp.asset.json";
-import { ProviderTest } from "@/components/company/provider-test";
-import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
-function ChangeInboxDialog({ open, email, verified, onCancel, onConfirm }: { open: boolean; email: string; verified: boolean; onCancel: () => void; onConfirm: () => void }) {
+function ChangeInboxDialog({
+  open,
+  email,
+  verified,
+  onCancel,
+  onConfirm,
+}: {
+  open: boolean;
+  email: string;
+  verified: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
   const points = [
     `${email} stops being the company Inbox address as soon as you save a new one.`,
-    ...(verified ? ["The new address must pass automatic verification before mail works again."] : []),
+    ...(verified
+      ? ["The new address must pass automatic verification before mail works again."]
+      : []),
     "Sender Email for Resend and Brevo switches to the new address — re-verify the sender and domain there.",
     "Leads and Invoice emails stay paused for this company until the new sender is verified.",
     "Update your email routing so the new address forwards to the connected Gmail, or replies won't arrive.",
     "Past mail, replies and delivery history stay unchanged.",
   ];
-  return <ChangeConfirm open={open} title="Change Inbox address?" icon={Inbox} subject={email} verified={verified} points={points} confirmLabel="Change address" onCancel={onCancel} onConfirm={onConfirm} />;
+  return (
+    <ChangeConfirm
+      open={open}
+      title="Change Inbox address?"
+      icon={Inbox}
+      subject={email}
+      verified={verified}
+      points={points}
+      confirmLabel="Change address"
+      onCancel={onCancel}
+      onConfirm={onConfirm}
+    />
+  );
 }
 
-function ChangeConfirm({ open, title, icon: Icon, subject, verified, points, confirmLabel, onCancel, onConfirm }: { open: boolean; title: string; icon: typeof Mail; subject: string; verified?: boolean; points: string[]; confirmLabel: string; onCancel: () => void; onConfirm: () => void }) {
+function ChangeConfirm({
+  open,
+  title,
+  icon: Icon,
+  subject,
+  verified,
+  points,
+  confirmLabel,
+  onCancel,
+  onConfirm,
+}: {
+  open: boolean;
+  title: string;
+  icon: typeof Mail;
+  subject: string;
+  verified?: boolean;
+  points: string[];
+  confirmLabel: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
   return (
     <AlertDialog open={open} onOpenChange={(o) => !o && onCancel()}>
       <AlertDialogContent className="overflow-hidden p-0 sm:max-w-md">
         <div className="relative bg-primary/5 px-6 pb-4 pt-6">
           <span className="pointer-events-none absolute -right-10 -top-12 size-36 rounded-full bg-primary/25 blur-3xl" />
           <div className="relative flex items-center gap-3">
-            <span className="grid size-11 place-items-center rounded-xl border border-primary/30 bg-card text-primary shadow-sm animate-in zoom-in-75 duration-300"><Mail className="size-5" /></span>
+            <span className="grid size-11 place-items-center rounded-xl border border-primary/30 bg-card text-primary shadow-sm animate-in zoom-in-75 duration-300">
+              <Mail className="size-5" />
+            </span>
             <div className="min-w-0">
               <AlertDialogTitle className="text-[15px] font-bold">{title}</AlertDialogTitle>
               <AlertDialogDescription className="mt-0.5 flex items-center gap-1.5 truncate text-[12px] font-semibold">
@@ -52,15 +132,28 @@ function ChangeConfirm({ open, title, icon: Icon, subject, verified, points, con
         </div>
         <ul className="space-y-2 px-6 py-4">
           {points.map((t, i) => (
-            <li key={t} style={{ animationDelay: `${i * 70}ms` }} className="flex items-start gap-2 text-[12.5px] font-semibold text-foreground animate-in fade-in slide-in-from-left-2 fill-mode-both">
-              <span className={cn("mt-1.5 size-1.5 shrink-0 rounded-full", i === points.length - 1 ? "bg-status-converted" : "bg-primary")} />
+            <li
+              key={t}
+              style={{ animationDelay: `${i * 70}ms` }}
+              className="flex items-start gap-2 text-[12.5px] font-semibold text-foreground animate-in fade-in slide-in-from-left-2 fill-mode-both"
+            >
+              <span
+                className={cn(
+                  "mt-1.5 size-1.5 shrink-0 rounded-full",
+                  i === points.length - 1 ? "bg-status-converted" : "bg-primary",
+                )}
+              />
               {t}
             </li>
           ))}
         </ul>
         <div className="flex justify-end gap-2 border-t border-border bg-muted/30 px-6 py-3">
-          <Button size="sm" variant="outline" onClick={onCancel}>Cancel</Button>
-          <Button size="sm" onClick={onConfirm} className="transition-transform active:scale-95"><Pencil className="size-3.5" /> {confirmLabel}</Button>
+          <Button size="sm" variant="outline" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button size="sm" onClick={onConfirm} className="transition-transform active:scale-95">
+            <Pencil className="size-3.5" /> {confirmLabel}
+          </Button>
         </div>
       </AlertDialogContent>
     </AlertDialog>
@@ -68,9 +161,24 @@ function ChangeConfirm({ open, title, icon: Icon, subject, verified, points, con
 }
 
 type P = "resend" | "brevo";
-const META: Record<P, { name: string; color: string; tag: string; keyPh: string; keyHelp: string }> = {
-  resend: { name: "Resend", color: "#111827", tag: "Developer email API", keyPh: "re_…", keyHelp: "Resend → API Keys → Create (Full access)" },
-  brevo: { name: "Brevo", color: "#0B996E", tag: "Transactional email (v3)", keyPh: "xkeysib-…", keyHelp: "Brevo → Settings → SMTP & API → API keys" },
+const META: Record<
+  P,
+  { name: string; color: string; tag: string; keyPh: string; keyHelp: string }
+> = {
+  resend: {
+    name: "Resend",
+    color: "#111827",
+    tag: "Developer email API",
+    keyPh: "re_…",
+    keyHelp: "Resend → API Keys → Create (Full access)",
+  },
+  brevo: {
+    name: "Brevo",
+    color: "#0B996E",
+    tag: "Transactional email (v3)",
+    keyPh: "xkeysib-…",
+    keyHelp: "Brevo → Settings → SMTP & API → API keys",
+  },
 };
 const err = (e: unknown) => (e instanceof Error ? e.message : "Something went wrong");
 
@@ -78,16 +186,31 @@ export function EmailIntegrations({ slug, accent }: { slug: string; accent: stri
   const fn = useServerFn(getEmailIntegrations);
   const q = useQuery({ queryKey: ["company-email", slug], queryFn: () => fn({ data: { slug } }) });
   const [open, setOpen] = useState<P | null>(null);
-  if (q.isLoading) return <div className="grid h-40 place-items-center"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div>;
-  if (q.error || !q.data) return <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-5 text-[13px] font-semibold text-destructive">{err(q.error)}</div>;
+  if (q.isLoading)
+    return (
+      <div className="grid h-40 place-items-center">
+        <Loader2 className="size-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  if (q.error || !q.data)
+    return (
+      <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-5 text-[13px] font-semibold text-destructive">
+        {err(q.error)}
+      </div>
+    );
   const d = q.data;
 
   return (
     <div className="space-y-4">
       <section className="relative overflow-hidden rounded-xl border border-border bg-card p-5 shadow-sm">
-        <span className="pointer-events-none absolute -left-16 -top-20 size-56 rounded-full blur-3xl" style={{ background: `color-mix(in oklab, ${accent} 16%, transparent)` }} />
+        <span
+          className="pointer-events-none absolute -left-16 -top-20 size-56 rounded-full blur-3xl"
+          style={{ background: `color-mix(in oklab, ${accent} 16%, transparent)` }}
+        />
         <div className="relative flex flex-wrap items-center gap-3">
-          <span className="grid size-10 shrink-0 place-items-center rounded-md border border-border bg-card"><GoogleMark className="size-5" /></span>
+          <span className="grid size-10 shrink-0 place-items-center rounded-md border border-border bg-card">
+            <GoogleMark className="size-5" />
+          </span>
           <div className="min-w-0 flex-1">
             <h2 className="text-[16px] font-bold">Email & Calendar</h2>
           </div>
@@ -96,94 +219,467 @@ export function EmailIntegrations({ slug, accent }: { slug: string; accent: stri
         <InboxAddress slug={slug} accent={accent} inbox={d.inbox} gmail={d.inboxGmail} />
         {!d.inbox?.verified_at && (
           <div className="relative mt-4 flex items-center gap-2 rounded-lg border border-dashed border-border bg-muted/30 px-3 py-2 text-[12px] font-semibold text-muted-foreground">
-            <Lock className="size-3.5" /> Verify the Inbox address first — Resend and Brevo unlock after that.
+            <Lock className="size-3.5" /> Verify the Inbox address first — Resend and Brevo unlock
+            after that.
           </div>
         )}
-        <div className={cn("relative mt-4 grid gap-3 md:grid-cols-2 transition-opacity", !d.inbox?.verified_at && "pointer-events-none opacity-40")}>
+        <div
+          className={cn(
+            "relative transition-opacity",
+            !d.inbox?.verified_at && "pointer-events-none opacity-40",
+          )}
+        >
           {(["resend", "brevo"] as P[]).map((p) => (
-            <ProviderCard key={p} p={p} v={d[p]} on={open === p} onClick={() => setOpen(open === p ? null : p)} />
+            <ProviderPanel
+              key={p}
+              p={p}
+              slug={slug}
+              v={d[p]}
+              data={d}
+              both={!!d.resend && !!d.brevo}
+              open={open === p}
+              onToggle={() => setOpen(open === p ? null : p)}
+              locked={!d.inbox?.verified_at}
+            />
           ))}
         </div>
-        {d.resend?.domain_verified_at && d.resend.webhook_verified_at && <FinanceSender slug={slug} v={d.resend} />}
       </section>
+    </div>
+  );
+}
 
-      {open && d.inbox?.verified_at && (
-        <div key={open} className="animate-in fade-in slide-in-from-top-2 duration-300">
-          <Setup p={open} slug={slug} v={d[open]} data={d} both={!!d.resend && !!d.brevo} />
+type TestCheck = CheckT & { kind?: "api" | "domain" | "webhook" };
+
+function ProviderPanel({
+  p,
+  slug,
+  v,
+  data,
+  both,
+  open,
+  onToggle,
+  locked,
+}: {
+  p: P;
+  slug: string;
+  v: ProviderView | null;
+  data: Data;
+  both: boolean;
+  open: boolean;
+  onToggle: () => void;
+  locked: boolean;
+}) {
+  const m = META[p];
+  const connected = !!v?.domain_verified_at && !!v?.webhook_verified_at;
+  const test = useServerFn(testEmailProvider);
+  const def = useServerFn(setDefaultProvider);
+  const refresh = useRefresh(slug);
+  const [busy, setBusy] = useState<"test" | "def" | null>(null);
+  const [checks, setChecks] = useState<TestCheck[] | null>(null);
+  const domain = v ? v.domain || v.sender_email.split("@")[1] : "";
+
+  const runTest = async (silent: boolean) => {
+    if (!silent) {
+      setBusy("test");
+      setChecks(null);
+    }
+    try {
+      const r = await test({ data: { slug, provider: p } });
+      if (!silent) {
+        setChecks(r.checks);
+        if (r.ok) toast.success(`${m.name} is working.`);
+        else toast.error(r.checks.find((c) => !c.ok)?.detail ?? "Check failed");
+      } else if (!r.ok) setChecks(r.checks);
+    } catch (e) {
+      if (!silent) toast.error(err(e));
+    } finally {
+      if (!silent) setBusy(null);
+    }
+  };
+  // Silent health check once on open: quiet when everything works.
+  const autoRan = useRef(false);
+  useEffect(() => {
+    if (autoRan.current || !connected) return;
+    autoRan.current = true;
+    void runTest(true);
+  }, [connected]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const failed = (k: string) => checks?.find((c) => c.kind === k && !c.ok);
+  const chips =
+    p === "resend"
+      ? [
+          { k: "api", label: "API key" },
+          { k: "webhook", label: "Webhook" },
+          { k: "domain", label: `Domain · ${domain}` },
+        ]
+      : [
+          { k: "api", label: "API key" },
+          { k: "domain", label: `Sender & domain · ${domain}` },
+          { k: "webhook", label: "Webhook" },
+        ];
+
+  return (
+    <div className="relative mt-4 overflow-hidden rounded-xl border border-border bg-background p-4 transition-shadow hover:shadow-md">
+      <span className="absolute inset-y-0 left-0 w-1" style={{ background: m.color }} />
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="grid size-10 shrink-0 place-items-center rounded-lg border border-border bg-card shadow-sm">
+          <ProviderLogo p={p} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2 text-[14px] font-bold">
+            {m.name}
+            {connected ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-status-converted/10 px-2 py-0.5 text-[11px] font-bold text-status-converted">
+                <CheckCircle2 className="size-3" /> Connected
+              </span>
+            ) : (
+              <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-bold", status(v).cls)}>
+                {status(v).label}
+              </span>
+            )}
+            {v?.is_default && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-brand/10 px-2 py-0.5 text-[11px] font-bold text-brand">
+                <Star className="size-3 fill-brand" /> Default
+              </span>
+            )}
+          </div>
+          <p className="truncate text-[12px] font-semibold text-muted-foreground">
+            {v ? (
+              <>
+                Sending from{" "}
+                <b className="text-foreground">
+                  {v.sender_name} &lt;{v.sender_email}&gt;
+                </b>
+              </>
+            ) : (
+              m.tag
+            )}
+          </p>
+        </div>
+        {connected ? (
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" onClick={() => runTest(false)} disabled={!!busy}>
+              {busy === "test" ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <RefreshCw className="size-3.5" />
+              )}{" "}
+              Test
+            </Button>
+            {both && !v!.is_default && (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!!busy}
+                onClick={async () => {
+                  setBusy("def");
+                  try {
+                    await def({ data: { slug, provider: p } });
+                    await refresh();
+                    toast.success(`${m.name} is now default`);
+                  } catch (e) {
+                    toast.error(err(e));
+                  } finally {
+                    setBusy(null);
+                  }
+                }}
+              >
+                <Star className="size-3.5" /> Make default
+              </Button>
+            )}
+            <DisconnectButton p={p} slug={slug} v={v!} />
+          </div>
+        ) : (
+          <Button
+            size="sm"
+            disabled={locked}
+            onClick={onToggle}
+            className="gap-1.5"
+            style={{ background: open ? undefined : m.color }}
+            variant={open ? "outline" : "default"}
+          >
+            {open ? (
+              <>
+                <X className="size-3.5" /> Close
+              </>
+            ) : (
+              <>
+                <KeyRound className="size-3.5" /> {v ? "Continue setup" : `Connect ${m.name}`}
+              </>
+            )}
+          </Button>
+        )}
+      </div>
+
+      {connected && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {chips.map((c) => {
+            const bad = failed(c.k);
+            return (
+              <span
+                key={c.k}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11.5px] font-bold",
+                  bad
+                    ? "border-destructive/30 bg-destructive/5 text-destructive"
+                    : "border-border bg-card text-foreground",
+                )}
+              >
+                {c.k === "api" ? (
+                  <KeyRound className="size-3" />
+                ) : c.k === "webhook" ? (
+                  <Webhook className="size-3" />
+                ) : (
+                  <ShieldCheck className="size-3" />
+                )}
+                {c.label}
+                {bad ? (
+                  <XCircle className="size-3" />
+                ) : (
+                  <CheckCircle2 className="size-3 text-status-converted" />
+                )}
+              </span>
+            );
+          })}
+        </div>
+      )}
+
+      {connected && checks && (
+        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+          {checks.map((c, i) => {
+            const I = c.kind === "webhook" ? Webhook : c.kind === "domain" ? ShieldCheck : KeyRound;
+            return (
+              <div
+                key={c.id}
+                style={{ animationDelay: `${i * 80}ms` }}
+                className={cn(
+                  "relative overflow-hidden rounded-xl border bg-card p-3 shadow-sm animate-in fade-in slide-in-from-bottom-2 fill-mode-both",
+                  c.ok ? "border-status-converted/30" : "border-destructive/30",
+                )}
+              >
+                <span
+                  className={cn(
+                    "pointer-events-none absolute -right-8 -top-8 size-20 rounded-full blur-2xl",
+                    c.ok ? "bg-status-converted/15" : "bg-destructive/15",
+                  )}
+                />
+                <div className="relative flex items-center gap-2.5">
+                  <span className="grid size-9 shrink-0 place-items-center rounded-lg border border-border bg-background shadow-sm">
+                    <I className="size-4" style={{ color: m.color }} />
+                  </span>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1 text-[13px] font-bold">
+                      {c.label}
+                      {c.ok ? (
+                        <CheckCircle2 className="size-3.5 text-status-converted" />
+                      ) : (
+                        <XCircle className="size-3.5 text-destructive" />
+                      )}
+                    </div>
+                    <div
+                      className={cn(
+                        "text-[10.5px] font-bold uppercase tracking-wider",
+                        c.ok ? "text-status-converted" : "text-destructive",
+                      )}
+                    >
+                      {c.ok ? "Working" : "Issue"}
+                    </div>
+                  </div>
+                </div>
+                <p className="relative mt-2 break-words text-[11.5px] font-semibold text-muted-foreground">
+                  {c.detail}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {p === "resend" && connected && <FinanceSender slug={slug} v={v!} />}
+
+      {!connected && open && !locked && (
+        <div className="mt-4 animate-in fade-in duration-200">
+          <Setup p={p} slug={slug} v={v} data={data} />
         </div>
       )}
     </div>
   );
 }
 
-function status(v: ProviderView | null) {
-  if (!v) return { label: "Not configured", cls: "bg-muted text-muted-foreground" };
-  if (v.domain_verified_at && v.webhook_verified_at) return { label: "Connected", cls: "bg-status-converted/15 text-status-converted" };
-  return { label: "Action required", cls: "bg-amber-500/15 text-amber-600" };
+function DisconnectButton({ p, slug, v }: { p: P; slug: string; v: ProviderView }) {
+  const disc = useServerFn(disconnectProvider);
+  const previewDisconnect = useServerFn(previewProviderDisconnect);
+  const refresh = useRefresh(slug);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [confirm, setConfirm] = useState(false);
+  const [hooks, setHooks] = useState<{ id: string; address: string }[] | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const loadPreview = async () => {
+    setBusy("preview");
+    setHooks(null);
+    setPreviewError(null);
+    try {
+      setHooks((await previewDisconnect({ data: { slug, provider: p } })).hooks);
+    } catch (e) {
+      setPreviewError(err(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+  return (
+    <>
+      <Button
+        size="sm"
+        variant="destructive"
+        disabled={!!busy}
+        onClick={() => {
+          setConfirm(true);
+          void loadPreview();
+        }}
+      >
+        <Unplug className="size-3.5" /> Disconnect
+      </Button>
+      <DangerConfirm
+        open={confirm}
+        icon={Unplug}
+        title={`Disconnect ${META[p].name}?`}
+        subject={`${v.sender_name} <${v.sender_email}>`}
+        busy={busy === "dc"}
+        confirmLabel="Disconnect"
+        cancelLabel="Keep it"
+        points={
+          busy === "preview" || hooks === null
+            ? [`Checking ${META[p].name} webhooks…`]
+            : previewError
+              ? [previewError]
+              : [
+                  hooks.length
+                    ? `Removes ${hooks.length} Branta Tech webhook(s): ${hooks.map((h) => h.address).join(", ")}`
+                    : "No Branta Tech webhooks found — only the Console connection is removed.",
+                  "Erases the stored API key and webhook secret. To use a different API key, connect again afterwards.",
+                  p === "resend"
+                    ? `The finance sender ${v.finance_sender_name || v.sender_name} <${v.finance_sender_email || v.sender_email}> is removed too; invoice emails and reminders switch to Brevo if it's connected, otherwise they stop.`
+                    : "Lead, Inbox and invoice mail stop unless Resend is connected.",
+                  "Other systems' webhooks and past email history stay unchanged.",
+                ]
+        }
+        onCancel={() => setConfirm(false)}
+        onConfirm={() => {
+          if (hooks === null || previewError) {
+            void loadPreview();
+            return;
+          }
+          setBusy("dc");
+          void disc({ data: { slug, provider: p, confirmedHookIds: hooks.map((h) => h.id) } })
+            .then(async (r) => {
+              setConfirm(false);
+              await refresh();
+              toast.success(`Disconnected · removed ${r.removed} Branta Tech webhook(s)`);
+            })
+            .catch((e) => toast.error(err(e)))
+            .finally(() => setBusy(null));
+        }}
+      />
+    </>
+  );
 }
 
-function ProviderCard({ p, v, on, onClick }: { p: P; v: ProviderView | null; on: boolean; onClick: () => void }) {
-  const m = META[p]; const s = status(v);
-  return (
-    <Button variant="outline" onClick={onClick} aria-expanded={on}
-      className={cn("group relative block h-auto w-full overflow-hidden whitespace-normal rounded-md border bg-background p-4 text-left transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.99]",
-        on ? "border-transparent shadow-lg ring-2" : "border-border")}
-      style={on ? { ["--tw-ring-color" as string]: m.color } : undefined}>
-      <span className="absolute inset-x-0 top-0 h-1 transition-all group-hover:h-1.5" style={{ background: m.color }} />
-      <div className="flex items-center gap-3">
-        <span className="grid size-10 shrink-0 place-items-center rounded-md border border-border bg-card"><ProviderLogo p={p} /></span>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 text-[14px] font-bold">{m.name}{v?.is_default && <Star className="size-3.5 fill-brand text-brand" />}</div>
-          {v && <div className="truncate text-[11.5px] font-semibold text-muted-foreground">{`${v.sender_name} <${v.sender_email}>`}</div>}
-        </div>
-        <span className={cn("rounded-full px-2 py-0.5 text-[10.5px] font-bold", s.cls)}>{s.label}</span>
-        <ChevronDown className={cn("size-4 text-muted-foreground transition-transform duration-300", on && "rotate-180")} />
-      </div>
-    </Button>
-  );
+function status(v: ProviderView | null) {
+  if (!v) return { label: "Not configured", cls: "bg-muted text-muted-foreground" };
+  if (v.domain_verified_at && v.webhook_verified_at)
+    return { label: "Connected", cls: "bg-status-converted/15 text-status-converted" };
+  return { label: "Action required", cls: "bg-amber-500/15 text-amber-600" };
 }
 
 function ProviderLogo({ p }: { p: P }) {
   const logo = p === "resend" ? resendLogo : brevoLogo;
-  return <img src={logo.url} alt={`${META[p].name} logo`} width={32} height={32} className="size-8 object-contain" />;
+  return (
+    <img
+      src={logo.url}
+      alt={`${META[p].name} logo`}
+      width={32}
+      height={32}
+      className="size-8 object-contain"
+    />
+  );
 }
 
 type Data = Awaited<ReturnType<typeof getEmailIntegrations>>;
 
-function Setup({ p, slug, v, data, both }: { p: P; slug: string; v: ProviderView | null; data: Data; both: boolean }) {
+function Setup({ p, slug, v, data }: { p: P; slug: string; v: ProviderView | null; data: Data }) {
   const m = META[p];
-  const step1 = !!v?.domain_verified_at, step2 = !!v?.webhook_verified_at;
-  const [step, setStep] = useState(step1 ? (step2 ? 3 : 2) : 1);
+  const step1 = !!v?.domain_verified_at,
+    step2 = !!v?.webhook_verified_at;
+  const [step, setStep] = useState(step1 ? 2 : 1);
   const steps: { n: number; label: string; icon: LucideIcon; done: boolean }[] = [
     { n: 1, label: "Sender & API key", icon: KeyRound, done: step1 },
     { n: 2, label: "Webhook", icon: Webhook, done: step2 },
-    { n: 3, label: "Test & Inbox", icon: Inbox, done: step1 && step2 },
   ];
   return (
     <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
       <div className="flex items-center gap-1 border-b border-border p-2">
         {steps.map((s, i) => {
-          const on = step === s.n; const locked = s.n > 1 && !step1;
+          const on = step === s.n;
+          const locked = s.n > 1 && !step1;
           return (
             <div key={s.n} className="flex flex-1 items-center gap-1">
-              <button disabled={locked} onClick={() => setStep(s.n)}
-                className={cn("flex flex-1 items-center gap-2 rounded-lg px-3 py-2 text-[12.5px] font-bold transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-40",
-                  on ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/60")}>
-                <span className={cn("grid size-6 place-items-center rounded-full text-[11px] transition-all", s.done ? "bg-status-converted text-primary-foreground" : on ? "text-primary-foreground" : "bg-muted")}
-                  style={!s.done && on ? { background: m.color } : undefined}>
+              <button
+                disabled={locked}
+                onClick={() => setStep(s.n)}
+                className={cn(
+                  "flex flex-1 items-center gap-2 rounded-lg px-3 py-2 text-[12.5px] font-bold transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-40",
+                  on ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/60",
+                )}
+              >
+                <span
+                  className={cn(
+                    "grid size-6 place-items-center rounded-full text-[11px] transition-all",
+                    s.done
+                      ? "bg-status-converted text-primary-foreground"
+                      : on
+                        ? "text-primary-foreground"
+                        : "bg-muted",
+                  )}
+                  style={!s.done && on ? { background: m.color } : undefined}
+                >
                   {s.done ? <Check className="size-3.5" /> : s.n}
                 </span>
                 <span className="hidden sm:inline">{s.label}</span>
               </button>
-              {i < 2 && <span className={cn("h-0.5 w-6 rounded-full transition-colors", s.done ? "bg-status-converted" : "bg-border")} />}
+              {i < steps.length - 1 && (
+                <span
+                  className={cn(
+                    "h-0.5 w-6 rounded-full transition-colors",
+                    s.done ? "bg-status-converted" : "bg-border",
+                  )}
+                />
+              )}
             </div>
           );
         })}
       </div>
-      <div key={step} className="p-5 animate-in fade-in slide-in-from-right-2 duration-300">
-        {step === 1 && <StepKey p={p} slug={slug} v={v} inboxEmail={data.inbox!.email} companyName={data.company.name} onDone={() => setStep(2)} />}
-        {step === 2 && (p === "resend" ? <StepAutoHook p="resend" slug={slug} v={v} data={data} onDone={() => setStep(3)} /> : <StepAutoHook p="brevo" slug={slug} v={v} data={data} onDone={() => setStep(3)} />)}
-        {step === 3 && <StepFinish p={p} slug={slug} v={v} both={both} />}
+      <div key={step} className="min-h-[420px] p-5 animate-in fade-in duration-200">
+        {step === 1 && (
+          <StepKey
+            p={p}
+            slug={slug}
+            v={v}
+            inboxEmail={data.inbox!.email}
+            companyName={data.company.name}
+            onDone={() => setStep(2)}
+          />
+        )}
+        {step === 2 && (
+          <StepAutoHook
+            p={p}
+            slug={slug}
+            v={v}
+            data={data}
+            onDone={() => {
+              /* panel switches to connected view */
+            }}
+          />
+        )}
       </div>
     </section>
   );
@@ -197,7 +693,9 @@ function useRefresh(slug: string) {
 function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+        {label}
+      </div>
       {children}
       {hint && <div className="text-[11.5px] font-semibold text-muted-foreground">{hint}</div>}
     </div>
@@ -209,36 +707,97 @@ function Checks({ list }: { list: CheckT[] | null }) {
   return (
     <ul className="space-y-1.5">
       {list.map((c, i) => (
-        <li key={c.id} className={cn("flex items-start gap-2 rounded-lg border px-3 py-2 text-[12.5px] animate-in fade-in slide-in-from-left-1",
-          c.ok ? "border-status-converted/30 bg-status-converted/5" : "border-destructive/30 bg-destructive/5")} style={{ animationDelay: `${i * 70}ms`, animationFillMode: "both" }}>
-          {c.ok ? <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-status-converted" /> : <XCircle className="mt-0.5 size-4 shrink-0 text-destructive" />}
-          <span><b>{c.label}</b> <span className="font-semibold text-muted-foreground">— {c.detail}</span></span>
+        <li
+          key={c.id}
+          className={cn(
+            "flex items-start gap-2 rounded-lg border px-3 py-2 text-[12.5px] animate-in fade-in slide-in-from-left-1",
+            c.ok
+              ? "border-status-converted/30 bg-status-converted/5"
+              : "border-destructive/30 bg-destructive/5",
+          )}
+          style={{ animationDelay: `${i * 70}ms`, animationFillMode: "both" }}
+        >
+          {c.ok ? (
+            <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-status-converted" />
+          ) : (
+            <XCircle className="mt-0.5 size-4 shrink-0 text-destructive" />
+          )}
+          <span>
+            <b>{c.label}</b>{" "}
+            <span className="font-semibold text-muted-foreground">— {c.detail}</span>
+          </span>
         </li>
       ))}
     </ul>
   );
 }
 
-function SecretBox({ value, onChange, placeholder, savedHint }: { value: string; onChange: (v: string) => void; placeholder: string; savedHint: string | null }) {
+function SecretBox({
+  value,
+  onChange,
+  placeholder,
+  savedHint,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+  savedHint: string | null;
+}) {
   const [editing, setEditing] = useState(!savedHint);
   if (!editing && savedHint) {
     return (
       <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2">
         <Lock className="size-3.5 text-status-converted" />
         <code className="flex-1 font-mono text-[12.5px] font-semibold">{savedHint}</code>
-        <Button size="sm" variant="ghost" onClick={() => setEditing(true)}><Pencil className="size-3.5" /> Replace</Button>
+        <Button size="sm" variant="ghost" onClick={() => setEditing(true)}>
+          <Pencil className="size-3.5" /> Replace
+        </Button>
       </div>
     );
   }
   return (
     <div className="flex gap-2">
-      <Input type="password" autoComplete="off" spellCheck={false} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} className="font-mono" />
-      {savedHint && <Button size="icon" variant="ghost" onClick={() => { onChange(""); setEditing(false); }} aria-label="Cancel"><X className="size-4" /></Button>}
+      <Input
+        type="password"
+        autoComplete="off"
+        spellCheck={false}
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        className="font-mono"
+      />
+      {savedHint && (
+        <Button
+          size="icon"
+          variant="ghost"
+          onClick={() => {
+            onChange("");
+            setEditing(false);
+          }}
+          aria-label="Cancel"
+        >
+          <X className="size-4" />
+        </Button>
+      )}
     </div>
   );
 }
 
-function StepKey({ p, slug, v, inboxEmail, companyName, onDone }: { p: P; slug: string; v: ProviderView | null; inboxEmail: string; companyName: string; onDone: () => void }) {
+function StepKey({
+  p,
+  slug,
+  v,
+  inboxEmail,
+  companyName,
+  onDone,
+}: {
+  p: P;
+  slug: string;
+  v: ProviderView | null;
+  inboxEmail: string;
+  companyName: string;
+  onDone: () => void;
+}) {
   const m = META[p];
   const [name, setName] = useState(v?.sender_name || (p === "resend" ? companyName : ""));
   const email = inboxEmail;
@@ -251,13 +810,31 @@ function StepKey({ p, slug, v, inboxEmail, companyName, onDone }: { p: P; slug: 
   const brevo = p === "brevo";
   const can = (brevo || name.trim()) && emailOk && (key.trim() || v?.api_key_hint);
   const run = async () => {
-    setBusy(true); setChecks(null);
+    setBusy(true);
+    setChecks(null);
     try {
-      const r = await verify({ data: { slug, provider: p, senderName: brevo ? "" : name.trim(), senderEmail: email.trim(), apiKey: key.trim() || undefined } });
+      const r = await verify({
+        data: {
+          slug,
+          provider: p,
+          senderName: brevo ? "" : name.trim(),
+          senderEmail: email.trim(),
+          apiKey: key.trim() || undefined,
+        },
+      });
       setChecks(r.checks);
       if (r.senderName) setName(r.senderName);
-      if (r.ok) { setKey(""); await refresh(); toast.success(`${m.name} verified & saved`); setTimeout(onDone, 900); }
-    } catch (e) { toast.error(err(e)); } finally { setBusy(false); }
+      if (r.ok) {
+        setKey("");
+        await refresh();
+        toast.success(`${m.name} verified & saved`);
+        setTimeout(onDone, 900);
+      }
+    } catch (e) {
+      toast.error(err(e));
+    } finally {
+      setBusy(false);
+    }
   };
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr_300px]">
@@ -268,32 +845,75 @@ function StepKey({ p, slug, v, inboxEmail, companyName, onDone }: { p: P; slug: 
               <div className="flex items-center gap-2 rounded-md border border-status-converted/30 bg-status-converted/5 px-3 py-2 animate-in fade-in zoom-in-95">
                 <Lock className="size-3.5 text-status-converted" />
                 <span className="flex-1 truncate text-[13px] font-semibold">{name}</span>
-                <span className="flex items-center gap-1 rounded-full bg-status-converted/15 px-2 py-0.5 text-[10.5px] font-bold text-status-converted"><CheckCircle2 className="size-3" /> Verified in Brevo</span>
+                <span className="flex items-center gap-1 rounded-full bg-status-converted/15 px-2 py-0.5 text-[10.5px] font-bold text-status-converted">
+                  <CheckCircle2 className="size-3" /> Verified in Brevo
+                </span>
               </div>
             ) : (
-              <div className="relative overflow-hidden rounded-md border px-3 py-2.5" style={{ borderColor: `color-mix(in oklab, ${m.color} 35%, transparent)`, background: `linear-gradient(110deg, color-mix(in oklab, ${m.color} 10%, transparent), color-mix(in oklab, var(--color-primary) 8%, transparent))` }}>
+              <div
+                className="relative overflow-hidden rounded-md border px-3 py-2.5"
+                style={{
+                  borderColor: `color-mix(in oklab, ${m.color} 35%, transparent)`,
+                  background: `linear-gradient(110deg, color-mix(in oklab, ${m.color} 10%, transparent), color-mix(in oklab, var(--color-primary) 8%, transparent))`,
+                }}
+              >
                 <div className="flex items-start gap-2">
-                  {busy ? <Loader2 className="mt-0.5 size-3.5 shrink-0 animate-spin" style={{ color: m.color }} /> : <Sparkles className="mt-0.5 size-3.5 shrink-0" style={{ color: m.color }} />}
+                  {busy ? (
+                    <Loader2
+                      className="mt-0.5 size-3.5 shrink-0 animate-spin"
+                      style={{ color: m.color }}
+                    />
+                  ) : (
+                    <Sparkles className="mt-0.5 size-3.5 shrink-0" style={{ color: m.color }} />
+                  )}
                   <span className="text-[12.5px] font-semibold">
-                    <b style={{ color: m.color }}>Auto-filled from Brevo.</b> Once the API key is verified, the sender name saved in your Brevo account appears here automatically.
+                    <b style={{ color: m.color }}>Auto-filled from Brevo.</b> Once the API key is
+                    verified, the sender name saved in your Brevo account appears here
+                    automatically.
                   </span>
                 </div>
               </div>
             )}
           </Field>
         ) : (
-          <Field label="Sender name" hint="Pre-filled with the company name — edit if you want a different From name"><Input value={name} maxLength={80} onChange={(e) => setName(e.target.value)} placeholder="Admakai" /></Field>
+          <Field
+            label="Sender name"
+            hint="Pre-filled with the company name — edit if you want a different From name"
+          >
+            <Input
+              value={name}
+              maxLength={80}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Admakai"
+            />
+          </Field>
         )}
-        <Field label="Sender email address" hint="Locked to the verified Inbox address so client replies always land in the Inbox.">
+        <Field
+          label="Sender email address"
+          hint="Locked to the verified Inbox address so client replies always land in the Inbox."
+        >
           <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2">
             <Lock className="size-3.5 text-status-converted" />
             <span className="flex-1 truncate text-[13px] font-semibold">{email}</span>
             <CheckCircle2 className="size-4 text-status-converted" />
           </div>
         </Field>
-        <Field label="API key" hint={m.keyHelp}><SecretBox value={key} onChange={setKey} placeholder={m.keyPh} savedHint={v?.api_key_hint ?? null} /></Field>
-        <Button disabled={!can || busy} onClick={run} className="shadow-md transition-all hover:-translate-y-0.5 active:scale-95" style={{ background: m.color }}>
-          {busy ? <Loader2 className="size-4 animate-spin" /> : <ShieldCheck className="size-4" />} Verify
+        <Field label="API key" hint={m.keyHelp}>
+          <SecretBox
+            value={key}
+            onChange={setKey}
+            placeholder={m.keyPh}
+            savedHint={v?.api_key_hint ?? null}
+          />
+        </Field>
+        <Button
+          disabled={!can || busy}
+          onClick={run}
+          className="shadow-md transition-all hover:-translate-y-0.5 active:scale-95"
+          style={{ background: m.color }}
+        >
+          {busy ? <Loader2 className="size-4 animate-spin" /> : <ShieldCheck className="size-4" />}{" "}
+          Verify
         </Button>
         <Checks list={checks} />
       </div>
@@ -303,13 +923,28 @@ function StepKey({ p, slug, v, inboxEmail, companyName, onDone }: { p: P; slug: 
 }
 
 function Tips({ p }: { p: P }) {
-  const items = p === "resend"
-    ? ["Create a Full access key — sending-only keys can't confirm domains or webhooks.", "The sender's domain must be Verified in Resend → Domains.", "Key is checked live, then encrypted. You'll only see a masked hint."]
-    : ["Brevo → Settings → SMTP & API → API keys → Generate a v3 key (xkeysib-…) with No expiration and Full access.", "The Inbox address must be an active sender in Brevo, with its domain authenticated (DKIM/DMARC).", "The sender name is read from Brevo — set it there.", "If you use Authorised IPs in Brevo, deactivate the restriction for API keys."];
+  const items =
+    p === "resend"
+      ? [
+          "Create a Full access key — sending-only keys can't confirm domains or webhooks.",
+          "The sender's domain must be Verified in Resend → Domains.",
+          "Key is checked live, then encrypted. You'll only see a masked hint.",
+        ]
+      : [
+          "Brevo → Settings → SMTP & API → API keys → Generate a v3 key (xkeysib-…) with No expiration and Full access.",
+          "The Inbox address must be an active sender in Brevo, with its domain authenticated (DKIM/DMARC).",
+          "The sender name is read from Brevo — set it there.",
+          "If you use Authorised IPs in Brevo, deactivate the restriction for API keys.",
+        ];
   return (
     <aside className="space-y-2 rounded-xl border border-dashed border-border bg-muted/30 p-4">
       <div className="text-[12px] font-bold">Before you verify</div>
-      {items.map((t) => <div key={t} className="flex gap-2 text-[12px] font-semibold text-muted-foreground"><Check className="mt-0.5 size-3.5 shrink-0 text-status-converted" />{t}</div>)}
+      {items.map((t) => (
+        <div key={t} className="flex gap-2 text-[12px] font-semibold text-muted-foreground">
+          <Check className="mt-0.5 size-3.5 shrink-0 text-status-converted" />
+          {t}
+        </div>
+      ))}
     </aside>
   );
 }
@@ -319,8 +954,21 @@ function CopyRow({ value }: { value: string }) {
   return (
     <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2">
       <code className="flex-1 truncate font-mono text-[12px] font-semibold">{value}</code>
-      <Button size="sm" variant="ghost" onClick={async () => { await navigator.clipboard.writeText(value); setDone(true); setTimeout(() => setDone(false), 1500); }}>
-        {done ? <Check className="size-3.5 text-status-converted" /> : <Copy className="size-3.5" />} {done ? "Copied" : "Copy"}
+      <Button
+        size="sm"
+        variant="ghost"
+        onClick={async () => {
+          await navigator.clipboard.writeText(value);
+          setDone(true);
+          setTimeout(() => setDone(false), 1500);
+        }}
+      >
+        {done ? (
+          <Check className="size-3.5 text-status-converted" />
+        ) : (
+          <Copy className="size-3.5" />
+        )}{" "}
+        {done ? "Copied" : "Copy"}
       </Button>
     </div>
   );
@@ -333,7 +981,19 @@ const BREVO_STAGES = [
   { k: "verify", label: "Read back & verify", pct: 100 },
 ] as const;
 
-function StepAutoHook({ p, slug, v, data, onDone }: { p: P; slug: string; v: ProviderView | null; data: Data; onDone: () => void }) {
+function StepAutoHook({
+  p,
+  slug,
+  v,
+  data,
+  onDone,
+}: {
+  p: P;
+  slug: string;
+  v: ProviderView | null;
+  data: Data;
+  onDone: () => void;
+}) {
   const [checks, setChecks] = useState<CheckT[]>([]);
   const [done, setDone] = useState(-1); // index of last completed stage
   const [active, setActive] = useState<number | null>(null);
@@ -345,11 +1005,17 @@ function StepAutoHook({ p, slug, v, data, onDone }: { p: P; slug: string; v: Pro
   const refresh = useRefresh(slug);
   const accent = META[p].color;
   const pname = META[p].name;
-  const stages = p === "brevo" ? BREVO_STAGES : BREVO_STAGES.map((s) => (s.k === "account" ? { ...s, label: "Resend account" } : s));
+  const stages =
+    p === "brevo"
+      ? BREVO_STAGES
+      : BREVO_STAGES.map((s) => (s.k === "account" ? { ...s, label: "Resend account" } : s));
   const events = p === "brevo" ? data.brevoEvents : data.resendEvents;
   const busy = active !== null;
   const run = async () => {
-    setChecks([]); setDone(-1); setFailed(null); setPct(2);
+    setChecks([]);
+    setDone(-1);
+    setFailed(null);
+    setPct(2);
     for (let i = 0; i < stages.length; i++) {
       const st = stages[i];
       setActive(i);
@@ -358,54 +1024,127 @@ function StepAutoHook({ p, slug, v, data, onDone }: { p: P; slug: string; v: Pro
         const r = await fn({ data: { slug, stage: st.k } });
         setChecks((c) => [...c, ...r.checks]);
         if (!r.ok) {
-          setFailed(r.checks.filter((c) => !c.ok).map((c) => `${c.label}: ${c.detail}`).join(" · ") || `${st.label} failed.`);
-          setActive(null); return;
+          setFailed(
+            r.checks
+              .filter((c) => !c.ok)
+              .map((c) => `${c.label}: ${c.detail}`)
+              .join(" · ") || `${st.label} failed.`,
+          );
+          setActive(null);
+          return;
         }
-        setDone(i); setPct(st.pct);
-      } catch (e) { setFailed(`${st.label}: ${err(e)}`); setActive(null); return; }
+        setDone(i);
+        setPct(st.pct);
+      } catch (e) {
+        setFailed(`${st.label}: ${err(e)}`);
+        setActive(null);
+        return;
+      }
     }
     setActive(null);
-    await refresh(); toast.success(`${pname} webhook connected`); setTimeout(onDone, 900);
+    await refresh();
+    toast.success(`${pname} webhook connected`);
+    setTimeout(onDone, 900);
   };
   const ok = done === stages.length - 1;
   return (
     <div className="space-y-4">
       <p className="text-[12.5px] font-semibold text-muted-foreground">
-        One click: the Console uses your {pname} API key to create this company's private webhook with every event, removes old ones, then reads it back from {pname} to confirm{p === "resend" ? " and saves the signing secret automatically" : ""} — nothing to copy or paste.
+        One click: the Console uses your {pname} API key to create this company's private webhook
+        with every event, removes old ones, then reads it back from {pname} to confirm
+        {p === "resend" ? " and saves the signing secret automatically" : ""} — nothing to copy or
+        paste.
       </p>
       <div className="flex flex-wrap gap-1.5">
         {events.map((e) => (
-          <span key={e} className={cn("rounded-full px-2 py-0.5 font-mono text-[11px] font-bold transition-colors", ok || v?.webhook_events.includes(e) ? "bg-status-converted/15 text-status-converted" : "bg-muted")}>{e}</span>
+          <span
+            key={e}
+            className={cn(
+              "rounded-full px-2 py-0.5 font-mono text-[11px] font-bold transition-colors",
+              ok || v?.webhook_events.includes(e)
+                ? "bg-status-converted/15 text-status-converted"
+                : "bg-muted",
+            )}
+          >
+            {e}
+          </span>
         ))}
       </div>
-      <Button disabled={busy} onClick={run} className="shadow-md transition-all hover:-translate-y-0.5 active:scale-95" style={{ background: accent }}>
-        {busy ? <Loader2 className="size-4 animate-spin" /> : <Webhook className="size-4" />} {v?.webhook_verified_at ? "Re-check webhook" : "Connect webhook"}
+      <Button
+        disabled={busy}
+        onClick={run}
+        className="shadow-md transition-all hover:-translate-y-0.5 active:scale-95"
+        style={{ background: accent }}
+      >
+        {busy ? <Loader2 className="size-4 animate-spin" /> : <Webhook className="size-4" />}{" "}
+        {v?.webhook_verified_at ? "Re-check webhook" : "Connect webhook"}
       </Button>
       {(busy || done >= 0 || failed) && (
         <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-3 animate-in fade-in">
           <div className="flex items-center justify-between text-[12px] font-bold">
             <span className="flex items-center gap-1.5">
-              {busy ? <Loader2 className="size-3.5 animate-spin" style={{ color: accent }} /> : ok ? <CheckCircle2 className="size-3.5 text-status-converted" /> : <XCircle className="size-3.5 text-destructive" />}
-              {busy ? `${stages[active!].label}…` : ok ? "Webhook connected & verified" : "Setup failed"}
+              {busy ? (
+                <Loader2 className="size-3.5 animate-spin" style={{ color: accent }} />
+              ) : ok ? (
+                <CheckCircle2 className="size-3.5 text-status-converted" />
+              ) : (
+                <XCircle className="size-3.5 text-destructive" />
+              )}
+              {busy
+                ? `${stages[active!].label}…`
+                : ok
+                  ? "Webhook connected & verified"
+                  : "Setup failed"}
             </span>
             <span className="font-mono tabular-nums">{Math.round(pct)}%</span>
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-border">
-            <div className="h-full rounded-full transition-all duration-700 ease-out" style={{ width: `${pct}%`, background: failed ? "var(--color-destructive)" : ok ? "var(--color-status-converted)" : accent }} />
+            <div
+              className="h-full rounded-full transition-all duration-700 ease-out"
+              style={{
+                width: `${pct}%`,
+                background: failed
+                  ? "var(--color-destructive)"
+                  : ok
+                    ? "var(--color-status-converted)"
+                    : accent,
+              }}
+            />
           </div>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {stages.map((st, i) => (
-              <div key={st.k} className={cn("flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-[11px] font-bold transition-colors",
-                i <= done ? "border-status-converted/30 bg-status-converted/10 text-status-converted"
-                  : failed && i === done + 1 ? "border-destructive/30 bg-destructive/10 text-destructive"
-                  : active === i ? "border-border bg-background" : "border-border text-muted-foreground")}>
-                {i <= done ? <Check className="size-3" /> : active === i ? <Loader2 className="size-3 animate-spin" style={{ color: accent }} /> : failed && i === done + 1 ? <XCircle className="size-3" /> : <span className="size-3 rounded-full border border-current" />}
+              <div
+                key={st.k}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-[11px] font-bold transition-colors",
+                  i <= done
+                    ? "border-status-converted/30 bg-status-converted/10 text-status-converted"
+                    : failed && i === done + 1
+                      ? "border-destructive/30 bg-destructive/10 text-destructive"
+                      : active === i
+                        ? "border-border bg-background"
+                        : "border-border text-muted-foreground",
+                )}
+              >
+                {i <= done ? (
+                  <Check className="size-3" />
+                ) : active === i ? (
+                  <Loader2 className="size-3 animate-spin" style={{ color: accent }} />
+                ) : failed && i === done + 1 ? (
+                  <XCircle className="size-3" />
+                ) : (
+                  <span className="size-3 rounded-full border border-current" />
+                )}
                 <span className="truncate">{st.label}</span>
               </div>
             ))}
           </div>
           {failed && <div className="text-[12px] font-semibold text-destructive">{failed}</div>}
-          {failed && <Button size="sm" variant="outline" onClick={run}><RefreshCw className="size-3.5" /> Retry</Button>}
+          {failed && (
+            <Button size="sm" variant="outline" onClick={run}>
+              <RefreshCw className="size-3.5" /> Retry
+            </Button>
+          )}
         </div>
       )}
       {checks.length > 0 && <Checks list={checks} />}
@@ -413,91 +1152,60 @@ function StepAutoHook({ p, slug, v, data, onDone }: { p: P; slug: string; v: Pro
   );
 }
 
-function StepFinish({ p, slug, v, both }: { p: P; slug: string; v: ProviderView | null; both: boolean }) {
-  const def = useServerFn(setDefaultProvider);
-  const disc = useServerFn(disconnectProvider);
-  const previewDisconnect = useServerFn(previewProviderDisconnect);
-  const refresh = useRefresh(slug);
-  const [busy, setBusy] = useState<string | null>(null);
-  const [confirm, setConfirm] = useState(false);
-  const [hooks, setHooks] = useState<{ id: string; address: string }[] | null>(null);
-  const [previewError, setPreviewError] = useState<string | null>(null);
-  if (!v) return null;
-  const act = async (id: string, f: () => Promise<unknown>) => { setBusy(id); try { await f(); } catch (e) { toast.error(err(e)); } finally { setBusy(null); } };
-  const loadPreview = async () => {
-    setBusy("preview"); setHooks(null); setPreviewError(null);
-    try { setHooks((await previewDisconnect({ data: { slug, provider: p } })).hooks); }
-    catch (e) { setPreviewError(err(e)); }
-    finally { setBusy(null); }
-  };
-
-  return (
-    <div className="grid gap-4 md:grid-cols-2">
-      <ProviderTest key={`${slug}:${p}`} slug={slug} provider={p} sender={`${v.sender_name} <${v.sender_email}>`} />
-
-      {both && (
-        <Tile icon={Star} title="Default provider" body="Used automatically for this company's mail; the other stays as a manual option.">
-          <Button size="sm" variant={v.is_default ? "secondary" : "default"} disabled={v.is_default || !!busy}
-            onClick={() => act("def", async () => { await def({ data: { slug, provider: p } }); await refresh(); toast.success(`${META[p].name} is now default`); })}>
-            <Star className={cn("size-3.5", v.is_default && "fill-brand text-brand")} /> {v.is_default ? "Default" : "Make default"}
-          </Button>
-        </Tile>
-      )}
-
-      <Tile icon={Unplug} title="Disconnect" body="Removes this company's Branta webhook from the provider and erases the stored key and secret. Other webhooks and history stay intact.">
-        <Button size="sm" variant="destructive" disabled={!!busy} onClick={() => { setConfirm(true); void loadPreview(); }}><Unplug className="size-3.5" /> Disconnect</Button>
-        <DangerConfirm open={confirm} icon={Unplug} title={`Disconnect ${META[p].name}?`} subject={`${v.sender_name} <${v.sender_email}>`}
-          busy={busy === "dc"} confirmLabel="Disconnect" cancelLabel="Keep it"
-          points={busy === "preview" ? [`Checking ${META[p].name} webhooks…`]
-            : previewError ? [previewError]
-            : hooks === null ? [`Checking ${META[p].name} webhooks…`]
-            : [
-              hooks.length ? `Removes ${hooks.length} Branta Tech webhook(s): ${hooks.map((h) => h.address).join(", ")}` : "No Branta Tech webhooks found — only the Console connection is removed.",
-              "Erases the stored API key and webhook secret.",
-              p === "resend" ? `The finance sender ${v.finance_sender_name || v.sender_name} <${v.finance_sender_email || v.sender_email}> is removed too; invoice emails and reminders switch to Brevo if it's connected, otherwise they stop.` : "Lead, Inbox and invoice mail stop unless Resend is connected.",
-              "Other systems' webhooks and past email history stay unchanged.",
-            ]}
-          onCancel={() => setConfirm(false)}
-          onConfirm={() => {
-            if (hooks === null || previewError) { void loadPreview(); return; }
-            void act("dc", async () => {
-              const r = await disc({ data: { slug, provider: p, confirmedHookIds: hooks.map((hook) => hook.id) } });
-              setConfirm(false); await refresh(); toast.success(`Disconnected · removed ${r.removed} Branta Tech webhook(s)`);
-            });
-          }} />
-      </Tile>
-    </div>
-  );
-}
-
-function Tile({ icon: I, title, body, children }: { icon: LucideIcon; title: string; body: string; children: ReactNode }) {
-  return (
-    <div className="group rounded-xl border border-border bg-background p-4 transition-all hover:-translate-y-0.5 hover:shadow-md">
-      <div className="flex items-center gap-2 text-[13px] font-bold"><I className="size-4 text-brand transition-transform group-hover:scale-110" />{title}</div>
-      <p className="mb-3 mt-1 text-[12px] font-semibold text-muted-foreground">{body}</p>
-      {children}
-    </div>
-  );
-}
-
-function InboxAddress({ slug, accent, inbox, gmail }: { slug: string; accent: string; inbox: Data["inbox"]; gmail: string }) {
+function InboxAddress({
+  slug,
+  accent,
+  inbox,
+  gmail,
+}: {
+  slug: string;
+  accent: string;
+  inbox: Data["inbox"];
+  gmail: string;
+}) {
   const send = useServerFn(sendInboxProbe);
   const poll = useServerFn(pollInboxProbe);
   const refresh = useRefresh(slug);
   const [editing, setEditing] = useState(!inbox);
   const [askChange, setAskChange] = useState(false);
   const [email, setEmail] = useState(inbox?.email ?? "");
-  const [run, setRun] = useState<{ id: string | null; stage: "sending" | "sent" | "delivered" | "forwarded" | "verified" | "failed"; msg: string; t0: number } | null>(null);
+  const [run, setRun] = useState<{
+    id: string | null;
+    stage: "sending" | "sent" | "delivered" | "forwarded" | "verified" | "failed";
+    msg: string;
+    t0: number;
+  } | null>(null);
   const [pct, setPct] = useState(0);
   const valid = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
   const busy = !!run && !["verified", "failed"].includes(run.stage);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
-  const STAGE_PCT = { sending: 10, sent: 35, delivered: 60, forwarded: 85, verified: 100, failed: 100 } as const;
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
+  const STAGE_PCT = {
+    sending: 10,
+    sent: 35,
+    delivered: 60,
+    forwarded: 85,
+    verified: 100,
+    failed: 100,
+  } as const;
   useEffect(() => {
     if (!run) return;
     const floor = STAGE_PCT[run.stage];
-    const ceil = run.stage === "sending" ? 25 : run.stage === "sent" ? 55 : run.stage === "delivered" ? 80 : run.stage === "forwarded" ? 95 : 100;
+    const ceil =
+      run.stage === "sending"
+        ? 25
+        : run.stage === "sent"
+          ? 55
+          : run.stage === "delivered"
+            ? 80
+            : run.stage === "forwarded"
+              ? 95
+              : 100;
     setPct((p) => Math.max(p, floor));
     if (!busy) return;
     const iv = setInterval(() => setPct((p) => Math.min(ceil, p + (ceil - p) * 0.08)), 400);
@@ -508,28 +1216,59 @@ function InboxAddress({ slug, accent, inbox, gmail }: { slug: string; accent: st
     timer.current = setTimeout(async () => {
       try {
         const r = await poll({ data: { slug, emailId: id } });
-        if (r.stage === "verified") { setRun({ id, stage: "verified", msg: r.message, t0 }); toast.success("Inbox address verified"); await refresh(); return; }
-        if (r.stage === "failed") { setRun({ id, stage: "failed", msg: r.message, t0 }); return; }
-        if (Date.now() - t0 > 90_000) {
-          setRun({ id, stage: "failed", t0, msg: r.stage === "delivered"
-            ? `The receiving server accepted the email, but it never reached ${gmail}. Add a Cloudflare Email Routing rule that forwards this address to ${gmail}, then Retry.`
-            : "No delivery confirmation after 90 seconds. Press Retry." });
+        if (r.stage === "verified") {
+          setRun({ id, stage: "verified", msg: r.message, t0 });
+          toast.success("Inbox address verified");
+          await refresh();
           return;
         }
-        setRun({ id, stage: r.stage, msg: r.message, t0 }); tick(id, t0);
-      } catch (e) { setRun({ id, stage: "failed", msg: err(e), t0 }); }
+        if (r.stage === "failed") {
+          setRun({ id, stage: "failed", msg: r.message, t0 });
+          return;
+        }
+        if (Date.now() - t0 > 90_000) {
+          setRun({
+            id,
+            stage: "failed",
+            t0,
+            msg:
+              r.stage === "delivered"
+                ? `The receiving server accepted the email, but it never reached ${gmail}. Add a Cloudflare Email Routing rule that forwards this address to ${gmail}, then Retry.`
+                : "No delivery confirmation after 90 seconds. Press Retry.",
+          });
+          return;
+        }
+        setRun({ id, stage: r.stage, msg: r.message, t0 });
+        tick(id, t0);
+      } catch (e) {
+        setRun({ id, stage: "failed", msg: err(e), t0 });
+      }
     }, 3000);
   };
   const begin = async (addr: string) => {
     if (timer.current) clearTimeout(timer.current);
-    const t0 = Date.now(); setPct(0); setEditing(false);
-    setRun({ id: null, stage: "sending", msg: "Sending an automatic test email via Branta Tech's Resend…", t0 });
+    const t0 = Date.now();
+    setPct(0);
+    setEditing(false);
+    setRun({
+      id: null,
+      stage: "sending",
+      msg: "Sending an automatic test email via Branta Tech's Resend…",
+      t0,
+    });
     try {
       const r = await send({ data: { slug, email: addr } });
       await refresh();
-      setRun({ id: r.emailId, stage: "sent", msg: "Sent by Branta Tech's Resend. Waiting for the receiving server…", t0 });
+      setRun({
+        id: r.emailId,
+        stage: "sent",
+        msg: "Sent by Branta Tech's Resend. Waiting for the receiving server…",
+        t0,
+      });
       tick(r.emailId, t0);
-    } catch (e) { setRun({ id: null, stage: "failed", msg: err(e), t0 }); }
+    } catch (e) {
+      setRun({ id: null, stage: "failed", msg: err(e), t0 });
+    }
   };
   const STEPS = [
     { k: "sent", label: "Sent via Resend" },
@@ -538,64 +1277,160 @@ function InboxAddress({ slug, accent, inbox, gmail }: { slug: string; accent: st
     { k: "verified", label: "Routing verified" },
   ] as const;
   const order = ["sending", "sent", "delivered", "forwarded", "verified"];
-  const reached = (k: string) => run && run.stage !== "failed" ? order.indexOf(run.stage) >= order.indexOf(k) : false;
+  const reached = (k: string) =>
+    run && run.stage !== "failed" ? order.indexOf(run.stage) >= order.indexOf(k) : false;
 
   return (
     <div className="relative mt-4 overflow-hidden rounded-xl border border-border bg-background p-4">
-      <span className="absolute inset-y-0 left-0 w-1" style={{ background: inbox?.verified_at ? "var(--color-status-converted)" : accent }} />
+      <span
+        className="absolute inset-y-0 left-0 w-1"
+        style={{ background: inbox?.verified_at ? "var(--color-status-converted)" : accent }}
+      />
       <div className="flex flex-wrap items-center gap-3">
-        <span className="grid size-9 shrink-0 place-items-center rounded-md border border-border bg-card"><GmailMark className="size-5" /></span>
+        <span className="grid size-9 shrink-0 place-items-center rounded-md border border-border bg-card">
+          <GmailMark className="size-5" />
+        </span>
         <div className="min-w-0 flex-1">
           <h3 className="text-[13.5px] font-bold">In-app Gmail Inbox Address</h3>
-          <div className="break-all text-[11.5px] font-semibold text-muted-foreground">Forwarding destination: {gmail}</div>
+          <div className="break-all text-[11.5px] font-semibold text-muted-foreground">
+            Forwarding destination: {gmail}
+          </div>
         </div>
-        {inbox?.verified_at && !editing && <span className="flex items-center gap-1 rounded-full bg-status-converted/15 px-2 py-0.5 text-[10.5px] font-bold text-status-converted"><CheckCircle2 className="size-3" /> Verified</span>}
-        {!inbox?.verified_at && inbox && !editing && !run && <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10.5px] font-bold text-amber-600">Not verified</span>}
+        {inbox?.verified_at && !editing && (
+          <span className="flex items-center gap-1 rounded-full bg-status-converted/15 px-2 py-0.5 text-[10.5px] font-bold text-status-converted">
+            <CheckCircle2 className="size-3" /> Verified
+          </span>
+        )}
+        {!inbox?.verified_at && inbox && !editing && !run && (
+          <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10.5px] font-bold text-amber-600">
+            Not verified
+          </span>
+        )}
       </div>
 
       {editing ? (
         <div className="mt-3 flex flex-wrap gap-2 animate-in fade-in">
-          <Input value={email} onChange={(e) => setEmail(e.target.value.toLowerCase())} placeholder="info@admakai.com" className="max-w-sm" />
-          <Button disabled={!valid || !!busy} onClick={() => begin(email.trim().toLowerCase())}><ShieldCheck className="size-4" /> Save & verify</Button>
-          {inbox && <DiscardCancelButton dirty={email.trim() !== inbox.email} className="h-9 gap-1 font-bold" onCancel={() => { setEmail(inbox.email); setEditing(false); }} />}
-        </div>
-      ) : inbox && (
-        <div className="mt-3 space-y-3 animate-in fade-in">
-          <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2">
-            <Mail className="size-3.5 text-muted-foreground" />
-            <span className="flex-1 truncate text-[13px] font-semibold">{inbox.email}</span>
-            <Button size="sm" variant="ghost" onClick={() => setAskChange(true)}><Pencil className="size-3.5" /> Change</Button>
-            <ChangeInboxDialog open={askChange} email={inbox.email} verified={!!inbox.verified_at} onCancel={() => setAskChange(false)} onConfirm={() => { setAskChange(false); setEditing(true); }} />
-          </div>
-          {!inbox.verified_at && !run && (
-            <Button size="sm" onClick={() => begin(inbox.email)}><ShieldCheck className="size-3.5" /> Verify automatically</Button>
+          <Input
+            value={email}
+            onChange={(e) => setEmail(e.target.value.toLowerCase())}
+            placeholder="info@admakai.com"
+            className="max-w-sm"
+          />
+          <Button disabled={!valid || !!busy} onClick={() => begin(email.trim().toLowerCase())}>
+            <ShieldCheck className="size-4" /> Save & verify
+          </Button>
+          {inbox && (
+            <DiscardCancelButton
+              dirty={email.trim() !== inbox.email}
+              className="h-9 gap-1 font-bold"
+              onCancel={() => {
+                setEmail(inbox.email);
+                setEditing(false);
+              }}
+            />
           )}
-          {run && (
-            <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-3 animate-in fade-in">
-              <div className="flex items-center justify-between text-[12px] font-bold">
-                <span className="flex items-center gap-1.5">
-                  {busy ? <Loader2 className="size-3.5 animate-spin" style={{ color: accent }} /> : run.stage === "verified" ? <CheckCircle2 className="size-3.5 text-status-converted" /> : <XCircle className="size-3.5 text-destructive" />}
-                  {run.stage === "verified" ? "Verified" : run.stage === "failed" ? "Verification failed" : "Verifying…"}
-                </span>
-                <span className="font-mono tabular-nums">{Math.round(pct)}%</span>
-              </div>
-              <div className="h-2 overflow-hidden rounded-full bg-border">
-                <div className="h-full rounded-full transition-all duration-500 ease-out" style={{ width: `${pct}%`, background: run.stage === "failed" ? "var(--color-destructive)" : run.stage === "verified" ? "var(--color-status-converted)" : accent }} />
-              </div>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {STEPS.map((st) => (
-                  <div key={st.k} className={cn("flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-[11px] font-bold transition-colors", reached(st.k) ? "border-status-converted/30 bg-status-converted/10 text-status-converted" : "border-border text-muted-foreground")}>
-                    {reached(st.k) ? <Check className="size-3" /> : <span className="size-3 rounded-full border border-current" />}
-                    <span className="truncate">{st.label}</span>
-                  </div>
-                ))}
-              </div>
-              <div className={cn("text-[12px] font-semibold", run.stage === "failed" ? "text-destructive" : "text-muted-foreground")}>{run.msg}</div>
-              {run.stage === "failed" && <Button size="sm" variant="outline" onClick={() => begin(inbox.email)}><RefreshCw className="size-3.5" /> Retry</Button>}
+        </div>
+      ) : (
+        inbox && (
+          <div className="mt-3 space-y-3 animate-in fade-in">
+            <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2">
+              <Mail className="size-3.5 text-muted-foreground" />
+              <span className="flex-1 truncate text-[13px] font-semibold">{inbox.email}</span>
+              <Button size="sm" variant="ghost" onClick={() => setAskChange(true)}>
+                <Pencil className="size-3.5" /> Change
+              </Button>
+              <ChangeInboxDialog
+                open={askChange}
+                email={inbox.email}
+                verified={!!inbox.verified_at}
+                onCancel={() => setAskChange(false)}
+                onConfirm={() => {
+                  setAskChange(false);
+                  setEditing(true);
+                }}
+              />
             </div>
-          )}
-          {inbox.verified_at && <div className="text-[11.5px] font-semibold text-muted-foreground">Changing this address requires verifying again and re-verifying Resend/Brevo with the new sender.</div>}
-        </div>
+            {!inbox.verified_at && !run && (
+              <Button size="sm" onClick={() => begin(inbox.email)}>
+                <ShieldCheck className="size-3.5" /> Verify automatically
+              </Button>
+            )}
+            {run && (
+              <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-3 animate-in fade-in">
+                <div className="flex items-center justify-between text-[12px] font-bold">
+                  <span className="flex items-center gap-1.5">
+                    {busy ? (
+                      <Loader2 className="size-3.5 animate-spin" style={{ color: accent }} />
+                    ) : run.stage === "verified" ? (
+                      <CheckCircle2 className="size-3.5 text-status-converted" />
+                    ) : (
+                      <XCircle className="size-3.5 text-destructive" />
+                    )}
+                    {run.stage === "verified"
+                      ? "Verified"
+                      : run.stage === "failed"
+                        ? "Verification failed"
+                        : "Verifying…"}
+                  </span>
+                  <span className="font-mono tabular-nums">{Math.round(pct)}%</span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-border">
+                  <div
+                    className="h-full rounded-full transition-all duration-500 ease-out"
+                    style={{
+                      width: `${pct}%`,
+                      background:
+                        run.stage === "failed"
+                          ? "var(--color-destructive)"
+                          : run.stage === "verified"
+                            ? "var(--color-status-converted)"
+                            : accent,
+                    }}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {STEPS.map((st) => (
+                    <div
+                      key={st.k}
+                      className={cn(
+                        "flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-[11px] font-bold transition-colors",
+                        reached(st.k)
+                          ? "border-status-converted/30 bg-status-converted/10 text-status-converted"
+                          : "border-border text-muted-foreground",
+                      )}
+                    >
+                      {reached(st.k) ? (
+                        <Check className="size-3" />
+                      ) : (
+                        <span className="size-3 rounded-full border border-current" />
+                      )}
+                      <span className="truncate">{st.label}</span>
+                    </div>
+                  ))}
+                </div>
+                <div
+                  className={cn(
+                    "text-[12px] font-semibold",
+                    run.stage === "failed" ? "text-destructive" : "text-muted-foreground",
+                  )}
+                >
+                  {run.msg}
+                </div>
+                {run.stage === "failed" && (
+                  <Button size="sm" variant="outline" onClick={() => begin(inbox.email)}>
+                    <RefreshCw className="size-3.5" /> Retry
+                  </Button>
+                )}
+              </div>
+            )}
+            {inbox.verified_at && (
+              <div className="text-[11.5px] font-semibold text-muted-foreground">
+                Changing this address requires verifying again and re-verifying Resend/Brevo with
+                the new sender.
+              </div>
+            )}
+          </div>
+        )
       )}
     </div>
   );
@@ -618,59 +1453,142 @@ function FinanceSender({ slug, v }: { slug: string; v: ProviderView }) {
   const localOk = /^[a-z0-9](?:[a-z0-9._+-]{0,62}[a-z0-9])?$/.test(l) && !l.includes("..");
   const nameOk = n.length >= 1 && n.length <= 80 && !/[<>"\r\n]/.test(n);
   const dirty = l !== curLocal || n !== curName;
-  const reset = () => { setLocal(curLocal); setName(curName); };
+  const reset = () => {
+    setLocal(curLocal);
+    setName(curName);
+  };
   const submit = async () => {
     setBusy(true);
-    try { await save({ data: { slug, email: `${l}@${domain}`, name: n } }); await refresh(); toast.success(`From now on invoices are sent from ${n} <${l}@${domain}>`); setEditing(false); }
-    catch (e) { toast.error(err(e)); } finally { setBusy(false); }
+    try {
+      await save({ data: { slug, email: `${l}@${domain}`, name: n } });
+      await refresh();
+      toast.success(`From now on invoices are sent from ${n} <${l}@${domain}>`);
+      setEditing(false);
+    } catch (e) {
+      toast.error(err(e));
+    } finally {
+      setBusy(false);
+    }
   };
   const isDefault = !v.finance_sender_email && !v.finance_sender_name;
   return (
     <div className="relative mt-4 overflow-hidden rounded-xl border border-border bg-background p-4">
       <span className="absolute inset-y-0 left-0 w-1" style={{ background: META.resend.color }} />
       <div className="flex flex-wrap items-center gap-3">
-        <span className="grid size-9 shrink-0 place-items-center rounded-md border border-border bg-card"><ProviderLogo p="resend" /></span>
+        <span className="grid size-9 shrink-0 place-items-center rounded-md border border-border bg-card">
+          <ProviderLogo p="resend" />
+        </span>
         <div className="min-w-0 flex-1">
           <h3 className="text-[13.5px] font-bold">Finance sender (Invoices & reminders)</h3>
-          <div className="text-[11.5px] font-semibold text-muted-foreground">Every invoice email and reminder is sent through Resend from this name and address.</div>
+          <div className="text-[11.5px] font-semibold text-muted-foreground">
+            Every invoice email and reminder is sent through Resend from this name and address.
+          </div>
         </div>
-        {isDefault && !editing && <span className="rounded-full bg-muted px-2 py-0.5 text-[10.5px] font-bold text-muted-foreground">Default</span>}
+        {isDefault && !editing && (
+          <span className="rounded-full bg-muted px-2 py-0.5 text-[10.5px] font-bold text-muted-foreground">
+            Default
+          </span>
+        )}
       </div>
       {editing ? (
         <div className="mt-3 grid gap-3 animate-in fade-in sm:grid-cols-2">
           <label className="space-y-1">
             <span className="text-[11.5px] font-bold text-muted-foreground">Sender name</span>
-            <Input value={name} maxLength={80} onChange={(e) => setName(e.target.value.replace(/[<>"\r\n]/g, ""))} placeholder={v.sender_name} />
-            {!nameOk && <span className="block text-[11.5px] font-semibold text-destructive">Enter a name (up to 80 characters).</span>}
+            <Input
+              value={name}
+              maxLength={80}
+              onChange={(e) => setName(e.target.value.replace(/[<>"\r\n]/g, ""))}
+              placeholder={v.sender_name}
+            />
+            {!nameOk && (
+              <span className="block text-[11.5px] font-semibold text-destructive">
+                Enter a name (up to 80 characters).
+              </span>
+            )}
           </label>
           <label className="space-y-1">
             <span className="text-[11.5px] font-bold text-muted-foreground">Sender email</span>
-            <div className={cn("flex h-9 overflow-hidden rounded-md border bg-background shadow-sm transition-colors focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/20", l && !localOk ? "border-destructive" : "border-input")}>
-              <input value={local} maxLength={64} aria-label="Sender email name"
-                onChange={(e) => setLocal(e.target.value.toLowerCase().replace(/[^a-z0-9._+-]/g, ""))}
-                placeholder="finance" className="min-w-0 flex-1 bg-transparent px-3 font-mono text-[13px] outline-none focus:ring-1 focus:ring-inset focus:ring-brand" />
-              <div aria-hidden className="flex shrink-0 select-none items-center gap-1.5 border-l border-brand/20 bg-brand/10 px-3 font-mono text-[13px] font-bold text-brand"><ShieldCheck className="size-3.5" />@{domain}</div>
+            <div
+              className={cn(
+                "flex h-9 overflow-hidden rounded-md border bg-background shadow-sm transition-colors focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/20",
+                l && !localOk ? "border-destructive" : "border-input",
+              )}
+            >
+              <input
+                value={local}
+                maxLength={64}
+                aria-label="Sender email name"
+                onChange={(e) =>
+                  setLocal(e.target.value.toLowerCase().replace(/[^a-z0-9._+-]/g, ""))
+                }
+                placeholder="finance"
+                className="min-w-0 flex-1 bg-transparent px-3 font-mono text-[13px] outline-none focus:ring-1 focus:ring-inset focus:ring-brand"
+              />
+              <div
+                aria-hidden
+                className="flex shrink-0 select-none items-center gap-1.5 border-l border-brand/20 bg-brand/10 px-3 font-mono text-[13px] font-bold text-brand"
+              >
+                <ShieldCheck className="size-3.5" />@{domain}
+              </div>
             </div>
-            {l && !localOk && <span className="block text-[11.5px] font-semibold text-destructive">Use letters, numbers, dot, dash or plus.</span>}
+            {l && !localOk && (
+              <span className="block text-[11.5px] font-semibold text-destructive">
+                Use letters, numbers, dot, dash or plus.
+              </span>
+            )}
           </label>
           <div className="flex items-center gap-2 sm:col-span-2">
-            <Button size="sm" className="h-9" disabled={!localOk || !nameOk || busy || !dirty} onClick={submit}>{busy ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />} Save</Button>
-            <DiscardCancelButton dirty={dirty} disabled={busy} className="h-9 gap-1 font-bold" onCancel={() => { reset(); setEditing(false); }} />
+            <Button
+              size="sm"
+              className="h-9"
+              disabled={!localOk || !nameOk || busy || !dirty}
+              onClick={submit}
+            >
+              {busy ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}{" "}
+              Save
+            </Button>
+            <DiscardCancelButton
+              dirty={dirty}
+              disabled={busy}
+              className="h-9 gap-1 font-bold"
+              onCancel={() => {
+                reset();
+                setEditing(false);
+              }}
+            />
           </div>
           <div className="flex items-center gap-3 rounded-lg border border-brand/25 bg-brand/5 px-3 py-2.5 sm:col-span-2 animate-in fade-in">
-            <span className="grid size-8 shrink-0 place-items-center rounded-full bg-brand text-[13px] font-bold text-primary-foreground">{(n || "?").charAt(0).toUpperCase()}</span>
+            <span className="grid size-8 shrink-0 place-items-center rounded-full bg-brand text-[13px] font-bold text-primary-foreground">
+              {(n || "?").charAt(0).toUpperCase()}
+            </span>
             <div className="min-w-0">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Clients will see</div>
-              <div className="truncate text-[14px] font-bold">{n || "…"} <span className="font-mono text-[12.5px] text-brand">&lt;{l || "…"}@{domain}&gt;</span></div>
+              <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                Clients will see
+              </div>
+              <div className="truncate text-[14px] font-bold">
+                {n || "…"}{" "}
+                <span className="font-mono text-[12.5px] text-brand">
+                  &lt;{l || "…"}@{domain}&gt;
+                </span>
+              </div>
             </div>
           </div>
         </div>
       ) : (
         <div className="mt-3 flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2">
           <Send className="size-3.5 text-muted-foreground" />
-          <span className="flex-1 truncate text-[13px] font-semibold">{curName} <span className="font-mono text-muted-foreground">&lt;{curEmail}&gt;</span></span>
-          <Button size="sm" variant="ghost" onClick={() => setAsk(true)}><Pencil className="size-3.5" /> Change</Button>
-          <ChangeConfirm open={ask} title="Change finance sender?" icon={Send} subject={`${curName} <${curEmail}>`} confirmLabel="Change sender"
+          <span className="flex-1 truncate text-[13px] font-semibold">
+            {curName} <span className="font-mono text-muted-foreground">&lt;{curEmail}&gt;</span>
+          </span>
+          <Button size="sm" variant="ghost" onClick={() => setAsk(true)}>
+            <Pencil className="size-3.5" /> Change
+          </Button>
+          <ChangeConfirm
+            open={ask}
+            title="Change finance sender?"
+            icon={Send}
+            subject={`${curName} <${curEmail}>`}
+            confirmLabel="Change sender"
             points={[
               `${curName} <${curEmail}> stops sending invoices as soon as you save.`,
               `From that moment every invoice email and reminder goes out from the new name and address.`,
@@ -678,7 +1596,13 @@ function FinanceSender({ slug, v }: { slug: string; v: ProviderView }) {
               "Lead and Inbox mail keep using the default sender.",
               "Invoices already sent and their delivery history stay unchanged.",
             ]}
-            onCancel={() => setAsk(false)} onConfirm={() => { setAsk(false); reset(); setEditing(true); }} />
+            onCancel={() => setAsk(false)}
+            onConfirm={() => {
+              setAsk(false);
+              reset();
+              setEditing(true);
+            }}
+          />
         </div>
       )}
     </div>
