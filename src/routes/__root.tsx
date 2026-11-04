@@ -208,7 +208,7 @@ function RootComponent() {
         <DevToolsShield>
           <Outlet />
         </DevToolsShield>
-        <Toaster position="bottom-right" />
+        <Toaster position="top-center" />
       </ConfirmProvider>
     </QueryClientProvider>
   );
