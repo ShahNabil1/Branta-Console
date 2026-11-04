@@ -375,7 +375,7 @@ function ProviderPanel({
         {connected ? (
           <div className="flex flex-wrap gap-2 animate-in fade-in duration-500">
             <Button size="sm" variant="outline" onClick={() => runTest(false)} disabled={!!busy}>
-              <TestLoader /> Test
+              <TestLoader active={busy === "test"} /> Test
             </Button>
             {both && !v!.is_default && (
               <Button

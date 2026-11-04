@@ -301,4 +301,6 @@ html body[data-scroll-locked] { margin-right: 0 !important; padding-right: 0 !im
   background-size: 16% 16%;
   animation-timing-function: linear;
 }
+.test-loader-paused::before,
+.test-loader-paused::after { animation-play-state: paused; }
 @keyframes l12 { 100% { transform: rotate(.5turn); } }
