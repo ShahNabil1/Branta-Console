@@ -18,7 +18,10 @@ export type ReceiptDraft = {
 
 export const MAX_RECEIPTS = 20;
 export const MAX_RECEIPT_MB = 15;
-export const RECEIPT_ACCEPT = "image/png,image/jpeg,image/webp,image/gif,application/pdf";
+export const RECEIPT_ACCEPT = ".jpg,.jpeg,.png,.heic,.heif,.pdf,image/jpeg,image/png,image/heic,image/heif,application/pdf";
+const RECEIPT_EXT = /\.(jpe?g|png|heic|heif|pdf)$/i;
+const RECEIPT_MIME = new Set(["image/jpeg", "image/png", "image/heic", "image/heif", "application/pdf"]);
+const isAllowedReceipt = (f: File) => RECEIPT_EXT.test(f.name) && (!f.type || RECEIPT_MIME.has(f.type));
 
 /**
  * Up to 20 proofs per expense, each with its own caption so the voucher and
@@ -41,7 +44,10 @@ export function ExpenseReceiptsEditor({
       return;
     }
     const picked: ReceiptDraft[] = [];
-    for (const f of Array.from(files).slice(0, room)) {
+    const all = Array.from(files);
+    const rejected = all.filter((f) => !isAllowedReceipt(f));
+    if (rejected.length) toast.error(`Only JPG, JPEG, PNG, HEIC or PDF files are allowed — ${rejected.length} file(s) skipped`);
+    for (const f of all.filter(isAllowedReceipt).slice(0, room)) {
       if (f.size > MAX_RECEIPT_MB * 1024 * 1024) {
         toast.error(`${f.name} is larger than ${MAX_RECEIPT_MB} MB`);
         continue;
@@ -121,7 +127,7 @@ export function ExpenseReceiptsEditor({
               <UploadCloud className="size-5" />
             </span>
             <span className="text-[13px] font-bold">{drag ? "Drop to attach" : <>Drop files here or <span className="text-brand underline-offset-2 group-hover:underline">browse</span></>}</span>
-            <span className="text-[11px] font-medium text-muted-foreground">PNG, JPG, WEBP, GIF or PDF</span>
+            <span className="text-[11px] font-medium text-muted-foreground">JPG, JPEG, PNG, HEIC or PDF</span>
             <input type="file" accept={RECEIPT_ACCEPT} multiple className="hidden"
               onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }} />
           </label>
@@ -155,7 +161,7 @@ export function ExpenseReceiptsEditor({
 const PROOF_TYPES = ["Receipt", "Invoice", "Bank slip", "Payment screenshot", "Bill", "Quotation", "Delivery note", "Other"];
 
 function splitCaption(c: string) {
-  const t = c.trim();
+  const t = c.replace(/^\s+/, "");
   const hit = PROOF_TYPES.find((p) => t === p || t.startsWith(`${p} — `));
   if (hit) return { type: hit, note: t.slice(hit.length).replace(/^ — /, "") };
   return { type: t ? "Other" : "Receipt", note: t };
