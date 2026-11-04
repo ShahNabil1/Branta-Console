@@ -11,7 +11,6 @@ import { listDestinationRoutes, deleteCloudflareRoute } from "@/lib/employee-off
 import { Progress } from "@/components/ui/progress";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Trash2, CircleCheck, CircleX, Search } from "lucide-react";
-import { AnimatedBorderButton } from "@/components/AnimatedBorderButton";
 import { GmailMark } from "@/components/company/google-account-card";
 import cfRoutingIcon from "@/assets/integrations/cloudflare-email-routing.png.asset.json";
 
@@ -28,23 +27,17 @@ function RowDeleteButton({
   ariaLabel?: string;
 }) {
   return (
-    <AnimatedBorderButton
+    <button
+      type="button"
       onClick={onClick}
       disabled={disabled}
-      animate={!disabled}
       aria-label={ariaLabel}
-      accent="#ffffff"
-      surface="var(--color-destructive)"
-      track="rgba(255,255,255,0.25)"
-      labelColor="#ffffff"
-      radius={6}
-      strokeWidth={1.5}
-      className="shrink-0"
+      className="inline-flex shrink-0 items-center gap-1.5 rounded-[6px] bg-destructive font-semibold text-destructive-foreground disabled:opacity-50"
       style={ROW_DELETE_STYLE}
     >
       <Trash2 className="size-3.5" strokeWidth={2} />
       {label}
-    </AnimatedBorderButton>
+    </button>
   );
 }
 function RoutingIcon() {

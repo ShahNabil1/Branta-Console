@@ -1,3 +1,4 @@
+import { AnimatedBorderButton } from "@/components/AnimatedBorderButton";
 // The ONE confirmation dialog look for the whole Console.
 // Every confirmation (useConfirm, DangerConfirm, Google, offboarding, reason)
 // renders through <ConfirmSurface/>, so a visual change here updates all of them.
@@ -179,7 +180,27 @@ export function ConfirmSurface({
           <Button variant="outline" size="sm" onClick={onCancel} disabled={busy}>
             {cancelLabel}
           </Button>
-          {confirmSlot ?? (
+          {confirmSlot ?? (tone === "danger" ? (
+            <AnimatedBorderButton
+              onClick={onConfirm}
+              disabled={busy || !typedOk || confirmDisabled}
+              animate={!(busy || !typedOk || confirmDisabled)}
+              accent="#ffffff"
+              surface="var(--color-destructive)"
+              track="rgba(255,255,255,0.25)"
+              labelColor="#ffffff"
+              radius={6}
+              strokeWidth={1.5}
+              style={{ height: 32, padding: "0 12px", fontSize: 12 }}
+            >
+              {busy ? (
+                <TestLoader className="size-3.5" tone="white" active />
+              ) : (
+                !hideConfirmIcon && <BtnIcon className="size-3.5" />
+              )}
+              {confirmLabel ?? "Delete"}
+            </AnimatedBorderButton>
+          ) : (
             <Button
               variant={t.btn}
               size="sm"
@@ -192,9 +213,9 @@ export function ConfirmSurface({
               ) : (
                 !hideConfirmIcon && <BtnIcon className="size-3.5" />
               )}
-              {confirmLabel ?? (tone === "danger" ? "Delete" : "Confirm")}
+              {confirmLabel ?? "Confirm"}
             </Button>
-          )}
+          ))}
         </ConfirmFooter>
       </AlertDialogContent>
     </AlertDialog>
