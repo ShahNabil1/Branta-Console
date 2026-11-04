@@ -1,3 +1,4 @@
+import { DisconnectButton } from "@/components/ui/disconnect-button";
 import { ConfirmSurface } from "@/components/ui/confirm-surface";
 import { useEffect, useRef, useState } from "react";
 import { TestLoader } from "@/components/ui/test-loader";
@@ -113,7 +114,7 @@ export function GoogleAccountCard({ slug, accent }: { slug: string; accent: stri
           <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="outline" onClick={runTest} disabled={!!busy}><TestLoader active={busy === "test"} /> Test</Button>
             <Button size="sm" variant="outline" className="shrink-0 gap-2 bg-card px-3 font-semibold text-foreground" onClick={() => setConfirm("switch")} disabled={!!busy}><img src={switchAccountIcon.url} alt="" aria-hidden="true" width={20} height={20} className="size-5 shrink-0 object-contain" /> Switch account</Button>
-            <Button size="sm" variant="destructive" onClick={() => setConfirm("disc")} disabled={!!busy}><Unplug className="size-3.5" /> Disconnect</Button>
+            <DisconnectButton onClick={() => setConfirm("disc")} disabled={!!busy} />
           </div>
         ) : (
           <Button size="sm" onClick={connect} disabled={!!busy} className="gap-2 border border-border bg-card text-foreground shadow-sm hover:bg-muted">
