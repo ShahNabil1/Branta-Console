@@ -1,5 +1,9 @@
 # Roadmap
 
+## Expense card hierarchy and creator
+- [x] Emphasize category, vendor and purpose; show Added by name/avatar from the expense creator, separately from Requested by.
+- [x] Actual cards verified at 320/390/1280: distinct creator/requester avatars, clearer text, no overflow, working download feedback; build OK. Signed-in real employee readback remains unavailable with external unmanaged auth.
+
 ## Retire expense letterhead print
 - [x] Remove expense menu print action and its dedicated handler; reject new print audit events without deleting old history or changing salary/invoice printing.
 - [x] Nine tests pass including rejecting new print logs and retaining download logs; actual card/gallery/preview download checks pass at 390/1280 and build OK. Signed-in expense menu remains unverified without an available external-auth session.
