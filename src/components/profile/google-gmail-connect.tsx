@@ -1,3 +1,4 @@
+import { DisconnectButton, DisconnectIcon } from "@/components/ui/disconnect-button";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { BadgeCheck, Unlink } from "lucide-react";
