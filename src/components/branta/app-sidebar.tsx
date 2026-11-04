@@ -32,7 +32,6 @@ import {
   PieChart,
   Gauge,
   Contact,
-  History,
   ArrowDownToLine,
   CalendarClock,
   Puzzle,
@@ -140,7 +139,6 @@ const FINANCE_NAV: FinanceNavGroup[] = [
     items: [
       { label: "Invoices", to: "/app/finance/invoices", icon: FileText, tone: "sky" },
       { label: "Income", to: "/app/finance/income", icon: TrendingUp, tone: "emerald" },
-      { label: "Historical Allocation", to: "/app/finance/historical-allocation", icon: History, tone: "violet" },
     ],
   },
   {
