@@ -260,6 +260,10 @@ export function ExpensesPage() {
 
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
+  const goTo = (i: number) => {
+    for (let j = 0; j < i; j++) if (!canNext(j)) { setStep(j); toast.error("Enter the amount and date first"); return; }
+    setStep(i);
+  };
   const canNext = (i: number) => i < 0 || (i === 0 ? Number(form.amount) > 0 && !!form.spent_on : true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -730,7 +734,7 @@ export function ExpensesPage() {
                 const done = i < step, on = i === step;
                 return (
                   <li key={st.label}>
-                    <button type="button" onClick={() => (i <= step || canNext(i - 1)) && setStep(i)}
+                    <button type="button" onClick={() => goTo(i)}
                       className="group w-full text-left">
                       <span className="relative block h-1 overflow-hidden rounded-full bg-muted">
                         <span className="absolute inset-y-0 left-0 rounded-full bg-brand transition-[width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]" style={{ width: done || on ? "100%" : "0%" }} />
@@ -748,56 +752,56 @@ export function ExpensesPage() {
             </ol>
           </SheetHeader>
           <div className="flex-1 overflow-y-auto px-6 py-5">
-            <div key={step} className="space-y-3 animate-in fade-in slide-in-from-right-3 duration-300">
+            <div key={step} className="space-y-4 animate-in fade-in slide-in-from-right-3 duration-300">
             {step === 0 && (<>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
-                  <label className="text-[11px] font-semibold uppercase text-muted-foreground">Category</label>
+                  <label className="text-[10.5px] font-extrabold uppercase tracking-wider text-foreground/70">Category</label>
                   <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value as ExpenseCategory })}
-                    className="mt-1 h-9 w-full rounded-sm border border-input bg-background px-2 text-[13px] capitalize">
+                    className="mt-1.5 h-10 w-full cursor-pointer rounded-lg border border-border bg-card px-3 text-[13px] font-semibold capitalize shadow-sm outline-none transition-all hover:border-foreground/25 focus:border-brand focus:shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-brand)_15%,transparent)] focus-visible:ring-0 focus-visible:border-brand focus-visible:shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-brand)_15%,transparent)]">
                     {CATEGORIES.map((c) => <option key={c} value={c}>{formatCategory(c)}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-[11px] font-semibold uppercase text-muted-foreground">Currency</label>
+                  <label className="text-[10.5px] font-extrabold uppercase tracking-wider text-foreground/70">Currency</label>
                   <select value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value as Currency })}
-                    className="mt-1 h-9 w-full rounded-sm border border-input bg-background px-2 text-[13px]">
+                    className="mt-1.5 h-10 w-full cursor-pointer rounded-lg border border-border bg-card px-3 text-[13px] font-semibold shadow-sm outline-none transition-all hover:border-foreground/25 focus:border-brand focus:shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-brand)_15%,transparent)] focus-visible:ring-0 focus-visible:border-brand focus-visible:shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-brand)_15%,transparent)]">
                     <option value="BDT">BDT</option>
                     <option value="USD">USD</option>
                   </select>
                 </div>
               </div>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
-                  <label className="text-[11px] font-semibold uppercase text-muted-foreground">Amount</label>
+                  <label className="text-[10.5px] font-extrabold uppercase tracking-wider text-foreground/70">Amount</label>
                   <Input type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                    className="mt-1 h-9 rounded-sm font-mono" />
+                    className="mt-1.5 h-10 rounded-lg font-mono text-[14px] font-bold shadow-sm transition-all hover:border-foreground/25 focus:border-brand focus:shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-brand)_15%,transparent)] focus-visible:ring-0 focus-visible:border-brand focus-visible:shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-brand)_15%,transparent)]" />
                 </div>
                 <div>
-                  <label className="text-[11px] font-semibold uppercase text-muted-foreground">Date</label>
+                  <label className="text-[10.5px] font-extrabold uppercase tracking-wider text-foreground/70">Date</label>
                   <Input type="date" value={form.spent_on} onChange={(e) => setForm({ ...form, spent_on: e.target.value })}
-                    className="mt-1 h-9 rounded-sm" />
+                    className="mt-1.5 h-10 rounded-lg text-[13px] font-semibold shadow-sm transition-all hover:border-foreground/25 focus:border-brand focus:shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-brand)_15%,transparent)] focus-visible:ring-0 focus-visible:border-brand focus-visible:shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-brand)_15%,transparent)]" />
                 </div>
               </div>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
-                  <label className="text-[11px] font-semibold uppercase text-muted-foreground">Vendor</label>
+                  <label className="text-[10.5px] font-extrabold uppercase tracking-wider text-foreground/70">Vendor</label>
                   <Input value={form.vendor} onChange={(e) => setForm({ ...form, vendor: e.target.value })}
-                    className="mt-1 h-9 rounded-sm" placeholder="e.g. Figma, Google Ads, GP" />
+                    className="mt-1.5 h-10 rounded-lg text-[13px] font-semibold shadow-sm transition-all hover:border-foreground/25 focus:border-brand focus:shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-brand)_15%,transparent)] focus-visible:ring-0 focus-visible:border-brand focus-visible:shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-brand)_15%,transparent)]" placeholder="e.g. Figma, Google Ads, GP" />
                 </div>
                 <div>
-                  <label className="text-[11px] font-semibold uppercase text-muted-foreground">Department</label>
+                  <label className="text-[10.5px] font-extrabold uppercase tracking-wider text-foreground/70">Department</label>
                   <select value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })}
-                    className="mt-1 h-9 w-full rounded-sm border border-input bg-background px-2 text-[13px]">
+                    className="mt-1.5 h-10 w-full cursor-pointer rounded-lg border border-border bg-card px-3 text-[13px] font-semibold shadow-sm outline-none transition-all hover:border-foreground/25 focus:border-brand focus:shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-brand)_15%,transparent)] focus-visible:ring-0 focus-visible:border-brand focus-visible:shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-brand)_15%,transparent)]">
                     <option value="">— Select —</option>
                     {DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
                   </select>
                 </div>
               </div>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
-                  <label className="text-[11px] font-semibold uppercase text-muted-foreground">Requested by</label>
-                  <div className="mt-1">
+                  <label className="text-[10.5px] font-extrabold uppercase tracking-wider text-foreground/70">Requested by</label>
+                  <div className="mt-1.5">
                     <SearchableSelect
                       items={employeeItems}
                       value={form.requested_by}
@@ -808,8 +812,8 @@ export function ExpensesPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="text-[11px] font-semibold uppercase text-muted-foreground">Paid by</label>
-                  <div className="mt-1">
+                  <label className="text-[10.5px] font-extrabold uppercase tracking-wider text-foreground/70">Paid by</label>
+                  <div className="mt-1.5">
                     <SearchableSelect
                       items={employeeItems}
                       value={form.paid_by}
@@ -823,9 +827,9 @@ export function ExpensesPage() {
             </>)}
             {step === 1 && (<>
               {!editingId && sisterId && (
-                <div className="rounded-sm border border-border bg-muted/30 p-2.5">
-                  <label className="text-[11px] font-semibold uppercase text-muted-foreground">Pay from wallet fund (optional)</label>
-                  <div className="mt-1">
+                <div className="rounded-xl border border-border bg-muted/30 p-3.5 transition-colors hover:border-foreground/15">
+                  <label className="text-[10.5px] font-extrabold uppercase tracking-wider text-foreground/70">Pay from wallet fund (optional)</label>
+                  <div className="mt-1.5">
                     <SearchableSelect items={walletItems} value={form.wallet_bucket} onChange={(v) => setForm({ ...form, wallet_bucket: v })} placeholder="— Not charged to the wallet —" emptyText="No wallet funds yet" />
                   </div>
                   {form.wallet_bucket && Number(form.amount) > Number((sisterWallet.data?.buckets ?? []).find((x: { bucket_key: string }) => x.bucket_key === form.wallet_bucket)?.balance ?? 0) && (
@@ -834,9 +838,9 @@ export function ExpensesPage() {
                 </div>
               )}
               {!editingId && !sisterId && (
-                <div className="rounded-sm border border-border bg-muted/30 p-2.5">
-                  <label className="text-[11px] font-semibold uppercase text-muted-foreground">Paying fund (Fund Ledger · optional)</label>
-                  <div className="mt-1">
+                <div className="rounded-xl border border-border bg-muted/30 p-3.5 transition-colors hover:border-foreground/15">
+                  <label className="text-[10.5px] font-extrabold uppercase tracking-wider text-foreground/70">Paying fund (Fund Ledger · optional)</label>
+                  <div className="mt-1.5">
                     <FundSelect value={form.paying_fund_id} onChange={(v) => setForm({ ...form, paying_fund_id: v })} funds={fundOpts.data ?? []} placeholder="— Not charged to a fund —" />
                   </div>
                   {selectedFund && Number(form.amount) > selectedFund.available && (
@@ -852,9 +856,9 @@ export function ExpensesPage() {
                 </div>
               )}
               <InsufficientFundDialog info={shortfall} fundId={form.paying_fund_id} fundName={selectedFund?.name} onClose={() => { setShortfall(null); void fundOpts.refetch(); }} />
-              <div className="rounded-sm border border-border bg-muted/30 p-2.5">
-                <label className="text-[11px] font-semibold uppercase text-muted-foreground">Linked invoice / project</label>
-                <div className="mt-1">
+              <div className="rounded-xl border border-border bg-muted/30 p-3.5 transition-colors hover:border-foreground/15">
+                <label className="text-[10.5px] font-extrabold uppercase tracking-wider text-foreground/70">Linked invoice / project</label>
+                <div className="mt-1.5">
                   <SearchableSelect
                     items={invoiceItems}
                     value={form.linked_invoice_id}
@@ -879,19 +883,19 @@ export function ExpensesPage() {
                   </span>
                 </label>
               </div>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
-                  <label className="text-[11px] font-semibold uppercase text-muted-foreground">Payment method</label>
+                  <label className="text-[10.5px] font-extrabold uppercase tracking-wider text-foreground/70">Payment method</label>
                   <select value={form.payment_method} onChange={(e) => setForm({ ...form, payment_method: e.target.value })}
-                    className="mt-1 h-9 w-full rounded-sm border border-input bg-background px-2 text-[13px]">
+                    className="mt-1.5 h-10 w-full cursor-pointer rounded-lg border border-border bg-card px-3 text-[13px] font-semibold shadow-sm outline-none transition-all hover:border-foreground/25 focus:border-brand focus:shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-brand)_15%,transparent)] focus-visible:ring-0 focus-visible:border-brand focus-visible:shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-brand)_15%,transparent)]">
                     <option value="">— Select —</option>
                     {PAYMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-[11px] font-semibold uppercase text-muted-foreground">Transaction ID (TrxID)</label>
+                  <label className="text-[10.5px] font-extrabold uppercase tracking-wider text-foreground/70">Transaction ID (TrxID)</label>
                   <Input value={form.txn_id} onChange={(e) => setForm({ ...form, txn_id: e.target.value })}
-                    className="mt-1 h-9 rounded-sm font-mono" placeholder="e.g. 9K3D8AB21X" />
+                    className="mt-1.5 h-10 rounded-lg font-mono text-[14px] font-bold shadow-sm transition-all hover:border-foreground/25 focus:border-brand focus:shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-brand)_15%,transparent)] focus-visible:ring-0 focus-visible:border-brand focus-visible:shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-brand)_15%,transparent)]" placeholder="e.g. 9K3D8AB21X" />
                 </div>
               </div>
               <ExpenseItemsEditor
@@ -911,17 +915,17 @@ export function ExpensesPage() {
                 <div><div className="text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground">Date</div><div className="mt-0.5 font-mono text-[13px] font-bold">{form.spent_on}</div></div>
               </div>
               <div>
-                <label className="text-[11px] font-semibold uppercase text-muted-foreground">Purpose of request</label>
+                <label className="text-[10.5px] font-extrabold uppercase tracking-wider text-foreground/70">Purpose of request</label>
                 <textarea value={form.request_purpose} onChange={(e) => setForm({ ...form, request_purpose: e.target.value })}
                   rows={3}
-                  className="mt-1 w-full rounded-sm border border-input bg-background px-2 py-1.5 text-[13.5px] font-semibold leading-snug"
+                  className="mt-1.5 w-full rounded-lg border border-border bg-card px-3 py-2 shadow-sm outline-none transition-all hover:border-foreground/25 focus:border-brand focus:shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-brand)_15%,transparent)] focus-visible:ring-0 focus-visible:border-brand focus-visible:shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-brand)_15%,transparent)] text-[13.5px] font-semibold leading-snug"
                   placeholder="Why was this expense needed? Write the full reason — it prints on the voucher." />
               </div>
               <div>
-                <label className="text-[11px] font-semibold uppercase text-muted-foreground">Notes</label>
+                <label className="text-[10.5px] font-extrabold uppercase tracking-wider text-foreground/70">Notes</label>
                 <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })}
                   rows={2}
-                  className="mt-1 w-full rounded-sm border border-input bg-background px-2 py-1.5 text-[13px] leading-snug" />
+                  className="mt-1.5 w-full rounded-lg border border-border bg-card px-3 py-2 shadow-sm outline-none transition-all hover:border-foreground/25 focus:border-brand focus:shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-brand)_15%,transparent)] focus-visible:ring-0 focus-visible:border-brand focus-visible:shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-brand)_15%,transparent)] text-[13px] leading-snug" />
               </div>
 
               <ExpenseReceiptsEditor receipts={receipts} onChange={setReceipts} />
@@ -937,7 +941,7 @@ export function ExpensesPage() {
                 </Button>
               )}
               {step < 2 ? (
-                <Button onClick={() => setStep(step + 1)} disabled={!canNext(step)} className="h-9 gap-1 rounded-md shadow-md shadow-brand/25 transition-all active:scale-95">
+                <Button onClick={() => goTo(step + 1)} className="h-9 gap-1 rounded-md shadow-md shadow-brand/25 transition-all active:scale-95">
                   Continue <ChevronRight className="size-4" />
                 </Button>
               ) : (
