@@ -900,11 +900,8 @@ export function ExpensesPage() {
               </div>
               <ExpenseItemsEditor
                 items={items}
-                onChange={(next) => {
-                  setItems(next);
-                  const s = sumItems(next);
-                  if (next.length) setForm((f) => ({ ...f, amount: s ? String(s) : f.amount }));
-                }}
+                onChange={setItems}
+                maxTotal={Number(form.amount) || 0}
                 currency={form.currency}
               />
             </>)}

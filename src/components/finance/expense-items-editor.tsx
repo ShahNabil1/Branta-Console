@@ -1,5 +1,6 @@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import { ListChecks, Plus, Trash2 } from "lucide-react";
 
 export type ExpenseItem = {
@@ -50,9 +51,31 @@ export function ExpenseItemsEditor({
   items: ExpenseItem[];
   onChange: (next: ExpenseItem[]) => void;
   currency: string;
+  /** Expense amount: first line is prefilled with it and lines can never total more. */
+  maxTotal?: number;
 }) {
-  const patch = (idx: number, p: Partial<ExpenseItem>) =>
-    onChange(items.map((it, k) => (k === idx ? { ...it, ...p } : it)));
+  const cap = maxTotal && maxTotal > 0 ? maxTotal : null;
+  const patch = (idx: number, p: Partial<ExpenseItem>) => {
+    const next = items.map((it, k) => (k === idx ? { ...it, ...p } : it));
+    if (cap) {
+      const others = next.reduce((a, it, k) => (k === idx ? a : a + itemTotal(it)), 0);
+      const room = Math.max(0, cap - others);
+      const row = next[idx];
+      const q = Number(row.quantity) || 0;
+      if (itemTotal(row) > room + 1e-9) {
+        if ("quantity" in p && q > 0 && row.unit_price > 0) row.quantity = Math.floor((room / row.unit_price) * 100) / 100;
+        else if (q > 0) row.unit_price = Math.floor((room / q) * 100) / 100;
+        toast.error(`Line items can't exceed the expense amount (${currency} ${cap.toLocaleString()})`, { id: "items-cap" });
+      }
+    }
+    onChange(next);
+  };
+  const addItem = () => {
+    const used = sumItems(items);
+    const prefill = cap ? Math.max(0, cap - used) : 0;
+    if (cap && prefill <= 0) { toast.error("The expense amount is already fully itemised", { id: "items-cap" }); return; }
+    onChange([...items, { ...emptyItem(), unit_price: prefill }]);
+  };
 
   const total = sumItems(items);
   const fc = "h-9 rounded-lg bg-card text-[12.5px] font-semibold shadow-sm transition-all hover:border-foreground/25 focus-visible:ring-0 focus-visible:border-brand focus-visible:shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-brand)_15%,transparent)]";
@@ -72,7 +95,7 @@ export function ExpenseItemsEditor({
       </div>
       <div className="space-y-2">
         {items.length === 0 && (
-          <button type="button" onClick={() => onChange([emptyItem()])}
+          <button type="button" onClick={addItem}
             className="group flex w-full flex-col items-center gap-1 rounded-lg border border-dashed border-border bg-card px-4 py-5 text-center transition-all hover:border-brand/50 hover:bg-brand/[0.03]">
             <span className="grid size-8 place-items-center rounded-full bg-muted text-muted-foreground transition-all group-hover:scale-110 group-hover:bg-brand group-hover:text-white"><Plus className="size-4" /></span>
             <span className="text-[12.5px] font-bold">Break this expense into items</span>
@@ -97,7 +120,7 @@ export function ExpenseItemsEditor({
                 placeholder="Qty" aria-label="Quantity" className={`col-span-3 sm:col-span-2 font-mono ${fc}`} />
               <Input value={it.unit} list="expense-unit-presets" onChange={(e) => patch(idx, { unit: e.target.value })}
                 placeholder="Unit" aria-label="Unit" className={`col-span-4 sm:col-span-2 ${fc}`} />
-              <Input type="number" value={it.unit_price} onChange={(e) => patch(idx, { unit_price: Number(e.target.value) })}
+              <Input type="number" min={0} max={cap ?? undefined} value={it.unit_price} onChange={(e) => patch(idx, { unit_price: Number(e.target.value) })}
                 placeholder="Unit price" aria-label="Unit price" className={`col-span-5 sm:col-span-3 font-mono ${fc}`} />
               <Input value={it.note} onChange={(e) => patch(idx, { note: e.target.value })}
                 placeholder="Note (optional) — e.g. brantatech.com, 2026–2028" className={`col-span-12 font-medium ${fc}`} />
@@ -111,7 +134,7 @@ export function ExpenseItemsEditor({
           {UNIT_PRESETS.map((p) => <option key={p} value={p} />)}
         </datalist>
         {items.length > 0 && (
-          <Button type="button" variant="outline" size="sm" onClick={() => onChange([...items, emptyItem()])}
+          <Button type="button" variant="outline" size="sm" onClick={addItem}
             className="h-8 w-full gap-1.5 rounded-lg border-dashed text-[12px] font-bold transition-all hover:border-brand/50 hover:text-brand active:scale-[0.99]">
             <Plus className="size-3.5" /> Add line item
           </Button>
