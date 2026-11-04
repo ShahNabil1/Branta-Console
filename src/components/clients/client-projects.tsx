@@ -1,4 +1,3 @@
-import { Archive } from "lucide-react";
 import { confirmAction } from "@/components/ui/confirm-dialog";
 // One Client → Multiple Projects / Jobs. Mobile-first cards + bottom sheet form.
 import { useState } from "react";
