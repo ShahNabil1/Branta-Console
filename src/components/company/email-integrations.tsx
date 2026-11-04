@@ -51,6 +51,7 @@ import resendWordmarkWhite from "@/assets/email/resend-wordmark-white.png.asset.
 import resendWordmarkBlack from "@/assets/email/resend-wordmark-black.png.asset.json";
 import brevoIcon from "@/assets/email/brevo-icon.png.asset.json";
 import brevoWordmark from "@/assets/email/brevo-wordmark.png.asset.json";
+import switchAccountIcon from "@/assets/integrations/switch-account.png.asset.json";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -1394,8 +1395,8 @@ function InboxAddress({
             <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2">
               <Mail className="size-3.5 text-muted-foreground" />
               <span className="flex-1 truncate text-[13px] font-semibold">{inbox.email}</span>
-              <Button size="sm" variant="ghost" onClick={() => setAskChange(true)}>
-                <Pencil className="size-3.5" /> Change
+              <Button size="sm" variant="outline" className="shrink-0 gap-2 bg-card px-3 font-semibold text-foreground" onClick={() => setAskChange(true)}>
+                <img src={switchAccountIcon.url} alt="" aria-hidden="true" width={20} height={20} className="size-5 shrink-0 object-contain" /> Change address
               </Button>
               <ChangeInboxDialog
                 open={askChange}
@@ -1638,8 +1639,8 @@ function FinanceSender({ slug, v }: { slug: string; v: ProviderView }) {
           <span className="flex-1 truncate text-[13px] font-semibold">
             {curName} <span className="font-mono text-muted-foreground">&lt;{curEmail}&gt;</span>
           </span>
-          <Button size="sm" variant="ghost" onClick={() => setAsk(true)}>
-            <Pencil className="size-3.5" /> Change
+          <Button size="sm" variant="outline" className="shrink-0 gap-2 bg-card px-3 font-semibold text-foreground" onClick={() => setAsk(true)}>
+            <img src={switchAccountIcon.url} alt="" aria-hidden="true" width={20} height={20} className="size-5 shrink-0 object-contain" /> Change sender
           </Button>
           <ChangeConfirm
             open={ask}
