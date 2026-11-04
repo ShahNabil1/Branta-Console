@@ -43,7 +43,8 @@ import { parseInsufficient } from "@/lib/fund-ops.functions";
 import { defaultFilters, type ReportFilters } from "@/lib/report-filters";
 import { Loader2, Plus, Trash2, Receipt, Eye, Download, X, FileText, ImageOff, Printer, Stamp, Pencil, Link2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetDescription, SheetTitle } from "@/components/ui/sheet";
+import { ExpenseDrawerContent, ExpenseDrawerHeader } from "@/components/finance/expense-drawer";
 import { TestLoader } from "@/components/ui/test-loader";
 import { Check, ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -280,7 +281,7 @@ export function ExpensesPage() {
   const [askEditFor, setAskEditFor] = useState<ExpenseRow | null>(null);
   const [askDeleteFor, setAskDeleteFor] = useState<ExpenseRow | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [logsFor, setLogsFor] = useState<{ id: string; voucher: string | null } | null>(null);
+  const [logsFor, setLogsFor] = useState<{ id: string; voucher: string | null; createdAt: string } | null>(null);
 
   const confirmDelete = async (reason: string) => {
     if (!askDeleteFor) return;
@@ -612,7 +613,7 @@ export function ExpensesPage() {
           return (
           <ExpenseCard key={r.id} record={r} category={formatCategory(r.category)} amount={`− ${fmt(r.amount, r.currency)}`}
             receiptCount={receipts} highlighted={highlightId === r.id}
-            onActivity={() => setLogsFor({ id: r.id, voucher: r.voucher_no })}
+            onActivity={() => setLogsFor({ id: r.id, voucher: r.voucher_no, createdAt: r.created_at })}
             onView={() => viewVoucher(r.id, r.voucher_no)}
             onDownload={() => downloadVoucher(r.id, r.voucher_no, r.signed_voucher_url)}
             onEdit={() => setAskEditFor(r)}
@@ -682,9 +683,8 @@ export function ExpensesPage() {
 
 
       <Sheet open={open} onOpenChange={(v) => { if (!v && !add.isPending) { setOpen(false); setEditingId(null); } }}>
-        <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-2xl"
-          onInteractOutside={(e) => e.preventDefault()}>
-          <SheetHeader className="border-b border-border bg-gradient-to-b from-brand/[0.06] to-transparent px-6 pb-4 pt-5 text-left">
+        <ExpenseDrawerContent>
+          <ExpenseDrawerHeader>
             <div className="flex items-center gap-3">
               <span className="grid size-10 place-items-center rounded-xl bg-brand/10 text-brand ring-1 ring-inset ring-brand/20"><Receipt className="size-5" /></span>
               <div className="min-w-0">
@@ -713,7 +713,7 @@ export function ExpensesPage() {
                 );
               })}
             </ol>
-          </SheetHeader>
+          </ExpenseDrawerHeader>
           <div className="flex-1 overflow-y-auto px-6 py-5">
             <div key={step} className="space-y-4 animate-in fade-in slide-in-from-right-3 duration-300">
             {step === 0 && (<>
@@ -911,7 +911,7 @@ export function ExpensesPage() {
               )}
             </div>
           </div>
-        </SheetContent>
+        </ExpenseDrawerContent>
       </Sheet>
 
       <ReasonDialog
@@ -945,6 +945,8 @@ export function ExpensesPage() {
         <ExpenseLogsDialog
           expenseId={logsFor.id}
           voucherNo={logsFor.voucher}
+          createdAt={logsFor.createdAt}
+          employeeItems={employeeItems}
           onClose={() => setLogsFor(null)}
         />
       )}
