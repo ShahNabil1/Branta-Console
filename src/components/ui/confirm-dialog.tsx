@@ -125,6 +125,7 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
         subject={state.subject}
         description={state.description}
         points={state.points}
+        safeLast={state.safeLast ?? true}
         requireTypedText={state.requireTypedText}
         confirmLabel={state.confirmLabel}
         cancelLabel={state.cancelLabel}
