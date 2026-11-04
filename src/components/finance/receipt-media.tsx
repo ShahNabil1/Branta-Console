@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Eye, Image as ImageIcon, ImageOff, FileText, Download, ChevronLeft, ChevronRight, Loader2, Paperclip } from "lucide-react";
-import { TestLoader } from "@/components/ui/test-loader";
+import { Eye, Image as ImageIcon, ImageOff, FileText, ChevronLeft, ChevronRight, Loader2, Paperclip } from "lucide-react";
+import { ExpenseDownloadButton } from "./expense-download-button";
+import { downloadFile } from "./download-file";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -45,17 +46,11 @@ export function ReceiptPreview({ receipts, index, onIndexChange, onClose, onDown
   const state = useReceiptUrl(r);
   const [downloading, setDownloading] = useState(false);
   const download = async () => {
-    if (!r || downloading || !state?.url) return;
-    setDownloading(true);
+    if (!r || !state?.url) throw new Error("Receipt is not ready");
     try {
-      const response = await fetch(state.url);
-      if (!response.ok) throw new Error("Receipt download failed");
-      const url = URL.createObjectURL(await response.blob());
-      const a = document.createElement("a"); a.href = url; a.download = r.name; a.rel = "noopener"; document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      await downloadFile(state.url, r.name);
       onDownload?.(r);
-    } catch { toast.error("Receipt could not be downloaded."); }
-    finally { setDownloading(false); }
+    } catch (error) { toast.error("Receipt could not be downloaded."); throw error; }
   };
   return <Dialog open={!!r} onOpenChange={open => { if (!open) onClose(); }}>
     <DialogContent className="flex h-[min(88dvh,900px)] max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-4xl flex-col gap-0 overflow-hidden rounded-lg border-border bg-card p-0 sm:p-0">
@@ -71,7 +66,7 @@ export function ReceiptPreview({ receipts, index, onIndexChange, onClose, onDown
       </div>
       <div className="flex h-16 shrink-0 items-center justify-between gap-2 border-t border-border bg-card px-3 sm:px-5">
         <div className="flex items-center gap-1"><Button size="icon" variant="outline" className="expense-action size-8 rounded-full hover:border-brand/30 hover:bg-brand/5 hover:text-brand" aria-label="Previous receipt" title="Previous receipt" disabled={downloading || index === null || index <= 0} onClick={() => index !== null && onIndexChange(index - 1)}><ChevronLeft className="size-4" /></Button><span className="min-w-12 text-center font-mono text-[11px] font-bold">{index === null ? 0 : index + 1} / {receipts.length}</span><Button size="icon" variant="outline" className="expense-action size-8 rounded-full hover:border-brand/30 hover:bg-brand/5 hover:text-brand" aria-label="Next receipt" title="Next receipt" disabled={downloading || index === null || index >= receipts.length - 1} onClick={() => index !== null && onIndexChange(index + 1)}><ChevronRight className="size-4" /></Button></div>
-        <Button size="sm" className="expense-action h-9 w-32 gap-1.5 font-bold disabled:opacity-75" disabled={!state?.url || downloading} aria-busy={downloading} onClick={() => void download()}>{downloading ? <TestLoader tone="white" /> : <Download className="size-3.5" />}{downloading ? "Downloading" : "Download"}</Button>
+        <ExpenseDownloadButton className="w-32" disabled={!state?.url} resetKey={r?.path ?? r?.name} onPendingChange={setDownloading} onDownload={download} />
       </div>
     </DialogContent>
   </Dialog>;

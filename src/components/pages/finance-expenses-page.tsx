@@ -32,6 +32,8 @@ import { PageHero } from "@/components/branta/page-hero";
 import { ExpenseItemsEditor, type ExpenseItem } from "@/components/finance/expense-items-editor";
 import { ExpenseReceiptsGallery } from "@/components/finance/expense-receipts-gallery";
 import { storedReceipts } from "@/components/finance/receipt-media";
+import { ExpenseDownloadButton } from "@/components/finance/expense-download-button";
+import { downloadFile } from "@/components/finance/download-file";
 import { ExpenseReceiptsEditor, type ReceiptDraft } from "@/components/finance/expense-receipts-editor";
 
 import { ExportMenu } from "@/components/finance/export-menu";
@@ -43,7 +45,7 @@ import { logExpenseAction } from "@/lib/expense-logs.functions";
 import { InsufficientFundDialog, useFundOptions } from "@/components/finance/fund-move-dialog";
 import { parseInsufficient } from "@/lib/fund-ops.functions";
 import { defaultFilters, type ReportFilters } from "@/lib/report-filters";
-import { Loader2, Plus, Trash2, Receipt, Eye, Download, X, FileText, ImageOff, Printer, Stamp, Pencil, Link2 } from "lucide-react";
+import { Loader2, Plus, Trash2, Receipt, Eye, X, FileText, ImageOff, Printer, Stamp, Pencil, Link2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { ExpenseDrawerContent, ExpenseDrawerHeader } from "@/components/finance/expense-drawer";
@@ -367,25 +369,17 @@ export function ExpensesPage() {
   const downloadVoucher = async (id: string, voucherNo: string | null, signedPath?: string | null) => {
     try {
       setBusyId(id + "dl");
-      track(id, "voucher_downloaded", signedPath ? "sealed copy" : "generated PDF");
       if (signedPath) {
         const name = `Voucher-${voucherNo ?? id}-sealed.${signedPath.split(".").pop() ?? "pdf"}`;
         const su = await signedDownloadUrl(signedPath, name);
-        const link = document.createElement("a");
-        link.href = su; link.download = name; link.rel = "noopener";
-        document.body.appendChild(link); link.click(); link.remove();
+        await downloadFile(su, name);
+        track(id, "voucher_downloaded", "sealed copy");
         return;
       }
       const { url } = await voucherUrlFn({ data: { id, mode: "digital" } });
-      const res = await fetch(url);
-      if (!res.ok) throw new Error("Could not generate voucher PDF");
-      const blob = await res.blob();
-      const objUrl = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = objUrl; a.download = `Voucher-${voucherNo ?? id}.pdf`; a.rel = "noopener";
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(objUrl), 4000);
-    } catch (e) { toast.error((e as Error).message); }
+      await downloadFile(url, `Voucher-${voucherNo ?? id}.pdf`);
+      track(id, "voucher_downloaded", "generated PDF");
+    } catch (e) { toast.error((e as Error).message); throw e; }
     finally { setBusyId(null); }
   };
 
@@ -438,11 +432,10 @@ export function ExpensesPage() {
   const downloadReceipt = async (path: string, expenseId?: string) => {
     try {
       const name = path.split("/").pop() ?? "receipt";
-      if (expenseId) track(expenseId, "receipt_downloaded", name);
       const url = await signedDownloadUrl(path, name);
-      const a = document.createElement("a");
-      a.href = url; a.download = name; a.rel = "noopener"; document.body.appendChild(a); a.click(); a.remove();
-    } catch (e) { toast.error((e as Error).message); }
+      await downloadFile(url, name);
+      if (expenseId) track(expenseId, "receipt_downloaded", name);
+    } catch (e) { toast.error((e as Error).message); throw e; }
   };
 
   // Private link: only signed-in Finance users can open it (checked server-side).
@@ -938,7 +931,7 @@ export function ExpensesPage() {
         onClose={() => setReceiptGallery(null)}
         onView={r => track(receiptGallery.id, "receipt_viewed", r.name)}
         onDownloaded={r => track(receiptGallery.id, "receipt_downloaded", r.name)}
-        onDownload={r => { if (r.path) void downloadReceipt(r.path, receiptGallery.id); }} />}
+        onDownload={async r => { if (!r.path) throw new Error("Receipt is unavailable"); await downloadReceipt(r.path, receiptGallery.id); }} />}
 
       {viewer && (
         <div className="fixed inset-0 z-[60] grid place-items-center bg-black/80 p-4" onClick={() => setViewer(null)}>
@@ -949,10 +942,8 @@ export function ExpensesPage() {
                 <span className="truncate">{viewer.name}</span>
               </div>
               <div className="flex items-center gap-1">
-                <Button size="sm" variant="ghost" className="h-7 rounded-sm px-2 text-[11.5px]"
-                  onClick={() => { const a = document.createElement("a"); a.href = viewer.url; a.download = viewer.name; a.rel = "noopener"; document.body.appendChild(a); a.click(); a.remove(); }}>
-                  <Download className="mr-1 size-3.5" /> Download
-                </Button>
+                <ExpenseDownloadButton className="h-7 w-32 rounded-sm px-2 text-[11.5px]" resetKey={viewer.url}
+                  onDownload={async () => { try { await downloadFile(viewer.url, viewer.name); } catch (error) { toast.error("File could not be downloaded."); throw error; } }} />
                 <Button size="sm" variant="ghost" className="h-7 rounded-sm px-2" onClick={() => setViewer(null)}>
                   <X className="size-3.5" />
                 </Button>
