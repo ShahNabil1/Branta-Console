@@ -35,6 +35,8 @@ export type ConfirmOptions = {
   subject?: React.ReactNode;
   /** Consequence bullets. */
   points?: React.ReactNode[];
+  /** When false, no bullet is styled as the "safe" green point. Defaults to true. */
+  safeLast?: boolean;
 };
 
 type Resolver = (value: boolean) => void;
@@ -123,6 +125,7 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
         subject={state.subject}
         description={state.description}
         points={state.points}
+        safeLast={state.safeLast ?? true}
         requireTypedText={state.requireTypedText}
         confirmLabel={state.confirmLabel}
         cancelLabel={state.cancelLabel}
