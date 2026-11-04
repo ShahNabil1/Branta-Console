@@ -952,7 +952,7 @@ export function ExpensesPage() {
                 <Button onClick={() => add.mutate()} disabled={add.isPending || !form.amount}
                   className="h-9 min-w-28 gap-1.5 rounded-md shadow-md shadow-brand/25 transition-all active:scale-95">
                   {add.isPending || uploading ? <TestLoader tone="white" /> : <Check className="size-4" />}
-                  {uploading ? "Uploading…" : editingId ? "Save changes" : "Save expense"}
+                  {uploading ? "Uploading…" : add.isPending ? "Saving…" : editingId ? "Save changes" : "Save expense"}
                 </Button>
               )}
             </div>
