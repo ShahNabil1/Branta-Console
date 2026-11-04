@@ -19,12 +19,14 @@ export interface ExpenseCardRecord {
   signed_voucher_url: string | null;
 }
 
-export function ExpenseCard({ record: r, category, amount, receiptCount, requestedByAvatar, highlighted, downloading = false, menu, onActivity, onView, onDownload, onEdit }: {
+export function ExpenseCard({ record: r, category, amount, receiptCount, requestedByAvatar, addedByName, addedByAvatar, highlighted, downloading = false, menu, onActivity, onView, onDownload, onEdit }: {
   record: ExpenseCardRecord;
   category: string;
   amount: string;
   receiptCount: number;
   requestedByAvatar?: string | null;
+  addedByName?: string | null;
+  addedByAvatar?: string | null;
   highlighted?: boolean;
   downloading?: boolean;
   menu: ReactNode;
@@ -43,7 +45,7 @@ export function ExpenseCard({ record: r, category, amount, receiptCount, request
           <span className="grid size-8 shrink-0 place-items-center rounded-md border border-border bg-muted/50 text-foreground transition-all duration-200 group-hover:border-brand/25 group-hover:bg-brand/10 group-hover:text-brand"><Receipt className="size-4 transition-transform duration-200 group-hover:-rotate-12" /></span>
           <div className="min-w-0">
             <div className="truncate font-mono text-[11.5px] font-bold">{r.voucher_no ?? "—"}</div>
-            <div className="truncate text-[10px] font-semibold text-muted-foreground">{category}{r.signed_voucher_url ? " · Signed" : ""}</div>
+            <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[12px] font-bold leading-4 text-foreground" title={category}><span className="min-w-0 break-words">{category}</span>{r.signed_voucher_url && <span className="shrink-0 text-[10px] font-medium text-muted-foreground">· Signed</span>}</div>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-0.5">
@@ -54,10 +56,12 @@ export function ExpenseCard({ record: r, category, amount, receiptCount, request
         </div>
       </header>
       <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
-        <h3 className="min-w-0 break-words text-[13px] font-bold leading-5 [overflow-wrap:anywhere]">{r.vendor || category}</h3>
+        <h3 className="min-w-0 break-words text-[15px] font-bold leading-6 [overflow-wrap:anywhere]">{r.vendor || category}</h3>
         <span className="min-w-0 max-w-[12rem] break-words text-right font-mono text-[16px] font-bold leading-6 text-destructive [overflow-wrap:anywhere]">{amount}</span>
       </div>
-      <p className="mt-0.5 line-clamp-1 text-[11.5px] leading-5 text-muted-foreground" title={r.request_purpose || r.notes || undefined}>{r.request_purpose || r.notes || "No purpose noted"}</p>
+      <div className="mt-2 border-l-2 border-foreground/20 pl-2.5">
+        <p className="line-clamp-2 break-words text-[12px] font-medium leading-5 text-foreground/80 [overflow-wrap:anywhere]" title={r.request_purpose || r.notes || undefined}>{r.request_purpose || r.notes || "No purpose noted"}</p>
+      </div>
       <dl className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-2 border-t border-border pt-2.5 text-[11.5px]">
         {[
           ["Date", new Date(r.spent_on).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })],
@@ -75,6 +79,16 @@ export function ExpenseCard({ record: r, category, amount, receiptCount, request
           </dd>
         </div>)}
       </dl>
+      <div className="mt-2.5 flex min-w-0 items-center gap-2 border-t border-border pt-2.5">
+        <Avatar className="size-7 shrink-0 border border-border">
+          <AvatarImage src={addedByAvatar || undefined} alt={addedByName || ""} className="object-cover" />
+          <AvatarFallback className="text-[9px] font-bold text-muted-foreground">{addedByName ? addedByName.trim().split(/\s+/).slice(0, 2).map(part => part[0]).join("").toUpperCase() : "—"}</AvatarFallback>
+        </Avatar>
+        <div className="min-w-0">
+          <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Added by</p>
+          <p className="truncate text-[12px] font-semibold leading-4" title={addedByName || undefined}>{addedByName || "Unknown employee"}</p>
+        </div>
+      </div>
       <div className="mt-2.5 truncate font-mono text-[10px] text-muted-foreground" title={r.txn_id ?? undefined}>
         {r.txn_id ? `TrxID ${r.txn_id}` : "No TrxID"} · {receiptCount} receipt{receiptCount === 1 ? "" : "s"}
       </div>
