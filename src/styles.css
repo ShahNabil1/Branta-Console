@@ -326,53 +326,45 @@ html body[data-scroll-locked] { margin-right: 0 !important; padding-right: 0 !im
 [data-sonner-toaster].branta-toaster [data-sonner-toast] * {
   pointer-events: auto !important;
 }
+/* The running line is painted as the toast's own border (no ::before) — Sonner uses
+   ::before/::after for swipe/gap areas, which caused ghost boxes while leaving. */
 .branta-toaster [data-sonner-toast].branta-toast {
-  isolation: isolate;
-  box-shadow: 0 12px 32px -12px color-mix(in oklab, var(--color-brand) 35%, transparent), 0 2px 6px rgb(0 0 0 / 0.06);
-}
-.branta-toaster [data-sonner-toast].branta-toast::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 2.5px;
+  border: 2.5px solid transparent !important;
   background:
-    conic-gradient(from var(--toast-angle), transparent 0deg, transparent 200deg, color-mix(in oklab, var(--color-brand) 40%, transparent) 260deg, var(--color-brand) 340deg, var(--color-brand) 352deg, transparent 360deg),
-    color-mix(in oklab, var(--color-brand) 22%, var(--color-border));
-  filter: drop-shadow(0 0 3px color-mix(in oklab, var(--color-brand) 55%, transparent));
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  pointer-events: none;
-  z-index: -1;
+    linear-gradient(var(--color-card), var(--color-card)) padding-box,
+    conic-gradient(from var(--toast-angle), transparent 0deg, transparent 200deg, color-mix(in oklab, var(--color-brand) 40%, transparent) 260deg, var(--color-brand) 340deg, var(--color-brand) 352deg, transparent 360deg) border-box,
+    linear-gradient(color-mix(in oklab, var(--color-brand) 22%, var(--color-border)), color-mix(in oklab, var(--color-brand) 22%, var(--color-border))) border-box !important;
+  box-shadow: 0 12px 32px -12px color-mix(in oklab, var(--color-brand) 35%, transparent), 0 2px 6px rgb(0 0 0 / 0.06);
+  /* Keyframes map angle to constant speed along the perimeter (no sprint at corners). */
   animation: toast-lap var(--toast-life) linear forwards;
 }
-.branta-toaster:hover [data-sonner-toast].branta-toast::before {
+.branta-toaster:hover [data-sonner-toast].branta-toast {
   animation-play-state: paused;
 }
 @keyframes toast-lap {
-  to { --toast-angle: 360deg; }
+  0% { --toast-angle: 0deg; } 2.5% { --toast-angle: 38.1deg; } 5% { --toast-angle: 57.5deg; } 7.5% { --toast-angle: 67deg; } 10% { --toast-angle: 72.3deg; } 12.5% { --toast-angle: 75.7deg; } 15% { --toast-angle: 78deg; } 17.5% { --toast-angle: 79.7deg; } 20% { --toast-angle: 80.9deg; } 22.5% { --toast-angle: 83.5deg; } 25% { --toast-angle: 90deg; } 27.5% { --toast-angle: 96.5deg; } 30% { --toast-angle: 99.1deg; } 32.5% { --toast-angle: 100.3deg; } 35% { --toast-angle: 102deg; } 37.5% { --toast-angle: 104.3deg; } 40% { --toast-angle: 107.7deg; } 42.5% { --toast-angle: 113deg; } 45% { --toast-angle: 122.5deg; } 47.5% { --toast-angle: 141.9deg; } 50% { --toast-angle: 180deg; } 52.5% { --toast-angle: 218.1deg; } 55% { --toast-angle: 237.5deg; } 57.5% { --toast-angle: 247deg; } 60% { --toast-angle: 252.3deg; } 62.5% { --toast-angle: 255.7deg; } 65% { --toast-angle: 258deg; } 67.5% { --toast-angle: 259.7deg; } 70% { --toast-angle: 260.9deg; } 72.5% { --toast-angle: 263.5deg; } 75% { --toast-angle: 270deg; } 77.5% { --toast-angle: 276.5deg; } 80% { --toast-angle: 279.1deg; } 82.5% { --toast-angle: 280.3deg; } 85% { --toast-angle: 282deg; } 87.5% { --toast-angle: 284.3deg; } 90% { --toast-angle: 287.7deg; } 92.5% { --toast-angle: 293deg; } 95% { --toast-angle: 302.5deg; } 97.5% { --toast-angle: 321.9deg; } 100% { --toast-angle: 360deg; }
 }
 .branta-toaster [data-sonner-toast] [data-close-button].branta-toast-close {
-  left: auto;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
+  left: auto !important;
+  right: 8px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
   width: 24px;
   height: 24px;
   border-radius: 9999px;
-  border: 1px solid var(--color-border);
-  background: var(--color-card);
-  color: var(--color-muted-foreground);
+  border: 1px solid var(--color-border) !important;
+  background: var(--color-card) !important;
+  color: var(--color-muted-foreground) !important;
+  opacity: 1 !important;
   cursor: pointer;
   transition: transform 0.2s, background 0.15s, color 0.15s, border-color 0.15s;
 }
 .branta-toaster [data-sonner-toast] [data-close-button].branta-toast-close:hover {
-  background: #dc2626;
-  border-color: #dc2626;
-  color: white;
-  transform: translateY(-50%) rotate(90deg);
+  background: #dc2626 !important;
+  border-color: #dc2626 !important;
+  color: #ffffff !important;
+  transform: translateY(-50%) rotate(90deg) !important;
 }
 @media (prefers-reduced-motion: reduce) {
-  .branta-toaster [data-sonner-toast].branta-toast::before { animation: none; }
+  .branta-toaster [data-sonner-toast].branta-toast { animation: none; }
 }
