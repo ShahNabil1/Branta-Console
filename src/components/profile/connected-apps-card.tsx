@@ -89,8 +89,13 @@ export function ConnectedAppsCard() {
 
   const onDisconnect = async (app: AppKey) => {
     const ok = await confirm({
+      icon: DisconnectIcon,
       title: `Disconnect ${APPS[app].name}?`,
-      description: `${APPS[app].name} will no longer be able to sign in with your Branta ID until you connect it again.`,
+      points: [
+        `${APPS[app].name} can no longer sign in with your Branta ID until you connect it again.`,
+        "Its current sessions end right away.",
+        "Your past activity and history stay unchanged.",
+      ],
       confirmLabel: "Disconnect",
       tone: "danger",
     });
@@ -149,21 +154,11 @@ export function ConnectedAppsCard() {
                       Connected {new Date(r.connected_at).toLocaleDateString("en-GB")} · Last sign-in{" "}
                       {new Date(r.last_authorized_at).toLocaleString("en-GB")}
                     </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                    <DisconnectButton
                       disabled={m.isPending}
+                      busy={m.isPending && m.variables === key}
                       onClick={() => onDisconnect(key)}
-                    >
-                      {m.isPending && m.variables === key ? (
-                        <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-                      ) : (
-                        <Unlink className="mr-1.5 size-3.5" />
-                      )}
-                      Disconnect
-                    </Button>
+                    />
                     {key === "tracker_extension" && (
                       <Button asChild type="button" variant="outline" size="sm" className="ml-2">
                         <a href={TRACKER_ZIP} download><Download className="mr-1.5 size-3.5" /> Download Extension</a>
