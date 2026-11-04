@@ -1,11 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Lock, Plug, Unplug, XCircle } from "lucide-react";
+import { Lock, Plug, XCircle } from "lucide-react";
 import { GoogleMark, GmailMark } from "./google-account-card";
 import googleWordmark from "@/assets/email/google-wordmark.png.asset.json";
 import resendLogo from "@/assets/email/resend-wordmark-black.png.asset.json";
 import brevoLogo from "@/assets/email/brevo-wordmark.png.asset.json";
-import brantaLogo from "@/assets/brand-logo.png.asset.json";
+import brantaLogo from "@/assets/branta-icon.svg.asset.json";
+import noConnectionIcon from "@/assets/company/no-connection.png.asset.json";
 import { getCompanySetupStatus, type IntegrationItem, type SetupItem } from "@/lib/company-setup.functions";
 import { useActiveCompany } from "./company-switcher";
 
