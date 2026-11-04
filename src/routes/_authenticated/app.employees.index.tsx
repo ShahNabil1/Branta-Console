@@ -1206,7 +1206,17 @@ function DestinationsPanel() {
       description:
         kind === "rule"
           ? `Mail to ${value} will stop forwarding. This deletes the rule in Cloudflare.`
-          : `Deletes ${value} from Cloudflare${rules.length ? ` and its ${rules.length} routing rule(s): ${rules.join(", ")}` : ""}.`,
+          : `Deletes the destination address ${value} from Cloudflare and every routing rule that forwards to it.`,
+      points:
+        kind === "rule"
+          ? undefined
+          : [
+              `Remove destination ${value}`,
+              ...(rules.length
+                ? rules.map((r) => `Delete routing rule ${r}`)
+                : ["No routing rules point at this address"]),
+            ],
+      safeLast: false,
       confirmLabel: "Delete",
       tone: "danger",
     });
