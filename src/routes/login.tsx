@@ -117,19 +117,17 @@ function LoginPage() {
 
   const [entering, setEntering] = useState(false);
   const finalizeAndGo = async (_opts?: { viaPasskey?: boolean }) => {
-    // Start the Console preloader right away (no intermediate splash) and
-    // register the session in the background while the dashboard opens.
+    // Start the Console preloader right away (no intermediate splash); the
+    // session is registered behind it before the dashboard opens.
     setEntering(true);
-    void (async () => {
-      try {
-        const key = ensureSessionKey();
-        const { collectDeviceHints } = await import("@/lib/device-hints");
-        const hints = await collectDeviceHints();
-        await registerSessionFn({ data: { session_key: key, hints } }).catch(() => {});
-      } catch {
-        /* non-fatal */
-      }
-    })();
+    try {
+      const key = ensureSessionKey();
+      const { collectDeviceHints } = await import("@/lib/device-hints");
+      const hints = await collectDeviceHints();
+      await registerSessionFn({ data: { session_key: key, hints } }).catch(() => {});
+    } catch {
+      /* non-fatal */
+    }
     navigate({ href: redirectParam, replace: true });
   };
 
