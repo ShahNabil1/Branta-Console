@@ -11,14 +11,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   connectBrevoWebhook, connectResendWebhook, disconnectProvider, previewProviderDisconnect, getEmailIntegrations,
-  setDefaultProvider, setFinanceSender, verifyEmailProvider, sendInboxProbe, pollInboxProbe, type Check as CheckT, type ProviderView,
+  setDefaultProvider, setFinanceSender, testEmailProvider, verifyEmailProvider, sendInboxProbe, pollInboxProbe, type Check as CheckT, type ProviderView,
 } from "@/lib/company-email.functions";
 import { cn } from "@/lib/utils";
 import { DangerConfirm, DiscardCancelButton } from "@/components/company/danger-confirm";
 import { GoogleAccountCard, GoogleMark, GmailMark } from "@/components/company/google-account-card";
 import resendLogo from "@/assets/email/resend.webp.asset.json";
 import brevoLogo from "@/assets/email/brevo.webp.asset.json";
-import { ProviderTest } from "@/components/company/provider-test";
 import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 function ChangeInboxDialog({ open, email, verified, onCancel, onConfirm }: { open: boolean; email: string; verified: boolean; onCancel: () => void; onConfirm: () => void }) {
@@ -266,27 +265,6 @@ function status(v: ProviderView | null) {
   if (!v) return { label: "Not configured", cls: "bg-muted text-muted-foreground" };
   if (v.domain_verified_at && v.webhook_verified_at) return { label: "Connected", cls: "bg-status-converted/15 text-status-converted" };
   return { label: "Action required", cls: "bg-amber-500/15 text-amber-600" };
-}
-
-function ProviderCard({ p, v, on, onClick }: { p: P; v: ProviderView | null; on: boolean; onClick: () => void }) {
-  const m = META[p]; const s = status(v);
-  return (
-    <Button variant="outline" onClick={onClick} aria-expanded={on}
-      className={cn("group relative block h-auto w-full overflow-hidden whitespace-normal rounded-md border bg-background p-4 text-left transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.99]",
-        on ? "border-transparent shadow-lg ring-2" : "border-border")}
-      style={on ? { ["--tw-ring-color" as string]: m.color } : undefined}>
-      <span className="absolute inset-x-0 top-0 h-1 transition-all group-hover:h-1.5" style={{ background: m.color }} />
-      <div className="flex items-center gap-3">
-        <span className="grid size-10 shrink-0 place-items-center rounded-md border border-border bg-card"><ProviderLogo p={p} /></span>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 text-[14px] font-bold">{m.name}{v?.is_default && <Star className="size-3.5 fill-brand text-brand" />}</div>
-          {v && <div className="truncate text-[11.5px] font-semibold text-muted-foreground">{`${v.sender_name} <${v.sender_email}>`}</div>}
-        </div>
-        <span className={cn("rounded-full px-2 py-0.5 text-[10.5px] font-bold", s.cls)}>{s.label}</span>
-        <ChevronDown className={cn("size-4 text-muted-foreground transition-transform duration-300", on && "rotate-180")} />
-      </div>
-    </Button>
-  );
 }
 
 function ProviderLogo({ p }: { p: P }) {
@@ -553,73 +531,6 @@ function StepAutoHook({ p, slug, v, data, onDone }: { p: P; slug: string; v: Pro
         </div>
       )}
       {checks.length > 0 && <Checks list={checks} />}
-    </div>
-  );
-}
-
-function StepFinish({ p, slug, v, both }: { p: P; slug: string; v: ProviderView | null; both: boolean }) {
-  const def = useServerFn(setDefaultProvider);
-  const disc = useServerFn(disconnectProvider);
-  const previewDisconnect = useServerFn(previewProviderDisconnect);
-  const refresh = useRefresh(slug);
-  const [busy, setBusy] = useState<string | null>(null);
-  const [confirm, setConfirm] = useState(false);
-  const [hooks, setHooks] = useState<{ id: string; address: string }[] | null>(null);
-  const [previewError, setPreviewError] = useState<string | null>(null);
-  if (!v) return null;
-  const act = async (id: string, f: () => Promise<unknown>) => { setBusy(id); try { await f(); } catch (e) { toast.error(err(e)); } finally { setBusy(null); } };
-  const loadPreview = async () => {
-    setBusy("preview"); setHooks(null); setPreviewError(null);
-    try { setHooks((await previewDisconnect({ data: { slug, provider: p } })).hooks); }
-    catch (e) { setPreviewError(err(e)); }
-    finally { setBusy(null); }
-  };
-
-  return (
-    <div className="grid gap-4 md:grid-cols-2">
-      <ProviderTest key={`${slug}:${p}`} slug={slug} provider={p} sender={`${v.sender_name} <${v.sender_email}>`} />
-
-      {both && (
-        <Tile icon={Star} title="Default provider" body="Used automatically for this company's mail; the other stays as a manual option.">
-          <Button size="sm" variant={v.is_default ? "secondary" : "default"} disabled={v.is_default || !!busy}
-            onClick={() => act("def", async () => { await def({ data: { slug, provider: p } }); await refresh(); toast.success(`${META[p].name} is now default`); })}>
-            <Star className={cn("size-3.5", v.is_default && "fill-brand text-brand")} /> {v.is_default ? "Default" : "Make default"}
-          </Button>
-        </Tile>
-      )}
-
-      <Tile icon={Unplug} title="Disconnect" body="Removes this company's Branta webhook from the provider and erases the stored key and secret. Other webhooks and history stay intact.">
-        <Button size="sm" variant="destructive" disabled={!!busy} onClick={() => { setConfirm(true); void loadPreview(); }}><Unplug className="size-3.5" /> Disconnect</Button>
-        <DangerConfirm open={confirm} icon={Unplug} title={`Disconnect ${META[p].name}?`} subject={`${v.sender_name} <${v.sender_email}>`}
-          busy={busy === "dc"} confirmLabel="Disconnect" cancelLabel="Keep it"
-          points={busy === "preview" ? [`Checking ${META[p].name} webhooks…`]
-            : previewError ? [previewError]
-            : hooks === null ? [`Checking ${META[p].name} webhooks…`]
-            : [
-              hooks.length ? `Removes ${hooks.length} Branta Tech webhook(s): ${hooks.map((h) => h.address).join(", ")}` : "No Branta Tech webhooks found — only the Console connection is removed.",
-              "Erases the stored API key and webhook secret.",
-              p === "resend" ? `The finance sender ${v.finance_sender_name || v.sender_name} <${v.finance_sender_email || v.sender_email}> is removed too; invoice emails and reminders switch to Brevo if it's connected, otherwise they stop.` : "Lead, Inbox and invoice mail stop unless Resend is connected.",
-              "Other systems' webhooks and past email history stay unchanged.",
-            ]}
-          onCancel={() => setConfirm(false)}
-          onConfirm={() => {
-            if (hooks === null || previewError) { void loadPreview(); return; }
-            void act("dc", async () => {
-              const r = await disc({ data: { slug, provider: p, confirmedHookIds: hooks.map((hook) => hook.id) } });
-              setConfirm(false); await refresh(); toast.success(`Disconnected · removed ${r.removed} Branta Tech webhook(s)`);
-            });
-          }} />
-      </Tile>
-    </div>
-  );
-}
-
-function Tile({ icon: I, title, body, children }: { icon: LucideIcon; title: string; body: string; children: ReactNode }) {
-  return (
-    <div className="group rounded-xl border border-border bg-background p-4 transition-all hover:-translate-y-0.5 hover:shadow-md">
-      <div className="flex items-center gap-2 text-[13px] font-bold"><I className="size-4 text-brand transition-transform group-hover:scale-110" />{title}</div>
-      <p className="mb-3 mt-1 text-[12px] font-semibold text-muted-foreground">{body}</p>
-      {children}
     </div>
   );
 }
