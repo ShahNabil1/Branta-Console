@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { TestLoader } from "@/components/ui/test-loader";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Download, Loader2 } from "lucide-react";
@@ -138,7 +139,7 @@ export function ExportButtons<T>({ title, cols, rows, preamble, load }: { title:
     <div className="flex gap-1.5">
       {(["csv", "xlsx"] as const).map((f) => (
         <Button key={f} size="sm" variant="outline" className="h-7 rounded-sm text-[11.5px]" disabled={!!busy} onClick={() => void go(f)}>
-          {busy === f ? <Loader2 className="mr-1 size-3 animate-spin" /> : <Download className="mr-1 size-3" />}{f.toUpperCase()}
+          {busy === f ? <TestLoader tone="export" className="mr-1 size-3.5" /> : <Download className="mr-1 size-3" />}{f.toUpperCase()}
         </Button>
       ))}
     </div>

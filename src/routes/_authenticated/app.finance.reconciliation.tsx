@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { TestLoader } from "@/components/ui/test-loader";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
@@ -62,7 +63,7 @@ function ReconPage() {
           <p className="text-[12.5px] text-muted-foreground">As of today only — the Wallet cannot be reliably rebuilt for past dates, so no historical figures are shown. BDT only. Last calculated {fmtDate(d.calculatedAt)}.</p>
         </div>
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" className="h-8" onClick={() => void q.refetch()}>{q.isFetching ? <Loader2 className="mr-1 size-3 animate-spin" /> : <RotateCw className="mr-1 size-3" />}Recalculate</Button>
+          <Button size="sm" variant="outline" className="h-8" onClick={() => void q.refetch()}><TestLoader tone="refresh" active={q.isFetching} className="mr-1 size-3.5" />Recalculate</Button>
           <ExportButtons title="Reconciliation breakdown" cols={lineCols} rows={[...lines, { label: "Difference", amount: c.difference, sign: "", note: d.status }]} />
         </div>
       </div>

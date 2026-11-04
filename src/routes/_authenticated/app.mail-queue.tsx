@@ -1,6 +1,7 @@
 // Phase 5 — Failure management dashboard for Resend sends.
 // Shows queue metrics, lists every failed email across leads, and lets you
 // retry individually or in bulk. Realtime subscription keeps it fresh.
+import { TestLoader } from "@/components/ui/test-loader";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -175,7 +176,7 @@ function MailQueuePage() {
           className="h-8 rounded-sm text-[12px]"
           onClick={() => qc.invalidateQueries({ queryKey: ["mail-queue"] })}
         >
-          <RefreshCw className="mr-1.5 size-3.5" /> Refresh
+          <TestLoader tone="refresh" active={qc.isFetching({ queryKey: ["mail-queue"] }) > 0} className="mr-1.5" /> Refresh
         </Button>
       </div>
 

@@ -1,5 +1,6 @@
 // Employee mail delivery history from real Brevo events (email_events), with
 // plain-language reasons and an Unblock action when Brevo blocks an address.
+import { TestLoader } from "@/components/ui/test-loader";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -109,7 +110,7 @@ export function MailActivity({ emails }: { emails: string[] }) {
           <h2 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Mail delivery history</h2>
         </div>
         <button type="button" onClick={() => q.refetch()} className="inline-flex h-7 items-center gap-1 rounded-sm border border-border px-2 text-[11px] font-semibold hover:bg-muted">
-          <RefreshCw className={cn("size-3", q.isFetching && "animate-spin")} /> Refresh 
+          <TestLoader tone="refresh" active={q.isFetching} className="size-3.5" /> Refresh 
         </button>
       </div>
       <p className="mb-3 text-[11.5px] text-muted-foreground">Live  for {list.join(" · ")}. Updates every 30 seconds.</p>
