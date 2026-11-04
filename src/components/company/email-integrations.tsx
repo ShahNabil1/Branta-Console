@@ -1297,54 +1297,105 @@ function InboxAddress({
           <GmailMark className="size-5" />
         </span>
         <div className="min-w-0 flex-1">
-          <h3 className="text-[13.5px] font-bold">In-app Gmail Inbox Address</h3>
-          <div className="break-all text-[11.5px] font-semibold text-muted-foreground">
-            Forwarding destination: {gmail}
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-[13.5px] font-bold">In-app Gmail Inbox Address</h3>
+            {inbox?.verified_at && !editing && !busy && (
+              <span className="flex items-center gap-1 rounded-full bg-status-converted/15 px-2 py-0.5 text-[10.5px] font-bold text-status-converted">
+                <CheckCircle2 className="size-3" /> Verified
+              </span>
+            )}
+            {!inbox?.verified_at && inbox && !editing && !busy && (
+              <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10.5px] font-bold text-amber-600">
+                Not verified
+              </span>
+            )}
+          </div>
+          <div className="truncate text-[11.5px] font-semibold text-muted-foreground">
+            {inbox && !editing ? (
+              <>
+                <b className="font-mono text-foreground">{inbox.email}</b> → {gmail}
+              </>
+            ) : (
+              <>Forwarding destination: {gmail}</>
+            )}
           </div>
         </div>
-        {inbox?.verified_at && !editing && (
-          <span className="flex items-center gap-1 rounded-full bg-status-converted/15 px-2 py-0.5 text-[10.5px] font-bold text-status-converted">
-            <CheckCircle2 className="size-3" /> Verified
-          </span>
-        )}
-        {!inbox?.verified_at && inbox && !editing && !run && (
-          <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10.5px] font-bold text-amber-600">
-            Not verified
-          </span>
-        )}
-      </div>
 
-      {editing ? (
-        <div className="mt-3 flex flex-wrap gap-2 animate-in fade-in">
-          <Input
-            value={email}
-            onChange={(e) => setEmail(e.target.value.toLowerCase())}
-            placeholder="info@admakai.com"
-            className="max-w-sm"
-          />
-          <Button disabled={!valid || !!busy} onClick={() => begin(email.trim().toLowerCase())}>
-            <ShieldCheck className="size-4" /> Save & verify
-          </Button>
-          {inbox && (
-            <DiscardCancelButton
-              dirty={email.trim() !== inbox.email}
-              className="h-9 gap-1 font-bold"
-              onCancel={() => {
-                setEmail(inbox.email);
-                setEditing(false);
-              }}
+        {editing ? (
+          <div className="flex flex-wrap items-center gap-2 animate-in fade-in slide-in-from-right-2">
+            <Input
+              value={email}
+              onChange={(e) => setEmail(e.target.value.toLowerCase())}
+              placeholder="info@admakai.com"
+              className="h-9 w-64"
             />
-          )}
-        </div>
-      ) : (
-        inbox && (
-          <div className="mt-3 space-y-3 animate-in fade-in">
-            <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2">
-              <Mail className="size-3.5 text-muted-foreground" />
-              <span className="flex-1 truncate text-[13px] font-semibold">{inbox.email}</span>
-              <Button size="sm" variant="outline" className="shrink-0 gap-2 bg-card px-3 font-semibold text-foreground" onClick={() => setAskChange(true)}>
+            <Button className="h-9" disabled={!valid || !!busy} onClick={() => begin(email.trim().toLowerCase())}>
+              <ShieldCheck className="size-4" /> Save & verify
+            </Button>
+            {inbox && (
+              <DiscardCancelButton
+                dirty={email.trim() !== inbox.email}
+                className="h-9 gap-1 font-bold"
+                onCancel={() => {
+                  setEmail(inbox.email);
+                  setEditing(false);
+                }}
+              />
+            )}
+          </div>
+        ) : run && run.stage !== "verified" && (busy || run.stage === "failed") ? (
+          <div className="flex w-72 items-center gap-2.5 rounded-lg border border-border bg-card px-3 py-2 shadow-sm animate-in fade-in slide-in-from-right-2">
+            {busy ? (
+              <Loader2 className="size-4 shrink-0 animate-spin" style={{ color: accent }} />
+            ) : (
+              <XCircle className="size-4 shrink-0 text-destructive" />
+            )}
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between gap-2 text-[11.5px] font-bold">
+                <span className="truncate">
+                  {run.stage === "failed"
+                    ? "Verification failed"
+                    : (STEPS.find((s) => !reached(s.k))?.label ?? "Verifying…")}
+                </span>
+                <span className="font-mono tabular-nums" style={{ color: run.stage === "failed" ? undefined : accent }}>
+                  {Math.round(pct)}%
+                </span>
+              </div>
+              <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-border">
+                <div
+                  className="h-full rounded-full transition-all duration-500 ease-out"
+                  style={{
+                    width: `${pct}%`,
+                    background: run.stage === "failed" ? "var(--color-destructive)" : accent,
+                  }}
+                />
+              </div>
+            </div>
+            {run.stage === "failed" && inbox && (
+              <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => begin(inbox.email)}>
+                <RefreshCw className="size-3.5" /> Retry
+              </Button>
+            )}
+          </div>
+        ) : (
+          inbox && (
+            <div className="flex flex-wrap items-center gap-2 animate-in fade-in">
+              <Button size="sm" variant="outline" className="h-9 shrink-0 gap-2 bg-card px-3 font-semibold text-foreground" onClick={() => setAskChange(true)}>
                 <img src={switchAccountIcon.url} alt="" aria-hidden="true" width={20} height={20} className="size-5 shrink-0 object-contain" /> Change address
               </Button>
+              {!inbox.verified_at && (
+                <button
+                  type="button"
+                  onClick={() => begin(inbox.email)}
+                  className="group inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-card px-3.5 text-[12.5px] font-bold text-foreground shadow-sm transition-all hover:-translate-y-px hover:border-status-converted/40 hover:shadow-md"
+                >
+                  <span className="grid size-5 place-items-center rounded-full bg-status-converted/15 text-status-converted transition-transform group-hover:scale-110">
+                    <Sparkles className="size-3" />
+                  </span>
+                  Auto-verify
+                  <ArrowRight className="size-3.5 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+                </button>
+              )}
               <ChangeInboxDialog
                 open={askChange}
                 email={inbox.email}
@@ -1356,87 +1407,14 @@ function InboxAddress({
                 }}
               />
             </div>
-            {!inbox.verified_at && !run && (
-              <Button size="sm" onClick={() => begin(inbox.email)}>
-                <ShieldCheck className="size-3.5" /> Verify automatically
-              </Button>
-            )}
-            {run && (
-              <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-3 animate-in fade-in">
-                <div className="flex items-center justify-between text-[12px] font-bold">
-                  <span className="flex items-center gap-1.5">
-                    {busy ? (
-                      <Loader2 className="size-3.5 animate-spin" style={{ color: accent }} />
-                    ) : run.stage === "verified" ? (
-                      <CheckCircle2 className="size-3.5 text-status-converted" />
-                    ) : (
-                      <XCircle className="size-3.5 text-destructive" />
-                    )}
-                    {run.stage === "verified"
-                      ? "Verified"
-                      : run.stage === "failed"
-                        ? "Verification failed"
-                        : "Verifying…"}
-                  </span>
-                  <span className="font-mono tabular-nums">{Math.round(pct)}%</span>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-border">
-                  <div
-                    className="h-full rounded-full transition-all duration-500 ease-out"
-                    style={{
-                      width: `${pct}%`,
-                      background:
-                        run.stage === "failed"
-                          ? "var(--color-destructive)"
-                          : run.stage === "verified"
-                            ? "var(--color-status-converted)"
-                            : accent,
-                    }}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  {STEPS.map((st) => (
-                    <div
-                      key={st.k}
-                      className={cn(
-                        "flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-[11px] font-bold transition-colors",
-                        reached(st.k)
-                          ? "border-status-converted/30 bg-status-converted/10 text-status-converted"
-                          : "border-border text-muted-foreground",
-                      )}
-                    >
-                      {reached(st.k) ? (
-                        <Check className="size-3" />
-                      ) : (
-                        <span className="size-3 rounded-full border border-current" />
-                      )}
-                      <span className="truncate">{st.label}</span>
-                    </div>
-                  ))}
-                </div>
-                <div
-                  className={cn(
-                    "text-[12px] font-semibold",
-                    run.stage === "failed" ? "text-destructive" : "text-muted-foreground",
-                  )}
-                >
-                  {run.msg}
-                </div>
-                {run.stage === "failed" && (
-                  <Button size="sm" variant="outline" onClick={() => begin(inbox.email)}>
-                    <RefreshCw className="size-3.5" /> Retry
-                  </Button>
-                )}
-              </div>
-            )}
-            {inbox.verified_at && (
-              <div className="text-[11.5px] font-semibold text-muted-foreground">
-                Changing this address requires verifying again and re-verifying Resend/Brevo with
-                the new sender.
-              </div>
-            )}
-          </div>
-        )
+          )
+        )}
+      </div>
+      {run?.stage === "failed" && !editing && (
+        <p className="mt-2 flex items-start gap-2 rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-2 text-[12px] font-semibold leading-snug text-destructive animate-in fade-in">
+          <XCircle className="mt-px size-3.5 shrink-0" />
+          <span>{run.msg}</span>
+        </p>
       )}
     </div>
   );
