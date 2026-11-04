@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Lock, Plug, XCircle } from "lucide-react";
 import { GoogleMark, GmailMark } from "./google-account-card";
-import googleWordmark from "@/assets/email/google-wordmark.png.asset.json";
+import verifiedIcon from "@/assets/company/connection-verified.png.asset.json";
 import resendLogo from "@/assets/email/resend-wordmark-black.png.asset.json";
 import brevoLogo from "@/assets/email/brevo-wordmark.png.asset.json";
 import brantaLogo from "@/assets/branta-icon.svg.asset.json";
@@ -80,7 +80,7 @@ export function IntegrationRequired({ feature, compact }: { feature: keyof typeo
       </div>
     );
   const ROWS: Record<IntegrationItem, { title: string; hint: string; icons: React.ReactNode }> = {
-    google: { title: "Connect your company's Google account", hint: "Gmail & Calendar", icons: <><GoogleMark className="size-5" /><img src={googleWordmark.url} alt="Google" className="h-4" /></> },
+    google: { title: "Connect your company's Google account", hint: "Gmail & Calendar", icons: <GoogleMark className="size-5" /> },
     inbox_address: { title: "In-app Gmail address", hint: "Verify the company Inbox address", icons: <GmailMark className="size-5" /> },
     email_provider: { title: "Resend or Brevo", hint: "Connect at least one sender", icons: <><img src={resendLogo.url} alt="Resend" className="h-3.5" /><span className="text-[11px] font-bold text-muted-foreground">or</span><img src={brevoLogo.url} alt="Brevo" className="h-3.5" /></> },
   };
@@ -95,9 +95,9 @@ export function IntegrationRequired({ feature, compact }: { feature: keyof typeo
           </p>
         </div>
         <ul className="mt-6 space-y-2">
-          {items.map((i) => (
+          {(INT_NEEDS[feature] as IntegrationItem[]).map((i) => (
             <li key={i} className="flex items-center gap-3 rounded-lg border border-border bg-background px-3 py-2.5">
-              <XCircle className="size-4 shrink-0 text-destructive" />
+              {items.includes(i) ? <XCircle className="size-4 shrink-0 text-destructive" /> : <img src={verifiedIcon.url} alt="Verified" title="Verified" className="size-4 shrink-0 object-contain" />}
               <div className="min-w-0 flex-1">
                 <div className="text-[13px] font-bold text-foreground">{ROWS[i].title}</div>
                 <div className="text-[11.5px] font-medium text-muted-foreground">{ROWS[i].hint}</div>
