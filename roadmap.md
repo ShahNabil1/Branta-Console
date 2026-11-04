@@ -1,5 +1,10 @@
 # Roadmap
 
+## Stable premium receipt preview
+- [ ] Remove receipt Open actions; stable branded responsive preview across all receipt types.
+- [ ] Replace download icon with loader while pending in both voucher card and receipt preview, restoring it afterwards.
+- [ ] Verify size stability, pending behavior and mobile/desktop rendering.
+
 ## Download feedback and activity exit
 - [x] Keep Download icon with shared action loader, Downloading label and disabled pending state.
 - [x] Reproduced abrupt unmount; Activity now completes shared drawer exit. Actual-component checks pass at 320/390/768/1280/1920: pending disabled, icon/loader retained, stable button size, re-enabled after completion, drawer slides out before removal. Six activity tests pass; build OK.
