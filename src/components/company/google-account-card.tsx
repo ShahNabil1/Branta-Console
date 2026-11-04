@@ -1,3 +1,4 @@
+import { ConfirmSurface } from "@/components/ui/confirm-surface";
 import { useEffect, useRef, useState } from "react";
 import { TestLoader } from "@/components/ui/test-loader";
 import { useServerFn } from "@tanstack/react-start";
@@ -223,47 +224,25 @@ function ConfirmDialog({ kind, email, busy, onCancel, onConfirm }: {
         "Past mail history and sent records stay unchanged.",
       ];
   return (
-    <AlertDialog open={!!kind} onOpenChange={(o) => !o && !busy && onCancel()}>
-      <AlertDialogContent className="overflow-hidden p-0 sm:max-w-md">
-        <div className={cn("relative px-6 pb-4 pt-6", sw ? "bg-primary/5" : "bg-destructive/5")}>
-          <span className={cn("pointer-events-none absolute -right-10 -top-12 size-36 rounded-full blur-3xl", sw ? "bg-primary/25" : "bg-destructive/25")} />
-          <div className="relative flex items-center gap-3">
-            <span className={cn("grid size-11 place-items-center rounded-xl border bg-card shadow-sm animate-in zoom-in-75 duration-300", sw ? "border-primary/30 text-primary" : "border-destructive/30 text-destructive")}>
-              {sw ? <img src={switchAccountIcon.url} alt="" aria-hidden="true" width={24} height={24} className="size-6 object-contain" /> : <Unplug className="size-5" />}
-            </span>
-            <div className="min-w-0">
-              <AlertDialogTitle className="text-[15px] font-bold">{sw ? "Switch Google account?" : "Disconnect Google account?"}</AlertDialogTitle>
-              <AlertDialogDescription className="mt-0.5 flex items-center gap-1.5 truncate text-[12px] font-semibold">
-                <GoogleMark className="size-3.5 shrink-0" /> {email}
-              </AlertDialogDescription>
-            </div>
-          </div>
-        </div>
-        <ul className="space-y-2 px-6 py-4">
-          {points.map((t, i) => (
-            <li key={t} style={{ animationDelay: `${i * 70}ms` }} className="flex items-start gap-2 text-[12.5px] font-semibold text-foreground animate-in fade-in slide-in-from-left-2 fill-mode-both">
-              <span className={cn("mt-1.5 size-1.5 shrink-0 rounded-full", i === points.length - 1 ? "bg-status-converted" : sw ? "bg-primary" : "bg-destructive")} />
-              {t}
-            </li>
-          ))}
-        </ul>
-        <div className="flex justify-end gap-2 border-t border-border bg-muted/30 px-6 py-3">
-          <Button size="sm" variant="outline" onClick={onCancel} disabled={busy}>Cancel</Button>
-          {sw ? (
-            <Button size="sm" variant="outline" onClick={onConfirm} disabled={busy} className="gap-2 rounded-full bg-card px-4 font-medium text-foreground shadow-sm transition-all hover:bg-muted hover:shadow-md active:scale-95">
-              {busy ? <Loader2 className="size-4 animate-spin" /> : <GoogleMark className="size-4" />}
-              <span className="font-semibold tracking-tight">Continue to</span>
-              <img src={googleWordmark.url} alt="Google" className="h-3.5 w-auto object-contain" />
-            </Button>
-          ) : (
-            <Button size="sm" variant="destructive" onClick={onConfirm} disabled={busy} className="transition-transform active:scale-95">
-              {busy ? <Loader2 className="size-3.5 animate-spin" /> : <Unplug className="size-3.5" />}
-              Disconnect
-            </Button>
-          )}
-        </div>
-      </AlertDialogContent>
-    </AlertDialog>
+    <ConfirmSurface
+      open={!!kind}
+      tone={sw ? "info" : "danger"}
+      icon={sw ? <img src={switchAccountIcon.url} alt="" aria-hidden="true" width={24} height={24} className="size-6 object-contain" /> : Unplug}
+      title={sw ? "Switch Google account?" : "Disconnect Google account?"}
+      subject={<><GoogleMark className="size-3.5 shrink-0" /> {email}</>}
+      points={points}
+      confirmLabel="Disconnect"
+      busy={busy}
+      onCancel={onCancel}
+      onConfirm={onConfirm}
+      confirmSlot={sw ? (
+        <Button size="sm" variant="outline" onClick={onConfirm} disabled={busy} className="gap-2 rounded-full bg-card px-4 font-medium text-foreground shadow-sm transition-all hover:bg-muted hover:shadow-md active:scale-95">
+          {busy ? <TestLoader className="size-4" active /> : <GoogleMark className="size-4" />}
+          <span className="font-semibold tracking-tight">Continue to</span>
+          <img src={googleWordmark.url} alt="Google" className="h-3.5 w-auto object-contain" />
+        </Button>
+      ) : undefined}
+    />
   );
 }
 

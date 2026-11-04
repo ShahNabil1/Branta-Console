@@ -91,7 +91,7 @@ export function ConfirmSurface({
           {confirmSlot ?? (
             <Button variant={t.btn} size="sm" onClick={onConfirm} disabled={busy || !typedOk || confirmDisabled}
               className="gap-1.5 transition-transform active:scale-95">
-              {busy ? <TestLoader className="size-3.5" tone={tone === "danger" ? "white" : "test"} active /> : !hideConfirmIcon && <BtnIcon className="size-3.5" />}
+              {busy ? <TestLoader className="size-3.5" tone="white" active /> : !hideConfirmIcon && <BtnIcon className="size-3.5" />}
               {confirmLabel ?? (tone === "danger" ? "Delete" : "Confirm")}
             </Button>
           )}
