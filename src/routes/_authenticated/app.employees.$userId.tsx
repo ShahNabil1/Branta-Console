@@ -503,7 +503,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
               onClick={onResendOnboarding}
               disabled={resendOnboardingMut.isPending}
               title={`Pending: ${pendingSteps.join(", ")}`}
-              className="inline-flex h-9 items-center gap-1.5 rounded-sm border border-primary/40 bg-primary/10 px-3 text-[12.5px] font-medium text-primary hover:bg-primary/15 disabled:opacity-60"
+              className="inline-flex h-8 items-center gap-1.5 rounded-md border shadow-sm border-primary/40 bg-primary/10 px-3 text-xs font-semibold text-primary hover:bg-primary/15 disabled:opacity-60"
             >
               {resendOnboardingMut.isPending ? (
                 <Loader2 className="size-3.5 animate-spin" />
@@ -515,7 +515,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
           )}
           <button
             onClick={() => setLogsOpen(true)}
-            className="inline-flex h-9 items-center gap-1.5 rounded-sm border border-border bg-card px-3 text-[12.5px] font-semibold hover:bg-muted"
+            className="inline-flex h-8 items-center gap-1.5 rounded-md border shadow-sm border-border bg-card px-3 text-xs font-semibold hover:bg-muted"
           >
             <ShieldAlert className="size-3.5" strokeWidth={2} />
             Logs
@@ -523,7 +523,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
           <button
             onClick={onReset}
             disabled={resetMut.isPending}
-            className="inline-flex h-9 items-center gap-1.5 rounded-sm border border-border bg-card px-3 text-[12.5px] font-medium hover:bg-muted disabled:opacity-60"
+            className="inline-flex h-8 items-center gap-1.5 rounded-md border shadow-sm border-border bg-card px-3 text-xs font-semibold hover:bg-muted disabled:opacity-60"
           >
             {resetMut.isPending ? (
               <Loader2 className="size-3.5 animate-spin" />
@@ -536,7 +536,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
             onClick={onBan}
             disabled={banMut.isPending}
             className={cn(
-              "inline-flex h-9 items-center gap-1.5 rounded-sm border px-3 text-[12.5px] font-medium disabled:opacity-60",
+              "inline-flex h-8 items-center gap-1.5 rounded-md border shadow-sm px-3 text-xs font-semibold disabled:opacity-60",
               e.isBanned
                 ? "border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
                 : "border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100",
@@ -559,7 +559,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
                 ? `Linked as ${tgStatus.data.username ? "@" + tgStatus.data.username : (tgStatus.data.firstName ?? "Telegram user")}`
                 : "This employee hasn't linked Telegram yet"
             }
-            className="inline-flex h-9 items-center gap-1.5 rounded-sm border border-sky-300 bg-sky-50 px-3 text-[12.5px] font-medium text-sky-800 hover:bg-sky-100 disabled:opacity-50"
+            className="inline-flex h-8 items-center gap-1.5 rounded-md border shadow-sm border-sky-300 bg-sky-50 px-3 text-xs font-semibold text-sky-800 hover:bg-sky-100 disabled:opacity-50"
           >
             {tgUnsub.isPending ? (
               <Loader2 className="size-3.5 animate-spin" />
@@ -572,7 +572,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
             <button
               onClick={onImpersonate}
               disabled={impMut.isPending || e.isBanned}
-              className="inline-flex h-9 items-center gap-1.5 rounded-sm border border-brand/40 bg-brand/10 px-3 text-[12.5px] font-semibold text-brand hover:bg-brand/20 disabled:opacity-60"
+              className="inline-flex h-8 items-center gap-1.5 rounded-md border shadow-sm border-brand/40 bg-brand/10 px-3 text-xs font-semibold text-brand hover:bg-brand/20 disabled:opacity-60"
               title={e.isBanned ? "Unban this employee before impersonating" : "Sign in as this employee"}
             >
               {impMut.isPending ? (
@@ -587,11 +587,17 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
             onClick={onDelete}
             disabled={delMut.isPending}
             animate={!delMut.isPending}
+            accent="#ffffff"
+            surface="var(--color-destructive)"
+            track="rgba(255,255,255,0.25)"
+            labelColor="#ffffff"
+            radius={6}
+            strokeWidth={1.5}
           >
             {delMut.isPending ? (
-              <Loader2 className="size-4 animate-spin" />
+              <TestLoader className="size-3.5" tone="white" active />
             ) : (
-              <Trash2 className="size-4" strokeWidth={2} />
+              <Trash2 className="size-3.5" strokeWidth={2} />
             )}
             Delete
           </AnimatedBorderButton>
