@@ -21,6 +21,7 @@ import { beginPasskeyLogin, finishPasskeyLogin } from "@/lib/passkeys.functions"
 import { ensureSessionKey } from "@/hooks/use-session-watcher";
 import { claimPasskeySession } from "@/lib/session-assurance.functions";
 import { oauthReturnPath } from "@/lib/oauth-return-path";
+import { showBootSplash } from "@/lib/boot-splash";
 
 
 const TURNSTILE_SITE_KEY = "0x4AAAAAACNbiRh7P7qtgkXG";
@@ -115,6 +116,8 @@ function LoginPage() {
   const [passkeyError, setPasskeyError] = useState<string | null>(null);
 
   const finalizeAndGo = async (opts?: { viaPasskey?: boolean }) => {
+    // Show the branded splash immediately; the Console preloader takes over on mount.
+    showBootSplash();
     try {
       const key = ensureSessionKey();
       const { collectDeviceHints } = await import("@/lib/device-hints");
