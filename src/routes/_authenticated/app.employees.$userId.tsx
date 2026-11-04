@@ -208,7 +208,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
     const ok = await confirm({
       title: "Unsubscribe Telegram?",
       subject: <><TelegramIcon className="size-3.5 shrink-0" /> {tgStatus.data?.username ? "@" + tgStatus.data.username : e.email}</>,
-      icon: TelegramIcon,
+      icon: <TelegramIcon className="size-5" />,
       points: [
         "All Branta Tech Telegram notifications stop for this employee.",
         "The linked Telegram account is removed from the Console.",
