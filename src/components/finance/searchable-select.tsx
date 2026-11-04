@@ -8,6 +8,8 @@ export type SearchableItem = {
   value: string;
   label: string;
   hint?: string | null;
+  /** Shown but not selectable. */
+  disabled?: boolean;
   /** Secondary line, e.g. job role. */
   sub?: string | null;
   /** Avatar URL; "" shows initials. Undefined = no avatar column. */
@@ -135,13 +137,15 @@ export function SearchableSelect({
                 <button
                   key={it.value}
                   type="button"
+                  disabled={it.disabled}
                   onClick={() => {
+                    if (it.disabled) return;
                     onChange(it.value);
                     setOpen(false);
                     setQ("");
                   }}
                   className={cn(
-                    "flex w-full items-center gap-2.5 px-2.5 py-1.5 text-left text-[13px] font-semibold transition-colors hover:bg-muted/70",
+                    "flex w-full items-center gap-2.5 px-2.5 py-1.5 text-left text-[13px] font-semibold transition-colors hover:bg-muted/70 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent",
                     active && "bg-brand/5",
                   )}
                 >
