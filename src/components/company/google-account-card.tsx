@@ -2,12 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeftRight, CheckCircle2, Loader2, RefreshCw, Unplug, XCircle } from "lucide-react";
+import { CheckCircle2, Loader2, RefreshCw, Unplug, XCircle } from "lucide-react";
 import { AlertDialog, AlertDialogContent, AlertDialogTitle, AlertDialogDescription } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { disconnectGoogle, getGoogleConnection, startGoogleConnect, testGoogleConnection } from "@/lib/company-google.functions";
 import { cn } from "@/lib/utils";
 import googleWordmark from "@/assets/email/google-wordmark.png.asset.json";
+import switchAccountIcon from "@/assets/integrations/switch-account.png.asset.json";
 import { connectGoogleInPopup } from "@/lib/google-connect-popup";
 
 const err = (e: unknown) => (e instanceof Error ? e.message : "Something went wrong");
@@ -110,7 +111,7 @@ export function GoogleAccountCard({ slug, accent }: { slug: string; accent: stri
         ) : a ? (
           <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="outline" onClick={runTest} disabled={!!busy}>{busy === "test" ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />} Test</Button>
-            <Button size="sm" variant="outline" onClick={() => setConfirm("switch")} disabled={!!busy}><ArrowLeftRight className="size-3.5" /> Switch account</Button>
+            <Button size="sm" variant="outline" className="shrink-0 gap-2 bg-card px-3 font-semibold text-foreground" onClick={() => setConfirm("switch")} disabled={!!busy}><img src={switchAccountIcon.url} alt="" aria-hidden="true" width={20} height={20} className="size-5 shrink-0 object-contain" /> Switch account</Button>
             <Button size="sm" variant="destructive" onClick={() => setConfirm("disc")} disabled={!!busy}><Unplug className="size-3.5" /> Disconnect</Button>
           </div>
         ) : (
@@ -227,7 +228,7 @@ function ConfirmDialog({ kind, email, busy, onCancel, onConfirm }: {
           <span className={cn("pointer-events-none absolute -right-10 -top-12 size-36 rounded-full blur-3xl", sw ? "bg-primary/25" : "bg-destructive/25")} />
           <div className="relative flex items-center gap-3">
             <span className={cn("grid size-11 place-items-center rounded-xl border bg-card shadow-sm animate-in zoom-in-75 duration-300", sw ? "border-primary/30 text-primary" : "border-destructive/30 text-destructive")}>
-              {sw ? <ArrowLeftRight className="size-5" /> : <Unplug className="size-5" />}
+              {sw ? <img src={switchAccountIcon.url} alt="" aria-hidden="true" width={24} height={24} className="size-6 object-contain" /> : <Unplug className="size-5" />}
             </span>
             <div className="min-w-0">
               <AlertDialogTitle className="text-[15px] font-bold">{sw ? "Switch Google account?" : "Disconnect Google account?"}</AlertDialogTitle>
