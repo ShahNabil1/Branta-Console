@@ -46,6 +46,8 @@ import { DangerConfirm, DiscardCancelButton } from "@/components/company/danger-
 import { GoogleAccountCard, GoogleMark, GmailMark } from "@/components/company/google-account-card";
 import resendLogo from "@/assets/email/resend.webp.asset.json";
 import brevoLogo from "@/assets/email/brevo.webp.asset.json";
+import resendMarkWhite from "@/assets/email/resend-mark-white.png.asset.json";
+import resendWordmarkWhite from "@/assets/email/resend-wordmark-white.png.asset.json";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -327,7 +329,20 @@ function ProviderPanel({
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2 text-[14px] font-bold">
-            {m.name}
+            {p === "resend" ? (
+              <span
+                className="inline-flex items-center rounded-md px-2 py-1"
+                style={{ background: m.color }}
+              >
+                <img
+                  src={resendWordmarkWhite.url}
+                  alt="Resend"
+                  className="h-2.5 w-auto object-contain"
+                />
+              </span>
+            ) : (
+              m.name
+            )}
             {connected ? (
               <span className="inline-flex items-center gap-1 rounded-full bg-status-converted/10 px-2 py-0.5 text-[11px] font-bold text-status-converted">
                 <CheckCircle2 className="size-3" /> Connected
@@ -401,6 +416,23 @@ function ProviderPanel({
             {open ? (
               <>
                 <X className="size-3.5" /> Close
+              </>
+            ) : p === "resend" ? (
+              <>
+                <img
+                  src={resendMarkWhite.url}
+                  alt=""
+                  className="size-3.5 shrink-0 object-contain"
+                />
+                {v ? (
+                  "Continue setup"
+                ) : (
+                  <img
+                    src={resendWordmarkWhite.url}
+                    alt="Connect Resend"
+                    className="h-3 w-auto object-contain"
+                  />
+                )}
               </>
             ) : (
               <>
