@@ -40,7 +40,7 @@ import { logExpenseAction } from "@/lib/expense-logs.functions";
 import { InsufficientFundDialog, useFundOptions } from "@/components/finance/fund-move-dialog";
 import { parseInsufficient } from "@/lib/fund-ops.functions";
 import { defaultFilters, type ReportFilters } from "@/lib/report-filters";
-import { Loader2, Plus, Trash2, Receipt, Eye, Download, X, FileText, Printer, Stamp, Pencil, Link2, History } from "lucide-react";
+import { Loader2, Plus, Trash2, Receipt, Eye, Download, X, FileText, ImageOff, Printer, Stamp, Pencil, Link2, History } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { TestLoader } from "@/components/ui/test-loader";
@@ -1007,7 +1007,19 @@ export function ExpensesPage() {
               </div>
             </div>
             <div className="max-h-[80vh] overflow-auto rounded-b-md border-x border-b border-border bg-black">
-              <img src={viewer.url} alt={viewer.name} className="mx-auto block max-h-[80vh] object-contain" />
+              {/\.(heic|heif)$/i.test(viewer.name) ? (
+                <div className="mx-auto my-10 flex max-w-md flex-col items-center gap-2.5 rounded-xl border border-border bg-card p-8 text-center shadow-lg">
+                  <span className="grid size-14 place-items-center rounded-xl bg-brand/10 text-brand ring-1 ring-inset ring-brand/20">
+                    <ImageOff className="size-6" />
+                  </span>
+                  <div className="text-[13.5px] font-bold">HEIC preview isn't supported by browsers</div>
+                  <p className="text-[12px] font-medium leading-relaxed text-muted-foreground">
+                    iPhone photos (.heic) can't be shown here — the file is stored safely. Download it to view, or convert it to JPG first.
+                  </p>
+                </div>
+              ) : (
+                <img src={viewer.url} alt={viewer.name} className="mx-auto block max-h-[80vh] object-contain" />
+              )}
             </div>
           </div>
         </div>
