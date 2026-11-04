@@ -1,5 +1,10 @@
 # Roadmap
 
+## Receipt gallery and action cleanup
+- [ ] Remove duplicate voucher view/download/edit menu actions.
+- [ ] Reuse Create Expense receipt thumbnails/lightbox with all attachments, per-file downloads and desktop PDF viewing.
+- [ ] Verify mixed multiple receipts, legacy single receipts and responsive navigation.
+
 ## Reactive expense cards and filtered activity
 - [x] Restore branded reactive card/action effects while preserving compact layout.
 - [x] Reuse Create Expense drawer protection and employee dropdown; real avatars, coloured events, smooth event/date tabs.
