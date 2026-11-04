@@ -21,7 +21,7 @@ export const getCompanySetupStatus = createServerFn({ method: "GET" })
     const sb = supabaseAdmin as any; // eslint-disable-line @typescript-eslint/no-explicit-any
     const [m, g, a, p] = await Promise.all([
       sb.rpc("company_setup_missing", { _company: id }),
-      sb.from("company_google_accounts").select("company_id").eq("company_id", id).maybeSingle(),
+      sb.from("company_google_accounts").select("company_id").eq("company_id", id).eq("is_active", true).maybeSingle(),
       sb.from("company_inbox_addresses").select("verified_at").eq("company_id", id).maybeSingle(),
       sb.from("company_email_providers").select("id").eq("company_id", id).eq("is_active", true)
         .not("domain_verified_at", "is", null).limit(1),
