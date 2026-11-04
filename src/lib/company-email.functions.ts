@@ -1436,6 +1436,7 @@ export const testEmailProvider = createServerFn({ method: "POST" })
     if (!r?.is_active || !r.domain_verified_at) throw new Error("This provider is not connected.");
     const key = await m.open(r.api_key_enc);
     if (!key) throw new Error("Provider credentials are missing. Disconnect and connect again.");
+    const { listRepairHooks } = await import("@/lib/company-webhook-repair");
     const domain = (r.domain || String(r.sender_email).split("@")[1]).toLowerCase();
     const timed = async <T>(f: () => Promise<T>) => {
       const t = Date.now();
@@ -1472,7 +1473,9 @@ export const testEmailProvider = createServerFn({ method: "POST" })
             ? `${domain} · ${dom.status}${dom.region ? ` · ${dom.region}` : ""}`
             : `${domain} not found in Resend`,
       });
-      const w = await m.resend(key, "/webhooks");
+      const w = await listRepairHooks("resend", (path, init) => m.resend(key, path, init))
+        .then(hooks => ({ ok: true, status: 200, body: { data: hooks } }))
+        .catch(() => ({ ok: false, status: 0, body: { data: [] } }));
       const hook = w.ok
         ? (
             (w.body?.data ?? []) as {

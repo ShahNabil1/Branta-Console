@@ -283,6 +283,7 @@ function ProviderPanel({
 }) {
   const m = META[p];
   const [flowing, setFlowing] = useState(false);
+  const configured = !flowing && !!v?.domain_verified_at;
   const connected = !flowing && !!v?.domain_verified_at && !!v?.webhook_verified_at;
   const test = useServerFn(testEmailProvider);
   const repair = useServerFn(repairCompanyWebhook);
@@ -314,10 +315,10 @@ function ProviderPanel({
   // Silent health check once on open: quiet when everything works.
   const autoRan = useRef(false);
   useEffect(() => {
-    if (autoRan.current || !connected) return;
+    if (autoRan.current || !configured) return;
     autoRan.current = true;
     void runTest(true);
-  }, [connected]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [configured]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const failed = (k: string) => checks?.find((c) => c.kind === k && !c.ok);
   const fixWebhook = async () => {
@@ -395,7 +396,7 @@ function ProviderPanel({
             )}
           </p>
         </div>
-        {connected ? (
+        {configured ? (
           <div className="flex flex-wrap gap-2 animate-in fade-in duration-500">
             <Button size="sm" variant="outline" onClick={() => runTest(false)} disabled={!!busy}>
               <TestLoader active={busy === "test"} /> Test
@@ -428,7 +429,7 @@ function ProviderPanel({
         )}
       </div>
 
-      {connected && (
+      {configured && (
         <div className="mt-3 flex flex-wrap gap-2">
           {chips.map((c) => {
             const bad = failed(c.k);
@@ -461,7 +462,7 @@ function ProviderPanel({
         </div>
       )}
 
-      {connected && checks && (
+      {configured && checks && (
         <div className="mt-3 grid gap-2 sm:grid-cols-3">
           {checks.map((c, i) => {
             const I = c.kind === "webhook" ? Webhook : c.kind === "domain" ? ShieldCheck : KeyRound;
