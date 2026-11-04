@@ -276,7 +276,8 @@ function ProviderPanel({
   locked: boolean;
 }) {
   const m = META[p];
-  const connected = !!v?.domain_verified_at && !!v?.webhook_verified_at;
+  const [flowing, setFlowing] = useState(false);
+  const connected = !flowing && !!v?.domain_verified_at && !!v?.webhook_verified_at;
   const test = useServerFn(testEmailProvider);
   const def = useServerFn(setDefaultProvider);
   const refresh = useRefresh(slug);
@@ -369,7 +370,7 @@ function ProviderPanel({
           </p>
         </div>
         {connected ? (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 animate-in fade-in duration-500">
             <Button size="sm" variant="outline" onClick={() => runTest(false)} disabled={!!busy}>
               {busy === "test" ? (
                 <Loader2 className="size-3.5 animate-spin" />
@@ -402,56 +403,7 @@ function ProviderPanel({
             <DisconnectButton p={p} slug={slug} v={v!} />
           </div>
         ) : (
-          <Button
-            size="sm"
-            disabled={locked}
-            onClick={onToggle}
-            className="gap-1.5"
-            style={{ background: open ? undefined : m.color }}
-            variant={open ? "outline" : "default"}
-          >
-            {open ? (
-              <>
-                <X className="size-3.5" /> Close
-              </>
-            ) : p === "resend" ? (
-              <>
-                <img
-                  src={resendMarkWhite.url}
-                  alt=""
-                  className="size-4 shrink-0 object-contain"
-                />
-                <span className="font-semibold tracking-tight">
-                  {v ? "Continue setup" : "Connect"}
-                </span>
-                {!v && (
-                  <img
-                    src={resendWordmarkWhite.url}
-                    alt="Resend"
-                    className="h-3 w-auto object-contain"
-                  />
-                )}
-              </>
-            ) : (
-              <>
-                <span className="grid size-5 shrink-0 place-items-center rounded-full bg-card">
-                  <img src={brevoIcon.url} alt="" className="size-4 object-contain" />
-                </span>
-                <span className="font-semibold tracking-tight">
-                  {v ? "Continue setup" : "Connect"}
-                </span>
-                {!v && (
-                  <span className="inline-flex items-center rounded-full bg-card px-1.5 py-0.5">
-                    <img
-                      src={brevoWordmark.url}
-                      alt="Brevo"
-                      className="h-2.5 w-auto object-contain"
-                    />
-                  </span>
-                )}
-              </>
-            )}
-          </Button>
+          <InlineConnect p={p} slug={slug} v={v} data={data} locked={locked} onFlowing={setFlowing} />
         )}
       </div>
 
@@ -541,11 +493,6 @@ function ProviderPanel({
 
       {p === "resend" && connected && <FinanceSender slug={slug} v={v!} />}
 
-      {!connected && open && !locked && (
-        <div className="mt-4 animate-in fade-in duration-200">
-          <Setup p={p} slug={slug} v={v} data={data} />
-        </div>
-      )}
     </div>
   );
 }
@@ -1663,6 +1610,321 @@ function FinanceSender({ slug, v }: { slug: string; v: ProviderView }) {
             }}
           />
         </div>
+      )}
+    </div>
+  );
+}
+
+const FLOW_STAGES = [
+  { label: "Verifying API key & domain", pct: 25 },
+  { label: "Checking account & webhooks", pct: 50 },
+  { label: "Registering & enabling webhook", pct: 75 },
+  { label: "Saving signing secret", pct: 100 },
+] as const;
+
+type FlowPhase = "idle" | "key" | "run" | "name" | "saving";
+
+function InlineConnect({
+  p,
+  slug,
+  v,
+  data,
+  locked,
+  onFlowing,
+}: {
+  p: P;
+  slug: string;
+  v: ProviderView | null;
+  data: Data;
+  locked: boolean;
+  onFlowing: (f: boolean) => void;
+}) {
+  const m = META[p];
+  const verify = useServerFn(verifyEmailProvider);
+  const resendFn = useServerFn(connectResendWebhook);
+  const brevoFn = useServerFn(connectBrevoWebhook);
+  const hook = p === "resend" ? resendFn : brevoFn;
+  const refresh = useRefresh(slug);
+  const [phase, setPhase] = useState<FlowPhase>("idle");
+  const [key, setKey] = useState("");
+  const [pct, setPct] = useState(0);
+  const [stage, setStage] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const [name, setName] = useState(data.company.name);
+  const keyRef = useRef<HTMLInputElement>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
+  const email = data.inbox?.email ?? "";
+
+  useEffect(() => {
+    if (phase === "key") setTimeout(() => keyRef.current?.focus(), 250);
+    if (phase === "name") setTimeout(() => nameRef.current?.select(), 250);
+  }, [phase]);
+
+  const fail = (msg: string) => {
+    setError(msg);
+    setPhase("key");
+    onFlowing(false);
+  };
+
+  const run = async () => {
+    if (!key.trim()) return;
+    setError(null);
+    setPhase("run");
+    onFlowing(true);
+    setStage(0);
+    setPct(6);
+    try {
+      const r = await verify({
+        data: {
+          slug,
+          provider: p,
+          senderName: p === "brevo" ? "" : v?.sender_name || data.company.name,
+          senderEmail: email,
+          apiKey: key.trim(),
+        },
+      });
+      if (!r.ok)
+        return fail(
+          r.checks
+            .filter((c) => !c.ok)
+            .map((c) => `${c.label}: ${c.detail}`)
+            .join(" · ") || "Verification failed.",
+        );
+      if (r.senderName) setName(r.senderName);
+      setPct(25);
+      const steps: { s: "account" | "clean" | "register" | "verify"; at: number }[] = [
+        { s: "account", at: 1 },
+        { s: "clean", at: 1 },
+        { s: "register", at: 2 },
+        { s: "verify", at: 3 },
+      ];
+      for (const st of steps) {
+        setStage(st.at);
+        setPct((x) => Math.max(x, FLOW_STAGES[st.at - 1].pct + 6));
+        const w = await hook({ data: { slug, stage: st.s } });
+        if (!w.ok)
+          return fail(
+            w.checks
+              .filter((c) => !c.ok)
+              .map((c) => `${c.label}: ${c.detail}`)
+              .join(" · ") || "Webhook setup failed.",
+          );
+        if (st.s !== "account") setPct(FLOW_STAGES[st.at].pct);
+      }
+      setKey("");
+      await new Promise((res) => setTimeout(res, 450));
+      if (p === "resend") {
+        setPhase("name");
+      } else {
+        await refresh();
+        toast.success(`${m.name} connected`);
+        setPhase("idle");
+        onFlowing(false);
+      }
+    } catch (e) {
+      fail(err(e));
+    }
+  };
+
+  const saveName = async () => {
+    if (!name.trim()) return;
+    setPhase("saving");
+    try {
+      const r = await verify({
+        data: { slug, provider: p, senderName: name.trim(), senderEmail: email },
+      });
+      if (!r.ok) {
+        toast.error(r.checks.find((c) => !c.ok)?.detail ?? "Could not save sender name");
+        setPhase("name");
+        return;
+      }
+      await refresh();
+      toast.success(`${m.name} connected`);
+      setPhase("idle");
+      onFlowing(false);
+    } catch (e) {
+      toast.error(err(e));
+      setPhase("name");
+    }
+  };
+
+  const wide = phase !== "idle";
+  const btnStyle = { background: m.color };
+
+  return (
+    <div className="relative ml-auto w-full sm:w-auto">
+      <div
+        className={cn(
+          "relative ml-auto h-9 overflow-hidden rounded-lg transition-[width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]",
+          wide ? "w-full sm:w-[440px]" : "w-full sm:w-[200px]",
+        )}
+      >
+        {/* idle button */}
+        <button
+          type="button"
+          disabled={locked}
+          onClick={() => {
+            setError(null);
+            setPhase("key");
+          }}
+          style={btnStyle}
+          className={cn(
+            "absolute inset-0 flex items-center justify-center gap-1.5 rounded-lg text-[13px] text-primary-foreground shadow-sm transition-all duration-300 hover:brightness-110 active:scale-[0.98] disabled:opacity-50",
+            wide ? "pointer-events-none opacity-0" : "opacity-100",
+          )}
+        >
+          {p === "resend" ? (
+            <>
+              <img src={resendMarkWhite.url} alt="" className="size-4 object-contain" />
+              <span className="font-semibold tracking-tight">Connect</span>
+              <img src={resendWordmarkWhite.url} alt="Resend" className="h-3 w-auto" />
+            </>
+          ) : (
+            <>
+              <span className="grid size-5 place-items-center rounded-full bg-card">
+                <img src={brevoIcon.url} alt="" className="size-4 object-contain" />
+              </span>
+              <span className="font-semibold tracking-tight">Connect</span>
+              <span className="inline-flex items-center rounded-full bg-card px-1.5 py-0.5">
+                <img src={brevoWordmark.url} alt="Brevo" className="h-2.5 w-auto" />
+              </span>
+            </>
+          )}
+        </button>
+
+        {/* key / name input */}
+        <div
+          className={cn(
+            "absolute inset-0 flex items-center gap-1.5 transition-opacity duration-300",
+            phase === "key" || phase === "name" || phase === "saving"
+              ? "opacity-100 delay-150"
+              : "pointer-events-none opacity-0",
+          )}
+        >
+          {phase === "name" || phase === "saving" ? (
+            <>
+              <div className="relative h-9 flex-1">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Sender
+                </span>
+                <input
+                  ref={nameRef}
+                  value={name}
+                  maxLength={80}
+                  disabled={phase === "saving"}
+                  onChange={(e) => setName(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && void saveName()}
+                  aria-label="Sender name"
+                  className="h-9 w-full rounded-lg border border-border bg-card pl-[68px] pr-3 text-[13px] font-semibold outline-none transition-colors focus:border-brand"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => void saveName()}
+                disabled={!name.trim() || phase === "saving"}
+                style={btnStyle}
+                className="flex h-9 w-[92px] shrink-0 items-center justify-center gap-1 rounded-lg text-[12.5px] font-semibold text-primary-foreground shadow-sm transition-all hover:brightness-110 active:scale-95 disabled:opacity-60"
+              >
+                {phase === "saving" ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <>
+                    Save <Check className="size-3.5" />
+                  </>
+                )}
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="relative h-9 flex-1">
+                <KeyRound className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  ref={keyRef}
+                  type="password"
+                  autoComplete="off"
+                  spellCheck={false}
+                  value={key}
+                  onChange={(e) => {
+                    setKey(e.target.value);
+                    setError(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") void run();
+                    if (e.key === "Escape") setPhase("idle");
+                  }}
+                  placeholder={m.keyPh}
+                  aria-label={`${m.name} API key`}
+                  className={cn(
+                    "h-9 w-full rounded-lg border bg-card pl-8 pr-3 font-mono text-[12.5px] outline-none transition-colors",
+                    error ? "border-destructive" : "border-border focus:border-brand",
+                  )}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => void run()}
+                disabled={!key.trim()}
+                style={btnStyle}
+                className="flex h-9 w-[92px] shrink-0 items-center justify-center rounded-lg text-[12.5px] font-semibold text-primary-foreground shadow-sm transition-all hover:brightness-110 active:scale-95 disabled:opacity-60"
+              >
+                Connect
+              </button>
+              <button
+                type="button"
+                aria-label="Cancel"
+                onClick={() => {
+                  setPhase("idle");
+                  setKey("");
+                  setError(null);
+                }}
+                className="grid size-9 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <X className="size-4" />
+              </button>
+            </>
+          )}
+        </div>
+
+        {/* progress */}
+        <div
+          className={cn(
+            "absolute inset-0 overflow-hidden rounded-lg border border-border bg-card transition-opacity duration-300",
+            phase === "run" ? "opacity-100" : "pointer-events-none opacity-0",
+          )}
+        >
+          <div
+            className="absolute inset-y-0 left-0 transition-[width] duration-700 ease-out"
+            style={{
+              width: `${pct}%`,
+              background: `color-mix(in oklab, ${m.color} 16%, transparent)`,
+            }}
+          />
+          <div
+            className="absolute bottom-0 left-0 h-0.5 transition-[width] duration-700 ease-out"
+            style={{ width: `${pct}%`, background: m.color }}
+          />
+          <div className="relative flex h-full items-center gap-2 px-3">
+            {pct >= 100 ? (
+              <CheckCircle2 className="size-4 shrink-0 text-status-converted" />
+            ) : (
+              <Loader2 className="size-4 shrink-0 animate-spin" style={{ color: m.color }} />
+            )}
+            <span
+              key={stage}
+              className="flex-1 truncate text-[12.5px] font-semibold animate-in fade-in slide-in-from-bottom-1 duration-300"
+            >
+              {pct >= 100 ? "Connected" : FLOW_STAGES[stage].label}
+            </span>
+            <span className="font-mono text-[12px] font-bold tabular-nums" style={{ color: m.color }}>
+              {pct}%
+            </span>
+          </div>
+        </div>
+      </div>
+      {error && (
+        <p className="absolute right-0 top-full mt-1 max-w-[440px] truncate text-right text-[11.5px] font-semibold text-destructive animate-in fade-in" title={error}>
+          {error}
+        </p>
       )}
     </div>
   );
