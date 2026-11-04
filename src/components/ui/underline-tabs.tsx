@@ -39,7 +39,7 @@ export function UnderlineTabs<T extends string>({
     const measure = () => {
       const el = nav.querySelector<HTMLElement>(`[data-tab-id="${CSS.escape(value)}"]`);
       if (!el) return;
-      setBar((b) => ({ left: el.offsetLeft + 8, width: Math.max(0, el.offsetWidth - 16), ready: b.ready || b.width > 0 || true }));
+      setBar((b) => ({ left: el.offsetLeft + 8, width: Math.max(0, el.offsetWidth - 16), ready: b.width > 0 }));
       el.scrollIntoView?.({ block: "nearest", inline: "nearest" });
     };
     measure();
