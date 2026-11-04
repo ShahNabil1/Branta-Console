@@ -272,6 +272,7 @@ export function ExpensesPage() {
   const [items, setItems] = useState<ExpenseItem[]>([]);
   const [receipts, setReceipts] = useState<ReceiptDraft[]>([]);
   const [formSnap, setFormSnap] = useState("");
+  const draftRef = useRef(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (open) setFormSnap(JSON.stringify({ form, receipts })); }, [open]);
   const [uploading, setUploading] = useState(false);
@@ -306,6 +307,9 @@ export function ExpensesPage() {
   };
 
   const startCreate = () => {
+    // Reopen an unsaved new-expense draft instead of wiping it.
+    if (!editingId && draftRef.current) { setOpen(true); return; }
+    draftRef.current = true;
     setStep(0);
     setEditingId(null);
     setForm(emptyForm);
@@ -314,6 +318,7 @@ export function ExpensesPage() {
     setOpen(true);
   };
   const startEdit = (r: ExpenseRow, reason: string) => {
+    draftRef.current = false;
     setStep(0);
     setEditReason(reason);
     setEditingId(r.id);
@@ -516,6 +521,7 @@ export function ExpensesPage() {
       idemRef.current = null;
       toast.success(editingId ? "Expense updated" : "Expense added");
       setOpen(false);
+      draftRef.current = false;
       setEditingId(null);
       setEditReason(null);
       setReceipts([]);
@@ -722,7 +728,8 @@ export function ExpensesPage() {
 
 
       <Sheet open={open} onOpenChange={(v) => { if (!v && !add.isPending) { setOpen(false); setEditingId(null); } }}>
-        <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-2xl">
+        <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-2xl"
+          onInteractOutside={(e) => e.preventDefault()}>
           <SheetHeader className="border-b border-border bg-gradient-to-b from-brand/[0.06] to-transparent px-6 pb-4 pt-5 text-left">
             <div className="flex items-center gap-3">
               <span className="grid size-10 place-items-center rounded-xl bg-brand/10 text-brand ring-1 ring-inset ring-brand/20"><Receipt className="size-5" /></span>
@@ -926,7 +933,7 @@ export function ExpensesPage() {
             </div>
           </div>
           <div className="flex items-center justify-between gap-2 border-t border-border bg-card px-6 py-3.5">
-            <DiscardCancelButton dirty={JSON.stringify({ form, receipts }) !== formSnap} onCancel={() => { setOpen(false); setEditingId(null); }} className="h-9 rounded-md" disabled={add.isPending} />
+            <DiscardCancelButton dirty={JSON.stringify({ form, receipts }) !== formSnap} onCancel={() => { setOpen(false); setEditingId(null); draftRef.current = false; }} className="h-9 rounded-md" disabled={add.isPending} />
             <div className="flex items-center gap-2">
               {step > 0 && (
                 <Button variant="outline" onClick={() => setStep(step - 1)} disabled={add.isPending} className="h-9 gap-1 rounded-md">
