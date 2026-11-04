@@ -17,8 +17,8 @@ export function ExpenseDownloadButton({ onDownload, downloading = false, resetKe
   const pending = downloading || state === "pending";
   useEffect(() => { setState("idle"); }, [resetKey]);
   useEffect(() => {
-    if (state !== "success") return;
-    const timer = setTimeout(() => setState("idle"), 2500);
+    if (state !== "success" && state !== "failed") return;
+    const timer = setTimeout(() => setState("idle"), state === "success" ? 2500 : 3500);
     return () => clearTimeout(timer);
   }, [state]);
   const download = async () => {
