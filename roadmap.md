@@ -1,5 +1,10 @@
 # Roadmap
 
+## Reactive expense cards and filtered activity
+- [ ] Restore branded reactive card/action effects while preserving compact layout.
+- [ ] Reuse Create Expense drawer protection and employee dropdown; real avatars, coloured events, smooth event/date tabs.
+- [ ] Bound activity date filters from creation through today in Dhaka; test rules and responsive interactions.
+
 ## Compact expense cards and activity drawer
 - [x] Compact cards with inline vendor/amount, visible header activity action and labelled Edit/Download buttons; hide voucher View on mobile.
 - [x] Replace shared expense activity popup with the standard side drawer, preserving history and all log details.
