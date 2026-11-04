@@ -45,9 +45,13 @@ type InternalState = ConfirmOptions & {
   typed: string;
 };
 
-const ConfirmContext = React.createContext<((options: ConfirmOptions) => Promise<boolean>) | null>(
-  null,
-);
+// Kept on globalThis so a hot reload of this module keeps the same context
+// (otherwise pages fail with "useConfirm must be used inside <ConfirmProvider/>").
+type ConfirmCtx = React.Context<((options: ConfirmOptions) => Promise<boolean>) | null>;
+const g = globalThis as { __brantaConfirmCtx?: ConfirmCtx };
+const ConfirmContext: ConfirmCtx = (g.__brantaConfirmCtx ??= React.createContext<
+  ((options: ConfirmOptions) => Promise<boolean>) | null
+>(null));
 
 let globalConfirm: ((options: ConfirmOptions) => Promise<boolean>) | null = null;
 
