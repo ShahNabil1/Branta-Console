@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ChartPreloader, PRELOADER_CYCLE_MS } from "@/components/branta/chart-preloader";
+import { ChartPreloader, PRELOADER_CYCLE_MS, PRELOADER_VARIANTS, type PreloaderVariant } from "@/components/branta/chart-preloader";
 
 export const Route = createFileRoute("/preloader-preview")({
   head: () => ({
@@ -19,6 +19,7 @@ export const Route = createFileRoute("/preloader-preview")({
 function PreloaderPreview() {
   const [cycle, setCycle] = useState(PRELOADER_CYCLE_MS);
   const [t, setT] = useState(0);
+  const [variant, setVariant] = useState<PreloaderVariant>("dissolve");
   const [playing, setPlaying] = useState(true);
   const last = useRef<number | null>(null);
 
@@ -42,11 +43,22 @@ function PreloaderPreview() {
 
   return (
     <>
-      <ChartPreloader scrubAt={t} speedMs={cycle} />
+      <ChartPreloader key={variant} variant={variant} scrubAt={t} speedMs={cycle} />
       <div
         className="fixed inset-x-0 bottom-4 mx-auto flex w-[min(720px,calc(100vw-24px))] flex-wrap items-center gap-3 rounded border border-border bg-card px-4 py-3 text-[13px] shadow-lg"
         style={{ zIndex: 2147483600 }}
       >
+        <div className="flex w-full gap-1">
+          {PRELOADER_VARIANTS.map((v) => (
+            <button
+              key={v.id}
+              onClick={() => { setVariant(v.id); setT(0); setPlaying(true); }}
+              className={`flex-1 rounded border px-2 py-1 font-semibold ${variant === v.id ? "border-primary bg-primary text-primary-foreground" : "border-border"}`}
+            >
+              {v.label}
+            </button>
+          ))}
+        </div>
         <button className="rounded border border-border px-3 py-1 font-semibold" onClick={() => setPlaying((p) => !p)}>
           {playing ? "Pause" : "Play"}
         </button>
