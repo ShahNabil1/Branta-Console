@@ -1,5 +1,10 @@
 # Roadmap
 
+## Download feedback and activity exit
+- [x] Keep Download icon with shared action loader, Downloading label and disabled pending state.
+- [x] Reproduced abrupt unmount; Activity now completes shared drawer exit. Actual-component checks pass at 320/390/768/1280/1920: pending disabled, icon/loader retained, stable button size, re-enabled after completion, drawer slides out before removal. Six activity tests pass; build OK.
+- [ ] Verify real signed-in voucher download; external unmanaged auth has no available test session.
+
 ## Receipt gallery and action cleanup
 - [x] Remove duplicate voucher view/download/edit menu actions.
 - [x] Reuse Create Expense receipt thumbnails/lightbox with all attachments, per-file downloads and desktop PDF viewing.

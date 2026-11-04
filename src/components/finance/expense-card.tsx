@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Download, Eye, History, Pencil, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { TestLoader } from "@/components/ui/test-loader";
 import { cn } from "@/lib/utils";
 
 export interface ExpenseCardRecord {
@@ -17,12 +18,13 @@ export interface ExpenseCardRecord {
   signed_voucher_url: string | null;
 }
 
-export function ExpenseCard({ record: r, category, amount, receiptCount, highlighted, menu, onActivity, onView, onDownload, onEdit }: {
+export function ExpenseCard({ record: r, category, amount, receiptCount, highlighted, downloading = false, menu, onActivity, onView, onDownload, onEdit }: {
   record: ExpenseCardRecord;
   category: string;
   amount: string;
   receiptCount: number;
   highlighted?: boolean;
+  downloading?: boolean;
   menu: ReactNode;
   onActivity: () => void;
   onView: () => void;
@@ -70,7 +72,7 @@ export function ExpenseCard({ record: r, category, amount, receiptCount, highlig
       </div>
       <footer className="mt-3 grid grid-cols-2 gap-2 border-t border-border pt-3 sm:grid-cols-3">
         <Button type="button" size="sm" variant="outline" className="expense-action hidden h-9 min-w-0 gap-1.5 border-status-new/20 bg-status-new/5 px-2 font-bold text-status-new hover:border-status-new/40 hover:bg-status-new/10 hover:text-status-new sm:inline-flex" disabled={!r.voucher_no} onClick={onView}><Eye className="size-3.5" />View</Button>
-        <Button type="button" size="sm" variant="outline" className="expense-action h-9 min-w-0 gap-1.5 border-status-converted/20 bg-status-converted/5 px-2 font-bold text-status-converted hover:border-status-converted/40 hover:bg-status-converted/10 hover:text-status-converted" disabled={!r.voucher_no} onClick={onDownload}><Download className="size-3.5" />Download</Button>
+        <Button type="button" size="sm" variant="outline" className="expense-action h-9 min-w-0 gap-1 border-status-converted/20 bg-status-converted/5 px-1.5 font-bold text-status-converted hover:border-status-converted/40 hover:bg-status-converted/10 hover:text-status-converted disabled:opacity-75" disabled={!r.voucher_no || downloading} aria-busy={downloading} onClick={onDownload}><Download className="size-3.5" />{downloading && <TestLoader tone="export" className="size-3" />}<span>{downloading ? "Downloading" : "Download"}</span></Button>
         <Button type="button" size="sm" className="expense-action h-9 min-w-0 gap-1.5 px-2 font-bold" onClick={onEdit}><Pencil className="size-3.5" />Edit</Button>
       </footer>
     </article>

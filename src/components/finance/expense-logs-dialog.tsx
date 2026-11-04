@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listExpenseLogs, ACTION_LABEL } from "@/lib/expense-logs.functions";
@@ -31,6 +31,13 @@ const dateClass = "h-10 w-full min-w-0 rounded-md border border-border bg-card p
 export function ExpenseLogsDialog({ expenseId, voucherNo, createdAt, employeeItems: suppliedEmployees, onClose }: {
   expenseId: string; voucherNo: string | null; createdAt?: string; employeeItems?: SearchableItem[]; onClose: () => void;
 }) {
+  const [isOpen, setIsOpen] = useState(true);
+  // Let the shared Sheet finish its 300ms exit before the parent unmounts it.
+  useEffect(() => {
+    if (isOpen) return;
+    const timer = setTimeout(onClose, 350);
+    return () => clearTimeout(timer);
+  }, [isOpen, onClose]);
   const listFn = useServerFn(listExpenseLogs);
   const employeesFn = useServerFn(listEmployeesForFinance);
   const q = useQuery({ queryKey: ["expense-logs", expenseId], queryFn: () => listFn({ data: { expenseId } }) });
@@ -61,7 +68,7 @@ export function ExpenseLogsDialog({ expenseId, voucherNo, createdAt, employeeIte
   const filtered = dateLogs.filter(l => group === "all" || activityGroup(l.action) === group);
   const presets = activityPresets(firstDay, today);
 
-  return <Sheet open onOpenChange={open => { if (!open) onClose(); }}>
+  return <Sheet open={isOpen} onOpenChange={setIsOpen}>
     <ExpenseDrawerContent>
       <ExpenseDrawerHeader>
         <div className="flex min-w-0 items-center gap-3">
