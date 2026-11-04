@@ -1,10 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { BadgeCheck, Unlink } from "lucide-react";
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
-  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 const CLIENT_ID = "437429798252-8hu096me780rb7vm072nfnqoadkvkpqq.apps.googleusercontent.com";
 
@@ -131,30 +128,13 @@ export function GoogleGmailConnect({
             />
           </div>
         </div>
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <button
-              type="button"
-              className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-sm border border-destructive/30 bg-destructive/5 px-2.5 text-[11.5px] font-medium text-destructive transition-colors hover:bg-destructive/10"
-            >
-              <Unlink className="h-3.5 w-3.5" /> Disconnect
-            </button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Disconnect Gmail?</AlertDialogTitle>
-              <AlertDialogDescription>
-                <span className="font-mono">{email}</span> will be removed from your profile. Your profile photo stays unchanged.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={onDisconnect} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                Disconnect
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <button
+          type="button"
+          onClick={() => void confirmAction({ tone: "danger", icon: Unlink, title: "Disconnect Gmail?", subject: email, points: ["This address is removed from your profile.", "Your profile photo stays unchanged."], confirmLabel: "Disconnect" }).then((ok) => ok && onDisconnect())}
+          className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-sm border border-destructive/30 bg-destructive/5 px-2.5 text-[11.5px] font-medium text-destructive transition-colors hover:bg-destructive/10"
+        >
+          <Unlink className="h-3.5 w-3.5" /> Disconnect
+        </button>
       </div>
     );
   }
