@@ -7,6 +7,7 @@ import { AlertDialog, AlertDialogContent, AlertDialogTitle, AlertDialogDescripti
 import { Button } from "@/components/ui/button";
 import { disconnectGoogle, getGoogleConnection, startGoogleConnect, testGoogleConnection } from "@/lib/company-google.functions";
 import { cn } from "@/lib/utils";
+import googleWordmark from "@/assets/email/google-wordmark.png.asset.json";
 
 const err = (e: unknown) => (e instanceof Error ? e.message : "Something went wrong");
 
@@ -233,7 +234,8 @@ function ConfirmDialog({ kind, email, fallback, busy, onCancel, onConfirm }: {
           {sw ? (
             <Button size="sm" variant="outline" onClick={onConfirm} disabled={busy} className="gap-2 rounded-full bg-card px-4 font-medium text-foreground shadow-sm transition-all hover:bg-muted hover:shadow-md active:scale-95">
               {busy ? <Loader2 className="size-4 animate-spin" /> : <GoogleMark className="size-4" />}
-              Continue to Google
+              <span className="font-semibold tracking-tight">Continue to</span>
+              <img src={googleWordmark.url} alt="Google" className="h-3.5 w-auto object-contain" />
             </Button>
           ) : (
             <Button size="sm" variant="destructive" onClick={onConfirm} disabled={busy} className="transition-transform active:scale-95">
