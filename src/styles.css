@@ -290,7 +290,7 @@ html body[data-scroll-locked] { margin-right: 0 !important; padding-right: 0 !im
 .test-loader::after {
   content: "";
   grid-area: 1/1;
-  --c: no-repeat radial-gradient(farthest-side, #25b09b 92%, #0000);
+  --c: no-repeat radial-gradient(farthest-side, var(--tl-c, #25b09b) 92%, #0000);
   background: var(--c) 50% 0, var(--c) 50% 100%, var(--c) 100% 50%, var(--c) 0 50%;
   background-size: 24% 24%;
   animation: l12 1s infinite;
@@ -304,3 +304,8 @@ html body[data-scroll-locked] { margin-right: 0 !important; padding-right: 0 !im
 .test-loader-paused::before,
 .test-loader-paused::after { animation-play-state: paused; }
 @keyframes l12 { 100% { transform: rotate(.5turn); } }
+.test-loader-refresh { --tl-c: #E56A17; }
+.test-loader-verify { --tl-c: #10B981; }
+.test-loader-export { --tl-c: #6366F1; }
+.test-loader-white { --tl-c: #FFFFFF; }
+.test-loader-paused { opacity: .85; }
