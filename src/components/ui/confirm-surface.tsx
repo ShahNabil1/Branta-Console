@@ -138,7 +138,7 @@ export function ConfirmSurface({
         {(description || points?.length || children || requireTypedText) && (
           <div className="space-y-3 px-6 py-4">
             {description && (
-              <div className="text-[12.5px] leading-relaxed text-muted-foreground">
+              <div className="min-w-0 text-[12.5px] leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
                 {description}
               </div>
             )}
@@ -148,7 +148,7 @@ export function ConfirmSurface({
                   <li
                     key={i}
                     style={{ animationDelay: `${i * 70}ms` }}
-                    className="flex items-start gap-2 text-[12.5px] font-semibold text-foreground animate-in fade-in slide-in-from-left-2 fill-mode-both"
+                    className="flex min-w-0 items-start gap-2 text-[12.5px] font-semibold text-foreground [overflow-wrap:anywhere] animate-in fade-in slide-in-from-left-2 fill-mode-both"
                   >
                     <span
                       className={cn(
