@@ -45,9 +45,9 @@ type InternalState = ConfirmOptions & {
   typed: string;
 };
 
-const ConfirmContext = React.createContext<
-  ((options: ConfirmOptions) => Promise<boolean>) | null
->(null);
+const ConfirmContext = React.createContext<((options: ConfirmOptions) => Promise<boolean>) | null>(
+  null,
+);
 
 let globalConfirm: ((options: ConfirmOptions) => Promise<boolean>) | null = null;
 
@@ -80,7 +80,9 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
 
   React.useEffect(() => {
     globalConfirm = confirm;
-    return () => { if (globalConfirm === confirm) globalConfirm = null; };
+    return () => {
+      if (globalConfirm === confirm) globalConfirm = null;
+    };
   }, [confirm]);
 
   const finish = (value: boolean) => {
@@ -121,7 +123,9 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
         confirmLabel={state.confirmLabel}
         cancelLabel={state.cancelLabel}
         busy={state.pending}
-        onCancel={() => { if (!state.pending) finish(false); }}
+        onCancel={() => {
+          if (!state.pending) finish(false);
+        }}
         onConfirm={() => void handleConfirm()}
       />
     </ConfirmContext.Provider>
@@ -130,7 +134,6 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
 
 export function useConfirm() {
   const ctx = React.useContext(ConfirmContext);
-  if (!ctx)
-    throw new Error("useConfirm must be used inside <ConfirmProvider/>");
+  if (!ctx) throw new Error("useConfirm must be used inside <ConfirmProvider/>");
   return ctx;
 }

@@ -42,3 +42,4 @@
 - Company invoice branding resolves server-side via company-invoice-template.server.ts with immutable snapshots; no in-app editor — why: sisters never show Branta logos/contacts, issued documents never change. renderInvoicePdf forces PAYMENT INFORMATION (bank, note, QR) to Branta Tech for all companies — why: one group bank account.
 - WebMCP uses screen-owned hooks, shared actions and static telemetry — why: agents only use visible controls.
 - Workspace access = explicit company_members rows (profiles.id; predicates join profiles.user_id), set via setEmployeeWorkspace; no implicit holding access — why: staff see only granted companies.
+- Every confirmation renders through src/components/ui/confirm-surface.tsx (useConfirm/confirmAction, DangerConfirm, ReasonDialog, custom dialogs via ConfirmHeader/ConfirmTypedField); never native confirm() or ad-hoc AlertDialog styling — why: one change updates every confirmation.
