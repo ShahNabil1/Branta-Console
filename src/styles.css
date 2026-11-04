@@ -217,6 +217,22 @@
 @utility hairline-b {
   border-bottom: 1px solid var(--border);
 }
+
+/* Expense-specific reactive surfaces; colours describe actions, not decoration. */
+.expense-drawer-header { background: linear-gradient(to bottom, color-mix(in oklab, var(--color-brand) 6%, var(--color-card)), var(--color-card)); }
+.expense-reactive-card { position: relative; transition: border-color 180ms, box-shadow 180ms, transform 180ms; }
+.expense-reactive-card::before { content: ""; position: absolute; inset: 12px auto 12px -1px; width: 3px; border-radius: 3px; background: var(--color-brand); transform: scaleY(0); transition: transform 220ms; }
+.expense-reactive-card:hover, .expense-reactive-card:focus-within { border-color: color-mix(in oklab, var(--color-brand) 40%, var(--color-border)); box-shadow: var(--shadow-pop); }
+.expense-reactive-card:hover::before, .expense-reactive-card:focus-within::before { transform: scaleY(1); }
+.expense-action { position: relative; overflow: hidden; transition: background-color 180ms, border-color 180ms, box-shadow 180ms; }
+.expense-action::after { content: ""; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 25%, color-mix(in oklab, var(--color-primary-foreground) 22%, transparent) 50%, transparent 75%); transform: translateX(-130%); transition: transform 450ms; pointer-events: none; }
+.expense-action:hover::after { transform: translateX(130%); }
+.expense-action:hover { box-shadow: var(--shadow-panel); }
+.expense-action svg { transition: transform 180ms; }
+.expense-action:hover svg { transform: translateY(-2px) rotate(-8deg); }
+@media (prefers-reduced-motion: reduce) {
+  .expense-reactive-card, .expense-reactive-card::before, .expense-action, .expense-action::after, .expense-action svg { transition: none; }
+}
 @utility hairline-t {
   border-top: 1px solid var(--border);
 }

@@ -31,19 +31,19 @@ export function ExpenseCard({ record: r, category, amount, receiptCount, highlig
 }) {
   return (
     <article id={`exp-m-${r.id}`} data-exp-id={r.id} className={cn(
-      "flex min-w-0 flex-col rounded-lg border border-border bg-card p-3.5 shadow-sm transition-colors duration-200 hover:border-primary/30 sm:p-4",
+      "expense-reactive-card group flex min-w-0 flex-col rounded-lg border border-border bg-card p-3.5 shadow-sm sm:p-4",
       highlighted && "ring-2 ring-brand",
     )}>
       <header className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="grid size-8 shrink-0 place-items-center rounded-md border border-border bg-muted/50 text-muted-foreground"><Receipt className="size-4" /></span>
+          <span className="grid size-8 shrink-0 place-items-center rounded-md border border-border bg-muted/50 text-foreground transition-all duration-200 group-hover:border-brand/25 group-hover:bg-brand/10 group-hover:text-brand"><Receipt className="size-4 transition-transform duration-200 group-hover:-rotate-12" /></span>
           <div className="min-w-0">
             <div className="truncate font-mono text-[11.5px] font-bold">{r.voucher_no ?? "—"}</div>
             <div className="truncate text-[10px] font-semibold text-muted-foreground">{category}{r.signed_voucher_url ? " · Signed" : ""}</div>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-0.5">
-          <Button type="button" variant="ghost" size="sm" className="h-8 gap-1.5 px-2 font-semibold" onClick={onActivity} aria-label="Activity log" title="Activity log">
+          <Button type="button" variant="outline" size="sm" className="expense-action h-8 gap-1.5 border-foreground/15 bg-foreground px-2 font-semibold text-background hover:bg-foreground/90 hover:text-background" onClick={onActivity} aria-label="Activity log" title="Activity log">
             <History className="size-3.5" /><span className="hidden min-[360px]:inline">Activity</span>
           </Button>
           {menu}
@@ -69,9 +69,9 @@ export function ExpenseCard({ record: r, category, amount, receiptCount, highlig
         {r.txn_id ? `TrxID ${r.txn_id}` : "No TrxID"} · {receiptCount} receipt{receiptCount === 1 ? "" : "s"}
       </div>
       <footer className="mt-3 grid grid-cols-2 gap-2 border-t border-border pt-3 sm:grid-cols-3">
-        <Button type="button" size="sm" variant="outline" className="hidden min-w-0 gap-1.5 px-2 font-semibold sm:inline-flex" disabled={!r.voucher_no} onClick={onView}><Eye className="size-3.5" />View</Button>
-        <Button type="button" size="sm" variant="outline" className="min-w-0 gap-1.5 px-2 font-semibold" disabled={!r.voucher_no} onClick={onDownload}><Download className="size-3.5" />Download</Button>
-        <Button type="button" size="sm" className="min-w-0 gap-1.5 px-2 font-semibold" onClick={onEdit}><Pencil className="size-3.5" />Edit</Button>
+        <Button type="button" size="sm" variant="outline" className="expense-action hidden h-9 min-w-0 gap-1.5 border-status-new/20 bg-status-new/5 px-2 font-bold text-status-new hover:border-status-new/40 hover:bg-status-new/10 hover:text-status-new sm:inline-flex" disabled={!r.voucher_no} onClick={onView}><Eye className="size-3.5" />View</Button>
+        <Button type="button" size="sm" variant="outline" className="expense-action h-9 min-w-0 gap-1.5 border-status-converted/20 bg-status-converted/5 px-2 font-bold text-status-converted hover:border-status-converted/40 hover:bg-status-converted/10 hover:text-status-converted" disabled={!r.voucher_no} onClick={onDownload}><Download className="size-3.5" />Download</Button>
+        <Button type="button" size="sm" className="expense-action h-9 min-w-0 gap-1.5 px-2 font-bold" onClick={onEdit}><Pencil className="size-3.5" />Edit</Button>
       </footer>
     </article>
   );
