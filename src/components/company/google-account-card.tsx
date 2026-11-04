@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { disconnectGoogle, getGoogleConnection, startGoogleConnect, testGoogleConnection } from "@/lib/company-google.functions";
 import { cn } from "@/lib/utils";
 import googleWordmark from "@/assets/email/google-wordmark.png.asset.json";
+import { connectGoogleInPopup } from "@/lib/google-connect-popup";
 
 const err = (e: unknown) => (e instanceof Error ? e.message : "Something went wrong");
 
@@ -45,15 +46,31 @@ export function GoogleAccountCard({ slug, accent }: { slug: string; accent: stri
   const [busy, setBusy] = useState<"connect" | "test" | "disc" | null>(null);
   const [checks, setChecks] = useState<Check[] | null>(null);
   const [confirm, setConfirm] = useState<"switch" | "disc" | null>(null);
+  const popupAbort = useRef<AbortController | null>(null);
+  useEffect(() => () => popupAbort.current?.abort(), [slug]);
   const refresh = () => Promise.all([
     qc.invalidateQueries({ queryKey: ["company-google", slug] }),
     qc.invalidateQueries({ queryKey: ["company-email", slug] }),
+    qc.invalidateQueries({ queryKey: ["company-setup"] }),
   ]);
 
   const connect = async () => {
     setBusy("connect");
-    try { const { url } = await start({ data: { slug } }); window.location.assign(url); }
-    catch (e) { toast.error(err(e)); setBusy(null); }
+    popupAbort.current?.abort();
+    const controller = new AbortController();
+    popupAbort.current = controller;
+    try {
+      const result = await connectGoogleInPopup(slug, (popupId) => start({ data: { slug, popupId } }), controller.signal);
+      if (controller.signal.aborted) return;
+      setConfirm(null);
+      if (result?.status === "ok") {
+        setChecks(null);
+        autoRan.current = false;
+        await refresh();
+        toast.success("Google account connected.");
+      } else if (result?.status === "error") toast.error(result.message || "Google connection failed. Please try again.");
+    } catch (e) { if (!controller.signal.aborted) toast.error(err(e)); }
+    finally { if (!controller.signal.aborted) setBusy(null); }
   };
   const runTest = async () => {
     setBusy("test"); setChecks(null);
