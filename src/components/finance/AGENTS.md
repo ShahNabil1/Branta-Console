@@ -1,0 +1,2 @@
+- Add/Edit Expense and Activity reuse ExpenseDrawerContent/Header with outside-click protection; reuse SearchableSelect and UnderlineTabs — why: one branded drawer treatment and consistent employee/date controls.
+- Activity filters use pure Dhaka-day bounds from expense creation through today; real actor avatars come from existing RLS-protected employee/profile reads — why: testable date rules without modifying audit history or permissions.
