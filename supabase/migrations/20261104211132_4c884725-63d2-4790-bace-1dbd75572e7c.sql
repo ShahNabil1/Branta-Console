@@ -1,0 +1,1 @@
+GRANT EXECUTE ON FUNCTION public.holding_company_id() TO authenticated;

@@ -42,6 +42,15 @@ import { parseInsufficient } from "@/lib/fund-ops.functions";
 import { defaultFilters, type ReportFilters } from "@/lib/report-filters";
 import { Loader2, Plus, Trash2, Receipt, Eye, Download, X, FileText, Printer, Stamp, Pencil, Link2, History } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { TestLoader } from "@/components/ui/test-loader";
+import { Check, ChevronLeft, ChevronRight } from "lucide-react";
+
+const STEPS = [
+  { label: "Basics", hint: "what, how much and who" },
+  { label: "Payment", hint: "fund, project and line items" },
+  { label: "Details", hint: "purpose, notes and receipts" },
+] as const;
 
 const DEPARTMENTS = ["Management", "Finance", "Sales & Outreach", "Marketing", "Production", "Development", "HR & Admin", "Operations", "Other"];
 const PAYMENT_METHODS = ["Cash", "bKash", "Nagad", "Rocket", "Bank Transfer", "Card", "Cheque", "Other"];
@@ -250,6 +259,8 @@ export function ExpensesPage() {
   });
 
   const [open, setOpen] = useState(false);
+  const [step, setStep] = useState(0);
+  const canNext = (i: number) => i < 0 || (i === 0 ? Number(form.amount) > 0 && !!form.spent_on : true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [items, setItems] = useState<ExpenseItem[]>([]);
@@ -289,6 +300,7 @@ export function ExpensesPage() {
   };
 
   const startCreate = () => {
+    setStep(0);
     setEditingId(null);
     setForm(emptyForm);
     setItems([]);
@@ -296,6 +308,7 @@ export function ExpensesPage() {
     setOpen(true);
   };
   const startEdit = (r: ExpenseRow, reason: string) => {
+    setStep(0);
     setEditReason(reason);
     setEditingId(r.id);
     setForm({
@@ -702,11 +715,41 @@ export function ExpensesPage() {
       </div>
 
 
-      {open && (
-        <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-background/80 p-2 sm:p-4">
-          <div className="max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-md border border-border bg-card p-5 shadow-lg">
-            <h3 className="text-[14px] font-semibold">{editingId ? "Edit expense" : "Add expense"}</h3>
-            <div className="mt-4 space-y-3">
+      <Sheet open={open} onOpenChange={(v) => { if (!v && !add.isPending) { setOpen(false); setEditingId(null); } }}>
+        <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-2xl">
+          <SheetHeader className="border-b border-border bg-gradient-to-b from-brand/[0.06] to-transparent px-6 pb-4 pt-5 text-left">
+            <div className="flex items-center gap-3">
+              <span className="grid size-10 place-items-center rounded-xl bg-brand/10 text-brand ring-1 ring-inset ring-brand/20"><Receipt className="size-5" /></span>
+              <div className="min-w-0">
+                <SheetTitle className="text-[16px] font-bold">{editingId ? "Edit expense" : "Add expense"}</SheetTitle>
+                <SheetDescription className="text-[12px]">{activeCompany?.name ?? "Company"} · step {step + 1} of 3 — {STEPS[step].hint}</SheetDescription>
+              </div>
+            </div>
+            <ol className="mt-4 grid grid-cols-3 gap-2">
+              {STEPS.map((st, i) => {
+                const done = i < step, on = i === step;
+                return (
+                  <li key={st.label}>
+                    <button type="button" onClick={() => (i <= step || canNext(i - 1)) && setStep(i)}
+                      className="group w-full text-left">
+                      <span className="relative block h-1 overflow-hidden rounded-full bg-muted">
+                        <span className="absolute inset-y-0 left-0 rounded-full bg-brand transition-[width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]" style={{ width: done || on ? "100%" : "0%" }} />
+                      </span>
+                      <span className={cn("mt-2 flex items-center gap-1.5 text-[12px] font-bold transition-colors", on ? "text-foreground" : done ? "text-brand" : "text-muted-foreground group-hover:text-foreground")}>
+                        <span className={cn("grid size-5 place-items-center rounded-full text-[10.5px] transition-all duration-300", done ? "bg-brand text-white" : on ? "bg-foreground text-background scale-110" : "bg-muted text-muted-foreground")}>
+                          {done ? <Check className="size-3" /> : i + 1}
+                        </span>
+                        {st.label}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ol>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto px-6 py-5">
+            <div key={step} className="space-y-3 animate-in fade-in slide-in-from-right-3 duration-300">
+            {step === 0 && (<>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <div>
                   <label className="text-[11px] font-semibold uppercase text-muted-foreground">Category</label>
@@ -777,6 +820,8 @@ export function ExpensesPage() {
                   </div>
                 </div>
               </div>
+            </>)}
+            {step === 1 && (<>
               {!editingId && sisterId && (
                 <div className="rounded-sm border border-border bg-muted/30 p-2.5">
                   <label className="text-[11px] font-semibold uppercase text-muted-foreground">Pay from wallet fund (optional)</label>
@@ -858,7 +903,13 @@ export function ExpensesPage() {
                 }}
                 currency={form.currency}
               />
-
+            </>)}
+            {step === 2 && (<>
+              <div className="grid grid-cols-3 gap-2 rounded-lg border border-border bg-muted/30 p-3">
+                <div><div className="text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground">Amount</div><div className="mt-0.5 font-mono text-[15px] font-bold">{form.currency} {Number(form.amount || 0).toLocaleString()}</div></div>
+                <div><div className="text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground">Category</div><div className="mt-0.5 text-[13px] font-bold">{formatCategory(form.category)}</div></div>
+                <div><div className="text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground">Date</div><div className="mt-0.5 font-mono text-[13px] font-bold">{form.spent_on}</div></div>
+              </div>
               <div>
                 <label className="text-[11px] font-semibold uppercase text-muted-foreground">Purpose of request</label>
                 <textarea value={form.request_purpose} onChange={(e) => setForm({ ...form, request_purpose: e.target.value })}
@@ -874,18 +925,32 @@ export function ExpensesPage() {
               </div>
 
               <ExpenseReceiptsEditor receipts={receipts} onChange={setReceipts} />
-            </div>
-            <div className="mt-4 flex justify-end gap-2">
-              <DiscardCancelButton dirty={JSON.stringify({ form, receipts }) !== formSnap} onCancel={() => { setOpen(false); setEditingId(null); }} className="h-9 rounded-sm" disabled={add.isPending} />
-              <Button onClick={() => add.mutate()} disabled={add.isPending || !form.amount}
-                className="h-9 rounded-sm bg-primary hover:bg-brand-700">
-                {(add.isPending || uploading) && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
-                {uploading ? "Uploading…" : editingId ? "Save changes" : "Save"}
-              </Button>
+            </>)}
             </div>
           </div>
-        </div>
-      )}
+          <div className="flex items-center justify-between gap-2 border-t border-border bg-card px-6 py-3.5">
+            <DiscardCancelButton dirty={JSON.stringify({ form, receipts }) !== formSnap} onCancel={() => { setOpen(false); setEditingId(null); }} className="h-9 rounded-md" disabled={add.isPending} />
+            <div className="flex items-center gap-2">
+              {step > 0 && (
+                <Button variant="outline" onClick={() => setStep(step - 1)} disabled={add.isPending} className="h-9 gap-1 rounded-md">
+                  <ChevronLeft className="size-4" /> Back
+                </Button>
+              )}
+              {step < 2 ? (
+                <Button onClick={() => setStep(step + 1)} disabled={!canNext(step)} className="h-9 gap-1 rounded-md shadow-md shadow-brand/25 transition-all active:scale-95">
+                  Continue <ChevronRight className="size-4" />
+                </Button>
+              ) : (
+                <Button onClick={() => add.mutate()} disabled={add.isPending || !form.amount}
+                  className="h-9 min-w-28 gap-1.5 rounded-md shadow-md shadow-brand/25 transition-all active:scale-95">
+                  {add.isPending || uploading ? <TestLoader tone="white" /> : <Check className="size-4" />}
+                  {uploading ? "Uploading…" : editingId ? "Save changes" : "Save expense"}
+                </Button>
+              )}
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
 
       <ReasonDialog
         open={!!askEditFor}
