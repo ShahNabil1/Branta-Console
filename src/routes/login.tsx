@@ -21,6 +21,7 @@ import { beginPasskeyLogin, finishPasskeyLogin } from "@/lib/passkeys.functions"
 import { ensureSessionKey } from "@/hooks/use-session-watcher";
 import { claimPasskeySession } from "@/lib/session-assurance.functions";
 import { oauthReturnPath } from "@/lib/oauth-return-path";
+import { showBootSplash } from "@/lib/boot-splash";
 
 
 const TURNSTILE_SITE_KEY = "0x4AAAAAACNbiRh7P7qtgkXG";
