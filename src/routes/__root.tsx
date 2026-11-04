@@ -143,7 +143,7 @@ const BOOT_CSS = `html,body{background:#F9FAFB}
 #boot-splash .bs-node{position:relative;width:calc(clamp(220px,min(46vw,60vh),520px)*.16);aspect-ratio:1;display:grid;place-items:center}
 #boot-splash .bs-ring{position:absolute;inset:-18%;border-radius:50%;border:2px solid rgba(229,106,23,.5);animation:bs-ring 2s ease-out infinite}
 #boot-splash .bs-core{position:relative;width:100%;height:100%;border-radius:50%;background:#E56A17;box-shadow:0 0 0 5px #fff,0 10px 30px rgba(229,106,23,.35);display:grid;place-items:center;animation:bs-core 2s cubic-bezier(.3,1.4,.5,1) infinite}
-#boot-splash img{width:56%;height:56%;object-fit:contain;filter:brightness(0) invert(1)}
+#boot-splash img{width:100%;height:100%;object-fit:cover;border-radius:50%}
 @keyframes bs-core{0%{transform:scale(.6);opacity:0}20%,80%{transform:scale(1);opacity:1}100%{transform:scale(.96);opacity:1}}
 @keyframes bs-ring{0%,25%{transform:scale(.5);opacity:0}45%{transform:scale(1);opacity:1}60%{transform:scale(.94);opacity:.8}75%{transform:scale(1);opacity:1}100%{transform:scale(2.6);opacity:0}}
 @media (prefers-reduced-motion:reduce){#boot-splash *{animation:none!important}}
