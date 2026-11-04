@@ -901,7 +901,7 @@ function DestinationsPanel() {
                   <div className="min-w-0 flex-1 self-center">
                     <div className="flex min-w-0 items-center gap-1.5">
                       <span className="truncate font-mono text-[12.5px] font-semibold text-foreground">{d.email}</span>
-                      {d.verified ? <CircleCheck className="size-4 shrink-0 text-emerald-600" aria-label="Verified" /> : <CircleX className="size-4 shrink-0 text-amber-600" aria-label="Pending verification" />}
+                      {d.verified ? <CircleCheck className="size-4 shrink-0 text-emerald-600" aria-label="Verified" /> : <CircleX className="size-4 shrink-0 text-rose-600" aria-label="Pending verification" />}
                     </div>
                   </div>
                   <RowDeleteButton disabled={!!busy} onClick={() => remove("destination", d.email, d.rules.map((r) => r.from))} label="Remove" />
