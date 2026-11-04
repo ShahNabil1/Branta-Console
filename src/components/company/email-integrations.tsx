@@ -99,20 +99,166 @@ export function EmailIntegrations({ slug, accent }: { slug: string; accent: stri
             <Lock className="size-3.5" /> Verify the Inbox address first — Resend and Brevo unlock after that.
           </div>
         )}
-        <div className={cn("relative mt-4 grid gap-3 md:grid-cols-2 transition-opacity", !d.inbox?.verified_at && "pointer-events-none opacity-40")}>
+        <div className={cn("relative transition-opacity", !d.inbox?.verified_at && "pointer-events-none opacity-40")}>
           {(["resend", "brevo"] as P[]).map((p) => (
-            <ProviderCard key={p} p={p} v={d[p]} on={open === p} onClick={() => setOpen(open === p ? null : p)} />
+            <ProviderPanel key={p} p={p} slug={slug} v={d[p]} data={d} both={!!d.resend && !!d.brevo}
+              open={open === p} onToggle={() => setOpen(open === p ? null : p)} locked={!d.inbox?.verified_at} />
           ))}
         </div>
-        {d.resend?.domain_verified_at && d.resend.webhook_verified_at && <FinanceSender slug={slug} v={d.resend} />}
       </section>
+    </div>
+  );
+}
 
-      {open && d.inbox?.verified_at && (
-        <div key={open} className="animate-in fade-in slide-in-from-top-2 duration-300">
-          <Setup p={open} slug={slug} v={d[open]} data={d} both={!!d.resend && !!d.brevo} />
+type TestCheck = CheckT & { kind?: "api" | "domain" | "webhook" };
+
+function ProviderPanel({ p, slug, v, data, both, open, onToggle, locked }: { p: P; slug: string; v: ProviderView | null; data: Data; both: boolean; open: boolean; onToggle: () => void; locked: boolean }) {
+  const m = META[p];
+  const connected = !!v?.domain_verified_at && !!v?.webhook_verified_at;
+  const test = useServerFn(testEmailProvider);
+  const def = useServerFn(setDefaultProvider);
+  const refresh = useRefresh(slug);
+  const [busy, setBusy] = useState<"test" | "def" | null>(null);
+  const [checks, setChecks] = useState<TestCheck[] | null>(null);
+  const domain = v ? (v.domain || v.sender_email.split("@")[1]) : "";
+
+  const runTest = async (silent: boolean) => {
+    if (!silent) { setBusy("test"); setChecks(null); }
+    try {
+      const r = await test({ data: { slug, provider: p } });
+      if (!silent) { setChecks(r.checks); r.ok ? toast.success(`${m.name} is working.`) : toast.error(r.checks.find((c) => !c.ok)?.detail ?? "Check failed"); }
+      else if (!r.ok) setChecks(r.checks);
+    } catch (e) { if (!silent) toast.error(err(e)); } finally { if (!silent) setBusy(null); }
+  };
+  // Silent health check once on open: quiet when everything works.
+  const autoRan = useRef(false);
+  useEffect(() => {
+    if (autoRan.current || !connected) return;
+    autoRan.current = true; void runTest(true);
+  }, [connected]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const failed = (k: string) => checks?.find((c) => c.kind === k && !c.ok);
+  const chips = p === "resend"
+    ? [{ k: "api", label: "API key" }, { k: "webhook", label: "Webhook" }, { k: "domain", label: `Domain · ${domain}` }]
+    : [{ k: "api", label: "API key" }, { k: "domain", label: `Sender & domain · ${domain}` }, { k: "webhook", label: "Webhook" }];
+
+  return (
+    <div className="relative mt-4 overflow-hidden rounded-xl border border-border bg-background p-4 transition-shadow hover:shadow-md">
+      <span className="absolute inset-y-0 left-0 w-1" style={{ background: m.color }} />
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="grid size-10 shrink-0 place-items-center rounded-lg border border-border bg-card shadow-sm"><ProviderLogo p={p} /></span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2 text-[14px] font-bold">
+            {m.name}
+            {connected ? <span className="inline-flex items-center gap-1 rounded-full bg-status-converted/10 px-2 py-0.5 text-[11px] font-bold text-status-converted"><CheckCircle2 className="size-3" /> Connected</span>
+              : <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-bold", status(v).cls)}>{status(v).label}</span>}
+            {v?.is_default && <span className="inline-flex items-center gap-1 rounded-full bg-brand/10 px-2 py-0.5 text-[11px] font-bold text-brand"><Star className="size-3 fill-brand" /> Default</span>}
+          </div>
+          <p className="truncate text-[12px] font-semibold text-muted-foreground">
+            {v ? <>Sending from <b className="text-foreground">{v.sender_name} &lt;{v.sender_email}&gt;</b></> : m.tag}
+          </p>
+        </div>
+        {connected ? (
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" onClick={() => runTest(false)} disabled={!!busy}>{busy === "test" ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />} Test</Button>
+            {both && !v!.is_default && (
+              <Button size="sm" variant="outline" disabled={!!busy} onClick={async () => { setBusy("def"); try { await def({ data: { slug, provider: p } }); await refresh(); toast.success(`${m.name} is now default`); } catch (e) { toast.error(err(e)); } finally { setBusy(null); } }}>
+                <Star className="size-3.5" /> Make default
+              </Button>
+            )}
+            <DisconnectButton p={p} slug={slug} v={v!} />
+          </div>
+        ) : (
+          <Button size="sm" disabled={locked} onClick={onToggle} className="gap-1.5" style={{ background: open ? undefined : m.color }} variant={open ? "outline" : "default"}>
+            {open ? <><X className="size-3.5" /> Close</> : <><KeyRound className="size-3.5" /> {v ? "Continue setup" : `Connect ${m.name}`}</>}
+          </Button>
+        )}
+      </div>
+
+      {connected && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {chips.map((c) => {
+            const bad = failed(c.k);
+            return (
+              <span key={c.k} className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11.5px] font-bold", bad ? "border-destructive/30 bg-destructive/5 text-destructive" : "border-border bg-card text-foreground")}>
+                {c.k === "api" ? <KeyRound className="size-3" /> : c.k === "webhook" ? <Webhook className="size-3" /> : <ShieldCheck className="size-3" />}
+                {c.label}
+                {bad ? <XCircle className="size-3" /> : <CheckCircle2 className="size-3 text-status-converted" />}
+              </span>
+            );
+          })}
+        </div>
+      )}
+
+      {connected && checks && (
+        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+          {checks.map((c, i) => {
+            const I = c.kind === "webhook" ? Webhook : c.kind === "domain" ? ShieldCheck : KeyRound;
+            return (
+              <div key={c.id} style={{ animationDelay: `${i * 80}ms` }}
+                className={cn("relative overflow-hidden rounded-xl border bg-card p-3 shadow-sm animate-in fade-in slide-in-from-bottom-2 fill-mode-both", c.ok ? "border-status-converted/30" : "border-destructive/30")}>
+                <span className={cn("pointer-events-none absolute -right-8 -top-8 size-20 rounded-full blur-2xl", c.ok ? "bg-status-converted/15" : "bg-destructive/15")} />
+                <div className="relative flex items-center gap-2.5">
+                  <span className="grid size-9 shrink-0 place-items-center rounded-lg border border-border bg-background shadow-sm"><I className="size-4" style={{ color: m.color }} /></span>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1 text-[13px] font-bold">{c.label}{c.ok ? <CheckCircle2 className="size-3.5 text-status-converted" /> : <XCircle className="size-3.5 text-destructive" />}</div>
+                    <div className={cn("text-[10.5px] font-bold uppercase tracking-wider", c.ok ? "text-status-converted" : "text-destructive")}>{c.ok ? "Working" : "Issue"}</div>
+                  </div>
+                </div>
+                <p className="relative mt-2 break-words text-[11.5px] font-semibold text-muted-foreground">{c.detail}</p>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {p === "resend" && connected && <FinanceSender slug={slug} v={v!} />}
+
+      {!connected && open && !locked && (
+        <div className="mt-4 animate-in fade-in duration-200">
+          <Setup p={p} slug={slug} v={v} data={data} />
         </div>
       )}
     </div>
+  );
+}
+
+function DisconnectButton({ p, slug, v }: { p: P; slug: string; v: ProviderView }) {
+  const disc = useServerFn(disconnectProvider);
+  const previewDisconnect = useServerFn(previewProviderDisconnect);
+  const refresh = useRefresh(slug);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [confirm, setConfirm] = useState(false);
+  const [hooks, setHooks] = useState<{ id: string; address: string }[] | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const loadPreview = async () => {
+    setBusy("preview"); setHooks(null); setPreviewError(null);
+    try { setHooks((await previewDisconnect({ data: { slug, provider: p } })).hooks); }
+    catch (e) { setPreviewError(err(e)); }
+    finally { setBusy(null); }
+  };
+  return (
+    <>
+      <Button size="sm" variant="destructive" disabled={!!busy} onClick={() => { setConfirm(true); void loadPreview(); }}><Unplug className="size-3.5" /> Disconnect</Button>
+      <DangerConfirm open={confirm} icon={Unplug} title={`Disconnect ${META[p].name}?`} subject={`${v.sender_name} <${v.sender_email}>`}
+        busy={busy === "dc"} confirmLabel="Disconnect" cancelLabel="Keep it"
+        points={busy === "preview" || hooks === null ? [`Checking ${META[p].name} webhooks…`]
+          : previewError ? [previewError]
+          : [
+            hooks.length ? `Removes ${hooks.length} Branta Tech webhook(s): ${hooks.map((h) => h.address).join(", ")}` : "No Branta Tech webhooks found — only the Console connection is removed.",
+            "Erases the stored API key and webhook secret. To use a different API key, connect again afterwards.",
+            p === "resend" ? `The finance sender ${v.finance_sender_name || v.sender_name} <${v.finance_sender_email || v.sender_email}> is removed too; invoice emails and reminders switch to Brevo if it's connected, otherwise they stop.` : "Lead, Inbox and invoice mail stop unless Resend is connected.",
+            "Other systems' webhooks and past email history stay unchanged.",
+          ]}
+        onCancel={() => setConfirm(false)}
+        onConfirm={() => {
+          if (hooks === null || previewError) { void loadPreview(); return; }
+          setBusy("dc");
+          void disc({ data: { slug, provider: p, confirmedHookIds: hooks.map((h) => h.id) } })
+            .then(async (r) => { setConfirm(false); await refresh(); toast.success(`Disconnected · removed ${r.removed} Branta Tech webhook(s)`); })
+            .catch((e) => toast.error(err(e))).finally(() => setBusy(null));
+        }} />
+    </>
   );
 }
 
