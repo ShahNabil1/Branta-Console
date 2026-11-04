@@ -1,2 +1,3 @@
 - Add/Edit Expense and Activity reuse ExpenseDrawerContent/Header with outside-click protection; reuse SearchableSelect and UnderlineTabs — why: one branded drawer treatment and consistent employee/date controls.
 - Activity filters use pure Dhaka-day bounds from expense creation through today; real actor avatars come from existing RLS-protected employee/profile reads — why: testable date rules without modifying audit history or permissions.
+- Receipt editor and saved gallery reuse ReceiptThumb/ReceiptPreview in receipt-media.tsx; storedReceipts merges attachments with legacy receipt_url without duplicates — why: every proof has the same image/PDF preview and stays individually accessible.
