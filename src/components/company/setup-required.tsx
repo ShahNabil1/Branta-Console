@@ -1,6 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Lock, Plug } from "lucide-react";
+import { Lock, Plug, Unplug, XCircle } from "lucide-react";
+import { GoogleMark, GmailMark } from "./google-account-card";
+import googleWordmark from "@/assets/email/google-wordmark.png.asset.json";
+import resendLogo from "@/assets/email/resend-wordmark-black.png.asset.json";
+import brevoLogo from "@/assets/email/brevo-wordmark.png.asset.json";
+import brantaLogo from "@/assets/brand-logo.png.asset.json";
 import { getCompanySetupStatus, type IntegrationItem, type SetupItem } from "@/lib/company-setup.functions";
 import { useActiveCompany } from "./company-switcher";
 
@@ -73,15 +78,38 @@ export function IntegrationRequired({ feature, compact }: { feature: keyof typeo
         <span>Unavailable for {companyName} until connected: <b className="text-foreground">{items.map((i) => INT_LABEL[i]).join(", ")}</b>.</span>
       </div>
     );
+  const ROWS: Record<IntegrationItem, { title: string; hint: string; icons: React.ReactNode }> = {
+    google: { title: "Google account", hint: "Connect Gmail & Calendar", icons: <><GoogleMark className="size-5" /><img src={googleWordmark.url} alt="Google" className="h-4" /></> },
+    inbox_address: { title: "In-app Gmail address", hint: "Verify the company Inbox address", icons: <GmailMark className="size-5" /> },
+    email_provider: { title: "Resend or Brevo", hint: "Connect at least one sender", icons: <><img src={resendLogo.url} alt="Resend" className="h-3.5" /><span className="text-[11px] font-bold text-muted-foreground">or</span><img src={brevoLogo.url} alt="Brevo" className="h-3.5" /></> },
+  };
   return (
-    <div className="mx-auto mt-16 max-w-md rounded-md border border-border bg-card p-6 text-center">
-      <div className="mx-auto mb-3 grid size-10 place-items-center rounded-full bg-muted"><Plug className="size-5 text-muted-foreground" /></div>
-      <h2 className="text-[15px] font-semibold text-foreground">Connect {companyName}'s accounts first</h2>
-      <p className="mt-1 text-[13px] text-muted-foreground">This feature only uses {companyName}'s own accounts — never another company's. A Branta Tech admin must connect:</p>
-      <ul className="mt-3 space-y-1 text-left text-[13px] font-medium text-foreground">
-        {items.map((i) => <li key={i} className="flex items-center gap-2"><Lock className="size-3.5 text-muted-foreground" />{INT_LABEL[i]}</li>)}
-      </ul>
-      <p className="mt-3 text-[12px] text-muted-foreground">Company profile → Integrations</p>
+    <div className="grid min-h-[calc(100vh-8rem)] place-items-center px-4 py-10">
+      <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8 animate-in fade-in zoom-in-95">
+        <div className="flex flex-col items-center text-center">
+          <span className="grid size-14 place-items-center rounded-full bg-destructive/10 ring-8 ring-destructive/5">
+            <Unplug className="size-6 text-destructive" />
+          </span>
+          <h2 className="mt-4 text-[18px] font-bold tracking-tight text-foreground">No connection</h2>
+          <p className="mt-1 text-[13px] font-medium text-muted-foreground">Finish these steps and {companyName}'s Inbox opens here.</p>
+        </div>
+        <ul className="mt-6 space-y-2">
+          {items.map((i) => (
+            <li key={i} className="flex items-center gap-3 rounded-lg border border-border bg-background px-3 py-2.5">
+              <XCircle className="size-4 shrink-0 text-destructive" />
+              <div className="min-w-0 flex-1">
+                <div className="text-[13px] font-bold text-foreground">{ROWS[i].title}</div>
+                <div className="text-[11.5px] font-medium text-muted-foreground">{ROWS[i].hint}</div>
+              </div>
+              <div className="flex shrink-0 items-center gap-1.5">{ROWS[i].icons}</div>
+            </li>
+          ))}
+        </ul>
+        <div className="mt-5 flex items-center gap-2.5 rounded-lg bg-muted/50 px-3 py-2.5">
+          <img src={brantaLogo.url} alt="Branta Tech" className="h-5 shrink-0" />
+          <p className="text-[12px] font-medium text-muted-foreground">A Branta Tech admin connects these in <b className="text-foreground">Companies → {companyName} → Integrations</b>.</p>
+        </div>
+      </div>
     </div>
   );
 }
