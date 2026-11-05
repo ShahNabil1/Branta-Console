@@ -108,6 +108,14 @@ export const listEmployees = createServerFn({ method: "GET" })
       const { companyMemberUserIds } = await import("@/lib/company-scope.server");
       const allowed = await companyMemberUserIds(input.companySlug);
       users = users.filter((u) => allowed.has(u.id));
+      // Company heads never see Branta group staff (Group Admin / HR / Accounts).
+      const sc = await import("@/lib/company-scope.server");
+      if (!(await sc.isGroupStaff(context.supabase, context.userId))) {
+        const { data: gr } = await supabaseAdmin.from("user_roles").select("user_id")
+          .in("user_id", users.map((u) => u.id)).in("role", ["super_admin", "admin", "finance"]);
+        const staff = new Set((gr ?? []).map((r) => r.user_id));
+        users = users.filter((u) => !staff.has(u.id));
+      }
     }
     const ids = users.map((u) => u.id);
 
