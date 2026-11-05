@@ -8,8 +8,15 @@ import { z } from "zod";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any;
 const Slug = z.object({ slug: z.string().trim().min(1).max(80) });
-export type SetupStage = "domain" | "dns" | "verify" | "key" | "webhook";
-export type SetupStep = { stage: SetupStage; ok: boolean; pending?: boolean; detail: string };
+export type SetupStage = "domain" | "tracking" | "dns" | "verify" | "key" | "webhook";
+export type SetupStep = { stage: SetupStage; ok: boolean; pending?: boolean; needsInput?: boolean; detail: string };
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const recordsVerified = (d: any) => ((d?.records ?? []) as any[]).every((r) => String(r.status ?? "").toLowerCase() === "verified");
+/** Tracking subdomain set, open + click tracking on, TLS opportunistic. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const trackingConfigured = (d: any) =>
+  !!d?.tracking_subdomain && d.open_tracking === true && d.click_tracking === true && String(d.tls ?? "opportunistic") === "opportunistic";
 
 async function gate(ctx: { supabase: unknown; userId: string }, slug: string) {
   const sb = ctx.supabase as Any;
@@ -30,22 +37,30 @@ export const getResendOAuth = createServerFn({ method: "GET" })
     const a = await rs.getAccount(co.id);
     const connected = !!(a?.is_active && a.refresh_token_enc);
     let domains: { name: string; status: string }[] = [];
-    if (connected) {
-      const token = await rs.companyResendToken(co.id).catch(() => null);
-      if (token) {
-        const l = await rs.rs(token, "/domains").catch(() => null);
-        domains = ((l?.ok ? l.body?.data : []) ?? []).map((x: Any) => ({ name: String(x.name).toLowerCase(), status: String(x.status ?? "") }));
-      }
-    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const ad = supabaseAdmin as Any;
     const { data: ib } = await ad.from("company_inbox_addresses").select("email, verified_at").eq("company_id", co.id).maybeSingle();
     const { data: pv } = await ad.from("company_email_providers").select("is_active, api_key_enc, webhook_verified_at, sender_email").eq("company_id", co.id).eq("provider", "resend").maybeSingle();
     const inboxEmail = ib?.verified_at ? String(ib.email).toLowerCase() : null;
+    let tracking: { ok: boolean; subdomain: string | null } = { ok: false, subdomain: null };
+    if (connected) {
+      const token = await rs.companyResendToken(co.id).catch(() => null);
+      if (token) {
+        const l = await rs.rs(token, "/domains").catch(() => null);
+        const raw = ((l?.ok ? l.body?.data : []) ?? []) as Any[];
+        domains = raw.map((x: Any) => ({ name: String(x.name).toLowerCase(), status: String(x.status ?? "") }));
+        const hit = inboxEmail ? raw.find((x) => String(x.name).toLowerCase() === inboxEmail.split("@")[1]) : null;
+        if (hit) {
+          const g = await rs.rs(token, `/domains/${hit.id}`).catch(() => null);
+          if (g?.ok) tracking = { ok: trackingConfigured(g.body) && g.body.status === "verified" && recordsVerified(g.body), subdomain: g.body.tracking_subdomain ?? null };
+        }
+      }
+    }
     return {
       domains,
       inbox: inboxEmail ? { email: inboxEmail, domain: inboxEmail.split("@")[1], name: co.name } : null,
-      providerReady: !!(pv?.is_active && pv.api_key_enc && pv.webhook_verified_at && pv.sender_email === inboxEmail),
+      tracking,
+      providerReady: !!(pv?.is_active && pv.api_key_enc && pv.webhook_verified_at && pv.sender_email === inboxEmail && tracking.ok),
       account: connected
         ? { connected_at: a.connected_at as string, domain: (a.resend_domain as string | null) ?? null, last_error: (a.last_error as string | null) ?? null, setup: (a.setup_state ?? {}) as Record<string, SetupStep> }
         : null,
@@ -77,7 +92,8 @@ export const disconnectResendOAuth = createServerFn({ method: "POST" })
   });
 
 const SetupInput = Slug.extend({
-  stage: z.enum(["domain", "dns", "verify", "key", "webhook"]),
+  stage: z.enum(["domain", "tracking", "dns", "verify", "key", "webhook"]),
+  trackingSubdomain: z.string().trim().toLowerCase().regex(/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/, "Use letters, numbers and dashes only.").optional(),
 });
 
 /** One step of the automatic setup. The UI calls the stages in order and stops at the first failure. */
@@ -130,8 +146,19 @@ export const runResendSetup = createServerFn({ method: "POST" })
     const d = await findDomain();
     if (!d) return done({ stage: data.stage, ok: false, detail: "Domain isn't in Resend yet — run setup from the start." });
 
+    if (data.stage === "tracking") {
+      const sub = d.tracking_subdomain ? null : data.trackingSubdomain;
+      if (!d.tracking_subdomain && !sub) return { stage: "tracking", ok: false, needsInput: true, detail: "Choose a tracking subdomain (e.g. links) to enable open/click tracking." };
+      if (trackingConfigured(d)) return done({ stage: "tracking", ok: true, detail: `${d.tracking_subdomain}.${data.domain} · open + click tracking on · TLS opportunistic` });
+      const body: Any = { open_tracking: true, click_tracking: true, tls: "opportunistic" };
+      if (sub) body.tracking_subdomain = sub;
+      const p = await rs.rs(token, `/domains/${d.id}`, { method: "PATCH", body });
+      if (!p.ok) return done({ stage: "tracking", ok: false, detail: perr(p) });
+      return done({ stage: "tracking", ok: true, detail: `${sub ?? d.tracking_subdomain}.${data.domain} · open + click tracking on · TLS opportunistic` });
+    }
+
     if (data.stage === "dns") {
-      if (d.status === "verified") return done({ stage: "dns", ok: true, detail: "Already verified in Resend · DNS skipped" });
+      if (d.status === "verified" && recordsVerified(d)) return done({ stage: "dns", ok: true, detail: "All Resend records already verified · DNS skipped" });
       const cf = await import("@/lib/company-cloudflare.server");
       const cft = await cf.companyCloudflareToken(co.id).catch(() => null);
       if (!cft) return done({ stage: "dns", ok: false, detail: "Connect this company's Cloudflare account first." });
@@ -162,13 +189,15 @@ export const runResendSetup = createServerFn({ method: "POST" })
     }
 
     if (data.stage === "verify") {
-      if (d.status !== "verified") {
+      let all = d.status === "verified" && recordsVerified(d);
+      if (!all) {
         const v = await rs.rs(token, `/domains/${d.id}/verify`, { method: "POST" });
         if (!v.ok) return done({ stage: "verify", ok: false, detail: perr(v) });
         const g = await rs.rs(token, `/domains/${d.id}`);
-        if (g.ok) d.status = g.body?.status;
+        if (g.ok) { d.status = g.body?.status; all = d.status === "verified" && recordsVerified(g.body); }
       }
-      if (d.status === "verified") return done({ stage: "verify", ok: true, detail: `${data.domain} verified by Resend` });
+      if (all) return done({ stage: "verify", ok: true, detail: `${data.domain} + tracking subdomain verified by Resend` });
+      if (d.status === "verified") return done({ stage: "verify", ok: false, pending: true, detail: "Domain verified · waiting for the tracking record to verify." });
       // fallthrough handled below
       if (d.status === "failed") return done({ stage: "verify", ok: false, detail: "Resend couldn't verify the DNS records. Check them in Cloudflare and retry." });
       return done({ stage: "verify", ok: false, pending: true, detail: `Resend is checking DNS (${d.status ?? "pending"}) — usually under a few minutes.` });
