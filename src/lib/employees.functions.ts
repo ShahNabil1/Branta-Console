@@ -428,7 +428,7 @@ async function managesCompany(supabase: any, userId: string, slug?: string) {
 
 export const checkIsAdmin = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({ companySlug: z.string().trim().min(1).max(80).optional() }).parse(d ?? {}))
+  .inputValidator((d: unknown) => z.object({ companySlug: z.string().trim().min(1).max(80).optional(), targetUserId: z.string().uuid().optional() }).parse(d ?? {}))
   .handler(async ({ data: input, context }) => {
     const [su, ad] = await Promise.all([
       context.supabase.rpc("has_role", {
@@ -442,7 +442,8 @@ export const checkIsAdmin = createServerFn({ method: "GET" })
     ]);
     return {
       isSuperAdmin: !!su.data,
-      isAdmin: !!su.data || !!ad.data || (await managesCompany(context.supabase, context.userId, input.companySlug)),
+      isAdmin: !!su.data || !!ad.data || (await managesCompany(context.supabase, context.userId, input.companySlug))
+        || (input.targetUserId ? await (await import("@/lib/company-scope.server")).managesEmployee(context.supabase, context.userId, input.targetUserId) : false),
     };
   });
 
