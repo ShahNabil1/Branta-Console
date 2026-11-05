@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { RequireSuperAdmin } from "@/components/branta/require-super-admin";
 import { EmployeesPage } from "./app.employees.index";
 
 export const Route = createFileRoute("/_authenticated/app/org/$org/employees")({
@@ -19,5 +18,5 @@ export const Route = createFileRoute("/_authenticated/app/org/$org/employees")({
 
 function OrgEmployees() {
   const { org } = Route.useParams();
-  return <RequireSuperAdmin><EmployeesPage key={org} companySlug={org} /></RequireSuperAdmin>;
+  return <EmployeesPage key={org} companySlug={org} />;
 }

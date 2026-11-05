@@ -200,8 +200,8 @@ export function EmployeesPage({ companySlug }: { companySlug?: string } = {}) {
   const deleteFn = useServerFn(deleteEmployee);
 
   const admin = useQuery({
-    queryKey: ["employees.admin"],
-    queryFn: () => isAdminFn(),
+    queryKey: ["employees.admin", companySlug ?? "all"],
+    queryFn: () => isAdminFn({ data: { companySlug } }),
   });
 
   const employees = useQuery({
