@@ -2053,7 +2053,7 @@ function PermissionsTab({ userId, isGA }: { userId: string; isGA?: boolean }) {
       </div>
       <p className="mb-4 text-[11.5px] text-muted-foreground">
         Only Group Admins can change these. Toggles apply on top of the employee&apos;s existing
-        role and only affect the leads they already own.
+        role and only affect the leads they already own.{isGA && " Group Admins always have every permission on."}
       </p>
 
       <ul className="grid grid-cols-1 divide-y divide-border rounded-sm border border-border md:grid-cols-2 md:divide-y-0">

@@ -120,6 +120,7 @@ export const getMyPermissions = createServerFn({ method: "GET" })
       user_id: context.userId,
       ...DEFAULTS,
       ...(data ?? {}),
+      ...(isSuperAdmin ? Object.fromEntries(PERMISSION_KEYS.map((k) => [k, true])) : {}),
       isSuperAdmin,
       isAdmin,
       isManager: isManager || roles.includes("coo"),
