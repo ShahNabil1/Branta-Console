@@ -11,7 +11,7 @@ it("creates missing sender domain, enables tracking/TLS, publishes returned DNS 
     if (path.endsWith("/verify")) { d.status = "verified"; d.records[0].status = "verified"; }
     return { ok: true, status: 200, body: d };
   }, async records => { pushed.push(...records); return { ok: true, detail: "DNS saved" }; });
-  expect(calls.find(c => c.path === "/domains" && c.init)?.init.body).toEqual({ name: "deveror.com" });
+  expect(calls.find(c => c.path === "/domains" && c.init)?.init.body).toEqual({ name: "deveror.com", region: "ap-northeast-1" });
   expect(calls.find(c => c.init?.method === "PATCH")?.init.body).toEqual({ tracking_subdomain: "links", open_tracking: true, click_tracking: true, tls: "opportunistic" });
   expect(pushed[0].value).toBe("track.resend.com"); expect(result.ok).toBe(true);
 });
