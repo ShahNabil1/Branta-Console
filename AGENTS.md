@@ -42,3 +42,4 @@
 - Company invoice branding resolves server-side via company-invoice-template.server.ts with immutable snapshots; no in-app editor — why: sisters never show Branta logos/contacts, issued documents never change. renderInvoicePdf forces PAYMENT INFORMATION (bank, note, QR) to Branta Tech for all companies — why: one group bank account.
 - WebMCP uses screen-owned hooks, shared actions and static telemetry — why: agents only use visible controls.
 - Workspace access = explicit company_members rows (profiles.id; predicates join profiles.user_id), set via setEmployeeWorkspace; no implicit holding access — why: staff see only granted companies.
+- Branta Tech roles keep DB values (super_admin=Group Admin, finance=Accounts, admin=HR, manager=C.E.O, coo=C.O.O, user=Executive); labels and holding page access live only in src/lib/role-access.ts (sidebar + HoldingRoleGuard), has_role treats coo as manager — why: one matrix, no data migration of existing roles.
