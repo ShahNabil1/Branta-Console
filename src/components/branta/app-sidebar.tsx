@@ -148,7 +148,6 @@ const FINANCE_NAV: FinanceNavGroup[] = [
     items: [
       { label: "Employee Payments", to: "/app/finance/employee-payments", icon: BadgeDollarSign, tone: "emerald" },
       { label: "Employee Wallets", to: "/app/finance/employee-wallets", icon: Wallet, tone: "violet" },
-      { label: "Employee Earnings (Legacy)", to: "/app/finance/employee-earnings", icon: Contact, tone: "slate" },
       { label: "Salary", to: "/app/finance/salary", icon: BadgeDollarSign, tone: "amber" },
       { label: "Salary Report", to: "/app/finance/salary-report", icon: CalendarClock, tone: "indigo" },
       { label: "Wallet", to: "/app/finance/wallet", icon: Wallet, tone: "brand" },
