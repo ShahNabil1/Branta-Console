@@ -221,6 +221,7 @@ export const listAllTransferRequests = createServerFn({ method: "GET" })
     z
       .object({
         status: z.enum(["pending", "approved", "rejected", "all"]).default("pending"),
+        companySlug: z.string().trim().min(1).max(80).optional(),
       })
       .parse(d ?? {}),
   )
@@ -234,7 +235,15 @@ export const listAllTransferRequests = createServerFn({ method: "GET" })
     if (data.status !== "all") q = q.eq("status", data.status);
     const { data: rows, error } = await q;
     if (error) throw dbError(error);
-    return hydrate(context.supabase, rows ?? []);
+    let list = rows ?? [];
+    // Sister workspace: only transfers between that company's employees.
+    if (data.companySlug) {
+      const { companyMemberUserIds } = await import("@/lib/company-scope.server");
+      const allowed = await companyMemberUserIds(data.companySlug);
+      list = list.filter((r: { to_user_id: string; from_user_id: string | null }) =>
+        allowed.has(r.to_user_id) && (!r.from_user_id || allowed.has(r.from_user_id)));
+    }
+    return hydrate(context.supabase, list);
   });
 
 export const decideTransferRequests = createServerFn({ method: "POST" })

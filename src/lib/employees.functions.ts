@@ -85,7 +85,8 @@ export interface EmployeeRow {
 
 export const listEmployees = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<EmployeeRow[]> => {
+  .inputValidator((d: unknown) => z.object({ companySlug: z.string().trim().min(1).max(80).optional() }).parse(d ?? {}))
+  .handler(async ({ data: input, context }): Promise<EmployeeRow[]> => {
     await assertAdmin(context.supabase, context.userId);
 
     const { supabaseAdmin } = await import(
@@ -99,7 +100,13 @@ export const listEmployees = createServerFn({ method: "GET" })
     });
     if (error) throw dbError(error);
 
-    const users = data.users ?? [];
+    let users = data.users ?? [];
+    // Sister workspace: only employees switched on for that company.
+    if (input.companySlug) {
+      const { companyMemberUserIds } = await import("@/lib/company-scope.server");
+      const allowed = await companyMemberUserIds(input.companySlug);
+      users = users.filter((u) => allowed.has(u.id));
+    }
     const ids = users.map((u) => u.id);
 
     const [roles, profiles, sessions] = await Promise.all([
