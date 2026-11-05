@@ -112,7 +112,7 @@ export function ProfileMenu() {
         <div className="hairline-t space-y-0.5 p-1.5">
           {([
             { to: "/app/profile", label: "View profile", hint: "Personal details", Icon: User, cls: "bg-muted text-muted-foreground" },
-            { to: "/app/profile/finance", label: "My Wallet", hint: "Balance & withdrawals", Icon: Wallet, cls: "bg-muted text-muted-foreground" },
+            { to: "/app/profile/finance", label: "My Wallet", hint: "Balance & statement", Icon: Wallet, cls: "bg-muted text-muted-foreground" },
             { to: "/app/profile/security", label: "Security", hint: "Password & 2FA", Icon: ShieldCheck, cls: "bg-muted text-muted-foreground" },
           ] as const).map(({ to, label, hint, Icon, cls }) => (
             <Link key={to} to={to} onClick={() => setOpen(false)}

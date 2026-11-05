@@ -6,12 +6,10 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import {
   getWalletV2, reverseWalletEntry,
-  type WalletEntry, type WalletBalanceV2,
+  type WalletEntry,
 } from "@/lib/wallet-ledger.functions";
 import { PeriodFilter, Stat, money, periodRange, inRange, type Period } from "@/components/finance/wallet-statement";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
 
 export const TYPE_LABEL: Record<string, string> = {
   project_earning: "Project Earning", salary: "Salary", bonus: "Bonus", incentive: "Incentive", commission: "Commission",

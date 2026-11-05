@@ -41,17 +41,15 @@ export const getWalletV2 = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const sb = context.supabase as any;
     const uid = data.userId ?? context.userId;
-    const [b, s, w, lp] = await Promise.all([
+    const [b, s, lp] = await Promise.all([
       sb.rpc("wallet_balances_v2", { _user: uid }),
       sb.rpc("wallet_statement_v2", { _user: uid }),
-      sb.from("wallet_withdrawals").select("*").eq("employee_id", uid).order("requested_at", { ascending: false }),
       sb.rpc("wallet_legacy_pending", { _user: uid }),
     ]);
-    for (const r of [b, s, w, lp]) if (r.error) throw dbError(r.error);
+    for (const r of [b, s, lp]) if (r.error) throw dbError(r.error);
     return {
       balances: ((b.data ?? []) as any[]).map((x) => num(x, BAL_KEYS)) as WalletBalanceV2[],
       entries: withRunning(s.data ?? []),
-      withdrawals: ((w.data ?? []) as any[]).map((x) => ({ ...x, amount: Number(x.amount) })) as WalletWithdrawalV2[],
       legacyPending: ((lp.data ?? []) as any[]).map((x) => ({ ...x, amount: Number(x.amount) })),
     };
   });
