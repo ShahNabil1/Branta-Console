@@ -12,6 +12,7 @@ import { useActiveCompany } from "@/components/company/company-switcher";
 import { ExpenseDrawerContent, ExpenseDrawerHeader } from "@/components/finance/expense-drawer";
 import { SearchableSelect } from "@/components/finance/searchable-select";
 import { BdPhoneInput } from "@/components/profile/bd-fields";
+import { QUIET_INPUT } from "@/components/finance/drawer-fields";
 import {
   addCustomerRoleOption,
   createCustomer,
@@ -111,7 +112,7 @@ export function CustomerDrawer({
           <div className="space-y-4 animate-in fade-in slide-in-from-right-3 duration-300">
             <div>
               <label className={LABEL}>Name *</label>
-              <Input autoFocus value={form.name} maxLength={160} placeholder="Full name" onChange={(e) => set("name", e.target.value)} className={FIELD} />
+              <Input data-drawer-autofocus autoCapitalize="words" {...QUIET_INPUT} value={form.name} maxLength={160} placeholder="Full name" onChange={(e) => set("name", e.target.value)} className={FIELD} />
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
@@ -120,13 +121,13 @@ export function CustomerDrawer({
               </div>
               <div>
                 <label className={LABEL}>Company</label>
-                <Input value={form.company} maxLength={160} placeholder="Client's company" onChange={(e) => set("company", e.target.value)} className={FIELD} />
+                <Input autoCapitalize="words" {...QUIET_INPUT} value={form.company} maxLength={160} placeholder="Client's company" onChange={(e) => set("company", e.target.value)} className={FIELD} />
               </div>
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label className={LABEL}>Email</label>
-                <Input type="email" value={form.email} placeholder="name@example.com" onChange={(e) => set("email", e.target.value.trim())} className={cn(FIELD, emailBad && "border-destructive")} />
+                <Input type="text" inputMode="email" autoCapitalize="none" {...QUIET_INPUT} value={form.email} placeholder="name@example.com" onChange={(e) => set("email", e.target.value.trim())} className={cn(FIELD, emailBad && "border-destructive")} />
                 {emailBad && <p className="mt-1 text-[11.5px] text-destructive">Enter a valid email.</p>}
               </div>
               <div>
@@ -177,6 +178,8 @@ export function CustomerDrawer({
 function RoleField({ value, options, onChange }: { value: string; options: string[]; onChange: (v: string) => void }) {
   const [focus, setFocus] = useState(false);
   const [hi, setHi] = useState(0);
+  // Only an arrow-key choice is picked on Enter; otherwise Enter/Next keeps the typed role and moves on.
+  const [navigated, setNavigated] = useState(false);
   const blurT = useRef<ReturnType<typeof setTimeout>>(undefined);
   const matches = useMemo(() => matchRoles(options, value).slice(0, 8), [options, value]);
   const q = value.trim();
@@ -186,15 +189,15 @@ function RoleField({ value, options, onChange }: { value: string; options: strin
   const pick = (v: string) => { onChange(v); setFocus(false); };
   return (
     <div className="relative mt-1.5">
-      <Input value={value} maxLength={120} placeholder="e.g. CEO, HR & Admin"
-        onFocus={() => { clearTimeout(blurT.current); setFocus(true); setHi(0); }}
+      <Input value={value} maxLength={120} placeholder="e.g. CEO, HR & Admin" autoCapitalize="words" {...QUIET_INPUT}
+        onFocus={() => { clearTimeout(blurT.current); setFocus(true); setHi(0); setNavigated(false); }}
         onBlur={() => { blurT.current = setTimeout(() => setFocus(false), 120); }}
-        onChange={(e) => { onChange(e.target.value); setFocus(true); setHi(0); }}
+        onChange={(e) => { onChange(e.target.value); setFocus(true); setHi(0); setNavigated(false); }}
         onKeyDown={(e) => {
           if (!show) return;
-          if (e.key === "ArrowDown") { e.preventDefault(); setHi((h) => Math.min(h + 1, rows.length - 1)); }
-          else if (e.key === "ArrowUp") { e.preventDefault(); setHi((h) => Math.max(h - 1, 0)); }
-          else if (e.key === "Enter") { e.preventDefault(); pick(rows[hi]?.label ?? value); }
+          if (e.key === "ArrowDown") { e.preventDefault(); setNavigated(true); setHi((h) => Math.min(h + 1, rows.length - 1)); }
+          else if (e.key === "ArrowUp") { e.preventDefault(); setNavigated(true); setHi((h) => Math.max(h - 1, 0)); }
+          else if (e.key === "Enter") { if (navigated && rows[hi]) pick(rows[hi].label); else setFocus(false); }
           else if (e.key === "Escape") { e.stopPropagation(); setFocus(false); }
         }}
         className="h-9 rounded-lg shadow-sm focus-visible:border-brand" role="combobox" aria-expanded={show} aria-autocomplete="list" />

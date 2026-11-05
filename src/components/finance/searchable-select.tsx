@@ -117,7 +117,23 @@ export function SearchableSelect({
             data-dropdown-search
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search name, email, phone, slug…"
+            onKeyDown={(e) => {
+              if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
+              e.preventDefault();
+              const first = filtered.find((it) => !it.disabled);
+              if (first) { onChange(first.value); setOpen(false); setQ(""); } else e.currentTarget.blur();
+            }}
+            type="text"
+            enterKeyHint="search"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="none"
+            spellCheck={false}
+            data-lpignore="true"
+            data-1p-ignore="true"
+            data-form-type="other"
+            aria-label="Search options"
+            placeholder="Type to search…"
             className="h-9 w-full bg-transparent px-2 text-[13px] outline-none placeholder:text-muted-foreground"
           />
         </div>}
