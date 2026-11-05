@@ -6218,6 +6218,10 @@ export type Database = {
       }
       is_active_employee: { Args: { _user: string }; Returns: boolean }
       is_any_company_manager: { Args: { _user: string }; Returns: boolean }
+      is_company_finance_member: {
+        Args: { _company: string; _user: string }
+        Returns: boolean
+      }
       is_company_member: {
         Args: { _company: string; _user: string }
         Returns: boolean
