@@ -48,6 +48,10 @@ import { DiscardCancelButton } from "@/components/company/danger-confirm";
 import { EmailIntegrations } from "@/components/company/email-integrations";
 import { CompanySettings } from "@/components/company/company-settings";
 import { companyIdentity } from "@/lib/company-identity";
+import { ServicesEditor, toRows } from "@/components/company/company-services-section";
+import { useMutation } from "@tanstack/react-query";
+import { requestR2Upload } from "@/lib/r2.functions";
+import { Briefcase, ImageUp } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/app/companies/$slug")({
   head: () => ({
@@ -418,6 +422,7 @@ function InfoTab({ c, accent }: { c: Company; accent: string }) {
       <div className="space-y-4 lg:col-span-2">
         <IdentitySection c={c} accent={accent} />
         <ContactSection c={c} accent={accent} />
+        <ServicesSection c={c} accent={accent} />
         <AddressSection c={c} accent={accent} />
       </div>
       <section className="h-fit rounded-xl border border-border bg-card p-5 shadow-sm">
@@ -470,6 +475,7 @@ function IdentitySection({ c, accent }: { c: Company; accent: string }) {
     company_type: c.company_type ?? "",
     industry: c.industry ?? "",
     founded_year: c.founded_year ?? null,
+    logo_url: c.logo_url ?? "",
   } as Patch);
   const f = e.form as Record<string, string | number | null>;
   const valid = String(f.name ?? "").trim().length >= 2;
@@ -492,6 +498,9 @@ function IdentitySection({ c, accent }: { c: Company; accent: string }) {
     >
       {e.editing ? (
         <div className="grid gap-4 sm:grid-cols-2">
+          <FieldL label="Company logo" className="sm:col-span-2">
+            <LogoUploader value={String(f.logo_url ?? "")} name={c.name} onChange={(v) => e.set("logo_url", v)} />
+          </FieldL>
           <FieldL label="Company name *">
             <Input
               value={String(f.name ?? "")}
@@ -542,6 +551,7 @@ function IdentitySection({ c, accent }: { c: Company; accent: string }) {
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
+          <View label="Company logo" value={c.logo_url ? <span className="inline-block rounded-sm bg-[var(--company-artwork-paper)] px-2 py-1"><img src={c.logo_url} alt={c.name} className="h-8 w-auto max-w-full object-contain" /></span> : null} />
           <View label="Company name" value={c.name} />
           <View label="Tagline" value={c.tagline} />
           <View label="Company type" value={c.company_type} />
@@ -981,6 +991,93 @@ function AddressSection({ c, accent }: { c: Company; accent: string }) {
         </div>
       ) : (
         <View label="Address" value={c.address} />
+      )}
+    </Section>
+  );
+}
+
+const LOGO_TYPES = ["image/png", "image/jpeg", "image/svg+xml", "image/webp"];
+
+/** Uploads the company logo straight to the R2 bucket and returns its public URL. */
+function LogoUploader({ value, name, onChange }: { value: string; name: string; onChange: (v: string) => void }) {
+  const presign = useServerFn(requestR2Upload);
+  const up = useMutation({
+    mutationFn: async (file: File) => {
+      if (!LOGO_TYPES.includes(file.type)) throw new Error("Use a PNG, JPG, SVG or WEBP logo.");
+      if (file.size > 5 * 1024 * 1024) throw new Error("Logo must be 5 MB or smaller.");
+      const { url, publicUrl } = await presign({ data: { filename: file.name, contentType: file.type, scope: "branding" } });
+      const put = await fetch(url, { method: "PUT", headers: { "content-type": file.type }, body: file });
+      if (!put.ok) throw new Error(`Upload failed (${put.status})`);
+      if (!publicUrl) throw new Error("Storage public address is not configured.");
+      return publicUrl;
+    },
+    onSuccess: (u) => { onChange(u); toast.success("Logo uploaded — press Save to keep it"); },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Upload failed"),
+  });
+  return (
+    <div className="flex flex-wrap items-center gap-3 rounded-lg border border-dashed border-border p-3">
+      <div className="grid h-14 w-32 shrink-0 place-items-center overflow-hidden rounded-md bg-[var(--company-artwork-paper)] ring-1 ring-border">
+        {up.isPending ? <Loader2 className="size-4 animate-spin text-muted-foreground" />
+          : value ? <img src={value} alt={name} className="max-h-12 w-auto max-w-[7.5rem] object-contain" />
+          : <ImageUp className="size-5 text-muted-foreground" />}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <label className={cn("inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-border bg-card px-3 text-[12px] font-bold transition-all hover:border-brand/50 hover:text-brand active:scale-95", up.isPending && "pointer-events-none opacity-60")}>
+          <ImageUp className="size-3.5" /> {up.isPending ? "Uploading…" : value ? "Replace logo" : "Upload logo"}
+          <input type="file" accept={LOGO_TYPES.join(",")} className="sr-only" disabled={up.isPending}
+            onChange={(ev) => { const file = ev.target.files?.[0]; ev.target.value = ""; if (file) up.mutate(file); }} />
+        </label>
+        {value && !up.isPending && (
+          <Button type="button" size="sm" variant="ghost" onClick={() => onChange("")} className="h-8 gap-1 text-[12px] font-bold text-muted-foreground hover:text-destructive">
+            <Trash2 className="size-3.5" /> Remove
+          </Button>
+        )}
+      </div>
+      <p className="basis-full text-[11px] text-muted-foreground">PNG, JPG, SVG or WEBP · up to 5 MB · transparent background works best.</p>
+    </div>
+  );
+}
+
+function ServicesSection({ c, accent }: { c: Company; accent: string }) {
+  const save = useSave(c.id);
+  const saved = ((c as { services?: string[] | null }).services ?? []).filter(Boolean);
+  const [rows, setRows] = useState(() => toRows(saved));
+  const e = useEditable({ services: saved } as Patch);
+  const values = rows.map((r) => r.value.trim());
+  const valid = values.every(Boolean) && new Set(values.map((v) => v.toLowerCase())).size === values.length;
+  const dirty = JSON.stringify(values) !== JSON.stringify(saved);
+  return (
+    <Section
+      title="Services"
+      icon={Briefcase}
+      accent={accent}
+      canEdit={c.canManage}
+      editing={e.editing}
+      saving={e.saving}
+      dirty={dirty && valid}
+      onEdit={() => { setRows(toRows(saved)); e.edit(); }}
+      onCancel={() => { setRows(toRows(saved)); e.cancel(); }}
+      onSave={async () => {
+        e.setSaving(true);
+        if (await save({ services: values }, "Services saved")) e.done();
+        e.setSaving(false);
+      }}
+    >
+      {e.editing ? (
+        <div className="space-y-2">
+          <p className="text-[11.5px] text-muted-foreground">Drag to reorder. This order is used in the customer Service dropdown for {c.name}.</p>
+          <ServicesEditor rows={rows} onChange={setRows} />
+        </div>
+      ) : saved.length ? (
+        <ol className="grid gap-2 sm:grid-cols-2">
+          {saved.map((s, i) => (
+            <li key={s} className="flex items-center gap-2 rounded-lg border border-border/70 bg-muted/20 p-3 text-[13px] font-bold transition-colors hover:border-brand/30">
+              <span className="font-mono text-[11px] text-muted-foreground">{i + 1}</span> {s}
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <div className="text-[13px] font-semibold text-muted-foreground">N/A — no services added yet.</div>
       )}
     </Section>
   );
