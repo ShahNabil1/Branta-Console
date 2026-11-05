@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { CheckCircle2, Clock, Globe, KeyRound, Loader2, Lock, Radar, ShieldCheck, Unplug, Webhook, XCircle, Zap, type LucideIcon } from "lucide-react";
+import { CheckCircle2, Clock, Globe, KeyRound, Loader2, Lock, Radar, RotateCcw, ShieldCheck, Unplug, Webhook, XCircle, Zap, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DisconnectButton } from "@/components/ui/disconnect-button";
 import { ConfirmSurface } from "@/components/ui/confirm-surface";
