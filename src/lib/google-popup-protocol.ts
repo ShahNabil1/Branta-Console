@@ -1,4 +1,4 @@
-export type OAuthPopupType = "company-google-connected" | "company-cloudflare-connected";
+export type OAuthPopupType = "company-google-connected" | "company-cloudflare-connected" | "company-resend-connected";
 export type OAuthPopupResult = {
   type: OAuthPopupType;
   popupId: string;
