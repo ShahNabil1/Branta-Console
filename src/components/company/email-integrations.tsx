@@ -313,7 +313,7 @@ function ProviderPanel({
   const popupAbort = useRef<AbortController | null>(null);
   useEffect(() => () => popupAbort.current?.abort(), [slug]);
   const [checks, setChecks] = useState<TestCheck[] | null>(null);
-  const domain = v ? v.domain || v.sender_email.split("@")[1] : "";
+  const domain = data.inbox?.verified_at ? data.inbox.email.split("@")[1] : v ? v.domain || v.sender_email.split("@")[1] : "";
 
   const runTest = async (silent: boolean) => {
     if (!silent) {
