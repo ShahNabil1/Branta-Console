@@ -81,6 +81,7 @@ import { LeadFormSheet } from "@/components/leads/lead-form-sheet";
 import { followUpState } from "@/components/leads/lead-meta";
 import { useWebMCP } from "use-webmcp-tool";
 import { runWebMCPTool } from "@/lib/webmcp-telemetry";
+import { useCompanyPath } from "@/components/company/use-company-path";
 
 const PAGE_SIZE_OPTIONS = [50, 100, 150, 200] as const;
 export const leadsSearchSchema = z.object({
@@ -118,6 +119,7 @@ function initialsOf(name?: string | null) {
 
 
 export function LeadsPage() {
+  const companyPath = useCompanyPath();
   const qc = useQueryClient();
   const navigate = useNavigate();
   const list = useServerFn(listLeads);
@@ -393,7 +395,7 @@ export function LeadsPage() {
               variant="outline"
               className="hidden h-9 rounded-sm text-[12.5px] md:inline-flex"
             >
-              <Link to="/app/leads/drafts">
+              <Link to={companyPath("/app/leads/drafts") as "/app/leads/drafts"}>
                 <FileText className="mr-1.5 size-3.5" />
                 Drafts
               </Link>
