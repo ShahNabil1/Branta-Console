@@ -1,3 +1,4 @@
+import { EmployeeCompanyBadges } from "@/components/company/employee-company-badges";
 import { orgFromPath } from "@/lib/org-path";
 import { ROLE_LABEL, ROLE_NOTE, roleLabel } from "@/lib/role-access";
 import { AnimatedBorderButton } from "@/components/AnimatedBorderButton";
@@ -718,6 +719,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
               <span>{e.brantaId}</span>
               <span className="text-brand">@brantatech.com</span>
             </div>
+            <EmployeeCompanyBadges companies={e.companies ?? []} size="md" className="mt-1.5" />
             <div className="mt-1 flex flex-wrap items-center gap-2">
               <RoleBadge role={e.role} />
               <StatusBadge banned={e.isBanned} />

@@ -1,3 +1,4 @@
+import { EmployeeCompanyBadges } from "@/components/company/employee-company-badges";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ArrowUpRight, Briefcase, Mail, Phone, Plus, Search, UserPlus, Users } from "lucide-react";
 import { UnderlineTabs } from "@/components/ui/underline-tabs";
@@ -239,6 +240,7 @@ export function EmployeesDirectory({
                         No job role set
                       </span>
                     )}
+                    <EmployeeCompanyBadges companies={r.companies ?? []} className="mt-2" />
                   </div>
                   <ArrowUpRight className="size-4 shrink-0 text-muted-foreground transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-foreground" />
                 </div>
