@@ -412,6 +412,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
   const e = detail.data;
   const p = e.profile;
   const canSuperAdmin = !!admin.data?.isSuperAdmin && !isImpersonating();
+  const canJobRole = (canSuperAdmin || !!detail.data?.canEditJobRole) && !isImpersonating();
 
   const toggleRole = (r: EmployeeRole) => {
     const base = selectedRoles ?? [...e.roles];
@@ -934,7 +935,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
               <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
                 Job Role
               </div>
-              {!canSuperAdmin && (
+              {!canJobRole && (
                 <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                   <Lock className="size-3" /> Group Admin only
                 </span>
@@ -943,11 +944,11 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
             <Input
               value={jobRoleValue}
               onChange={(ev) => setJobRoleDraft(ev.target.value)}
-              disabled={!canSuperAdmin || saveJobRole.isPending}
+              disabled={!canJobRole || saveJobRole.isPending}
               placeholder="e.g. Senior Backend Engineer"
               className="h-9 rounded-sm"
             />
-            {canSuperAdmin && (
+            {canJobRole && (
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <button
                   onClick={() => saveJobRole.mutate()}
