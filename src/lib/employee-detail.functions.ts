@@ -121,7 +121,7 @@ export const getEmployeeDetail = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ userId: uuid }).parse(input))
   .handler(async ({ data, context }): Promise<EmployeeDetail> => {
-    await assertAdmin(context.supabase, context.userId);
+    if (!(await (await import("@/lib/company-scope.server")).managesEmployee(context.supabase, context.userId, data.userId))) await assertAdmin(context.supabase, context.userId);
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
     );
@@ -648,7 +648,7 @@ export const listAssignedLeads = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ userId: uuid }).parse(input))
   .handler(async ({ data, context }): Promise<AssignedLead[]> => {
-    await assertAdmin(context.supabase, context.userId);
+    if (!(await (await import("@/lib/company-scope.server")).managesEmployee(context.supabase, context.userId, data.userId))) await assertAdmin(context.supabase, context.userId);
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
     );

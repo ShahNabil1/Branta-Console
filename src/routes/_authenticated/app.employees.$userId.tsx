@@ -175,8 +175,8 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
   const revokeSessionFn = useServerFn(revokeEmployeeSession);
 
   const admin = useQuery({
-    queryKey: ["employees.admin"],
-    queryFn: () => isAdminFn(),
+    queryKey: ["employees.admin", "target", userId],
+    queryFn: () => isAdminFn({ data: { targetUserId: userId } }),
   });
 
   const detail = useQuery({

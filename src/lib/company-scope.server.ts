@@ -22,7 +22,7 @@ export async function managesEmployee(supabase: any, callerId: string, targetUse
   if (!prof) return false;
   const { data: mem } = await supabaseAdmin
     .from("company_members").select("company_id, companies!inner(is_holding)")
-    .eq("profile_id" as never, (prof as { id: string }).id).eq("is_active", true);
+    .eq("user_id", (prof as { id: string }).id).eq("is_active", true);
   for (const m of (mem ?? []) as unknown as { company_id: string; companies: { is_holding: boolean } }[]) {
     if (m.companies?.is_holding) continue;
     const { data } = await supabase.rpc("can_manage_company", { _company: m.company_id, _user: callerId });
