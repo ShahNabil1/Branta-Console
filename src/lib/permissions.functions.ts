@@ -58,6 +58,8 @@ export async function callerHasPermission(
   userId: string,
   key: keyof Omit<UserPermissions, "user_id">,
 ): Promise<boolean> {
+  const { data: ga } = await supabase.rpc("has_role", { _user_id: userId, _role: "super_admin" });
+  if (ga) return true;
   const { data } = await supabase
     .from("user_permissions")
     .select(key)

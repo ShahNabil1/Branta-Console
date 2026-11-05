@@ -1070,7 +1070,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
             } />
           </section>
           <AppAccessSection userId={userId} roles={e.roles} allowedApps={e.allowedApps} />
-          {canSuperAdmin && <PermissionsTab userId={userId} />}
+          {canSuperAdmin && <PermissionsTab userId={userId} isGA={e.roles.includes("super_admin")} />}
         </div>
       )}
 
@@ -1994,7 +1994,7 @@ const PERMISSION_ROWS: {
   },
 ];
 
-function PermissionsTab({ userId }: { userId: string }) {
+function PermissionsTab({ userId, isGA }: { userId: string; isGA?: boolean }) {
   const qc = useQueryClient();
   const getFn = useServerFn(getUserPermissions);
   const setFn = useServerFn(setUserPermission);
@@ -2061,9 +2061,9 @@ function PermissionsTab({ userId }: { userId: string }) {
           const dependsOnAccess =
             row.key === "customer_view_all" || row.key === "customer_view_detail";
           const gatedOff = dependsOnAccess && !perms.customer_access;
-          const value = gatedOff ? false : perms[row.key];
+          const value = isGA ? true : gatedOff ? false : perms[row.key];
           const pending = mut.isPending && mut.variables?.key === row.key;
-          const disabled = mut.isPending || gatedOff;
+          const disabled = isGA || mut.isPending || gatedOff;
           return (
             <li
               key={row.key}
