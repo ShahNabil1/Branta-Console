@@ -273,7 +273,7 @@ export function AppSidebar() {
         .filter((g) => (g.label === "Finance" ? financeVisible : g.items.length > 0));
     }
     return NAV.map((g) => {
-      if (g.label === "Admin" && !isAdmin) return { ...g, items: [] };
+      if (g.label === "Admin" && !isAdmin && !ceo) return { ...g, items: [] };
       if (ceo && g.label !== "Admin") return g;
       if (g.label === "Finance") return isFinance ? g : { ...g, items: [] };
       return {
