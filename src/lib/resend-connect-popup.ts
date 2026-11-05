@@ -45,7 +45,7 @@ export function connectResendInPopup(
     void start(popupId).then(({ url }) => {
       if (settled) return;
       const destination = new URL(url);
-      if (destination.origin !== "https://resend.com") throw new Error("Invalid Resend connection address.");
+      if (destination.origin !== "https://api.resend.com") throw new Error("Invalid Resend connection address.");
       popup.location.replace(destination.toString());
       popup.focus();
     }).catch((error: unknown) => finish(null, error));
