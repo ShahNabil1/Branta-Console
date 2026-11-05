@@ -1443,7 +1443,7 @@ export const testEmailProvider = createServerFn({ method: "POST" })
       const v = await f();
       return { v, ms: Date.now() - t };
     };
-    const checks: (Check & { kind: "api" | "domain" | "webhook" })[] = [];
+    const checks: (Check & { kind: "api" | "domain" | "tracking" | "webhook"; needsInput?: boolean })[] = [];
     const norm = (u: string) => (u ?? "").replace(/\/+$/, "");
 
     if (data.provider === "resend") {
@@ -1473,6 +1473,23 @@ export const testEmailProvider = createServerFn({ method: "POST" })
             ? `${domain} · ${dom.status}${dom.region ? ` · ${dom.region}` : ""}`
             : `${domain} not found in Resend`,
       });
+      if (dom) {
+        const { trackingIssues, ISSUE_LABEL } = await import("@/lib/resend-tracking");
+        const full = await m.resend(key, `/domains/${(dom as Any).id}`);
+        const issues = full.ok ? trackingIssues(full.body) : [];
+        checks.push({
+          id: "tracking",
+          kind: "tracking",
+          label: "Tracking & TLS",
+          ok: full.ok && !issues.length,
+          needsInput: issues.includes("subdomain"),
+          detail: !full.ok
+            ? `HTTP ${full.status} · could not read domain settings`
+            : issues.length
+              ? issues.map((i) => ISSUE_LABEL[i]).join(" · ")
+              : `${full.body.tracking_subdomain}.${domain} · open + click on · TLS opportunistic`,
+        });
+      }
       const w = await listRepairHooks("resend", (path, init) => m.resend(key, path, init))
         .then(hooks => ({ ok: true, status: 200, body: { data: hooks } }))
         .catch(() => ({ ok: false, status: 0, body: { data: [] } }));
