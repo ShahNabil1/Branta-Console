@@ -1,5 +1,10 @@
 # Roadmap
 
+## Provider issue repair
+- [ ] Add per-card Fix and API repair choice with OAuth/manual validated key.
+- [ ] Add company-scoped domain/tracking DNS repair and verified-result refresh.
+- [ ] Test repair rules and available button/dialog flows.
+
 ## Provider health chip accuracy
 - [x] Stop treating absent tracking results as success; retain successful silent checks and show pending/unknown states.
 - [x] Ten provider-state/tracking tests pass and build OK; real company test remains unavailable with external unmanaged auth.
