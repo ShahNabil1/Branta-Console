@@ -250,7 +250,7 @@ export const setEmployeeWorkspace = createServerFn({ method: "POST" })
     if (!co) throw new Error("Company not found.");
     if ((co.ceo_user_id === pid || co.coo_user_id === pid) && data.role !== "super_admin" && data.role !== "coo")
       throw new Error("CEO/COO always keep full access. Change the company leadership first.");
-    if (!co.is_holding && data.role !== "super_admin") {
+    if (!co.is_holding && data.role !== "super_admin" && data.role !== "coo") {
       const { data: h } = await admin.from("companies").select("id").eq("is_holding", true).maybeSingle();
       const { data: hm } = h ? await admin.from("company_members").select("role, is_active").eq("company_id", h.id).eq("user_id", pid).maybeSingle() : { data: null };
       if (hm?.is_active && hm.role === "super_admin")

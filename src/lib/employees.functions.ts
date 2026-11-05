@@ -28,7 +28,7 @@ const CreateInput = z.object({
   skipRouting: z.boolean().optional(),
   grantAdmakai: z.boolean().optional(),
   companyId: z.string().uuid(),
-  companyRole: z.enum(["member", "manager", "finance", "super_admin"]).optional(),
+  companyRole: z.enum(["member", "manager", "finance", "super_admin", "coo"]).optional(),
 });
 
 /** Checks/registers the personal Gmail as a Cloudflare destination. */
