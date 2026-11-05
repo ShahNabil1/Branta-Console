@@ -9,17 +9,18 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
-export type HoldingRole = "super_admin" | "admin" | "finance" | "manager" | "user";
+export type HoldingRole = "super_admin" | "admin" | "finance" | "manager" | "coo" | "user";
 export type CompanyRole = "member" | "manager" | "finance" | "super_admin";
 
 type Opt<T> = { value: T; label: string; note: string; icon: typeof User };
 
 const HOLDING: Opt<HoldingRole>[] = [
-  { value: "user", label: "User", note: "Works in Branta Tech only.", icon: User },
-  { value: "manager", label: "Manager", note: "Leads a Branta Tech team.", icon: Users },
-  { value: "finance", label: "Finance", note: "Customers, invoices, expenses & wallet of every company.", icon: Wallet },
-  { value: "admin", label: "Admin", note: "Full control of every company.", icon: ShieldCheck },
-  { value: "super_admin", label: "Super admin", note: "Unrestricted, every company.", icon: Crown },
+  { value: "user", label: "Executive", note: "Workspace & CRM of Branta Tech only.", icon: User },
+  { value: "manager", label: "C.E.O", note: "Full control of Branta Tech only.", icon: Users },
+  { value: "coo", label: "C.O.O", note: "Full control of Branta Tech only.", icon: Users },
+  { value: "admin", label: "HR", note: "Workspace, CRM, Expenses, Wallets & Employees of every company.", icon: ShieldCheck },
+  { value: "finance", label: "Accounts", note: "Finance & Customers of every company.", icon: Wallet },
+  { value: "super_admin", label: "Group Admin (GA)", note: "Full control of every company.", icon: Crown },
 ];
 const SISTER: Opt<CompanyRole>[] = [
   { value: "member", label: "Member", note: "Works in this company only.", icon: User },

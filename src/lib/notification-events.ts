@@ -29,9 +29,9 @@ export const NOTIFICATION_ROLES = [
 export type NotificationRole = (typeof NOTIFICATION_ROLES)[number];
 
 export const NOTIFICATION_ROLE_LABEL: Record<NotificationRole, string> = {
-  super_admin: "Super Admin",
-  admin: "Admin",
-  finance: "Finance",
+  super_admin: "Group Admin",
+  admin: "HR",
+  finance: "Accounts",
   employee: "Employee",
 };
 

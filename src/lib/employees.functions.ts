@@ -17,7 +17,7 @@ const RESERVED_LOCALS = new Set([
   "hostmaster", "webmaster", "security", "noreply", "no-reply", "mailer-daemon",
 ]);
 
-const RoleEnum = z.enum(["super_admin", "admin", "finance", "manager", "user"]);
+const RoleEnum = z.enum(["super_admin", "admin", "finance", "manager", "coo", "user"]);
 
 const CreateInput = z.object({
   local: z.string(),
@@ -129,7 +129,7 @@ export const listEmployees = createServerFn({ method: "GET" })
     const roleByUser = new Map<string, string>();
     (roles.data ?? []).forEach((r) => {
       // If user has multiple roles, prefer highest privilege for display.
-      const order = ["super_admin", "admin", "manager", "user"];
+      const order = ["super_admin", "admin", "finance", "manager", "coo", "user"];
       const existing = roleByUser.get(r.user_id);
       if (!existing || order.indexOf(r.role) < order.indexOf(existing)) {
         roleByUser.set(r.user_id, r.role);
@@ -214,7 +214,7 @@ export const createEmployee = createServerFn({ method: "POST" })
     if (!co) throw new Error("Choose a company for this employee.");
     const globalRole = co.is_holding ? data.role : "user";
     const memberRole = co.is_holding
-      ? (data.role === "super_admin" || data.role === "admin" ? "super_admin" : data.role === "finance" ? "finance" : data.role === "manager" ? "manager" : "member")
+      ? (data.role === "super_admin" || data.role === "admin" ? "super_admin" : data.role === "finance" ? "finance" : data.role === "manager" || data.role === "coo" ? "manager" : "member")
       : (data.companyRole ?? "member");
     if (!co.is_holding && memberRole === "super_admin" && !isSuperAdmin)
       throw new Error("Only a super_admin can create a company admin.");
@@ -240,7 +240,7 @@ export const createEmployee = createServerFn({ method: "POST" })
     try {
       const { error: roleErr } = await supabaseAdmin
         .from("user_roles")
-        .insert({ user_id: newUserId, role: globalRole });
+        .insert({ user_id: newUserId, role: globalRole } as never);
       if (roleErr && !/duplicate|unique/i.test(roleErr.message)) {
         throw new Error(roleErr.message);
       }

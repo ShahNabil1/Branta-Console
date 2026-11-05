@@ -122,7 +122,7 @@ function TransfersPage() {
           Not available
         </div>
         <p className="text-[12.5px] text-muted-foreground">
-          Only super admins can review lead transfer requests.
+          Only Group Admins can review lead transfer requests.
         </p>
         <Link
           to="/app/leads"
