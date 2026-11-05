@@ -118,7 +118,7 @@ export const verifyInboxRouting = createServerFn({ method: "POST" })
         await cf.companyCfApi(co.id, `/zones/${zone.id}/email/routing/rules`, {
           method: "POST",
           body: JSON.stringify({ name: `Branta Console: ${email} → ${gmail}`, enabled: true, matchers: [{ type: "literal", field: "to", value: email }], actions: [{ type: "forward", value: [gmail] }] }),
-        });
+        }).catch((e) => { if (!/already exists|duplicate/i.test(String(e?.message))) throw e; });
         steps.push({ id: "rule", label: "Routing rule", ok: true, detail: `Created ${email} → ${gmail}.` });
       } else steps.push({ id: "rule", label: "Routing rule", ok: true, detail: `${email} → ${gmail} exists.` });
     } catch (e) {
