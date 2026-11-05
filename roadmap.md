@@ -170,3 +170,9 @@
 - [ ] Sister-company Finance staff (not Branta Finance) managing their own finance — needs company-level finance permission.
 - [ ] Phase D — integration gating with zero fallback.
 - [ ] Signed-in browser test (external auth has no test session).
+
+## Customer drawer, company services & logo
+- [x] Merge employee Permissions + Workspaces into one "Workspace & Permissions" tab (UI only).
+- [x] Replace New customer popups with the one-step branded drawer (role suggestions, BD phone, source/service/currency dropdowns, discard confirmation).
+- [x] Company Info → Services (drag to reorder) feeds the Service dropdown; logo upload to R2.
+- [ ] Signed-in browser check unavailable (external unmanaged auth).
