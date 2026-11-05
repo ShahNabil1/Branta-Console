@@ -318,7 +318,14 @@ async function ensureFinanceAdmin(supabase: {
   if (data) return;
   // Company CEOs pass here; row-level rules limit them to their own company.
   const { data: ceo } = await supabase.rpc("is_any_company_manager", { _user: userId });
-  if (!ceo) throw new Error("Forbidden — finance role required");
+  if (ceo) return;
+  // Company-scoped Finance members pass; row-level rules keep them to that company.
+  const sb = supabase as unknown as { from: (t: string) => any };
+  const { data: prof } = await sb.from("profiles").select("id").eq("user_id", userId).maybeSingle();
+  const { data: fm } = prof
+    ? await sb.from("company_members").select("company_id").eq("user_id", prof.id).eq("role", "finance").eq("is_active", true).limit(1)
+    : { data: null };
+  if (!fm?.length) throw new Error("Forbidden — finance role required");
 }
 
 // Log an activity on the lead that backs an invoice's customer, so all
