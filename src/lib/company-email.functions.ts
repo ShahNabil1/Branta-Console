@@ -1489,6 +1489,9 @@ export const testEmailProvider = createServerFn({ method: "POST" })
               ? issues.map((i) => ISSUE_LABEL[i]).join(" · ")
               : `${full.body.tracking_subdomain}.${domain} · open + click on · TLS opportunistic`,
         });
+      } else {
+        checks.push({ id: "tracking", kind: "tracking", label: "Tracking & TLS", ok: false, needsInput: false,
+          detail: "Could not check tracking settings. Fix the API and Domain issues first." });
       }
       const w = await listRepairHooks("resend", (path, init) => m.resend(key, path, init))
         .then(hooks => ({ ok: true, status: 200, body: { data: hooks } }))

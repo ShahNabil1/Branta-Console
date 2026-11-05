@@ -156,6 +156,7 @@ export async function rs(token: string, path: string, init?: { method?: string; 
       method: init?.method ?? "GET",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", "User-Agent": UA },
       body: init?.body ? JSON.stringify(init.body) : undefined,
+      signal: AbortSignal.timeout(20_000),
     });
     const text = await r.text();
     let body: Any = null;

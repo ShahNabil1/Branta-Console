@@ -1,6 +1,10 @@
 import { DisconnectButton as SharedDisconnectButton } from "@/components/ui/disconnect-button";
 import { TestLoader } from "@/components/ui/test-loader";
 import { WebhookFixButton } from "@/components/company/webhook-fix-button";
+import { ProviderRepairDialog } from "@/components/company/provider-repair-dialog";
+import { repairProviderApi, repairProviderDomain } from "@/lib/company-provider-repair.functions";
+import { startResendConnect } from "@/lib/company-resend.functions";
+import { connectResendInPopup } from "@/lib/resend-connect-popup";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -290,7 +294,7 @@ function ProviderPanel({
 }) {
   const m = META[p];
   const [flowing, setFlowing] = useState(false);
-  const configured = !flowing && !!v?.domain_verified_at;
+  const configured = !flowing && !!v;
   const connected = !flowing && !!v?.domain_verified_at && !!v?.webhook_verified_at;
   const test = useServerFn(testEmailProvider);
   const repair = useServerFn(repairCompanyWebhook);
@@ -300,6 +304,15 @@ function ProviderPanel({
   const refresh = useRefresh(slug);
   const [busy, setBusy] = useState<"test" | "def" | "fix" | null>(null);
   const fixingRef = useRef(false);
+  const [fixingKind, setFixingKind] = useState<TestCheck["kind"] | null>(null);
+  const [repairDialog, setRepairDialog] = useState<"api" | "domain" | null>(null);
+  const [repairError, setRepairError] = useState<string | null>(null);
+  const apiRepair = useServerFn(repairProviderApi);
+  const domainRepair = useServerFn(repairProviderDomain);
+  const startConnect = useServerFn(startResendConnect);
+  const qc = useQueryClient();
+  const popupAbort = useRef<AbortController | null>(null);
+  useEffect(() => () => popupAbort.current?.abort(), [slug]);
   const [checks, setChecks] = useState<TestCheck[] | null>(null);
   const domain = v ? v.domain || v.sender_email.split("@")[1] : "";
 
@@ -333,6 +346,7 @@ function ProviderPanel({
     if (fixingRef.current || busy) return;
     fixingRef.current = true;
     setBusy("fix");
+    setFixingKind("webhook");
     try {
       await repair({ data: { slug, provider: p } });
       const result = await test({ data: { slug, provider: p } });
@@ -345,6 +359,7 @@ function ProviderPanel({
     } finally {
       fixingRef.current = false;
       setBusy(null);
+      setFixingKind(null);
     }
   };
   const fixTracking = async (needsInput?: boolean) => {
@@ -353,6 +368,7 @@ function ProviderPanel({
     if (needsInput && !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(v)) { toast.error("Use letters, numbers and dashes only."); return; }
     fixingRef.current = true;
     setBusy("fix");
+    setFixingKind("tracking");
     try {
       const r = await fixTrack({ data: { slug, subdomain: needsInput ? v : undefined } });
       const result = await test({ data: { slug, provider: p } });
@@ -365,7 +381,43 @@ function ProviderPanel({
     } finally {
       fixingRef.current = false;
       setBusy(null);
+      setFixingKind(null);
     }
+  };
+  const openRepair = (kind: "api" | "domain") => { setRepairError(null); setRepairDialog(kind); };
+  const fixApi = async (mode: "oauth" | "manual", apiKey?: string) => {
+    if (fixingRef.current || busy) return;
+    fixingRef.current = true; setBusy("fix"); setFixingKind("api"); setRepairError(null);
+    try {
+      if (mode === "oauth") {
+        const controller = new AbortController(); popupAbort.current = controller;
+        const result = await connectResendInPopup(slug, popupId => startConnect({ data: { slug, popupId } }), controller.signal);
+        if (result?.status !== "ok") throw new Error(result?.status === "error" ? result.message || "Resend connection failed." : "Resend connection was cancelled.");
+      }
+      await apiRepair({ data: { slug, provider: p, mode, ...(apiKey ? { apiKey } : {}) } });
+      await repair({ data: { slug, provider: p } });
+      const result = await test({ data: { slug, provider: p } });
+      setChecks(result.checks);
+      await refresh();
+      setRepairDialog(null);
+      toast.success(`${m.name} API repaired.`);
+    } catch (e) { setRepairError(err(e)); }
+    finally { fixingRef.current = false; setBusy(null); setFixingKind(null); }
+  };
+  const fixDomain = async (subdomain: string) => {
+    if (fixingRef.current || busy) return;
+    fixingRef.current = true; setBusy("fix"); setFixingKind("domain"); setRepairError(null);
+    try {
+      const result = await domainRepair({ data: { slug, provider: p, subdomain } });
+      const health = await test({ data: { slug, provider: p } });
+      setChecks(health.checks);
+      await refresh();
+      setRepairDialog(null);
+      if (result.ok) toast.success(result.detail);
+      else if (result.pending) toast.message(result.detail);
+      else toast.error(result.detail);
+    } catch (e) { setRepairError(err(e)); }
+    finally { fixingRef.current = false; setBusy(null); setFixingKind(null); }
   };
   const chips =
     p === "resend"
@@ -537,10 +589,13 @@ function ProviderPanel({
                     </div>
                   </div>
                   {c.kind === "webhook" && !c.ok && (
-                    <WebhookFixButton fixing={busy === "fix"} disabled={locked || !!busy} onClick={() => void fixWebhook()} />
+                    <WebhookFixButton fixing={fixingKind === "webhook"} disabled={locked || !!busy} onClick={() => void fixWebhook()} />
                   )}
                   {c.kind === "tracking" && !c.ok && (
-                    <WebhookFixButton fixing={busy === "fix"} disabled={locked || !!busy} onClick={() => void fixTracking(c.needsInput)} />
+                    <WebhookFixButton fixing={fixingKind === "tracking"} disabled={locked || !!busy} onClick={() => void fixTracking(c.needsInput)} />
+                  )}
+                  {(c.kind === "api" || c.kind === "domain") && !c.ok && (
+                    <WebhookFixButton fixing={fixingKind === c.kind} disabled={locked || !!busy} onClick={() => { if (c.kind === "api" || c.kind === "domain") openRepair(c.kind); }} />
                   )}
                 </div>
                 <p className="relative mt-2 break-words text-[11.5px] font-semibold text-muted-foreground">
@@ -559,6 +614,8 @@ function ProviderPanel({
       )}
 
       {p === "resend" && connected && <FinanceSender slug={slug} v={v!} />}
+
+      {repairDialog && <ProviderRepairDialog kind={repairDialog} provider={p} domain={domain} busy={!!busy} error={repairError} onClose={() => setRepairDialog(null)} onApi={(mode, key) => void fixApi(mode, key)} onDomain={value => void fixDomain(value)} />}
 
     </div>
   );
