@@ -39,7 +39,7 @@ export function CompanyFundPreview({ ctx, amount, currency }: { ctx: Extract<Ctx
       ) : (
         <>
           <div className="grid grid-cols-3 gap-2">
-            {([["Invoice total", amount], ["Fixed off", fixedTotal], ["Shared by %", net]] as const).map(([l, v]) => (
+            {([["Net distributable", amount], ["Fixed off", fixedTotal], ["Shared by %", net]] as const).map(([l, v]) => (
               <div key={l} className="rounded-lg border border-border/70 bg-muted/20 px-3 py-2">
                 <div className="text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground">{l}</div>
                 <div className="mt-0.5 truncate font-mono text-[13px] font-bold">{fmt(v, currency)}</div>

@@ -820,7 +820,7 @@ function EditInvoiceDialog({
 
           {sisterCtx && (
             <section className="rounded-sm border border-border p-3">
-              <CompanyFundPreview ctx={sisterCtx} amount={totalNum} currency={currency} />
+              <CompanyFundPreview ctx={sisterCtx} amount={Math.max(totalNum - costSum, 0)} currency={currency} />
             </section>
           )}
           {!sisterCtx && fundLedger && plans && (
