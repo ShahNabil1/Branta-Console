@@ -56,42 +56,6 @@ export const getWalletV2 = createServerFn({ method: "GET" })
     };
   });
 
-export const requestWalletWithdrawal = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({
-    amount: z.number().positive(), currency: z.string().default("BDT"),
-    payment_method_id: z.string().nullable(), payment_method_snapshot: z.any().nullable(), note: z.string().max(500).optional(),
-  }).parse(d))
-  .handler(async ({ data, context }) => {
-    const { data: id, error } = await (context.supabase as any).rpc("wallet_request_withdrawal", {
-      _amount: data.amount, _currency: data.currency, _method_id: data.payment_method_id, _snapshot: data.payment_method_snapshot, _note: data.note ?? null,
-    });
-    if (error) throw dbError(error);
-    return { id: id as string };
-  });
-
-export const setWalletWithdrawalStatus = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({
-    id: z.string().uuid(), status: z.enum(["approved", "rejected", "paid", "cancelled"]),
-    note: z.string().max(500).optional(), ref: z.string().max(200).optional(),
-  }).parse(d))
-  .handler(async ({ data, context }) => {
-    const { error } = await (context.supabase as any).rpc("wallet_withdrawal_set_status", {
-      _id: data.id, _status: data.status, _note: data.note ?? null, _ref: data.ref ?? null,
-    });
-    if (error) throw dbError(error);
-    return { ok: true };
-  });
-
-export const listAllWalletWithdrawals = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { data, error } = await (context.supabase as any).from("wallet_withdrawals").select("*").order("requested_at", { ascending: false }).limit(500);
-    if (error) throw dbError(error);
-    return ((data ?? []) as any[]).map((x) => ({ ...x, amount: Number(x.amount) })) as WalletWithdrawalV2[];
-  });
-
 /** Finance → Employee Wallets overview. */
 export const getWalletsOverview = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])

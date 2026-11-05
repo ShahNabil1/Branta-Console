@@ -5,8 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import {
-  getWalletsOverview, getWalletReconciliation, listAllWalletWithdrawals,
-  setWalletWithdrawalStatus, postWalletEntry, legacyPendingAction,
+  getWalletsOverview, getWalletReconciliation, postWalletEntry, legacyPendingAction,
 } from "@/lib/wallet-ledger.functions";
 import { WalletLedgerView, WalletEntriesTable, TYPE_LABEL } from "@/components/finance/wallet-ledger-view";
 import { PeriodFilter, Stat, money, periodRange, inRange, type Period } from "@/components/finance/wallet-statement";
@@ -18,9 +17,9 @@ export const Route = createFileRoute("/_authenticated/app/finance/employee-walle
   head: () => ({
     meta: [
       { title: "Employee Wallets · Branta Console" },
-      { name: "description", content: "Unified employee wallet ledger: balances, statements, withdrawals and reconciliation." },
+      { name: "description", content: "Unified employee wallet ledger: balances, statements and reconciliation." },
       { property: "og:title", content: "Employee Wallets · Branta Console" },
-      { property: "og:description", content: "Unified employee wallet ledger: balances, statements, withdrawals and reconciliation." },
+      { property: "og:description", content: "Unified employee wallet ledger: balances, statements and reconciliation." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -28,8 +27,8 @@ export const Route = createFileRoute("/_authenticated/app/finance/employee-walle
   component: Page,
 });
 
-type Tab = "wallets" | "withdrawals" | "reconciliation" | "entry";
-const TABS: [Tab, string][] = [["wallets", "Wallets"], ["withdrawals", "Withdrawals"], ["reconciliation", "Reconciliation"], ["entry", "Post entry"]];
+type Tab = "wallets" | "reconciliation" | "entry";
+const TABS: [Tab, string][] = [["wallets", "Wallets"], ["reconciliation", "Reconciliation"], ["entry", "Post entry"]];
 
 function Page() {
   const [tab, setTab] = useState<Tab>("wallets");
@@ -50,7 +49,6 @@ function Page() {
       </div>
       {q.error && <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-[12px] text-destructive">{(q.error as Error).message}</div>}
       {tab === "wallets" && <WalletsTab data={q.data} loading={q.isLoading} nameOf={nameOf} />}
-      {tab === "withdrawals" && <WithdrawalsTab nameOf={nameOf} />}
       {tab === "reconciliation" && <ReconTab nameOf={nameOf} committed={q.data?.employeeFundCommitted ?? 0} />}
       {tab === "entry" && <EntryTab emps={emps} />}
     </div>
@@ -119,52 +117,6 @@ function WalletsTab({ data, loading, nameOf }: { data: any; loading: boolean; na
         <WalletEntriesTable rows={filtered} showEmployee nameOf={nameOf} canReverse />
       </section>
     </div>
-  );
-}
-
-function WithdrawalsTab({ nameOf }: { nameOf: (id: string) => string }) {
-  const qc = useQueryClient();
-  const fn = useServerFn(listAllWalletWithdrawals);
-  const q = useQuery({ queryKey: ["wallet-v2", "withdrawals"], queryFn: () => fn() });
-  const set = useServerFn(setWalletWithdrawalStatus);
-  const m = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: "approved" | "rejected" | "paid" }) => {
-      let note: string | undefined, ref: string | undefined;
-      if (status === "rejected") { note = window.prompt("Reason for rejection (at least 5 characters)")?.trim(); if (!note) throw new Error("Cancelled"); }
-      if (status === "paid") { ref = window.prompt("Transfer reference (optional)")?.trim() || undefined; }
-      await set({ data: { id, status, note, ref } });
-    },
-    onSuccess: () => { toast.success("Updated"); void qc.invalidateQueries({ queryKey: ["wallet-v2"] }); void qc.invalidateQueries({ queryKey: ["wallets-overview"] }); },
-    onError: (e) => { if ((e as Error).message !== "Cancelled") toast.error((e as Error).message); },
-  });
-  return (
-    <section className="overflow-x-auto rounded-md border border-border bg-card">
-      <table className="w-full min-w-[800px] text-[12px]">
-        <thead className="text-left text-[10.5px] uppercase tracking-wider text-muted-foreground">
-          <tr><th className="px-3 py-2">Requested</th><th className="px-3 py-2">Employee</th><th className="px-3 py-2 text-right">Amount</th><th className="px-3 py-2">Method</th><th className="px-3 py-2">Status</th><th className="px-3 py-2">Ref</th><th className="px-3 py-2 text-right">Actions</th></tr>
-        </thead>
-        <tbody>
-          {(q.data ?? []).length === 0 ? <tr><td colSpan={7} className="px-3 py-8 text-center text-muted-foreground">No withdrawals on the new wallet yet. Legacy requests stay under Finance → Withdrawals.</td></tr>
-          : q.data!.map((w) => (
-            <tr key={w.id} className="border-t border-border">
-              <td className="px-3 py-2 text-muted-foreground">{new Date(w.requested_at).toLocaleString()}</td>
-              <td className="px-3 py-2">{nameOf(w.employee_id)}</td>
-              <td className="px-3 py-2 text-right font-mono">{money(w.amount, w.currency)}</td>
-              <td className="px-3 py-2 text-muted-foreground">{w.payment_method_snapshot?.label ?? "—"} {w.payment_method_snapshot?.account ?? ""}</td>
-              <td className="px-3 py-2 capitalize">{w.status}</td>
-              <td className="px-3 py-2 font-mono text-muted-foreground">{w.transfer_ref ?? "—"}</td>
-              <td className="space-x-1 px-3 py-2 text-right">
-                {w.status === "requested" && <Button size="sm" variant="outline" className="h-7 rounded-sm text-[11px]" onClick={() => m.mutate({ id: w.id, status: "approved" })}>Approve</Button>}
-                {["requested", "approved"].includes(w.status) && <>
-                  <Button size="sm" className="h-7 rounded-sm text-[11px]" onClick={() => m.mutate({ id: w.id, status: "paid" })}>Mark paid</Button>
-                  <Button size="sm" variant="ghost" className="h-7 rounded-sm text-[11px] text-destructive" onClick={() => m.mutate({ id: w.id, status: "rejected" })}>Reject</Button>
-                </>}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </section>
   );
 }
 
