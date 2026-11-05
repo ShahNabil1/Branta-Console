@@ -996,14 +996,31 @@ function AddressSection({ c, accent }: { c: Company; accent: string }) {
   );
 }
 
-const LOGO_TYPES = ["image/png", "image/jpeg", "image/svg+xml", "image/webp"];
+/** Image formats the logo uploader accepts — video, PDF, ZIP/APK and other non-images stay out. */
+const IMAGE_TYPES = new Set([
+  "image/png", "image/jpeg", "image/pjpeg", "image/webp", "image/gif", "image/apng",
+  "image/svg+xml", "image/avif", "image/bmp", "image/x-ms-bmp", "image/heic", "image/heif",
+  "image/tiff", "image/x-icon", "image/vnd.microsoft.icon",
+]);
+const IMAGE_EXTS = /\.(png|jpe?g|jfif|pjpe?g|webp|gif|svg|avif|bmp|dib|heic|heif|hif|tiff?|ico|apng)$/i;
+const IMAGE_ACCEPT = "image/*,.heic,.heif,.hif,.jfif,.tif,.tiff,.svg,.avif,.bmp,.ico,.gif";
+const isImageFile = (f: File) => IMAGE_TYPES.has(f.type) || (!f.type && IMAGE_EXTS.test(f.name));
+
+/** Extension label for previews the browser cannot render (HEIC, TIFF…). */
+const previewExt = (u: string) => {
+  const clean = u.split(/[?#]/)[0];
+  const ext = clean.slice(clean.lastIndexOf(".") + 1).toUpperCase();
+  return ext || "IMAGE";
+};
 
 /** Uploads the company logo straight to the R2 bucket and returns its public URL. */
 function LogoUploader({ value, name, onChange }: { value: string; name: string; onChange: (v: string) => void }) {
   const presign = useServerFn(requestR2Upload);
+  const [broken, setBroken] = useState(false);
+  useEffect(() => setBroken(false), [value]);
   const up = useMutation({
     mutationFn: async (file: File) => {
-      if (!LOGO_TYPES.includes(file.type)) throw new Error("Use a PNG, JPG, SVG or WEBP logo.");
+      if (!isImageFile(file)) throw new Error("Use an image file (JPG, PNG, WEBP, SVG, GIF, HEIC…). Video, PDF, ZIP and APK are not logos.");
       if (file.size > 5 * 1024 * 1024) throw new Error("Logo must be 5 MB or smaller.");
       const { url, publicUrl } = await presign({ data: { filename: file.name, contentType: file.type, scope: "branding" } });
       const put = await fetch(url, { method: "PUT", headers: { "content-type": file.type }, body: file });
@@ -1018,13 +1035,15 @@ function LogoUploader({ value, name, onChange }: { value: string; name: string; 
     <div className="flex flex-wrap items-center gap-3 rounded-lg border border-dashed border-border p-3">
       <div className="grid h-14 w-32 shrink-0 place-items-center overflow-hidden rounded-md bg-[var(--company-artwork-paper)] ring-1 ring-border">
         {up.isPending ? <Loader2 className="size-4 animate-spin text-muted-foreground" />
-          : value ? <img src={value} alt={name} className="max-h-12 w-auto max-w-[7.5rem] object-contain" />
+          : value ? (broken
+            ? <span className="max-w-[7rem] truncate rounded bg-muted px-2 py-1 text-[10px] font-bold text-muted-foreground">{previewExt(value)}</span>
+            : <img src={value} alt={name} className="max-h-12 w-auto max-w-[7.5rem] object-contain" onError={() => setBroken(true)} />)
           : <ImageUp className="size-5 text-muted-foreground" />}
       </div>
       <div className="flex flex-wrap gap-2">
         <label className={cn("inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-border bg-card px-3 text-[12px] font-bold transition-all hover:border-brand/50 hover:text-brand active:scale-95", up.isPending && "pointer-events-none opacity-60")}>
           <ImageUp className="size-3.5" /> {up.isPending ? "Uploading…" : value ? "Replace logo" : "Upload logo"}
-          <input type="file" accept={LOGO_TYPES.join(",")} className="sr-only" disabled={up.isPending}
+          <input type="file" accept={IMAGE_ACCEPT} className="sr-only" disabled={up.isPending}
             onChange={(ev) => { const file = ev.target.files?.[0]; ev.target.value = ""; if (file) up.mutate(file); }} />
         </label>
         {value && !up.isPending && (
@@ -1033,7 +1052,7 @@ function LogoUploader({ value, name, onChange }: { value: string; name: string; 
           </Button>
         )}
       </div>
-      <p className="basis-full text-[11px] text-muted-foreground">PNG, JPG, SVG or WEBP · up to 5 MB · transparent background works best.</p>
+      <p className="basis-full text-[11px] text-muted-foreground">All image formats — JPG, PNG, WEBP, SVG, GIF, HEIC… · up to 5 MB · transparent background works best.</p>
     </div>
   );
 }
