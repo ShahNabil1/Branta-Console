@@ -29,7 +29,10 @@ export function useActiveCompany() {
   const list = q.data ?? [];
   const org = orgFromPath(pathname);
   const holding = list.find((c) => c.is_holding);
-  const active = (org ? list.find((c) => c.slug === org) : holding)
+  // Personal pages (profile, wallet, security) belong to no company: keep the current workspace.
+  const personal = /^\/app\/profile(\/|$)/.test(pathname);
+  const current = personal ? list.find((c) => c.slug === stored) : undefined;
+  const active = (org ? list.find((c) => c.slug === org) : current ?? holding)
     ?? list.find((c) => c.slug === stored) ?? list[0] ?? null;
   return { active, list, isLoading: q.isLoading };
 }
