@@ -51,6 +51,7 @@ import { waNumberFromUrl } from "@/components/profile/social-link-rules";
 import { BadgeCheck, Phone } from "lucide-react";
 import { EmployeePager } from "@/components/employee/employee-pager";
 import { WorkspaceAccess } from "@/components/employee/workspace-access";
+import { CompanyRolesBox } from "@/components/employee/company-roles-box";
 import { DrawerHero } from "@/components/branta/page-hero";
 import { Building2 } from "lucide-react";
 import { useConfirm } from "@/components/ui/confirm-dialog";
@@ -1040,6 +1041,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
                 </div>
               )}
             </div>
+            <CompanyRolesBox userId={userId} holding={
             <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
               {ROLE_OPTIONS.map((r) => {
                 const active = roles.includes(r.value);
@@ -1065,6 +1067,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
                 );
               })}
             </div>
+            } />
           </section>
           <AppAccessSection userId={userId} roles={e.roles} allowedApps={e.allowedApps} />
           {canSuperAdmin && <PermissionsTab userId={userId} />}
