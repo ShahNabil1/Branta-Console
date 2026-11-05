@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useRouterState } from "@tanstack/react-router";
+import { orgFromPath } from "@/lib/org-path";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -10,15 +11,19 @@ import { cn } from "@/lib/utils";
 export function EmployeePager({ segment }: { segment: string }) {
   const navigate = useNavigate();
   const listFn = useServerFn(listEmployees);
-  const q = useQuery({ queryKey: ["employees.list"], queryFn: () => listFn(), staleTime: 60_000 });
+  const org = orgFromPath(useRouterState({ select: (s) => s.location.pathname }));
+  // Inside a sister company, only switch between that company's own employees.
+  const q = useQuery({ queryKey: ["employees.list", org ?? "all"], queryFn: () => listFn({ data: { companySlug: org ?? undefined } }), staleTime: 60_000 });
   const list = useMemo(
-    () => [...(q.data ?? [])].sort((a, b) => (a.fullName || a.brantaId).localeCompare(b.fullName || b.brantaId)),
-    [q.data],
+    () => [...(q.data ?? [])].filter((r) => !org || !["super_admin", "admin", "finance"].includes(r.role)).sort((a, b) => (a.fullName || a.brantaId).localeCompare(b.fullName || b.brantaId)),
+    [q.data, org],
   );
   const idx = list.findIndex((r) => r.userId === segment || r.brantaId === segment);
   const prev = idx > 0 ? list[idx - 1] : null;
   const next = idx >= 0 && idx < list.length - 1 ? list[idx + 1] : null;
-  const go = (r: (typeof list)[number] | null) => r && navigate({ to: "/app/employees/$userId", params: { userId: r.brantaId || r.userId } });
+  const go = (r: (typeof list)[number] | null) => r && (org
+    ? navigate({ to: "/app/org/$org/employees/$userId", params: { org, userId: r.brantaId || r.userId } })
+    : navigate({ to: "/app/employees/$userId", params: { userId: r.brantaId || r.userId } }));
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
