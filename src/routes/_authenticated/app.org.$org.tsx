@@ -1,4 +1,6 @@
-import { createFileRoute, Link, Navigate, Outlet } from "@tanstack/react-router";
+import type { MouseEvent } from "react";
+import { createFileRoute, Link, Navigate, Outlet, useNavigate } from "@tanstack/react-router";
+import { isOrgScoped, orgFromPath, toCompanyPath } from "@/lib/org-path";
 import { Loader2 } from "lucide-react";
 import { useCompanies } from "@/components/company/company-switcher";
 
@@ -12,6 +14,19 @@ function OrgLayout() {
   const { org } = Route.useParams();
   const q = useCompanies();
   const company = (q.data ?? []).find((c) => c.slug === org);
+  const navigate = useNavigate();
+
+  // Shared pages link to plain /app/... URLs; inside a sister workspace every such
+  // company-page link stays in this company (preventDefault stops Link's own navigation).
+  const keepInCompany = (e: MouseEvent) => {
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    const a = (e.target as HTMLElement).closest?.("a[href]") as HTMLAnchorElement | null;
+    if (!a || (a.target && a.target !== "_self")) return;
+    const url = new URL(a.href, window.location.href);
+    if (url.origin !== window.location.origin || orgFromPath(url.pathname) || !isOrgScoped(url.pathname)) return;
+    e.preventDefault();
+    navigate({ href: toCompanyPath(url.pathname, org, false) + url.search + url.hash });
+  };
 
   if (q.isLoading) return <div className="grid h-full place-items-center text-muted-foreground"><Loader2 className="size-4 animate-spin" /></div>;
   if (!company) {
@@ -26,5 +41,5 @@ function OrgLayout() {
     );
   }
   if (company.is_holding) return <Navigate to="/app" replace />;
-  return <Outlet />;
+  return <div className="contents" onClickCapture={keepInCompany}><Outlet /></div>;
 }
