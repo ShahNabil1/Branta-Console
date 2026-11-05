@@ -87,7 +87,8 @@ export const listEmployees = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ companySlug: z.string().trim().min(1).max(80).optional() }).parse(d ?? {}))
   .handler(async ({ data: input, context }): Promise<EmployeeRow[]> => {
-    await assertAdmin(context.supabase, context.userId);
+    if (!(await managesCompany(context.supabase, context.userId, input.companySlug)))
+      await assertAdmin(context.supabase, context.userId);
 
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
@@ -415,9 +416,20 @@ export const syncRecentEmailEvents = createServerFn({ method: "POST" })
     return syncRecentBrevoEmailEvents({ limit: 100 });
   });
 
+/** True when the caller is CEO/COO (can_manage_company) of the given sister company. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function managesCompany(supabase: any, userId: string, slug?: string) {
+  if (!slug) return false;
+  const { data: co } = await supabase.from("companies").select("id, is_holding").eq("slug", slug).maybeSingle();
+  if (!co || co.is_holding) return false;
+  const { data } = await supabase.rpc("can_manage_company", { _company: co.id, _user: userId });
+  return !!data;
+}
+
 export const checkIsAdmin = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((d: unknown) => z.object({ companySlug: z.string().trim().min(1).max(80).optional() }).parse(d ?? {}))
+  .handler(async ({ data: input, context }) => {
     const [su, ad] = await Promise.all([
       context.supabase.rpc("has_role", {
         _user_id: context.userId,
@@ -430,7 +442,7 @@ export const checkIsAdmin = createServerFn({ method: "GET" })
     ]);
     return {
       isSuperAdmin: !!su.data,
-      isAdmin: !!su.data || !!ad.data,
+      isAdmin: !!su.data || !!ad.data || (await managesCompany(context.supabase, context.userId, input.companySlug)),
     };
   });
 
