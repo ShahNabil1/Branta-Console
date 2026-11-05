@@ -569,14 +569,23 @@ function DisconnectButton({ p, slug, v }: { p: P; slug: string; v: ProviderView 
   const [hooks, setHooks] = useState<{ id: string; address: string }[] | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const loadPreview = async () => {
+    if (busy) return;
     setBusy("preview");
     setHooks(null);
     setPreviewError(null);
+    let timeout: ReturnType<typeof setTimeout> | undefined;
     try {
-      setHooks((await previewDisconnect({ data: { slug, provider: p } })).hooks);
+      const result = await Promise.race([
+        previewDisconnect({ data: { slug, provider: p } }),
+        new Promise<never>((_, reject) => {
+          timeout = setTimeout(() => reject(new Error("The webhook check timed out. Please retry.")), 30_000);
+        }),
+      ]);
+      setHooks(result.hooks);
     } catch (e) {
       setPreviewError(err(e));
     } finally {
+      clearTimeout(timeout);
       setBusy(null);
     }
   };
@@ -594,14 +603,16 @@ function DisconnectButton({ p, slug, v }: { p: P; slug: string; v: ProviderView 
         icon={Unplug}
         title={`Disconnect ${META[p].name}?`}
         subject={`${v.sender_name} <${v.sender_email}>`}
-        busy={busy === "dc"}
-        confirmLabel="Disconnect"
+        busy={!!busy}
+        confirmLabel={busy === "preview" ? "Checking…" : busy === "dc" ? "Disconnecting…" : previewError ? "Retry" : "Disconnect"}
         cancelLabel="Keep it"
         points={
-          busy === "preview" || hooks === null
+          busy === "preview"
             ? [`Checking ${META[p].name} webhooks…`]
             : previewError
               ? [previewError]
+              : hooks === null
+                ? ["Check the company webhooks before disconnecting."]
               : [
                   hooks.length
                     ? `Removes ${hooks.length} Branta Tech webhook(s): ${hooks.map((h) => h.address).join(", ")}`
@@ -615,6 +626,7 @@ function DisconnectButton({ p, slug, v }: { p: P; slug: string; v: ProviderView 
         }
         onCancel={() => setConfirm(false)}
         onConfirm={() => {
+          if (busy) return;
           if (hooks === null || previewError) {
             void loadPreview();
             return;

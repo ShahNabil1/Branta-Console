@@ -75,8 +75,7 @@
   opacity: 0.55;
 }
 
-.animated-border-button[data-animate="false"] .abb-highlight,
-.animated-border-button:disabled .abb-highlight {
+.animated-border-button[data-animate="false"] .abb-highlight {
   animation: none;
   stroke-dasharray: none;
 }
