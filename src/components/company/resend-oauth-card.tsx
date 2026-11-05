@@ -34,21 +34,16 @@ export function ResendOAuthCard({ slug, companyName, onReady }: { slug: string; 
   const q = useQuery({ queryKey: ["company-resend-oauth", slug], queryFn: () => get({ data: { slug } }) });
   const [busy, setBusy] = useState<"connect" | "setup" | "disc" | null>(null);
   const [confirm, setConfirm] = useState(false);
-  const [domain, setDomain] = useState("");
-  const [local, setLocal] = useState("hello");
-  const [name, setName] = useState(companyName);
   const [steps, setSteps] = useState<Partial<Record<SetupStage, SetupStep>>>({});
   const [running, setRunning] = useState<SetupStage | null>(null);
   const abort = useRef<AbortController | null>(null);
+  const auto = useRef(false);
   useEffect(() => () => abort.current?.abort(), [slug]);
   const a = q.data?.account ?? null;
+  const inbox = q.data?.inbox ?? null;
+  const ready = !!q.data?.providerReady;
   const found = q.data?.domains ?? [];
-  useEffect(() => {
-    const pick = a?.domain || found.find((x) => x.status === "verified")?.name || found[0]?.name;
-    if (pick && !domain) setDomain(pick);
-    if (a?.setup) setSteps(a.setup);
-  }, [a?.domain, found.length]); // eslint-disable-line react-hooks/exhaustive-deps
-  const match = found.find((x) => x.name === domain.trim().toLowerCase());
+  const verified = !!inbox && found.some((x) => x.name === inbox.domain && x.status === "verified");
   const refresh = () => qc.invalidateQueries({ queryKey: ["company-resend-oauth", slug] });
 
   const connect = async () => {
@@ -58,42 +53,44 @@ export function ResendOAuthCard({ slug, companyName, onReady }: { slug: string; 
     try {
       const r = await connectResendInPopup(slug, (popupId) => start({ data: { slug, popupId } }), c.signal);
       if (c.signal.aborted) return;
-      if (r?.status === "ok") { await refresh(); toast.success("Resend account connected."); }
+      if (r?.status === "ok") { auto.current = false; await refresh(); toast.success("Resend account connected."); }
       else if (r?.status === "error") toast.error(r.message || "Resend connection failed.");
     } catch (e) { if (!c.signal.aborted) toast.error(err(e)); }
     finally { if (!c.signal.aborted) setBusy(null); }
   };
 
-  const runAll = async () => {
-    const d = domain.trim().toLowerCase();
-    const input = { slug, domain: d, senderEmail: `${local.trim().toLowerCase()}@${d}`, senderName: name.trim() };
+  const runAll = async (onlyKeys: boolean) => {
     setBusy("setup"); setSteps({});
     try {
-      for (const s of STAGES) {
+      for (const s of STAGES.filter((x) => !onlyKeys || x.id === "key" || x.id === "webhook")) {
         setRunning(s.id);
-        let r = await setup({ data: { ...input, stage: s.id } });
-        // DNS needs a moment to reach Resend: re-check verification for up to ~2 minutes.
+        let r = await setup({ data: { slug, stage: s.id } });
         for (let i = 0; s.id === "verify" && r.pending && i < 8; i++) {
           setSteps((p) => ({ ...p, verify: r }));
           await sleep(15_000);
-          r = await setup({ data: { ...input, stage: "verify" } });
+          r = await setup({ data: { slug, stage: "verify" } });
         }
         setSteps((p) => ({ ...p, [s.id]: r }));
         if (!r.ok) { toast.error(r.detail); return; }
       }
-      toast.success(`Resend is ready for ${input.senderEmail}.`);
+      toast.success(`Resend is ready for ${inbox?.email}.`);
       onReady?.();
     } catch (e) { toast.error(err(e)); }
     finally { setRunning(null); setBusy(null); void refresh(); }
   };
+
+  // Connected + verified Inbox address + not yet configured → set up automatically in the background.
+  useEffect(() => {
+    if (!a || !inbox || ready || busy || auto.current || q.isFetching) return;
+    auto.current = true;
+    void runAll(verified);
+  }, [a, inbox, ready, verified, busy, q.isFetching]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const runDisc = async () => {
     setBusy("disc");
     try { await disc({ data: { slug } }); setConfirm(false); setSteps({}); toast.success("Resend account disconnected."); await refresh(); }
     catch (e) { toast.error(err(e)); } finally { setBusy(null); }
   };
-
-  const valid = /^([a-z0-9-]+\.)+[a-z]{2,}$/i.test(domain.trim()) && /^[a-z0-9._+-]+$/i.test(local.trim()) && !!name.trim();
 
   return (
     <div className="relative mt-4 overflow-hidden rounded-xl border border-border bg-background p-4 transition-shadow hover:shadow-md">
@@ -109,7 +106,10 @@ export function ResendOAuthCard({ slug, companyName, onReady }: { slug: string; 
           </div>
           <p className="text-[12px] font-semibold text-muted-foreground">
             {q.isLoading ? "Loading…" : a
-              ? "Adds the domain, writes its DNS in Cloudflare, verifies it, creates the API key and the webhook."
+              ? !inbox ? "Verify the In-app Gmail Inbox Address below first — its address becomes the sender."
+                : ready ? `Ready · sending as ${inbox.name} <${inbox.email}> — manage it in the Resend card below.`
+                : busy === "setup" ? (verified ? `${inbox.domain} is already verified · creating API key and webhook…` : `Setting up ${inbox.domain}…`)
+                : `Sender ${inbox.name} <${inbox.email}>`
               : "Sign in or create a Resend account in the popup — the Console does the rest."}
           </p>
         </div>
@@ -129,33 +129,8 @@ export function ResendOAuthCard({ slug, companyName, onReady }: { slug: string; 
         )}
       </div>
 
-      {a && (
+      {a && inbox && !ready && !(verified && busy === "setup") && Object.keys(steps).length + (running ? 1 : 0) > 0 && (
         <div className="relative mt-4 space-y-3">
-          <div className="grid gap-2 sm:grid-cols-[1.2fr_1fr_1fr_auto]">
-            <Input value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="company.com" disabled={!!busy} aria-label="Sending domain" />
-            <div className="flex items-center rounded-md border border-input bg-background pr-2 focus-within:ring-1 focus-within:ring-ring">
-              <input value={local} onChange={(e) => setLocal(e.target.value)} disabled={!!busy} aria-label="Sender address" className="h-9 min-w-0 flex-1 bg-transparent px-3 text-[13px] outline-none" />
-              <span className="truncate text-[12px] font-semibold text-muted-foreground">@{domain.trim() || "domain"}</span>
-            </div>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Sender name" disabled={!!busy} aria-label="Sender name" />
-            <Button onClick={runAll} disabled={!!busy || !valid} className="gap-2">
-              <TestLoader active={busy === "setup"} /> {busy === "setup" ? "Setting up…" : "Run setup"}
-            </Button>
-          </div>
-          {found.length > 0 && (
-            <div className="flex flex-wrap items-center gap-1.5 text-[11.5px] font-semibold">
-              <span className="text-muted-foreground">Already in this Resend account:</span>
-              {found.map((x) => (
-                <button key={x.name} type="button" disabled={!!busy} onClick={() => setDomain(x.name)}
-                  className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 transition-colors",
-                    domain.trim().toLowerCase() === x.name ? "border-primary text-foreground" : "border-border text-muted-foreground hover:text-foreground")}>
-                  {x.status === "verified" ? <CheckCircle2 className="size-3 text-status-converted" /> : <Clock className="size-3" />}
-                  {x.name}
-                </button>
-              ))}
-              {match?.status === "verified" && <span className="text-status-converted">Verified — setup skips DNS and only creates the API key and webhook.</span>}
-            </div>
-          )}
           <div className="grid gap-2 sm:grid-cols-5">
             {STAGES.map((s) => {
               const st = steps[s.id];
@@ -175,7 +150,12 @@ export function ResendOAuthCard({ slug, companyName, onReady }: { slug: string; 
               );
             })}
           </div>
-          {a.last_error && !busy && <p className="text-[11.5px] font-semibold text-destructive">{a.last_error}</p>}
+          {a.last_error && !busy && (
+            <div className="flex items-center gap-2">
+              <p className="flex-1 text-[11.5px] font-semibold text-destructive">{a.last_error}</p>
+              <Button size="sm" variant="outline" onClick={() => runAll(verified)}><TestLoader active={false} /> Retry</Button>
+            </div>
+          )}
         </div>
       )}
 
