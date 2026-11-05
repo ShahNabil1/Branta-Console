@@ -188,7 +188,8 @@ export interface DeletedExpenseRow {
 /** Recycle Bin listing. Sweeps anything past its 30-day window first. */
 export const listDeletedExpenses = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<DeletedExpenseRow[]> => {
+  .inputValidator((d: unknown) => z.object({ workspace: z.string().regex(/^[a-z0-9-]{1,80}$/).nullable().optional() }).parse(d ?? {}))
+  .handler(async ({ data: input, context }): Promise<DeletedExpenseRow[]> => {
     await ensureFinance(context.supabase, context.userId);
     try {
       await (context.supabase.rpc as unknown as (n: string) => Promise<unknown>)("purge_expired_expenses");
@@ -203,11 +204,13 @@ export const listDeletedExpenses = createServerFn({ method: "GET" })
     } catch (e) {
       console.error("[listDeletedExpenses] orphan sweep failed:", e);
     }
+    const co = await (await import("@/lib/lead-company.server")).resolveLeadCompany(context.supabase, context.userId, input.workspace);
     const { data, error } = await context.supabase
       .from("expenses")
       .select(
         "id, voucher_no, category, amount, currency, spent_on, vendor, department, request_purpose, notes, deleted_at, deleted_by, delete_reason, purge_after, linked_invoice_id",
       )
+      .eq("company_id" as never, co.id as never)
       .not("deleted_at", "is", null)
       .order("deleted_at", { ascending: false })
       .limit(500);

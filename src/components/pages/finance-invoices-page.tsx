@@ -1,4 +1,5 @@
 import { useActiveCompany } from "@/components/company/company-switcher";
+import { useCompanyPath } from "@/components/company/use-company-path";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
@@ -79,7 +80,7 @@ export function InvoicesPage() {
         subtitle={`${q.data?.length ?? 0} invoice${(q.data?.length ?? 0) === 1 ? "" : "s"} · only ${company?.name ?? "this company"}'s records`}
         actions={
           <Button asChild className="gap-1.5 shadow-md shadow-brand/25 transition-all hover:-translate-y-0.5 hover:shadow-lg active:scale-95">
-            <Link to="/app/finance/invoices/new"><Plus className="size-4" /> New invoice</Link>
+            <Link to={cp("/app/finance/invoices/new") as "/app/finance/invoices/new"}><Plus className="size-4" /> New invoice</Link>
           </Button>
         }
       />
@@ -130,7 +131,7 @@ export function InvoicesPage() {
           <span className="mx-auto grid size-12 place-items-center rounded-xl bg-brand/10 text-brand"><FileText className="size-6" /></span>
           <div className="mt-3 text-[14px] font-bold">{(q.data?.length ?? 0) ? "No invoice matches these filters" : "No invoices yet"}</div>
           <p className="mt-1 text-[12.5px] text-muted-foreground">Create the first invoice for one of {company?.name ?? "this company"}'s customers.</p>
-          <Button asChild className="mt-4 gap-1.5"><Link to="/app/finance/invoices/new"><Plus className="size-4" /> New invoice</Link></Button>
+          <Button asChild className="mt-4 gap-1.5"><Link to={cp("/app/finance/invoices/new") as "/app/finance/invoices/new"}><Plus className="size-4" /> New invoice</Link></Button>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

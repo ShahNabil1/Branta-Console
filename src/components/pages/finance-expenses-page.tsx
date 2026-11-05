@@ -1,4 +1,5 @@
 import { UnderlineTabs } from "@/components/ui/underline-tabs";
+import { useCompanyPath } from "@/components/company/use-company-path";
 import { useActiveCompany } from "@/components/company/company-switcher";
 import { getCompanyFundConfig, getCompanyWallet } from "@/lib/company-wallet.functions";
 import { DiscardCancelButton } from "@/components/company/danger-confirm";
@@ -535,7 +536,7 @@ export function ExpensesPage() {
         subtitle={`${(q.data ?? []).length} expense${(q.data ?? []).length === 1 ? "" : "s"} · only ${activeCompany?.name ?? "this company"}'s outflow`}
         actions={<>
           <Button asChild variant="outline" className="gap-1.5">
-            <Link to="/app/finance/recycle-bin"><Trash2 className="size-4" /> <span className="hidden sm:inline">Recycle Bin</span></Link>
+            <Link to={cp("/app/finance/recycle-bin") as "/app/finance/recycle-bin"}><Trash2 className="size-4" /> <span className="hidden sm:inline">Recycle Bin</span></Link>
           </Button>
           <ExportMenu filters={filters} kind="expense" />
           <Button onClick={startCreate} className="gap-1.5 shadow-md shadow-brand/25 transition-all hover:-translate-y-0.5 hover:shadow-lg active:scale-95">
