@@ -36,7 +36,7 @@ export const Route = createFileRoute("/_authenticated/app/transfers")({
   }),
 });
 
-function TransfersPage() {
+export function TransfersPage({ companySlug }: { companySlug?: string } = {}) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const listFn = useServerFn(listAllTransferRequests);
@@ -55,8 +55,8 @@ function TransfersPage() {
   const [note, setNote] = useState("");
 
   const q = useQuery({
-    queryKey: ["transfers", status],
-    queryFn: () => listFn({ data: { status } }),
+    queryKey: ["transfers", status, companySlug ?? "all"],
+    queryFn: () => listFn({ data: { status, companySlug } }),
     staleTime: 5_000,
     enabled: !!permsQ.data?.isSuperAdmin,
   });

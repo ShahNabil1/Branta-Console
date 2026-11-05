@@ -191,7 +191,7 @@ const EVENT_STYLES: Record<
   },
 };
 
-function EmployeesPage() {
+export function EmployeesPage({ companySlug }: { companySlug?: string } = {}) {
   const navigate = useNavigate();
   const qc = useQueryClient();
 
@@ -205,8 +205,8 @@ function EmployeesPage() {
   });
 
   const employees = useQuery({
-    queryKey: ["employees.list"],
-    queryFn: () => listFn(),
+    queryKey: ["employees.list", companySlug ?? "all"],
+    queryFn: () => listFn({ data: { companySlug } }),
     enabled: !!admin.data?.isAdmin,
   });
 
