@@ -18,7 +18,7 @@ export const SISTER_ROLE_OPTIONS: { value: WorkspaceRole; label: string; note: s
 ];
 
 /** Roles box: one tab per switched-on company; Branta Tech shows the group roles (children). */
-export function CompanyRolesBox({ userId, holding }: { userId: string; holding: ReactNode }) {
+export function CompanyRolesBox({ userId, holding, limited }: { userId: string; holding: ReactNode; limited?: boolean }) {
   const qc = useQueryClient();
   const key = ["employee.workspaces", userId];
   const listFn = useServerFn(listEmployeeWorkspaces);
@@ -63,7 +63,7 @@ export function CompanyRolesBox({ userId, holding }: { userId: string; holding: 
       )}
       {co?.is_holding ? holding : co && (
         <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
-          {SISTER_ROLE_OPTIONS.map((r) => {
+          {SISTER_ROLE_OPTIONS.filter((r) => !limited || co.role === r.value || (r.value !== "super_admin" && r.value !== "coo")).map((r) => {
             const active = co.role === r.value;
             const locked = !!co.leader;
             const busy = m.isPending && m.variables === r.value;

@@ -1023,6 +1023,15 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
       ) : (
         <div className="space-y-4">
           <WorkspaceAccess userId={userId} />
+          {!showRbac && (
+            <section className="rounded-lg border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
+              <div className="mb-3 flex items-center gap-2">
+                <ShieldCheck className="size-4 text-brand" strokeWidth={2} />
+                <h2 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Roles & access</h2>
+              </div>
+              <CompanyRolesBox userId={userId} holding={null} limited />
+            </section>
+          )}
           {/* RBAC */}
           {showRbac && (<>          <section className="rounded-lg border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
             <div className="mb-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
