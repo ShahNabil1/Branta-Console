@@ -1,4 +1,3 @@
--- Sister-company C.O.O (company_members.role = 'coo') has the same full control as C.E.O ('super_admin').
 CREATE OR REPLACE FUNCTION public.can_manage_company(_company uuid, _user uuid)
  RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'public'
 AS $function$

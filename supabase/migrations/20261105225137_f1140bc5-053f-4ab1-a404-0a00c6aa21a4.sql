@@ -1,4 +1,3 @@
--- Employee wallet is view-only: no withdrawal requests or approvals. History rows stay.
 DO $$
 DECLARE f record;
 BEGIN
