@@ -1006,6 +1006,13 @@ const IMAGE_EXTS = /\.(png|jpe?g|jfif|pjpe?g|webp|gif|svg|avif|bmp|dib|heic|heif
 const IMAGE_ACCEPT = "image/*,.heic,.heif,.hif,.jfif,.tif,.tiff,.svg,.avif,.bmp,.ico,.gif";
 const isImageFile = (f: File) => IMAGE_TYPES.has(f.type) || (!f.type && IMAGE_EXTS.test(f.name));
 
+/** Extension label for previews the browser cannot render (HEIC, TIFF…). */
+const previewExt = (u: string) => {
+  const clean = u.split(/[?#]/)[0];
+  const ext = clean.slice(clean.lastIndexOf(".") + 1).toUpperCase();
+  return ext || "IMAGE";
+};
+
 /** Uploads the company logo straight to the R2 bucket and returns its public URL. */
 function LogoUploader({ value, name, onChange }: { value: string; name: string; onChange: (v: string) => void }) {
   const presign = useServerFn(requestR2Upload);
