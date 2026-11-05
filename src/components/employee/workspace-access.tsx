@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 const ROLES: { value: WorkspaceRole; label: string; hint: string }[] = [
   { value: "member", label: "Member", hint: "Works in this company" },
   { value: "manager", label: "Manager", hint: "Leads a team here" },
+  { value: "finance", label: "Finance", hint: "Customers, invoices, expenses & wallet here" },
   { value: "super_admin", label: "Company admin", hint: "Full control of this company" },
 ];
 
