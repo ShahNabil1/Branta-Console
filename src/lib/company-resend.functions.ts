@@ -39,7 +39,7 @@ export const getResendOAuth = createServerFn({ method: "GET" })
     let domains: { name: string; status: string }[] = [];
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const ad = supabaseAdmin as Any;
-    const { data: ib } = await ad.from("company_inbox_addresses").select("email, verified_at").eq("company_id", co.id).maybeSingle();
+    const { data: ib } = await ad.from("company_inbox_addresses").select("email, verified_at, sender_name").eq("company_id", co.id).maybeSingle();
     const { data: pv } = await ad.from("company_email_providers").select("is_active, api_key_enc, webhook_verified_at, sender_email").eq("company_id", co.id).eq("provider", "resend").maybeSingle();
     const inboxEmail = ib?.verified_at ? String(ib.email).toLowerCase() : null;
     let tracking: { ok: boolean; subdomain: string | null } = { ok: false, subdomain: null };
@@ -58,7 +58,7 @@ export const getResendOAuth = createServerFn({ method: "GET" })
     }
     return {
       domains,
-      inbox: inboxEmail ? { email: inboxEmail, domain: inboxEmail.split("@")[1], name: co.name } : null,
+      inbox: inboxEmail ? { email: inboxEmail, domain: inboxEmail.split("@")[1], name: (ib?.sender_name as string | null) || co.name } : null,
       tracking,
       providerReady: !!(pv?.is_active && pv.api_key_enc && pv.webhook_verified_at && pv.sender_email === inboxEmail && tracking.ok),
       account: connected
@@ -103,10 +103,10 @@ export const runResendSetup = createServerFn({ method: "POST" })
   .handler(async ({ data: input, context }): Promise<SetupStep> => {
     const { co, admin } = await gate(context, input.slug);
     // Sender always comes from the verified In-app Gmail Inbox Address; name from the company.
-    const { data: ib } = await admin.from("company_inbox_addresses").select("email, verified_at").eq("company_id", co.id).maybeSingle();
+    const { data: ib } = await admin.from("company_inbox_addresses").select("email, verified_at, sender_name").eq("company_id", co.id).maybeSingle();
     if (!ib?.verified_at) throw new Error("Verify the In-app Gmail Inbox Address first.");
     const senderEmail = String(ib.email).toLowerCase();
-    const data = { ...input, senderEmail, senderName: co.name, domain: senderEmail.split("@")[1] };
+    const data = { ...input, senderEmail, senderName: (ib.sender_name as string | null) || co.name, domain: senderEmail.split("@")[1] };
     const rs = await import("@/lib/company-resend.server");
     const m = await import("@/lib/company-email.server");
     const token = await rs.companyResendToken(co.id);

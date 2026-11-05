@@ -1,0 +1,1 @@
+ALTER TABLE public.company_inbox_addresses ADD COLUMN IF NOT EXISTS sender_name text;
