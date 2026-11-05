@@ -8,7 +8,8 @@ function requireOk(r: RepairResponse) {
 export async function repairResendDomain(domain: string, subdomain: string, call: Call, push: (records: any[]) => Promise<{ ok: boolean; detail: string }>) {
   const list = requireOk(await call("/domains"));
   let d = (list?.data ?? []).find((item: any) => String(item.name).toLowerCase() === domain);
-  if (!d) d = requireOk(await call("/domains", { method: "POST", body: { name: domain } }));
+  if (d && d.region && d.region !== "ap-northeast-1") { requireOk(await call(`/domains/${encodeURIComponent(d.id)}`, { method: "DELETE" })); d = null; }
+  if (!d) d = requireOk(await call("/domains", { method: "POST", body: { name: domain, region: "ap-northeast-1" } }));
   const path = `/domains/${encodeURIComponent(d.id)}`;
   d = requireOk(await call(path));
   const body: Record<string, unknown> = { open_tracking: true, click_tracking: true, tls: "opportunistic" };

@@ -15,6 +15,8 @@ export type SetupStep = { stage: SetupStage; ok: boolean; pending?: boolean; nee
 const recordsVerified = (d: any) => ((d?.records ?? []) as any[]).every((r) => String(r.status ?? "").toLowerCase() === "verified");
 /** Tracking subdomain set, open + click tracking on, TLS opportunistic. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+const RESEND_REGION = "ap-northeast-1"; // Tokyo — always
+
 export const trackingConfigured = (d: any) =>
   !!d?.tracking_subdomain && d.open_tracking === true && d.click_tracking === true && String(d.tls ?? "opportunistic") === "opportunistic";
 
@@ -133,8 +135,14 @@ export const runResendSetup = createServerFn({ method: "POST" })
 
     if (data.stage === "domain") {
       let d = await findDomain();
+      // Region is always Tokyo: a domain created elsewhere is recreated (region can't be changed in place).
+      if (d && d.region && d.region !== RESEND_REGION) {
+        const del = await rs.rs(token, `/domains/${d.id}`, { method: "DELETE" });
+        if (!del.ok) return done({ stage: "domain", ok: false, detail: perr(del) });
+        d = null;
+      }
       if (!d) {
-        const c = await rs.rs(token, "/domains", { method: "POST", body: { name: data.domain } });
+        const c = await rs.rs(token, "/domains", { method: "POST", body: { name: data.domain, region: RESEND_REGION } });
         if (!c.ok) return done({ stage: "domain", ok: false, detail: perr(c) });
         d = c.body;
       }
