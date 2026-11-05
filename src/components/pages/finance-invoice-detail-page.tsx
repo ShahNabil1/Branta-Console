@@ -725,8 +725,7 @@ function EditInvoiceDialog({
     Math.abs(instSum - totalNum) < 0.01 && (fundLedger || Math.abs(pctSum - 100) < 0.01) &&
     editInstallments.every((i) => i.label.trim() && i.due_date && Number(i.amount) > 0) &&
     (fundLedger || editStakeholders.every((s) => s.user_id && Number(s.percent) > 0)) &&
-    editCosts.every((c) => c.name.trim()) && costSum <= totalNum + 0.01 &&
-    (plans ?? []).reduce((a, p) => a + planAmount(p, empPool), 0) <= empPool + 0.005;
+    editCosts.every((c) => c.name.trim()) && costSum <= totalNum + 0.01;
   const planOver = (plans ?? []).reduce((a, p) => a + planAmount(p, empPool), 0) > empPool + 0.005;
 
   return (

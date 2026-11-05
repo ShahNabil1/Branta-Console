@@ -138,7 +138,6 @@ export function NewInvoicePage() {
     if (installments.some((i) => !(Number(i.amount) > 0))) out.push("Every installment amount must be greater than 0");
     if (projectCosts.some((c) => !c.name.trim())) out.push("Every project cost needs a name");
     if (costSum > totalNum + 0.01) out.push("Total project cost cannot exceed the invoice total");
-    if (plans.reduce((a, p) => a + planAmount(p, empPool), 0) > empPool + 0.005) out.push(EXCEEDS_MSG);
     return out;
   }, [customerId, title, totalNum, instSum, installments, projectCosts, costSum, plans, empPool]);
 
