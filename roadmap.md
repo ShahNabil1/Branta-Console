@@ -1,5 +1,11 @@
 # Roadmap
 
+## Provider issue repair
+- [x] Add per-card Fix and API repair choice with OAuth/manual validated key, then company-owned webhook repair and health recheck.
+- [x] Add company-scoped Resend/Brevo domain DNS repair, editable Resend tracking choice, confirmation and verified-result refresh.
+- [x] Sixteen repair/health/timeout/webhook tests pass; actual dialogs at 390/1280 pass OAuth/manual selection, editable tracking, confirmation and disabled pending. Build OK.
+- [ ] Verify signed-in company API/DNS repairs against real Resend/Brevo/Cloudflare accounts; external unmanaged auth has no available session.
+
 ## Provider health chip accuracy
 - [x] Stop treating absent tracking results as success; retain successful silent checks and show pending/unknown states.
 - [x] Ten provider-state/tracking tests pass and build OK; real company test remains unavailable with external unmanaged auth.
