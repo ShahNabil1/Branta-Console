@@ -41,55 +41,17 @@ export const getWalletV2 = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const sb = context.supabase as any;
     const uid = data.userId ?? context.userId;
-    const [b, s, w, lp] = await Promise.all([
+    const [b, s, lp] = await Promise.all([
       sb.rpc("wallet_balances_v2", { _user: uid }),
       sb.rpc("wallet_statement_v2", { _user: uid }),
-      sb.from("wallet_withdrawals").select("*").eq("employee_id", uid).order("requested_at", { ascending: false }),
       sb.rpc("wallet_legacy_pending", { _user: uid }),
     ]);
-    for (const r of [b, s, w, lp]) if (r.error) throw dbError(r.error);
+    for (const r of [b, s, lp]) if (r.error) throw dbError(r.error);
     return {
       balances: ((b.data ?? []) as any[]).map((x) => num(x, BAL_KEYS)) as WalletBalanceV2[],
       entries: withRunning(s.data ?? []),
-      withdrawals: ((w.data ?? []) as any[]).map((x) => ({ ...x, amount: Number(x.amount) })) as WalletWithdrawalV2[],
       legacyPending: ((lp.data ?? []) as any[]).map((x) => ({ ...x, amount: Number(x.amount) })),
     };
-  });
-
-export const requestWalletWithdrawal = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({
-    amount: z.number().positive(), currency: z.string().default("BDT"),
-    payment_method_id: z.string().nullable(), payment_method_snapshot: z.any().nullable(), note: z.string().max(500).optional(),
-  }).parse(d))
-  .handler(async ({ data, context }) => {
-    const { data: id, error } = await (context.supabase as any).rpc("wallet_request_withdrawal", {
-      _amount: data.amount, _currency: data.currency, _method_id: data.payment_method_id, _snapshot: data.payment_method_snapshot, _note: data.note ?? null,
-    });
-    if (error) throw dbError(error);
-    return { id: id as string };
-  });
-
-export const setWalletWithdrawalStatus = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({
-    id: z.string().uuid(), status: z.enum(["approved", "rejected", "paid", "cancelled"]),
-    note: z.string().max(500).optional(), ref: z.string().max(200).optional(),
-  }).parse(d))
-  .handler(async ({ data, context }) => {
-    const { error } = await (context.supabase as any).rpc("wallet_withdrawal_set_status", {
-      _id: data.id, _status: data.status, _note: data.note ?? null, _ref: data.ref ?? null,
-    });
-    if (error) throw dbError(error);
-    return { ok: true };
-  });
-
-export const listAllWalletWithdrawals = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { data, error } = await (context.supabase as any).from("wallet_withdrawals").select("*").order("requested_at", { ascending: false }).limit(500);
-    if (error) throw dbError(error);
-    return ((data ?? []) as any[]).map((x) => ({ ...x, amount: Number(x.amount) })) as WalletWithdrawalV2[];
   });
 
 /** Finance → Employee Wallets overview. */
