@@ -12,7 +12,28 @@ export type WalletTxn = {
 
 type Raw = Omit<WalletTxn, "balance">;
 
-/** Adds a running balance per user+currency (credits − withdrawal debits), in chronological order. */
+const TYPE: Record<string, string> = {
+  project_earning: "Project Earning", salary: "Salary", bonus: "Bonus", incentive: "Incentive", commission: "Commission",
+  overtime: "Overtime", adjustment_credit: "Adjustment", adjustment_debit: "Adjustment", withdrawal: "Withdrawal",
+  refund: "Refund", migration_opening_balance: "Opening Balance", correction: "Correction", reversal: "Reversal",
+};
+
+/** Maps wallet_statement_v2 (the one wallet ledger) rows to statement rows; only posted entries move the balance. */
+function fromLedger(rows: any[]): Raw[] {
+  return rows.map((r) => {
+    const posted = r.status === "posted";
+    return {
+      txn_id: r.id, user_id: r.employee_id, occurred_at: r.created_at, description: r.description ?? "—", client: r.client ?? null,
+      project: r.project ?? null, project_id: r.project_id ?? null, invoice_slug: r.invoice_slug ?? null, installment: r.installment ?? null,
+      task: r.task ?? null, txn_type: TYPE[r.transaction_type] ?? r.transaction_type, source: String(r.source_type ?? "").replace(/_/g, " "),
+      credit: posted ? Number(r.credit) : 0, debit: posted ? Number(r.debit) : 0, pending: 0,
+      status: r.transaction_type === "withdrawal" && posted ? "Paid" : posted ? "Posted" : String(r.status ?? ""),
+      reference: r.reference ?? null, currency: r.currency,
+    };
+  });
+}
+
+/** Adds a running balance per user+currency, in chronological order. */
 function withBalance(rows: Raw[]): WalletTxn[] {
   const run = new Map<string, number>();
   return rows.map((r) => {
@@ -23,14 +44,14 @@ function withBalance(rows: Raw[]): WalletTxn[] {
   });
 }
 
-/** One bank-style statement built from existing wallet records (payouts, committed Employee Fund payments, withdrawals). Own only, or anyone for Finance/Admin (enforced in DB). */
+/** Bank-style statement from the wallet ledger. Own only, or anyone for Finance/Admin (enforced in DB). */
 export const getWalletStatement = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ userId: z.string().uuid().optional() }).parse(d ?? {}))
   .handler(async ({ data, context }): Promise<WalletTxn[]> => {
-    const { data: rows, error } = await (context.supabase as any).rpc("wallet_transactions", { _user: data.userId ?? context.userId });
+    const { data: rows, error } = await (context.supabase as any).rpc("wallet_statement_v2", { _user: data.userId ?? context.userId });
     if (error) throw dbError(error);
-    return withBalance((rows ?? []) as Raw[]);
+    return withBalance(fromLedger(rows ?? []));
   });
 
 export type ProjectEmployeeCost = { project_id: string | null; project: string | null; client: string | null; allocated: number; assigned: number; committed: number; paid: number; withdrawn: number };
@@ -42,7 +63,7 @@ export const getEmployeeEarningsOverview = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const sb = context.supabase as any;
     const [tx, proj, prof] = await Promise.all([
-      sb.rpc("wallet_transactions", { _user: null }),
+      sb.rpc("wallet_statement_v2", { _user: null }),
       sb.rpc("employee_fund_project_summary"),
       sb.from("profiles").select("user_id,full_name,legal_full_name,employee_code,avatar_url").not("user_id", "is", null),
     ]);
@@ -54,5 +75,5 @@ export const getEmployeeEarningsOverview = createServerFn({ method: "GET" })
     const projects: ProjectEmployeeCost[] = ((proj.data ?? []) as any[]).map((r) => ({
       ...r, allocated: Number(r.allocated), assigned: Number(r.assigned), committed: Number(r.committed), paid: Number(r.paid), withdrawn: Number(r.withdrawn),
     }));
-    return { transactions: withBalance((tx.data ?? []) as Raw[]), projects, employees };
+    return { transactions: withBalance(fromLedger(tx.data ?? [])), projects, employees };
   });
