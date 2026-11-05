@@ -42,7 +42,13 @@ export function ResendOAuthCard({ slug, companyName, onReady }: { slug: string; 
   const abort = useRef<AbortController | null>(null);
   useEffect(() => () => abort.current?.abort(), [slug]);
   const a = q.data?.account ?? null;
-  useEffect(() => { if (a?.domain && !domain) setDomain(a.domain); if (a?.setup) setSteps(a.setup); }, [a?.domain]); // eslint-disable-line react-hooks/exhaustive-deps
+  const found = q.data?.domains ?? [];
+  useEffect(() => {
+    const pick = a?.domain || found.find((x) => x.status === "verified")?.name || found[0]?.name;
+    if (pick && !domain) setDomain(pick);
+    if (a?.setup) setSteps(a.setup);
+  }, [a?.domain, found.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  const match = found.find((x) => x.name === domain.trim().toLowerCase());
   const refresh = () => qc.invalidateQueries({ queryKey: ["company-resend-oauth", slug] });
 
   const connect = async () => {
@@ -136,6 +142,20 @@ export function ResendOAuthCard({ slug, companyName, onReady }: { slug: string; 
               <TestLoader active={busy === "setup"} /> {busy === "setup" ? "Setting up…" : "Run setup"}
             </Button>
           </div>
+          {found.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5 text-[11.5px] font-semibold">
+              <span className="text-muted-foreground">Already in this Resend account:</span>
+              {found.map((x) => (
+                <button key={x.name} type="button" disabled={!!busy} onClick={() => setDomain(x.name)}
+                  className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 transition-colors",
+                    domain.trim().toLowerCase() === x.name ? "border-primary text-foreground" : "border-border text-muted-foreground hover:text-foreground")}>
+                  {x.status === "verified" ? <CheckCircle2 className="size-3 text-status-converted" /> : <Clock className="size-3" />}
+                  {x.name}
+                </button>
+              ))}
+              {match?.status === "verified" && <span className="text-status-converted">Verified — setup skips DNS and only creates the API key and webhook.</span>}
+            </div>
+          )}
           <div className="grid gap-2 sm:grid-cols-5">
             {STAGES.map((s) => {
               const st = steps[s.id];

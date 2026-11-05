@@ -29,7 +29,16 @@ export const getResendOAuth = createServerFn({ method: "GET" })
     const rs = await import("@/lib/company-resend.server");
     const a = await rs.getAccount(co.id);
     const connected = !!(a?.is_active && a.refresh_token_enc);
+    let domains: { name: string; status: string }[] = [];
+    if (connected) {
+      const token = await rs.companyResendToken(co.id).catch(() => null);
+      if (token) {
+        const l = await rs.rs(token, "/domains").catch(() => null);
+        domains = ((l?.ok ? l.body?.data : []) ?? []).map((x: Any) => ({ name: String(x.name).toLowerCase(), status: String(x.status ?? "") }));
+      }
+    }
     return {
+      domains,
       account: connected
         ? { connected_at: a.connected_at as string, domain: (a.resend_domain as string | null) ?? null, last_error: (a.last_error as string | null) ?? null, setup: (a.setup_state ?? {}) as Record<string, SetupStep> }
         : null,
@@ -106,13 +115,15 @@ export const runResendSetup = createServerFn({ method: "POST" })
         d = c.body;
       }
       const n = (d.records ?? []).length;
-      return done({ stage: "domain", ok: true, detail: `${data.domain} in Resend · ${n} DNS record${n === 1 ? "" : "s"} required` }, { resend_domain_id: d.id, resend_domain: data.domain });
+      const detail = d.status === "verified" ? `${data.domain} already in Resend · verified` : `${data.domain} in Resend · ${n} DNS record${n === 1 ? "" : "s"} required`;
+      return done({ stage: "domain", ok: true, detail }, { resend_domain_id: d.id, resend_domain: data.domain });
     }
 
     const d = await findDomain();
     if (!d) return done({ stage: data.stage, ok: false, detail: "Domain isn't in Resend yet — run setup from the start." });
 
     if (data.stage === "dns") {
+      if (d.status === "verified") return done({ stage: "dns", ok: true, detail: "Already verified in Resend · DNS skipped" });
       const cf = await import("@/lib/company-cloudflare.server");
       const cft = await cf.companyCloudflareToken(co.id).catch(() => null);
       if (!cft) return done({ stage: "dns", ok: false, detail: "Connect this company's Cloudflare account first." });
@@ -150,6 +161,7 @@ export const runResendSetup = createServerFn({ method: "POST" })
         if (g.ok) d.status = g.body?.status;
       }
       if (d.status === "verified") return done({ stage: "verify", ok: true, detail: `${data.domain} verified by Resend` });
+      // fallthrough handled below
       if (d.status === "failed") return done({ stage: "verify", ok: false, detail: "Resend couldn't verify the DNS records. Check them in Cloudflare and retry." });
       return done({ stage: "verify", ok: false, pending: true, detail: `Resend is checking DNS (${d.status ?? "pending"}) — usually under a few minutes.` });
     }
