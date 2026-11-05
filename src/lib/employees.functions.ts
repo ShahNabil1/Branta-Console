@@ -81,6 +81,7 @@ export interface EmployeeRow {
   jobRole: string | null;
   phone: string | null;
   activeSessions: number;
+  companies: import("@/lib/company-scope.server").EmployeeCompany[];
 }
 
 export const listEmployees = createServerFn({ method: "GET" })
@@ -158,6 +159,7 @@ export const listEmployees = createServerFn({ method: "GET" })
       if ((p as { deactivated_at?: string | null }).deactivated_at) inactive.add(p.user_id);
     });
 
+    const coMap = await (await import("@/lib/company-scope.server")).employeeCompanies(ids);
     return users
       .filter((u) => (u.email ?? "").toLowerCase().endsWith(DOMAIN) && !inactive.has(u.id))
       .map((u) => {
@@ -176,6 +178,7 @@ export const listEmployees = createServerFn({ method: "GET" })
           jobRole: extraByUser.get(u.id)?.jobRole ?? null,
           phone: extraByUser.get(u.id)?.phone ?? null,
           activeSessions: liveSessions.get(u.id) ?? 0,
+          companies: coMap.get(u.id) ?? [],
         };
       })
       .sort((a, b) => (a.createdAt > b.createdAt ? -1 : 1));

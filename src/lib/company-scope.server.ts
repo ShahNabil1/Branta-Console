@@ -30,3 +30,28 @@ export async function managesEmployee(supabase: any, callerId: string, targetUse
   }
   return false;
 }
+
+export type EmployeeCompany = { name: string; slug: string; isHolding: boolean; logoUrl: string | null; mark: string | null };
+
+/** Active company memberships per auth user id (for company badges on employee cards/profiles). */
+export async function employeeCompanies(userIds: string[]): Promise<Map<string, EmployeeCompany[]>> {
+  const out = new Map<string, EmployeeCompany[]>();
+  if (userIds.length === 0) return out;
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: profs } = await supabaseAdmin.from("profiles").select("id, user_id").in("user_id", userIds);
+  const byProfile = new Map((profs ?? []).map((p) => [(p as { id: string }).id, (p as { user_id: string }).user_id]));
+  if (byProfile.size === 0) return out;
+  const { data: mem } = await supabaseAdmin
+    .from("company_members").select("user_id, companies!inner(name, slug, is_holding, logo_url, brand_kit)")
+    .in("user_id", [...byProfile.keys()]).eq("is_active", true);
+  for (const m of (mem ?? []) as unknown as { user_id: string; companies: { name: string; slug: string; is_holding: boolean; logo_url: string | null; brand_kit: { mark?: string } | null } }[]) {
+    const uid = byProfile.get(m.user_id);
+    if (!uid || !m.companies) continue;
+    const c = m.companies;
+    const list = out.get(uid) ?? [];
+    list.push({ name: c.name, slug: c.slug, isHolding: c.is_holding, logoUrl: c.logo_url, mark: c.brand_kit?.mark ?? null });
+    out.set(uid, list);
+  }
+  out.forEach((l) => l.sort((a, b) => Number(b.isHolding) - Number(a.isHolding)));
+  return out;
+}

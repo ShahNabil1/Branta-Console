@@ -56,6 +56,8 @@ export interface PaymentMethodLite {
 }
 
 export interface EmployeeDetail {
+  companies: import("@/lib/company-scope.server").EmployeeCompany[];
+  canEditJobRole: boolean;
   userId: string;
   email: string;
   brantaId: string;
@@ -121,7 +123,12 @@ export const getEmployeeDetail = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ userId: uuid }).parse(input))
   .handler(async ({ data, context }): Promise<EmployeeDetail> => {
-    if (!(await (await import("@/lib/company-scope.server")).managesEmployee(context.supabase, context.userId, data.userId))) await assertAdmin(context.supabase, context.userId);
+    const scope = await import("@/lib/company-scope.server");
+    const manages = await scope.managesEmployee(context.supabase, context.userId, data.userId);
+    let isSuper = false;
+    if (!manages) isSuper = (await assertAdmin(context.supabase, context.userId)).isSuperAdmin;
+    else isSuper = !!(await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "super_admin" })).data;
+    const companies = (await scope.employeeCompanies([data.userId])).get(data.userId) ?? [];
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
     );
@@ -166,6 +173,8 @@ export const getEmployeeDetail = createServerFn({ method: "GET" })
     } catch { /* Cloudflare unavailable */ }
     if (gmail) gmailSource = meta?.gmail_source?.email === gmail ? meta.gmail_source.via : (gmailSource ?? "google");
     return {
+      companies,
+      canEditJobRole: isSuper || manages,
       workEmailVerified,
       gmailSource,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -235,9 +244,11 @@ export const setEmployeeJobRole = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { isSuperAdmin } = await assertAdmin(context.supabase, context.userId);
-    if (!isSuperAdmin)
-      throw new Error("Only a super_admin can assign job roles.");
+    const manages = await (await import("@/lib/company-scope.server")).managesEmployee(context.supabase, context.userId, data.userId);
+    if (!manages) {
+      const { isSuperAdmin } = await assertAdmin(context.supabase, context.userId);
+      if (!isSuperAdmin) throw new Error("Only a Group Admin or this employee's company C.E.O/C.O.O can assign job roles.");
+    }
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
     );
