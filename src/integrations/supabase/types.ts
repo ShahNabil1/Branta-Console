@@ -1117,6 +1117,7 @@ export type Database = {
           email: string
           probe_code: string | null
           probe_started_at: string | null
+          sender_name: string | null
           updated_at: string
           updated_by: string | null
           verified_at: string | null
@@ -1127,6 +1128,7 @@ export type Database = {
           email: string
           probe_code?: string | null
           probe_started_at?: string | null
+          sender_name?: string | null
           updated_at?: string
           updated_by?: string | null
           verified_at?: string | null
@@ -1137,6 +1139,7 @@ export type Database = {
           email?: string
           probe_code?: string | null
           probe_started_at?: string | null
+          sender_name?: string | null
           updated_at?: string
           updated_by?: string | null
           verified_at?: string | null
