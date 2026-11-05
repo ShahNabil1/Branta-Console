@@ -67,6 +67,9 @@ import resendWordmarkBlack from "@/assets/email/resend-wordmark-black.png.asset.
 import brevoIcon from "@/assets/email/brevo-icon.png.asset.json";
 import brevoWordmark from "@/assets/email/brevo-wordmark.png.asset.json";
 import switchAccountIcon from "@/assets/integrations/switch-account.png.asset.json";
+import cfRoutingIcon from "@/assets/integrations/cloudflare-email-routing.png.asset.json";
+import routingRuleIcon from "@/assets/integrations/email-routing-rule.png.asset.json";
+import { GmailMark } from "@/components/company/google-account-card";
 import verifiedIcon from "@/assets/company/connection-verified.png.asset.json";
 import {
   AlertDialog,
@@ -1494,11 +1497,10 @@ function InboxAddress({
           {(["routing", "destination", "rule"] as const).map((id, i) => {
             const s = res?.steps.find((x) => x.id === id);
             const meta = {
-              routing: { label: "Email Routing", icon: Mail },
-              destination: { label: "Destination address", icon: Inbox },
-              rule: { label: "Routing rule", icon: Radar },
+              routing: { label: "Email Routing", img: cfRoutingIcon.url },
+              destination: { label: "Destination address", img: null },
+              rule: { label: "Routing rule", img: routingRuleIcon.url },
             }[id];
-            const Icon = meta.icon;
             const pending = busy && !s;
             const ok = s?.ok ?? null;
             return (
@@ -1518,7 +1520,11 @@ function InboxAddress({
                 />
                 <div className="relative flex items-center gap-2.5">
                   <span className="grid size-9 shrink-0 place-items-center rounded-lg border border-border bg-background shadow-sm transition-transform group-hover:scale-110">
-                    <Icon className="size-4.5 text-muted-foreground" />
+                    {meta.img ? (
+                      <img src={meta.img} alt="" className="size-6 object-contain" />
+                    ) : (
+                      <GmailMark className="size-5" />
+                    )}
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5 text-[13px] font-bold">
