@@ -996,14 +996,24 @@ function AddressSection({ c, accent }: { c: Company; accent: string }) {
   );
 }
 
-const LOGO_TYPES = ["image/png", "image/jpeg", "image/svg+xml", "image/webp"];
+/** Image formats the logo uploader accepts — video, PDF, ZIP/APK and other non-images stay out. */
+const IMAGE_TYPES = new Set([
+  "image/png", "image/jpeg", "image/pjpeg", "image/webp", "image/gif", "image/apng",
+  "image/svg+xml", "image/avif", "image/bmp", "image/x-ms-bmp", "image/heic", "image/heif",
+  "image/tiff", "image/x-icon", "image/vnd.microsoft.icon",
+]);
+const IMAGE_EXTS = /\.(png|jpe?g|jfif|pjpe?g|webp|gif|svg|avif|bmp|dib|heic|heif|hif|tiff?|ico|apng)$/i;
+const IMAGE_ACCEPT = "image/*,.heic,.heif,.hif,.jfif,.tif,.tiff,.svg,.avif,.bmp,.ico,.gif";
+const isImageFile = (f: File) => IMAGE_TYPES.has(f.type) || (!f.type && IMAGE_EXTS.test(f.name));
 
 /** Uploads the company logo straight to the R2 bucket and returns its public URL. */
 function LogoUploader({ value, name, onChange }: { value: string; name: string; onChange: (v: string) => void }) {
   const presign = useServerFn(requestR2Upload);
+  const [broken, setBroken] = useState(false);
+  useEffect(() => setBroken(false), [value]);
   const up = useMutation({
     mutationFn: async (file: File) => {
-      if (!LOGO_TYPES.includes(file.type)) throw new Error("Use a PNG, JPG, SVG or WEBP logo.");
+      if (!isImageFile(file)) throw new Error("Use an image file (JPG, PNG, WEBP, SVG, GIF, HEIC…). Video, PDF, ZIP and APK are not logos.");
       if (file.size > 5 * 1024 * 1024) throw new Error("Logo must be 5 MB or smaller.");
       const { url, publicUrl } = await presign({ data: { filename: file.name, contentType: file.type, scope: "branding" } });
       const put = await fetch(url, { method: "PUT", headers: { "content-type": file.type }, body: file });
