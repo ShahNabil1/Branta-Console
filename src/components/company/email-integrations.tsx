@@ -318,8 +318,10 @@ function ProviderPanel({
   const [checks, setChecks] = useState<TestCheck[] | null>(null);
   const domain = data.inbox?.verified_at ? data.inbox.email.split("@")[1] : v ? v.domain || v.sender_email.split("@")[1] : "";
 
+  const [manualRan, setManualRan] = useState(false);
   const runTest = async (silent: boolean) => {
     if (!silent) {
+      setManualRan(true);
       setBusy("test");
       setChecks(null);
     }
@@ -549,7 +551,7 @@ function ProviderPanel({
         </div>
       )}
 
-      {configured && checks?.some(c => !c.ok) && (
+      {configured && checks && (manualRan || checks.some(c => !c.ok)) && (
         <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           {checks.map((c, i) => {
             const I = c.kind === "webhook" ? Webhook : c.kind === "domain" ? ShieldCheck : c.kind === "tracking" ? Radar : KeyRound;
