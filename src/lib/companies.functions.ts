@@ -200,7 +200,7 @@ export const updateCompanyPrefixes = createServerFn({ method: "POST" })
   });
 
 // ---- Per-employee workspace access (explicit; never implied) ----
-export const WORKSPACE_ROLES = ["member", "manager", "finance", "super_admin"] as const;
+export const WORKSPACE_ROLES = ["member", "manager", "finance", "super_admin", "coo"] as const;
 export type WorkspaceRole = (typeof WORKSPACE_ROLES)[number];
 
 async function profileIdFor(admin: Sb, authUserId: string): Promise<string> {
@@ -248,7 +248,7 @@ export const setEmployeeWorkspace = createServerFn({ method: "POST" })
     const pid = await profileIdFor(admin, data.userId);
     const { data: co } = await admin.from("companies").select("ceo_user_id, coo_user_id, is_holding").eq("id", data.companyId).maybeSingle();
     if (!co) throw new Error("Company not found.");
-    if ((co.ceo_user_id === pid || co.coo_user_id === pid) && data.role !== "super_admin")
+    if ((co.ceo_user_id === pid || co.coo_user_id === pid) && data.role !== "super_admin" && data.role !== "coo")
       throw new Error("CEO/COO always keep full access. Change the company leadership first.");
     if (!co.is_holding && data.role !== "super_admin") {
       const { data: h } = await admin.from("companies").select("id").eq("is_holding", true).maybeSingle();
