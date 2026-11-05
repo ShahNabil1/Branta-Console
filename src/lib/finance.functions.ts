@@ -1258,7 +1258,7 @@ async function writeExpenseChildren(
 
 export const createExpense = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => ExpenseIn.parse(d))
+  .inputValidator((d: unknown) => ExpenseIn.refine((v) => v.category !== "salary", { message: "Salary can no longer be added as an expense", path: ["category"] }).parse(d))
   .handler(async ({ data, context }) => {
     await ensureFinanceAdmin(context.supabase as never, context.userId);
     const { items, attachments, paying_fund_id, fund_exception_reason, ...base } = data;
