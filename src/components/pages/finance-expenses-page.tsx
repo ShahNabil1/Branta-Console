@@ -101,6 +101,17 @@ async function uploadToBucket(file: File, prefix: string) {
 
 const CATEGORIES: ExpenseCategory[] = ["salary", "tools", "ads", "office", "misc", "tax", "refund"];
 /** Salary is never added from Expenses; old salary rows stay visible and filterable. */
+/** Converts Bangla / Hindi / Arabic / Persian / full-width digits to English and keeps one decimal point. */
+function normalizeAmountInput(raw: string): string {
+  const ascii = raw.replace(/[\u09E6-\u09EF\u0966-\u096F\u0660-\u0669\u06F0-\u06F9\uFF10-\uFF19]/g, (ch) => {
+    const c = ch.charCodeAt(0);
+    for (const base of [0x09e6, 0x0966, 0x0660, 0x06f0, 0xff10]) if (c >= base && c <= base + 9) return String(c - base);
+    return "";
+  }).replace(/[\u066B\uFF0E]/g, ".");
+  const clean = ascii.replace(/[^0-9.]/g, "");
+  const i = clean.indexOf(".");
+  return i < 0 ? clean : clean.slice(0, i + 1) + clean.slice(i + 1).replace(/\./g, "");
+}
 const FORM_CATEGORIES: ExpenseCategory[] = CATEGORIES.filter((c) => c !== "salary");
 
 function fmt(n: number, cur: string) {
@@ -463,7 +474,7 @@ export function ExpensesPage() {
       const payload = {
         category: form.category,
         amount: Number(form.amount),
-        currency: form.currency,
+        currency: editingId ? form.currency : "BDT",
         spent_on: form.spent_on,
         vendor: form.vendor || null,
         notes: form.notes || null,
@@ -692,16 +703,16 @@ export function ExpensesPage() {
                   <div className="mt-1.5"><SearchableSelect searchable={false} items={(form.category === "salary" ? CATEGORIES : FORM_CATEGORIES).map((c) => ({ value: c, label: formatCategory(c) }))} value={form.category} onChange={(v) => v && setForm({ ...form, category: v as ExpenseCategory })} /></div>
                 </div>
                 <div>
-                  <label className="text-[10.5px] font-extrabold uppercase tracking-wider text-foreground/70">Currency</label>
-                  <div className="mt-1.5"><SearchableSelect searchable={false} items={[{ value: "BDT", label: "৳ BDT", hint: "Bangladeshi Taka" }, { value: "USD", label: "$ USD", hint: "US Dollar" }]} value={form.currency} onChange={(v) => v && setForm({ ...form, currency: v as Currency })} /></div>
+                  <label className="text-[10.5px] font-extrabold uppercase tracking-wider text-foreground/70">Amount</label>
+                  <div className="group relative mt-1.5">
+                    <span className="pointer-events-none absolute inset-y-1 left-1 flex items-center rounded-md border border-border bg-muted px-2 font-mono text-[11.5px] font-bold text-foreground/80 transition-colors group-focus-within:border-brand/40 group-focus-within:text-brand">৳ BDT</span>
+                    <Input type="text" inputMode="decimal" autoComplete="off" placeholder="0.00" value={form.amount}
+                      onChange={(e) => setForm({ ...form, amount: normalizeAmountInput(e.target.value) })}
+                      className="h-10 rounded-lg pl-[4.5rem] font-mono text-[14px] font-bold shadow-sm transition-all hover:border-foreground/25 focus:border-brand focus:shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-brand)_15%,transparent)] focus-visible:ring-0 focus-visible:border-brand focus-visible:shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-brand)_15%,transparent)]" />
+                  </div>
                 </div>
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div>
-                  <label className="text-[10.5px] font-extrabold uppercase tracking-wider text-foreground/70">Amount</label>
-                  <Input type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                    className="mt-1.5 h-10 rounded-lg font-mono text-[14px] font-bold shadow-sm transition-all hover:border-foreground/25 focus:border-brand focus:shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-brand)_15%,transparent)] focus-visible:ring-0 focus-visible:border-brand focus-visible:shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-brand)_15%,transparent)]" />
-                </div>
                 <div>
                   <label className="text-[10.5px] font-extrabold uppercase tracking-wider text-foreground/70">Date</label>
                   <Input type="date" value={form.spent_on} onChange={(e) => setForm({ ...form, spent_on: e.target.value })}
