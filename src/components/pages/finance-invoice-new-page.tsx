@@ -290,7 +290,7 @@ export function NewInvoicePage() {
       </section>
 
       <section className="rounded-md border border-border bg-card p-5">
-        {sisterCtx ? <CompanyFundPreview ctx={sisterCtx} amount={totalNum} currency={currency} />
+        {sisterCtx ? <CompanyFundPreview ctx={sisterCtx} amount={netAmount} currency={currency} />
           : sisterCompanyId ? <div className="flex items-center gap-2 text-[12px] text-muted-foreground"><Loader2 className="size-3.5 animate-spin" /> Loading {activeCo?.name} fund allocation…</div>
           : <EmployeeFundPlanner net={netAmount} currency={currency} projectId={projectId || null} plans={plans} onChange={setPlans} onPoolChange={(p) => p !== empPool && setEmpPool(p)} />}
       </section>
