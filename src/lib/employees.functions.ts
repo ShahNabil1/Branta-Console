@@ -56,13 +56,14 @@ async function assertGmailFree(gmail: string) {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const assertAdmin = async (supabase: any, userId: string) => {
-  const [su, ad] = await Promise.all([
+  const [su, ad, ceo] = await Promise.all([
     supabase.rpc("has_role", { _user_id: userId, _role: "super_admin" }),
     supabase.rpc("has_role", { _user_id: userId, _role: "admin" }),
+    supabase.rpc("has_role", { _user_id: userId, _role: "manager" }),
   ]);
   if (su.error || ad.error)
     throw new Error(su.error?.message ?? ad.error?.message ?? "Role check failed");
-  if (!su.data && !ad.data) throw new Error("Forbidden: admin role required");
+  if (!su.data && !ad.data && !ceo.data) throw new Error("Forbidden: admin role required");
   return { isSuperAdmin: !!su.data };
 };
 
