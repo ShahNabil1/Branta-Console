@@ -2142,7 +2142,8 @@ export const isFinanceAdminCheck = createServerFn({ method: "POST" })
     if (!input.workspace) return { isAdmin: false };
     const { data: co } = await context.supabase.from("companies").select("id, is_holding").eq("slug", input.workspace).maybeSingle();
     if (!co || co.is_holding) return { isAdmin: false };
-    const { data: ok } = await context.supabase.rpc("can_manage_company", { _company: co.id, _user: context.userId });
+    // CEO or the company's own Finance member.
+    const { data: ok } = await context.supabase.rpc("can_view_company_finance" as never, { _company: co.id, _user: context.userId } as never);
     return { isAdmin: Boolean(ok) };
   });
 
