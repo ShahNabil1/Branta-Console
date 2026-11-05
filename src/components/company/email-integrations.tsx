@@ -1408,34 +1408,72 @@ function InboxAddress({
       )}
 
       {(busy || res) && !editing && (
-        <div className="mt-3 space-y-1.5 rounded-lg border border-border bg-card p-3 animate-in fade-in">
-          {(["routing", "destination", "rule"] as const).map((id) => {
+        <div className="relative mt-3 grid gap-2 sm:grid-cols-3">
+          {(["routing", "destination", "rule"] as const).map((id, i) => {
             const s = res?.steps.find((x) => x.id === id);
-            const label = { routing: "Email Routing", destination: "Destination address", rule: "Routing rule" }[id];
-            const waiting = busy && !s && (res?.steps.length ?? 0) === ["routing", "destination", "rule"].indexOf(id);
+            const meta = {
+              routing: { label: "Email Routing", icon: Mail },
+              destination: { label: "Destination address", icon: Inbox },
+              rule: { label: "Routing rule", icon: Radar },
+            }[id];
+            const Icon = meta.icon;
+            const pending = busy && !s;
+            const ok = s?.ok ?? null;
             return (
-              <div key={id} className="flex items-start gap-2 text-[12px] font-semibold">
-                {s ? (
-                  s.ok ? <CheckCircle2 className="mt-px size-3.5 shrink-0 text-status-converted" />
-                    : busy ? <Loader2 className="mt-px size-3.5 shrink-0 animate-spin" style={{ color: accent }} />
-                    : <XCircle className="mt-px size-3.5 shrink-0 text-destructive" />
-                ) : waiting ? (
-                  <Loader2 className="mt-px size-3.5 shrink-0 animate-spin" style={{ color: accent }} />
-                ) : (
-                  <span className="mt-1 size-2 shrink-0 rounded-full bg-border" />
+              <div
+                key={id}
+                style={{ animationDelay: `${i * 80}ms` }}
+                className={cn(
+                  "group relative overflow-hidden rounded-xl border bg-card p-3 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md animate-in fade-in slide-in-from-bottom-2 fill-mode-both",
+                  ok === true ? "border-status-converted/30" : ok === false ? "border-destructive/30" : "border-border",
                 )}
-                <span className="w-36 shrink-0 font-bold">{label}</span>
-                <span className="text-muted-foreground">{s?.detail ?? (waiting ? "Checking…" : "")}</span>
+              >
+                <span
+                  className={cn(
+                    "pointer-events-none absolute -right-8 -top-8 size-20 rounded-full blur-2xl",
+                    ok === true ? "bg-status-converted/15" : ok === false ? "bg-destructive/15" : "bg-muted",
+                  )}
+                />
+                <div className="relative flex items-center gap-2.5">
+                  <span className="grid size-9 shrink-0 place-items-center rounded-lg border border-border bg-background shadow-sm transition-transform group-hover:scale-110">
+                    <Icon className="size-4.5 text-muted-foreground" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 text-[13px] font-bold">
+                      {meta.label}
+                      {ok === true ? (
+                        <CheckCircle2 className="size-3.5 text-status-converted" />
+                      ) : ok === false ? (
+                        <XCircle className="size-3.5 text-destructive" />
+                      ) : pending ? (
+                        <TestLoader active className="size-4" />
+                      ) : null}
+                    </div>
+                    <div
+                      className={cn(
+                        "text-[10.5px] font-bold uppercase tracking-wide",
+                        ok === true ? "text-status-converted" : ok === false ? "text-destructive" : "text-muted-foreground",
+                      )}
+                    >
+                      {ok === true ? "Working" : ok === false ? "Failed" : pending ? "Checking" : "Waiting"}
+                    </div>
+                  </div>
+                </div>
+                <p className="relative mt-2 break-words text-[11.5px] font-semibold text-muted-foreground">
+                  {s?.detail ?? (pending ? "Checking…" : "Waiting for the previous step…")}
+                </p>
               </div>
             );
           })}
           {res?.stage === "routing_off" && !busy && (
-            <Button size="sm" className="mt-1 h-8" onClick={() => void run(true)}>
-              <Sparkles className="size-3.5" /> Turn on Email Routing
-            </Button>
+            <div className="sm:col-span-3">
+              <Button size="sm" className="h-8" onClick={() => void run(true)}>
+                <Sparkles className="size-3.5" /> Turn on Email Routing
+              </Button>
+            </div>
           )}
           {res?.stage === "failed" && !busy && (
-            <div className="flex items-start gap-2 rounded-md border border-destructive/25 bg-destructive/5 px-3 py-2 text-[12px] font-semibold text-destructive">
+            <div className="flex items-start gap-2 rounded-md border border-destructive/25 bg-destructive/5 px-3 py-2 text-[12px] font-semibold text-destructive sm:col-span-3">
               <XCircle className="mt-px size-3.5 shrink-0" />
               <span className="flex-1">{res.message}</span>
               <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => void run()}>
@@ -1444,9 +1482,11 @@ function InboxAddress({
             </div>
           )}
           {res?.stage === "destination_pending" && !busy && (
-            <Button size="sm" variant="outline" className="mt-1 h-8" onClick={() => void run()}>
-              <RefreshCw className="size-3.5" /> Check again
-            </Button>
+            <div className="sm:col-span-3">
+              <Button size="sm" variant="outline" className="h-8" onClick={() => void run()}>
+                <RefreshCw className="size-3.5" /> Check again
+              </Button>
+            </div>
           )}
         </div>
       )}
