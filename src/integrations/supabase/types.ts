@@ -6071,6 +6071,10 @@ export type Database = {
         Args: { _company: string; _kind: string }
         Returns: undefined
       }
+      company_head_can_remove: {
+        Args: { _caller: string; _target: string }
+        Returns: boolean
+      }
       company_invoice_base_settings: {
         Args: { _company: string }
         Returns: Json
