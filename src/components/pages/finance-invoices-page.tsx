@@ -30,6 +30,7 @@ function fmt(n: number, cur: string) {
 }
 
 export function InvoicesPage() {
+  const cp = useCompanyPath();
   const company = useActiveCompany().active;
   const workspace = company?.slug ?? null;
   const list = useServerFn(listInvoices);

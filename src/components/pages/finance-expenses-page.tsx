@@ -106,6 +106,7 @@ function fmt(n: number, cur: string) {
 }
 
 export function ExpensesPage() {
+  const cp = useCompanyPath();
   const activeCompany = useActiveCompany().active;
   const workspace = activeCompany?.slug ?? null;
   const sisterId = activeCompany && !activeCompany.is_holding ? activeCompany.id : null;

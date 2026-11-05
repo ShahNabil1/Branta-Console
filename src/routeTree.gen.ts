@@ -97,6 +97,7 @@ import { Route as AuthenticatedAppOrgOrgOperationsRouteImport } from './routes/_
 import { Route as AuthenticatedAppOrgOrgCustomersIndexRouteImport } from './routes/_authenticated/app.org.$org.customers.index'
 import { Route as AuthenticatedAppOrgOrgCustomersCodeRouteImport } from './routes/_authenticated/app.org.$org.customers.$code'
 import { Route as AuthenticatedAppOrgOrgFinanceExpensesRouteImport } from './routes/_authenticated/app.org.$org.finance.expenses'
+import { Route as AuthenticatedAppOrgOrgFinanceRecycleBinRouteImport } from './routes/_authenticated/app.org.$org.finance.recycle-bin'
 import { Route as AuthenticatedAppOrgOrgFinanceWalletRouteImport } from './routes/_authenticated/app.org.$org.finance.wallet'
 import { Route as AuthenticatedAppOrgOrgLeadsIndexRouteImport } from './routes/_authenticated/app.org.$org.leads.index'
 import { Route as AuthenticatedAppOrgOrgLeadsSlugRouteImport } from './routes/_authenticated/app.org.$org.leads.$slug'
@@ -615,6 +616,12 @@ const AuthenticatedAppOrgOrgFinanceExpensesRoute =
     path: '/finance/expenses',
     getParentRoute: () => AuthenticatedAppOrgOrgRoute,
   } as any)
+const AuthenticatedAppOrgOrgFinanceRecycleBinRoute =
+  AuthenticatedAppOrgOrgFinanceRecycleBinRouteImport.update({
+    id: '/finance/recycle-bin',
+    path: '/finance/recycle-bin',
+    getParentRoute: () => AuthenticatedAppOrgOrgRoute,
+  } as any)
 const AuthenticatedAppOrgOrgFinanceWalletRoute =
   AuthenticatedAppOrgOrgFinanceWalletRouteImport.update({
     id: '/finance/wallet',
@@ -763,6 +770,7 @@ export interface FileRoutesByFullPath {
   '/app/org/$org/': typeof AuthenticatedAppOrgOrgIndexRoute
   '/app/org/$org/customers/$code': typeof AuthenticatedAppOrgOrgCustomersCodeRoute
   '/app/org/$org/finance/expenses': typeof AuthenticatedAppOrgOrgFinanceExpensesRoute
+  '/app/org/$org/finance/recycle-bin': typeof AuthenticatedAppOrgOrgFinanceRecycleBinRoute
   '/app/org/$org/finance/wallet': typeof AuthenticatedAppOrgOrgFinanceWalletRoute
   '/app/org/$org/leads/$slug': typeof AuthenticatedAppOrgOrgLeadsSlugRoute
   '/app/org/$org/leads/dashboard': typeof AuthenticatedAppOrgOrgLeadsDashboardRoute
@@ -855,6 +863,7 @@ export interface FileRoutesByTo {
   '/app/org/$org': typeof AuthenticatedAppOrgOrgIndexRoute
   '/app/org/$org/customers/$code': typeof AuthenticatedAppOrgOrgCustomersCodeRoute
   '/app/org/$org/finance/expenses': typeof AuthenticatedAppOrgOrgFinanceExpensesRoute
+  '/app/org/$org/finance/recycle-bin': typeof AuthenticatedAppOrgOrgFinanceRecycleBinRoute
   '/app/org/$org/finance/wallet': typeof AuthenticatedAppOrgOrgFinanceWalletRoute
   '/app/org/$org/leads/$slug': typeof AuthenticatedAppOrgOrgLeadsSlugRoute
   '/app/org/$org/leads/dashboard': typeof AuthenticatedAppOrgOrgLeadsDashboardRoute
@@ -956,6 +965,7 @@ export interface FileRoutesById {
   '/_authenticated/app/org/$org/': typeof AuthenticatedAppOrgOrgIndexRoute
   '/_authenticated/app/org/$org/customers/$code': typeof AuthenticatedAppOrgOrgCustomersCodeRoute
   '/_authenticated/app/org/$org/finance/expenses': typeof AuthenticatedAppOrgOrgFinanceExpensesRoute
+  '/_authenticated/app/org/$org/finance/recycle-bin': typeof AuthenticatedAppOrgOrgFinanceRecycleBinRoute
   '/_authenticated/app/org/$org/finance/wallet': typeof AuthenticatedAppOrgOrgFinanceWalletRoute
   '/_authenticated/app/org/$org/leads/$slug': typeof AuthenticatedAppOrgOrgLeadsSlugRoute
   '/_authenticated/app/org/$org/leads/dashboard': typeof AuthenticatedAppOrgOrgLeadsDashboardRoute
@@ -1057,6 +1067,7 @@ export interface FileRouteTypes {
     | '/app/org/$org/'
     | '/app/org/$org/customers/$code'
     | '/app/org/$org/finance/expenses'
+    | '/app/org/$org/finance/recycle-bin'
     | '/app/org/$org/finance/wallet'
     | '/app/org/$org/leads/$slug'
     | '/app/org/$org/leads/dashboard'
@@ -1149,6 +1160,7 @@ export interface FileRouteTypes {
     | '/app/org/$org'
     | '/app/org/$org/customers/$code'
     | '/app/org/$org/finance/expenses'
+    | '/app/org/$org/finance/recycle-bin'
     | '/app/org/$org/finance/wallet'
     | '/app/org/$org/leads/$slug'
     | '/app/org/$org/leads/dashboard'
@@ -1249,6 +1261,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/org/$org/'
     | '/_authenticated/app/org/$org/customers/$code'
     | '/_authenticated/app/org/$org/finance/expenses'
+    | '/_authenticated/app/org/$org/finance/recycle-bin'
     | '/_authenticated/app/org/$org/finance/wallet'
     | '/_authenticated/app/org/$org/leads/$slug'
     | '/_authenticated/app/org/$org/leads/dashboard'
@@ -1903,6 +1916,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppOrgOrgFinanceExpensesRouteImport
       parentRoute: typeof AuthenticatedAppOrgOrgRoute
     }
+    '/_authenticated/app/org/$org/finance/recycle-bin': {
+      id: '/_authenticated/app/org/$org/finance/recycle-bin'
+      path: '/finance/recycle-bin'
+      fullPath: '/app/org/$org/finance/recycle-bin'
+      preLoaderRoute: typeof AuthenticatedAppOrgOrgFinanceRecycleBinRouteImport
+      parentRoute: typeof AuthenticatedAppOrgOrgRoute
+    }
     '/_authenticated/app/org/$org/finance/wallet': {
       id: '/_authenticated/app/org/$org/finance/wallet'
       path: '/finance/wallet'
@@ -2132,6 +2152,7 @@ interface AuthenticatedAppOrgOrgRouteChildren {
   AuthenticatedAppOrgOrgIndexRoute: typeof AuthenticatedAppOrgOrgIndexRoute
   AuthenticatedAppOrgOrgCustomersCodeRoute: typeof AuthenticatedAppOrgOrgCustomersCodeRoute
   AuthenticatedAppOrgOrgFinanceExpensesRoute: typeof AuthenticatedAppOrgOrgFinanceExpensesRoute
+  AuthenticatedAppOrgOrgFinanceRecycleBinRoute: typeof AuthenticatedAppOrgOrgFinanceRecycleBinRoute
   AuthenticatedAppOrgOrgFinanceWalletRoute: typeof AuthenticatedAppOrgOrgFinanceWalletRoute
   AuthenticatedAppOrgOrgLeadsSlugRoute: typeof AuthenticatedAppOrgOrgLeadsSlugRoute
   AuthenticatedAppOrgOrgLeadsDashboardRoute: typeof AuthenticatedAppOrgOrgLeadsDashboardRoute
@@ -2156,6 +2177,8 @@ const AuthenticatedAppOrgOrgRouteChildren: AuthenticatedAppOrgOrgRouteChildren =
       AuthenticatedAppOrgOrgCustomersCodeRoute,
     AuthenticatedAppOrgOrgFinanceExpensesRoute:
       AuthenticatedAppOrgOrgFinanceExpensesRoute,
+    AuthenticatedAppOrgOrgFinanceRecycleBinRoute:
+      AuthenticatedAppOrgOrgFinanceRecycleBinRoute,
     AuthenticatedAppOrgOrgFinanceWalletRoute:
       AuthenticatedAppOrgOrgFinanceWalletRoute,
     AuthenticatedAppOrgOrgLeadsSlugRoute: AuthenticatedAppOrgOrgLeadsSlugRoute,

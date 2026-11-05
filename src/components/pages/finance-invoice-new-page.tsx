@@ -32,6 +32,7 @@ type Stakeholder = { user_id: string; role: StakeholderRole; percent: number };
 
 
 export function NewInvoicePage() {
+  const cp = useCompanyPath();
   const activeCo = useActiveCompany().active;
   const workspace = activeCo?.slug ?? null;
   const sisterCompanyId = activeCo && !activeCo.is_holding ? activeCo.id : null;
