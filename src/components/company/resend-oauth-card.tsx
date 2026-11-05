@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { CheckCircle2, Clock, Globe, KeyRound, Loader2, Radar, ShieldCheck, Unplug, Webhook, XCircle, Zap, type LucideIcon } from "lucide-react";
+import { CheckCircle2, Clock, Globe, KeyRound, Loader2, Lock, Radar, ShieldCheck, Unplug, Webhook, XCircle, Zap, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DisconnectButton } from "@/components/ui/disconnect-button";
 import { ConfirmSurface } from "@/components/ui/confirm-surface";
@@ -109,10 +109,11 @@ export function ResendOAuthCard({ slug, companyName, onReady }: { slug: string; 
           </div>
           <p className="text-[12px] font-semibold text-muted-foreground">
             {q.isLoading ? "Loading…" : a
-              ? !inbox ? "Verify the In-app Gmail Inbox Address below first — its address becomes the sender."
+              ? !inbox ? "Verify the In-app Gmail Inbox Address above first — its address becomes the sender."
                 : ready ? `Ready · sending as ${inbox.name} <${inbox.email}> — manage it in the Resend card below.`
                 : busy === "setup" ? (verified ? `${inbox.domain} is verified · checking tracking, API key and webhook…` : `Setting up ${inbox.domain}…`)
                 : `Sender ${inbox.name} <${inbox.email}>`
+              : !inbox ? "Locked · verify the In-app Gmail Inbox Address above first — its domain and sender name are used here."
               : "Sign in or create a Resend account in the popup — the Console does the rest."}
           </p>
         </div>
@@ -122,10 +123,11 @@ export function ResendOAuthCard({ slug, companyName, onReady }: { slug: string; 
           <button
             type="button"
             onClick={connect}
-            disabled={!!busy}
-            className="group relative inline-flex h-9 items-center gap-2 overflow-hidden rounded-full border border-border bg-card pl-2.5 pr-4 text-[13px] font-semibold text-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-95 disabled:pointer-events-none disabled:opacity-70"
+            disabled={!!busy || !inbox}
+            title={!inbox ? "Verify the In-app Gmail Inbox Address first" : undefined}
+            className="group relative inline-flex h-9 items-center gap-2 overflow-hidden rounded-full border border-border bg-card pl-2.5 pr-4 text-[13px] font-semibold text-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-95 disabled:pointer-events-none disabled:opacity-60"
           >
-            {busy === "connect" ? <TestLoader className="size-5" tone="export" active /> : <img src={resendLogo.url} alt="" className="size-5 rounded transition-transform group-hover:scale-110" />}
+            {!inbox ? <Lock className="size-4 text-muted-foreground" /> : busy === "connect" ? <TestLoader className="size-5" tone="export" active /> : <img src={resendLogo.url} alt="" className="size-5 rounded transition-transform group-hover:scale-110" />}
             <span className="relative tracking-tight">{busy === "connect" ? "Connecting…" : "Connect"}</span>
             <img src={resendWordmarkBlack.url} alt="Resend" className="relative h-3 w-auto object-contain" />
           </button>
