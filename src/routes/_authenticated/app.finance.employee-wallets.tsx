@@ -162,28 +162,6 @@ function ReconTab({ nameOf, committed }: { nameOf: (id: string) => string; commi
           </tbody>
         </table>
       </section>
-      <section className="overflow-x-auto rounded-md border border-border bg-card">
-        <div className="border-b border-border px-4 py-2.5"><h3 className="text-[13px] font-semibold">Legacy Pending</h3><p className="text-[11.5px] text-muted-foreground">Old locked payouts. They never become available on their own.</p></div>
-        <table className="w-full min-w-[800px] text-[12px]">
-          <thead className="text-left text-[10.5px] uppercase tracking-wider text-muted-foreground"><tr><th className="px-3 py-2">Employee</th><th className="px-3 py-2">Invoice</th><th className="px-3 py-2">Installment</th><th className="px-3 py-2 text-right">Amount</th><th className="px-3 py-2">Decision</th><th className="px-3 py-2 text-right">Actions</th></tr></thead>
-          <tbody>
-            {(q.data?.legacyPending ?? []).map((p: any) => (
-              <tr key={p.payout_id} className="border-t border-border">
-                <td className="px-3 py-2">{nameOf(p.employee_id)}</td><td className="px-3 py-2 font-mono">{p.invoice_slug ?? "—"}</td>
-                <td className="px-3 py-2">{p.installment ?? "—"}</td><td className="px-3 py-2 text-right font-mono">{money(p.amount, p.currency)}</td>
-                <td className="px-3 py-2 text-muted-foreground">{p.action ? `${p.action} — ${p.reason}` : "Pending review"}</td>
-                <td className="space-x-1 px-3 py-2 text-right">
-                  {(!p.action || p.action === "keep") && <>
-                    <Button size="sm" variant="outline" className="h-7 rounded-sm text-[11px]" onClick={() => m.mutate({ id: p.payout_id, action: "convert" })}>Convert to credit</Button>
-                    <Button size="sm" variant="ghost" className="h-7 rounded-sm text-[11px]" onClick={() => m.mutate({ id: p.payout_id, action: "cancel" })}>Cancel</Button>
-                    <Button size="sm" variant="ghost" className="h-7 rounded-sm text-[11px]" onClick={() => m.mutate({ id: p.payout_id, action: "keep" })}>Keep pending</Button>
-                  </>}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
     </div>
   );
 }
