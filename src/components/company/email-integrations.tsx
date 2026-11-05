@@ -68,7 +68,7 @@ import brevoIcon from "@/assets/email/brevo-icon.png.asset.json";
 import brevoWordmark from "@/assets/email/brevo-wordmark.png.asset.json";
 import switchAccountIcon from "@/assets/integrations/switch-account.png.asset.json";
 import cfRoutingIcon from "@/assets/integrations/cloudflare-email-routing-mark.png.asset.json";
-import routingRuleIcon from "@/assets/integrations/email-routing-rule-mark.png.asset.json";
+import routingRuleIcon from "@/assets/integrations/email-routing-rule-envelope.png.asset.json";
 import verifiedIcon from "@/assets/company/connection-verified.png.asset.json";
 import {
   AlertDialog,
