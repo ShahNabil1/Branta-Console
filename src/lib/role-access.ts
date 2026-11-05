@@ -35,6 +35,8 @@ const under = (path: string, base: string) => base === "/app" ? path === "/app" 
 export function holdingPageAllowed(p: RolePerms, path: string): boolean {
   if (p.isSuperAdmin) return true;
   if (path.startsWith("/app/profile") || path.startsWith("/app/org/") || path.startsWith("/app/companies")) return true;
+  // Employee detail is server-gated (holding admin or that employee's sister-company CEO/COO).
+  if (/^\/app\/employees\/[^/]+\/?$/.test(path)) return true;
   const roles = p.roles ?? [];
   if (roles.includes("manager") || roles.includes("coo")) {
     return !under(path, "/app/notifications");
