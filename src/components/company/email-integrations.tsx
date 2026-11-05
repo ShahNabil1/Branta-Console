@@ -1318,6 +1318,7 @@ function InboxAddress({
 
         {!editing && inbox && (
           <div className="flex flex-wrap items-center gap-2 animate-in fade-in">
+            <Button size="sm" variant="outline" onClick={() => void run()} disabled={busy || !canRun}><TestLoader active={busy} /> Test</Button>
             <Button size="sm" variant="outline" className="h-9 shrink-0 gap-2 bg-card px-3 font-semibold text-foreground" onClick={() => setAskChange(true)}>
               <img src={switchAccountIcon.url} alt="" aria-hidden="true" width={20} height={20} className="size-5 shrink-0 object-contain" /> Change address
             </Button>
