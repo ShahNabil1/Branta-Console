@@ -929,7 +929,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
               </div>
               {!canSuperAdmin && (
                 <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-                  <Lock className="size-3" /> Super admin only
+                  <Lock className="size-3" /> Group Admin only
                 </span>
               )}
             </div>
@@ -2049,7 +2049,7 @@ function PermissionsTab({ userId }: { userId: string }) {
         <h2 className="text-[13px] font-semibold">Lead permissions</h2>
       </div>
       <p className="mb-4 text-[11.5px] text-muted-foreground">
-        Only super admins can change these. Toggles apply on top of the employee&apos;s existing
+        Only Group Admins can change these. Toggles apply on top of the employee&apos;s existing
         role and only affect the leads they already own.
       </p>
 
