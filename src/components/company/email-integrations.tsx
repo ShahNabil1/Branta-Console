@@ -491,7 +491,7 @@ function ProviderPanel({
       )}
 
       {configured && checks && (
-        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           {checks.map((c, i) => {
             const I = c.kind === "webhook" ? Webhook : c.kind === "domain" ? ShieldCheck : KeyRound;
             return (
