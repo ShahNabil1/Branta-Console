@@ -104,6 +104,9 @@ export async function cfApi<T = Any>(token: string, path: string, init?: Request
   const j = (await r.json().catch(() => ({}))) as Any;
   if (!r.ok || j.success === false) {
     const msg = j.errors?.[0]?.message ?? `HTTP ${r.status}`;
+    if (r.status === 401 || /invalid access token|token.*expired/i.test(msg)) {
+      throw Object.assign(new Error("Cloudflare sign-in expired. Reconnect Cloudflare."), { cfTokenError: true });
+    }
     throw new Error(r.status === 403 ? `Cloudflare denied this request — permission missing (${msg}).` : `Cloudflare: ${msg}`);
   }
   return { result: j.result as T, info: j.result_info };
@@ -130,6 +133,21 @@ export async function getAccount(companyId: string) {
   return data as Any;
 }
 export function clearCache(companyId: string) { cache.delete(companyId); }
+
+/** cfApi for a company: on an expired/invalid token, drops the cached token, refreshes and retries once. */
+export async function companyCfApi<T = Any>(companyId: string, path: string, init?: RequestInit): Promise<{ result: T; info: Any }> {
+  const token = await companyCloudflareToken(companyId);
+  if (!token) throw new Error("Connect Cloudflare first.");
+  try {
+    return await cfApi<T>(token, path, init);
+  } catch (e) {
+    if (!(e as Any)?.cfTokenError) throw e;
+    cache.delete(companyId);
+    const fresh = await companyCloudflareToken(companyId);
+    if (!fresh) throw e;
+    return cfApi<T>(fresh, path, init);
+  }
+}
 
 /** Access token for the company's Cloudflare account, or null when none is connected. Rotated refresh tokens are re-sealed. */
 export async function companyCloudflareToken(companyId: string): Promise<string | null> {

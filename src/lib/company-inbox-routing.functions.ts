@@ -71,7 +71,7 @@ export const verifyInboxRouting = createServerFn({ method: "POST" })
     const cf = await import("@/lib/company-cloudflare.server");
     const token = await cf.companyCloudflareToken(co.id);
     if (!token) throw new Error("Connect Cloudflare first.");
-    const { result: zones } = await cf.cfApi<Any[]>(token, `/zones?name=${encodeURIComponent(data.domain)}`);
+    const { result: zones } = await cf.companyCfApi<Any[]>(co.id, `/zones?name=${encodeURIComponent(data.domain)}`);
     const zone = zones?.[0];
     if (!zone) throw new Error(`${data.domain} is not in the connected Cloudflare account.`);
 
@@ -86,22 +86,22 @@ export const verifyInboxRouting = createServerFn({ method: "POST" })
     const fail = (message: string): RoutingResult => ({ stage: "failed", message, steps });
     try {
       // 1. Email Routing on the zone
-      let er = (await cf.cfApi<Any>(token, `/zones/${zone.id}/email/routing`)).result;
+      let er = (await cf.companyCfApi<Any>(co.id, `/zones/${zone.id}/email/routing`)).result;
       if (!er?.enabled) {
         if (!data.enableRouting) {
           steps.push({ id: "routing", label: "Email Routing", ok: false, detail: `Email Routing is off for ${data.domain}.` });
           return { stage: "routing_off", message: `Email Routing is off for ${data.domain}. Turn it on to continue.`, steps };
         }
-        er = (await cf.cfApi<Any>(token, `/zones/${zone.id}/email/routing/dns`, { method: "POST", body: "{}" })
-          .catch(() => cf.cfApi<Any>(token, `/zones/${zone.id}/email/routing/enable`, { method: "POST", body: "{}" }))).result;
+        er = (await cf.companyCfApi<Any>(co.id, `/zones/${zone.id}/email/routing/dns`, { method: "POST", body: "{}" })
+          .catch(() => cf.companyCfApi<Any>(co.id, `/zones/${zone.id}/email/routing/enable`, { method: "POST", body: "{}" }))).result;
       }
       steps.push({ id: "routing", label: "Email Routing", ok: true, detail: `On for ${data.domain}.` });
 
       // 2. Destination address (account level)
       const acct = String(zone.account?.id ?? "");
-      const { result: dests } = await cf.cfApi<Any[]>(token, `/accounts/${acct}/email/routing/addresses?per_page=50`);
+      const { result: dests } = await cf.companyCfApi<Any[]>(co.id, `/accounts/${acct}/email/routing/addresses?per_page=50`);
       let dest = (dests ?? []).find((d) => String(d.email).toLowerCase() === gmail);
-      if (!dest) dest = (await cf.cfApi<Any>(token, `/accounts/${acct}/email/routing/addresses`, { method: "POST", body: JSON.stringify({ email: gmail }) })).result;
+      if (!dest) dest = (await cf.companyCfApi<Any>(co.id, `/accounts/${acct}/email/routing/addresses`, { method: "POST", body: JSON.stringify({ email: gmail }) })).result;
       if (!dest?.verified) {
         steps.push({ id: "destination", label: "Destination address", ok: false, detail: `Cloudflare sent a confirmation email to ${gmail}. Open it and click "Verify email address".` });
         return { stage: "destination_pending", message: `Waiting for ${gmail} to be confirmed in Cloudflare…`, steps };
@@ -109,16 +109,16 @@ export const verifyInboxRouting = createServerFn({ method: "POST" })
       steps.push({ id: "destination", label: "Destination address", ok: true, detail: `${gmail} is verified.` });
 
       // 3. Routing rule: literal to=<email> → forward gmail
-      const { result: rules } = await cf.cfApi<Any[]>(token, `/zones/${zone.id}/email/routing/rules?per_page=50`);
+      const { result: rules } = await cf.companyCfApi<Any[]>(co.id, `/zones/${zone.id}/email/routing/rules?per_page=50`);
       const hit = (rules ?? []).find((r) =>
         r.enabled !== false &&
         (r.matchers ?? []).some((m: Any) => m.type === "literal" && m.field === "to" && String(m.value).toLowerCase() === email) &&
         (r.actions ?? []).some((a: Any) => a.type === "forward" && (a.value ?? []).map((v: string) => v.toLowerCase()).includes(gmail)));
       if (!hit) {
-        await cf.cfApi(token, `/zones/${zone.id}/email/routing/rules`, {
+        await cf.companyCfApi(co.id, `/zones/${zone.id}/email/routing/rules`, {
           method: "POST",
           body: JSON.stringify({ name: `Branta Console: ${email} → ${gmail}`, enabled: true, matchers: [{ type: "literal", field: "to", value: email }], actions: [{ type: "forward", value: [gmail] }] }),
-        });
+        }).catch((e) => { if (!/already exists|duplicate/i.test(String(e?.message))) throw e; });
         steps.push({ id: "rule", label: "Routing rule", ok: true, detail: `Created ${email} → ${gmail}.` });
       } else steps.push({ id: "rule", label: "Routing rule", ok: true, detail: `${email} → ${gmail} exists.` });
     } catch (e) {
