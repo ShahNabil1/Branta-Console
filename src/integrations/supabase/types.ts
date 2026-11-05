@@ -6388,37 +6388,6 @@ export type Database = {
         }
         Returns: undefined
       }
-      wallet_migrate: {
-        Args: {
-          _basis: string
-          _currency: string
-          _reason: string
-          _resolution?: string
-          _user: string
-        }
-        Returns: string
-      }
-      wallet_migration_preview: {
-        Args: never
-        Returns: {
-          currency: string
-          difference: number
-          employee_id: string
-          migrated: boolean
-          name: string
-          old_available: number
-          old_locked: number
-          old_paid: number
-          old_requested: number
-          open_withdrawals: number
-          opening_balance: number
-          paid_withdrawals: number
-          payout_count: number
-          payouts_credited: number
-          recalculated: number
-          withdrawal_count: number
-        }[]
-      }
       wallet_post: {
         Args: {
           _actor?: string
