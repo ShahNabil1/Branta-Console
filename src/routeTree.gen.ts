@@ -81,6 +81,7 @@ import { Route as ApiPublicHooksInvoiceRemindersRouteImport } from './routes/api
 import { Route as ApiPublicHooksNotificationsDrainRouteImport } from './routes/api/public/hooks/notifications-drain'
 import { Route as ApiPublicIncomeVoucherDotpdfRouteImport } from './routes/api/public/income.$voucher[.]pdf'
 import { Route as ApiPublicInvoicesSlugDotpdfRouteImport } from './routes/api/public/invoices.$slug[.]pdf'
+import { Route as ApiPublicResendCallbackRouteImport } from './routes/api/public/resend.callback'
 import { Route as ApiPublicResendWebhookRouteImport } from './routes/api/public/resend.webhook'
 import { Route as ApiPublicSalarySlipDotpdfRouteImport } from './routes/api/public/salary.$slip[.]pdf'
 import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram.webhook'
@@ -520,6 +521,11 @@ const ApiPublicInvoicesSlugDotpdfRoute =
     path: '/api/public/invoices/$slug.pdf',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicResendCallbackRoute = ApiPublicResendCallbackRouteImport.update({
+  id: '/api/public/resend/callback',
+  path: '/api/public/resend/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicResendWebhookRoute = ApiPublicResendWebhookRouteImport.update({
   id: '/api/public/resend/webhook',
   path: '/api/public/resend/webhook',
@@ -735,6 +741,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/notifications-drain': typeof ApiPublicHooksNotificationsDrainRoute
   '/api/public/income/$voucher.pdf': typeof ApiPublicIncomeVoucherDotpdfRoute
   '/api/public/invoices/$slug.pdf': typeof ApiPublicInvoicesSlugDotpdfRoute
+  '/api/public/resend/callback': typeof ApiPublicResendCallbackRoute
   '/api/public/resend/webhook': typeof ApiPublicResendWebhookRoute
   '/api/public/salary/$slip.pdf': typeof ApiPublicSalarySlipDotpdfRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
@@ -826,6 +833,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/notifications-drain': typeof ApiPublicHooksNotificationsDrainRoute
   '/api/public/income/$voucher.pdf': typeof ApiPublicIncomeVoucherDotpdfRoute
   '/api/public/invoices/$slug.pdf': typeof ApiPublicInvoicesSlugDotpdfRoute
+  '/api/public/resend/callback': typeof ApiPublicResendCallbackRoute
   '/api/public/resend/webhook': typeof ApiPublicResendWebhookRoute
   '/api/public/salary/$slip.pdf': typeof ApiPublicSalarySlipDotpdfRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
@@ -926,6 +934,7 @@ export interface FileRoutesById {
   '/api/public/hooks/notifications-drain': typeof ApiPublicHooksNotificationsDrainRoute
   '/api/public/income/$voucher.pdf': typeof ApiPublicIncomeVoucherDotpdfRoute
   '/api/public/invoices/$slug.pdf': typeof ApiPublicInvoicesSlugDotpdfRoute
+  '/api/public/resend/callback': typeof ApiPublicResendCallbackRoute
   '/api/public/resend/webhook': typeof ApiPublicResendWebhookRoute
   '/api/public/salary/$slip.pdf': typeof ApiPublicSalarySlipDotpdfRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
@@ -1026,6 +1035,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/notifications-drain'
     | '/api/public/income/$voucher.pdf'
     | '/api/public/invoices/$slug.pdf'
+    | '/api/public/resend/callback'
     | '/api/public/resend/webhook'
     | '/api/public/salary/$slip.pdf'
     | '/api/public/telegram/webhook'
@@ -1117,6 +1127,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/notifications-drain'
     | '/api/public/income/$voucher.pdf'
     | '/api/public/invoices/$slug.pdf'
+    | '/api/public/resend/callback'
     | '/api/public/resend/webhook'
     | '/api/public/salary/$slip.pdf'
     | '/api/public/telegram/webhook'
@@ -1216,6 +1227,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/notifications-drain'
     | '/api/public/income/$voucher.pdf'
     | '/api/public/invoices/$slug.pdf'
+    | '/api/public/resend/callback'
     | '/api/public/resend/webhook'
     | '/api/public/salary/$slip.pdf'
     | '/api/public/telegram/webhook'
@@ -1267,6 +1279,7 @@ export interface RootRouteChildren {
   ApiPublicHooksNotificationsDrainRoute: typeof ApiPublicHooksNotificationsDrainRoute
   ApiPublicIncomeVoucherDotpdfRoute: typeof ApiPublicIncomeVoucherDotpdfRoute
   ApiPublicInvoicesSlugDotpdfRoute: typeof ApiPublicInvoicesSlugDotpdfRoute
+  ApiPublicResendCallbackRoute: typeof ApiPublicResendCallbackRoute
   ApiPublicResendWebhookRoute: typeof ApiPublicResendWebhookRoute
   ApiPublicSalarySlipDotpdfRoute: typeof ApiPublicSalarySlipDotpdfRoute
   ApiPublicTelegramWebhookRoute: typeof ApiPublicTelegramWebhookRoute
@@ -1778,6 +1791,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicInvoicesSlugDotpdfRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/resend/callback': {
+      id: '/api/public/resend/callback'
+      path: '/api/public/resend/callback'
+      fullPath: '/api/public/resend/callback'
+      preLoaderRoute: typeof ApiPublicResendCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/resend/webhook': {
       id: '/api/public/resend/webhook'
       path: '/api/public/resend/webhook'
@@ -2250,6 +2270,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksNotificationsDrainRoute: ApiPublicHooksNotificationsDrainRoute,
   ApiPublicIncomeVoucherDotpdfRoute: ApiPublicIncomeVoucherDotpdfRoute,
   ApiPublicInvoicesSlugDotpdfRoute: ApiPublicInvoicesSlugDotpdfRoute,
+  ApiPublicResendCallbackRoute: ApiPublicResendCallbackRoute,
   ApiPublicResendWebhookRoute: ApiPublicResendWebhookRoute,
   ApiPublicSalarySlipDotpdfRoute: ApiPublicSalarySlipDotpdfRoute,
   ApiPublicTelegramWebhookRoute: ApiPublicTelegramWebhookRoute,
