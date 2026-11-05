@@ -78,15 +78,6 @@ export const issueTrackerSession = createServerFn({ method: "POST" })
     };
   });
 
-/** Admin-only health check of the Tracker project connection. */
-export const checkTrackerConnection = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async () => {
-    const { trackerAdmin } = await import("./tracker.server");
-    const { error } = await trackerAdmin().auth.admin.listUsers({ page: 1, perPage: 1 });
-    return { ok: !error, error: error?.message ?? null };
-  });
-
 export const listMyConnectedApps = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
