@@ -138,7 +138,6 @@ export function NewInvoicePage() {
     if (installments.some((i) => !(Number(i.amount) > 0))) out.push("Every installment amount must be greater than 0");
     if (projectCosts.some((c) => !c.name.trim())) out.push("Every project cost needs a name");
     if (costSum > totalNum + 0.01) out.push("Total project cost cannot exceed the invoice total");
-    if (plans.reduce((a, p) => a + planAmount(p, empPool), 0) > empPool + 0.005) out.push(EXCEEDS_MSG);
     return out;
   }, [customerId, title, totalNum, instSum, installments, projectCosts, costSum, plans, empPool]);
 
@@ -289,11 +288,6 @@ export function NewInvoicePage() {
         <ProjectCostEditor costs={projectCosts} onChange={setProjectCosts} total={totalNum} currency={currency} />
       </section>
 
-      <section className="rounded-md border border-border bg-card p-5">
-        {sisterCtx ? <CompanyFundPreview ctx={sisterCtx} amount={netAmount} currency={currency} />
-          : sisterCompanyId ? <div className="flex items-center gap-2 text-[12px] text-muted-foreground"><Loader2 className="size-3.5 animate-spin" /> Loading {activeCo?.name} fund allocation…</div>
-          : <EmployeeFundPlanner net={netAmount} currency={currency} projectId={projectId || null} plans={plans} onChange={setPlans} onPoolChange={(p) => p !== empPool && setEmpPool(p)} />}
-      </section>
 
       <section className="rounded-md border border-border bg-card p-5">
         <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Notes (visible on invoice)</Label>

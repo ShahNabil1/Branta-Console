@@ -312,7 +312,6 @@ export function InvoiceDetail() {
         </div>
       </div>
 
-      <InvoiceFundAllocation invoiceId={q.data.invoice.id} />
       <InvoiceEmployeeEarnings invoiceId={q.data.invoice.id} currency={q.data.invoice.currency} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -726,8 +725,7 @@ function EditInvoiceDialog({
     Math.abs(instSum - totalNum) < 0.01 && (fundLedger || Math.abs(pctSum - 100) < 0.01) &&
     editInstallments.every((i) => i.label.trim() && i.due_date && Number(i.amount) > 0) &&
     (fundLedger || editStakeholders.every((s) => s.user_id && Number(s.percent) > 0)) &&
-    editCosts.every((c) => c.name.trim()) && costSum <= totalNum + 0.01 &&
-    (plans ?? []).reduce((a, p) => a + planAmount(p, empPool), 0) <= empPool + 0.005;
+    editCosts.every((c) => c.name.trim()) && costSum <= totalNum + 0.01;
   const planOver = (plans ?? []).reduce((a, p) => a + planAmount(p, empPool), 0) > empPool + 0.005;
 
   return (
@@ -817,18 +815,6 @@ function EditInvoiceDialog({
           <section className="rounded-sm border border-border p-3">
             <ProjectCostEditor costs={editCosts} onChange={setEditCosts} total={totalNum} currency={currency} compact />
           </section>
-
-          {sisterCtx && (
-            <section className="rounded-sm border border-border p-3">
-              <CompanyFundPreview ctx={sisterCtx} amount={Math.max(totalNum - costSum, 0)} currency={currency} />
-            </section>
-          )}
-          {!sisterCtx && fundLedger && plans && (
-            <section className="rounded-sm border border-border p-3">
-              <EmployeeFundPlanner net={Math.max(totalNum - costSum, 0)} currency={currency} projectId={(invoice as { project_id?: string | null }).project_id ?? null} plans={plans} onChange={setPlans} onPoolChange={(p) => p !== empPool && setEmpPool(p)} />
-              {planOver && <span className="sr-only">{EXCEEDS_MSG}</span>}
-            </section>
-          )}
 
           <section className={cn("rounded-sm border border-border p-3", fundLedger && "hidden")}>
             <div className="mb-2 flex items-center justify-between"><h4 className="text-[13px] font-semibold">Legacy Revenue Split</h4><span className={cn("font-mono text-[11px]", Math.abs(pctSum - 100) < 0.01 ? "text-emerald-600" : "text-rose-600")}>{pctSum.toFixed(2)}%</span></div>
