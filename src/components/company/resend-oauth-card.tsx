@@ -111,7 +111,7 @@ export function ResendOAuthCard({ slug, companyName, onReady }: { slug: string; 
             {q.isLoading ? "Loading…" : a
               ? !inbox ? "Verify the In-app Gmail Inbox Address below first — its address becomes the sender."
                 : ready ? `Ready · sending as ${inbox.name} <${inbox.email}> — manage it in the Resend card below.`
-                : busy === "setup" ? (verified ? `${inbox.domain} is already verified · creating API key and webhook…` : `Setting up ${inbox.domain}…`)
+                : busy === "setup" ? (verified ? `${inbox.domain} is verified · checking tracking, API key and webhook…` : `Setting up ${inbox.domain}…`)
                 : `Sender ${inbox.name} <${inbox.email}>`
               : "Sign in or create a Resend account in the popup — the Console does the rest."}
           </p>
