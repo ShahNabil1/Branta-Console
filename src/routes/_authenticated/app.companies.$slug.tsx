@@ -1045,7 +1045,7 @@ function LogoUploader({ value, name, onChange }: { value: string; name: string; 
           </Button>
         )}
       </div>
-      <p className="basis-full text-[11px] text-muted-foreground">PNG, JPG, SVG or WEBP · up to 5 MB · transparent background works best.</p>
+      <p className="basis-full text-[11px] text-muted-foreground">All image formats — JPG, PNG, WEBP, SVG, GIF, HEIC… · up to 5 MB · transparent background works best.</p>
     </div>
   );
 }
