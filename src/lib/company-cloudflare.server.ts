@@ -3,9 +3,9 @@
 // in company_cloudflare_accounts (service-role only); access tokens never leave the server.
 import { open, publicBase, seal } from "@/lib/company-email.server";
 
-// Exact scope IDs configured on the OAuth client (13 required) + offline_access for refresh.
+// Exact scope IDs configured on the OAuth client (13 required). Cloudflare rejects
+// offline_access for this client (invalid_scope); refresh tokens come from the refresh_token grant.
 export const CF_SCOPES = [
-  "offline_access",
   "dns.read", "dns.write",
   "zone.read", "zone-settings.read", "zone-settings.write",
   "email-routing-address.read", "email-routing-address.write",
