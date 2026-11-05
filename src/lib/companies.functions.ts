@@ -49,10 +49,14 @@ export const listCompanies = createServerFn({ method: "GET" })
     const ppl = await people(sb, rows.flatMap((r) => [r.ceo_user_id ?? "", r.coo_user_id ?? ""]));
     const manage = await Promise.all(rows.map((r) => sb.rpc("can_manage_company", { _company: r.id, _user: context.userId })));
     const fin = await Promise.all(rows.map((r) => sb.rpc("can_view_company_finance", { _company: r.id, _user: context.userId })));
+    const { data: meP } = await sb.from("profiles").select("id").eq("user_id", context.userId).maybeSingle();
+    const { data: myMem } = meP ? await sb.from("company_members").select("company_id, role").eq("user_id", (meP as { id: string }).id).eq("is_active", true) : { data: [] };
+    const myRole = new Map(((myMem ?? []) as { company_id: string; role: string }[]).map((m) => [m.company_id, m.role]));
     return rows.map((r, i) => ({
       ...r,
       canManage: !!manage[i]?.data,
       canFinance: !!fin[i]?.data,
+      myRole: myRole.get(r.id) ?? null,
       ceo: r.ceo_user_id ? ppl[r.ceo_user_id] ?? null : null,
       coo: r.coo_user_id ? ppl[r.coo_user_id] ?? null : null,
       memberCount: counts[r.id] ?? 0,
