@@ -1443,7 +1443,7 @@ export const testEmailProvider = createServerFn({ method: "POST" })
       const v = await f();
       return { v, ms: Date.now() - t };
     };
-    const checks: (Check & { kind: "api" | "domain" | "webhook" })[] = [];
+    const checks: (Check & { kind: "api" | "domain" | "tracking" | "webhook"; needsInput?: boolean })[] = [];
     const norm = (u: string) => (u ?? "").replace(/\/+$/, "");
 
     if (data.provider === "resend") {
@@ -1473,6 +1473,23 @@ export const testEmailProvider = createServerFn({ method: "POST" })
             ? `${domain} · ${dom.status}${dom.region ? ` · ${dom.region}` : ""}`
             : `${domain} not found in Resend`,
       });
+      if (dom) {
+        const { trackingIssues, ISSUE_LABEL } = await import("@/lib/resend-tracking");
+        const full = await m.resend(key, `/domains/${(dom as Any).id}`);
+        const issues = full.ok ? trackingIssues(full.body) : [];
+        checks.push({
+          id: "tracking",
+          kind: "tracking",
+          label: "Tracking & TLS",
+          ok: full.ok && !issues.length,
+          needsInput: issues.includes("subdomain"),
+          detail: !full.ok
+            ? `HTTP ${full.status} · could not read domain settings`
+            : issues.length
+              ? issues.map((i) => ISSUE_LABEL[i]).join(" · ")
+              : `${full.body.tracking_subdomain}.${domain} · open + click on · TLS opportunistic`,
+        });
+      }
       const w = await listRepairHooks("resend", (path, init) => m.resend(key, path, init))
         .then(hooks => ({ ok: true, status: 200, body: { data: hooks } }))
         .catch(() => ({ ok: false, status: 0, body: { data: [] } }));
@@ -1576,4 +1593,43 @@ export const testEmailProvider = createServerFn({ method: "POST" })
       .update({ last_check: { at: new Date().toISOString(), checks } })
       .eq("id", r.id);
     return { ok, checks };
+  });
+
+/** Fixes Resend tracking: subdomain (when missing), open + click tracking on, TLS opportunistic, tracking DNS via Cloudflare, then verify. */
+export const fixResendTracking = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({ slug: Slug, subdomain: z.string().trim().toLowerCase().max(63).optional() }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { co, admin } = await gate(context, data.slug);
+    const m = await import("@/lib/company-email.server");
+    const t = await import("@/lib/resend-tracking");
+    const r = await row(admin, co.id, "resend");
+    if (!r?.is_active) throw new Error("Resend is not connected.");
+    const key = await m.open(r.api_key_enc);
+    if (!key) throw new Error("Resend credentials are missing. Disconnect and connect again.");
+    const domain = (r.domain || String(r.sender_email).split("@")[1]).toLowerCase();
+    const l = await m.resend(key, "/domains");
+    const hit = ((l.body?.data ?? []) as Any[]).find((x) => String(x.name).toLowerCase() === domain);
+    if (!hit) throw new Error(`${domain} isn't in Resend.`);
+    let d = (await m.resend(key, `/domains/${hit.id}`)).body;
+    const issues = t.trackingIssues(d);
+    if (issues.includes("subdomain")) {
+      if (!data.subdomain || !t.SUBDOMAIN_RE.test(data.subdomain)) throw new Error("Enter a tracking subdomain (letters, numbers, dashes).");
+    }
+    if (issues.some((i) => i !== "dns")) {
+      const body: Any = { open_tracking: true, click_tracking: true, tls: "opportunistic" };
+      if (issues.includes("subdomain")) body.tracking_subdomain = data.subdomain;
+      const p = await m.resend(key, `/domains/${hit.id}`, { method: "PATCH", body });
+      if (!p.ok) throw new Error(`Resend ${p.status}: ${p.body?.message ?? "could not update domain"}`);
+      d = (await m.resend(key, `/domains/${hit.id}`)).body;
+    }
+    if (t.trackingIssues(d).includes("dns") || !d?.tracking_subdomain) {
+      const rs = await import("@/lib/company-resend.server");
+      const pushed = await rs.pushResendDns(co.id, domain, d?.records ?? []);
+      if (!pushed.ok) throw new Error(pushed.detail);
+      await m.resend(key, `/domains/${hit.id}/verify`, { method: "POST" });
+      d = (await m.resend(key, `/domains/${hit.id}`)).body;
+    }
+    const left = t.trackingIssues(d);
+    return { ok: !left.length, pending: left.length === 1 && left[0] === "dns", detail: left.map((i) => t.ISSUE_LABEL[i]).join(" · ") };
   });

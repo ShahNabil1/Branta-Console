@@ -159,33 +159,8 @@ export const runResendSetup = createServerFn({ method: "POST" })
 
     if (data.stage === "dns") {
       if (d.status === "verified" && recordsVerified(d)) return done({ stage: "dns", ok: true, detail: "All Resend records already verified · DNS skipped" });
-      const cf = await import("@/lib/company-cloudflare.server");
-      const cft = await cf.companyCloudflareToken(co.id).catch(() => null);
-      if (!cft) return done({ stage: "dns", ok: false, detail: "Connect this company's Cloudflare account first." });
-      // Zone = the domain itself or its closest parent present in the Cloudflare account.
-      const parts = data.domain.split(".");
-      let zone: Any = null;
-      for (let i = 0; i < parts.length - 1 && !zone; i++) {
-        const { result } = await cf.cfApi<Any[]>(cft, `/zones?name=${encodeURIComponent(parts.slice(i).join("."))}`);
-        zone = result?.[0] ?? null;
-      }
-      if (!zone) return done({ stage: "dns", ok: false, detail: `${data.domain} isn't in the connected Cloudflare account.` });
-      let added = 0, updated = 0, same = 0;
-      for (const r of (d.records ?? []) as Any[]) {
-        const type = String(r.type ?? (r.record === "DKIM" ? "TXT" : "TXT")).toUpperCase();
-        const name = rs.fqdn(String(r.name ?? ""), data.domain);
-        const content = String(r.value ?? "").replace(/^"|"$/g, "");
-        const { result: existing } = await cf.cfApi<Any[]>(cft, `/zones/${zone.id}/dns_records?type=${type}&name=${encodeURIComponent(name)}`);
-        const norm = (s: string) => String(s ?? "").replace(/^"|"$/g, "").trim().toLowerCase();
-        if ((existing ?? []).some((e) => norm(e.content) === norm(content))) { same++; continue; }
-        const body: Any = { type, name, content, ttl: 1, proxied: false, comment: "Resend · Branta Console" };
-        if (type === "MX") body.priority = Number(r.priority ?? 10);
-        // Replace a stale DKIM/SPF value at the same name; otherwise add alongside.
-        const stale = type === "TXT" ? (existing ?? []).find((e) => (name.includes("_domainkey") || norm(e.content).startsWith("v=spf1")) && (name.includes("_domainkey") || content.startsWith("v=spf1"))) : null;
-        if (stale) { await cf.cfApi(cft, `/zones/${zone.id}/dns_records/${stale.id}`, { method: "PATCH", body: JSON.stringify(body) }); updated++; }
-        else { await cf.cfApi(cft, `/zones/${zone.id}/dns_records`, { method: "POST", body: JSON.stringify(body) }); added++; }
-      }
-      return done({ stage: "dns", ok: true, detail: `Cloudflare ${zone.name}: ${added} added · ${updated} updated · ${same} already set` });
+      const r = await rs.pushResendDns(co.id, data.domain, d.records ?? []);
+      return done({ stage: "dns", ok: r.ok, detail: r.detail });
     }
 
     if (data.stage === "verify") {
