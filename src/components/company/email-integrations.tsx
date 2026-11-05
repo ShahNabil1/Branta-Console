@@ -1,6 +1,7 @@
 import { DisconnectButton as SharedDisconnectButton } from "@/components/ui/disconnect-button";
 import { TestLoader } from "@/components/ui/test-loader";
 import { WebhookFixButton } from "@/components/company/webhook-fix-button";
+import { fixBlocker } from "@/lib/fix-order";
 import { ProviderRepairDialog } from "@/components/company/provider-repair-dialog";
 import { repairProviderApi, repairProviderDomain } from "@/lib/company-provider-repair.functions";
 import { startResendConnect } from "@/lib/company-resend.functions";
@@ -587,19 +588,18 @@ function ProviderPanel({
                       {c.ok ? "Working" : "Issue"}
                     </div>
                   </div>
-                  {c.kind === "webhook" && !c.ok && (
-                    <WebhookFixButton fixing={fixingKind === "webhook"} disabled={locked || !!busy} onClick={() => void fixWebhook()} />
-                  )}
-                  {c.kind === "tracking" && !c.ok && (
-                    <WebhookFixButton fixing={fixingKind === "tracking"} disabled={locked || !!busy} onClick={() => {
-                      if (checks.some(check => check.kind === "api" && !check.ok)) openRepair("api");
-                      else if (checks.some(check => check.kind === "domain" && !check.ok)) openRepair("domain");
-                      else void fixTracking(c.needsInput);
-                    }} />
-                  )}
-                  {(c.kind === "api" || c.kind === "domain") && !c.ok && (
-                    <WebhookFixButton fixing={fixingKind === c.kind} disabled={locked || !!busy} onClick={() => { if (c.kind === "api" || c.kind === "domain") openRepair(c.kind); }} />
-                  )}
+                  {!c.ok && (c.kind === "api" || c.kind === "domain" || c.kind === "tracking" || c.kind === "webhook") && (() => {
+                    const blocker = fixBlocker(c.kind, checks);
+                    return (
+                      <span title={blocker ?? undefined} className="ml-auto">
+                        <WebhookFixButton fixing={fixingKind === c.kind} disabled={locked || !!busy || !!blocker} onClick={() => {
+                          if (c.kind === "webhook") void fixWebhook();
+                          else if (c.kind === "tracking") void fixTracking(c.needsInput);
+                          else openRepair(c.kind as "api" | "domain");
+                        }} />
+                      </span>
+                    );
+                  })()}
                 </div>
                 <p className="relative mt-2 break-words text-[11.5px] font-semibold text-muted-foreground">
                   {c.detail}
