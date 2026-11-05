@@ -43,6 +43,7 @@ import { resolveActivePath } from "@/lib/nav-active";
 import { stripOrg, isOrgScoped, toCompanyPath } from "@/lib/org-path";
 import brandLogo from "@/assets/brand-logo.png.asset.json";
 import { getMyPermissions } from "@/lib/permissions.functions";
+import { holdingPageAllowed } from "@/lib/role-access";
 import { CompanySwitcher, useActiveCompany } from "@/components/company/company-switcher";
 import { GmailMark } from "@/components/company/google-account-card";
 
@@ -256,6 +257,13 @@ export function AppSidebar() {
         // Finance has no static items (its links render per company), so keep it explicitly.
         .filter((g) => g.label === "Finance" || g.items.length > 0);
     }
+    // Branta Tech (holding): page visibility follows the GA / Accounts / HR / C.E.O / C.O.O / Executive matrix.
+    if (!sister && !isSuperAdmin) {
+      const allow = (to: string) => holdingPageAllowed(perms, to);
+      const financeVisible = FINANCE_NAV.some((fg) => fg.items.some((i) => allow(i.to)));
+      return NAV.map((g) => g.label === "Finance" ? g : { ...g, items: g.items.filter((it) => allow(it.to)) })
+        .filter((g) => (g.label === "Finance" ? financeVisible : g.items.length > 0));
+    }
     return NAV.map((g) => {
       if (g.label === "Admin" && !isAdmin) return { ...g, items: [] };
       if (ceo && g.label !== "Admin") return g;
@@ -413,7 +421,7 @@ export function AppSidebar() {
                 </div>
               ) : group.label === "Finance" ? (
                 <div className="space-y-0.5">
-                  {FINANCE_NAV.map((fg) => {
+                  {FINANCE_NAV.map((fg) => ({ ...fg, items: !permsQ.data || permsQ.data.isSuperAdmin ? fg.items : fg.items.filter((i) => holdingPageAllowed(permsQ.data!, i.to)) })).filter((fg) => fg.items.length > 0).map((fg) => {
                     const open = openFinanceGroups.includes(fg.label) && exp;
                     const containsActive = fg.items.some((i) => isRouteActive(i.to));
                     return (
