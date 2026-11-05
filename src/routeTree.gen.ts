@@ -89,12 +89,13 @@ import { Route as AuthenticatedAppFinanceInvoicesSlugRouteImport } from './route
 import { Route as AuthenticatedAppFinanceInvoicesNewRouteImport } from './routes/_authenticated/app.finance.invoices.new'
 import { Route as AuthenticatedAppOrgOrgIndexRouteImport } from './routes/_authenticated/app.org.$org.index'
 import { Route as AuthenticatedAppOrgOrgAnalyticsRouteImport } from './routes/_authenticated/app.org.$org.analytics'
-import { Route as AuthenticatedAppOrgOrgEmployeesRouteImport } from './routes/_authenticated/app.org.$org.employees'
 import { Route as AuthenticatedAppOrgOrgInboxRouteImport } from './routes/_authenticated/app.org.$org.inbox'
 import { Route as AuthenticatedAppOrgOrgOperationsRouteImport } from './routes/_authenticated/app.org.$org.operations'
 import { Route as AuthenticatedAppOrgOrgTransfersRouteImport } from './routes/_authenticated/app.org.$org.transfers'
 import { Route as AuthenticatedAppOrgOrgCustomersIndexRouteImport } from './routes/_authenticated/app.org.$org.customers.index'
 import { Route as AuthenticatedAppOrgOrgCustomersCodeRouteImport } from './routes/_authenticated/app.org.$org.customers.$code'
+import { Route as AuthenticatedAppOrgOrgEmployeesIndexRouteImport } from './routes/_authenticated/app.org.$org.employees.index'
+import { Route as AuthenticatedAppOrgOrgEmployeesUserIdRouteImport } from './routes/_authenticated/app.org.$org.employees.$userId'
 import { Route as AuthenticatedAppOrgOrgFinanceExpensesRouteImport } from './routes/_authenticated/app.org.$org.finance.expenses'
 import { Route as AuthenticatedAppOrgOrgFinanceRecycleBinRouteImport } from './routes/_authenticated/app.org.$org.finance.recycle-bin'
 import { Route as AuthenticatedAppOrgOrgFinanceWalletRouteImport } from './routes/_authenticated/app.org.$org.finance.wallet'
@@ -568,12 +569,6 @@ const AuthenticatedAppOrgOrgAnalyticsRoute =
     path: '/analytics',
     getParentRoute: () => AuthenticatedAppOrgOrgRoute,
   } as any)
-const AuthenticatedAppOrgOrgEmployeesRoute =
-  AuthenticatedAppOrgOrgEmployeesRouteImport.update({
-    id: '/employees',
-    path: '/employees',
-    getParentRoute: () => AuthenticatedAppOrgOrgRoute,
-  } as any)
 const AuthenticatedAppOrgOrgInboxRoute =
   AuthenticatedAppOrgOrgInboxRouteImport.update({
     id: '/inbox',
@@ -602,6 +597,18 @@ const AuthenticatedAppOrgOrgCustomersCodeRoute =
   AuthenticatedAppOrgOrgCustomersCodeRouteImport.update({
     id: '/customers/$code',
     path: '/customers/$code',
+    getParentRoute: () => AuthenticatedAppOrgOrgRoute,
+  } as any)
+const AuthenticatedAppOrgOrgEmployeesIndexRoute =
+  AuthenticatedAppOrgOrgEmployeesIndexRouteImport.update({
+    id: '/employees/',
+    path: '/employees/',
+    getParentRoute: () => AuthenticatedAppOrgOrgRoute,
+  } as any)
+const AuthenticatedAppOrgOrgEmployeesUserIdRoute =
+  AuthenticatedAppOrgOrgEmployeesUserIdRouteImport.update({
+    id: '/employees/$userId',
+    path: '/employees/$userId',
     getParentRoute: () => AuthenticatedAppOrgOrgRoute,
   } as any)
 const AuthenticatedAppOrgOrgFinanceExpensesRoute =
@@ -754,7 +761,6 @@ export interface FileRoutesByFullPath {
   '/app/finance/invoices/$slug': typeof AuthenticatedAppFinanceInvoicesSlugRoute
   '/app/finance/invoices/new': typeof AuthenticatedAppFinanceInvoicesNewRoute
   '/app/org/$org/analytics': typeof AuthenticatedAppOrgOrgAnalyticsRoute
-  '/app/org/$org/employees': typeof AuthenticatedAppOrgOrgEmployeesRoute
   '/app/org/$org/inbox': typeof AuthenticatedAppOrgOrgInboxRoute
   '/app/org/$org/operations': typeof AuthenticatedAppOrgOrgOperationsRoute
   '/app/org/$org/transfers': typeof AuthenticatedAppOrgOrgTransfersRoute
@@ -762,6 +768,7 @@ export interface FileRoutesByFullPath {
   '/app/finance/invoices/': typeof AuthenticatedAppFinanceInvoicesIndexRoute
   '/app/org/$org/': typeof AuthenticatedAppOrgOrgIndexRoute
   '/app/org/$org/customers/$code': typeof AuthenticatedAppOrgOrgCustomersCodeRoute
+  '/app/org/$org/employees/$userId': typeof AuthenticatedAppOrgOrgEmployeesUserIdRoute
   '/app/org/$org/finance/expenses': typeof AuthenticatedAppOrgOrgFinanceExpensesRoute
   '/app/org/$org/finance/recycle-bin': typeof AuthenticatedAppOrgOrgFinanceRecycleBinRoute
   '/app/org/$org/finance/wallet': typeof AuthenticatedAppOrgOrgFinanceWalletRoute
@@ -770,6 +777,7 @@ export interface FileRoutesByFullPath {
   '/app/org/$org/leads/drafts': typeof AuthenticatedAppOrgOrgLeadsDraftsRoute
   '/app/org/$org/projects/$id': typeof AuthenticatedAppOrgOrgProjectsIdRoute
   '/app/org/$org/customers/': typeof AuthenticatedAppOrgOrgCustomersIndexRoute
+  '/app/org/$org/employees/': typeof AuthenticatedAppOrgOrgEmployeesIndexRoute
   '/app/org/$org/leads/': typeof AuthenticatedAppOrgOrgLeadsIndexRoute
   '/app/org/$org/projects/': typeof AuthenticatedAppOrgOrgProjectsIndexRoute
   '/app/org/$org/finance/invoices/$slug': typeof AuthenticatedAppOrgOrgFinanceInvoicesSlugRoute
@@ -846,7 +854,6 @@ export interface FileRoutesByTo {
   '/app/finance/invoices/$slug': typeof AuthenticatedAppFinanceInvoicesSlugRoute
   '/app/finance/invoices/new': typeof AuthenticatedAppFinanceInvoicesNewRoute
   '/app/org/$org/analytics': typeof AuthenticatedAppOrgOrgAnalyticsRoute
-  '/app/org/$org/employees': typeof AuthenticatedAppOrgOrgEmployeesRoute
   '/app/org/$org/inbox': typeof AuthenticatedAppOrgOrgInboxRoute
   '/app/org/$org/operations': typeof AuthenticatedAppOrgOrgOperationsRoute
   '/app/org/$org/transfers': typeof AuthenticatedAppOrgOrgTransfersRoute
@@ -854,6 +861,7 @@ export interface FileRoutesByTo {
   '/app/finance/invoices': typeof AuthenticatedAppFinanceInvoicesIndexRoute
   '/app/org/$org': typeof AuthenticatedAppOrgOrgIndexRoute
   '/app/org/$org/customers/$code': typeof AuthenticatedAppOrgOrgCustomersCodeRoute
+  '/app/org/$org/employees/$userId': typeof AuthenticatedAppOrgOrgEmployeesUserIdRoute
   '/app/org/$org/finance/expenses': typeof AuthenticatedAppOrgOrgFinanceExpensesRoute
   '/app/org/$org/finance/recycle-bin': typeof AuthenticatedAppOrgOrgFinanceRecycleBinRoute
   '/app/org/$org/finance/wallet': typeof AuthenticatedAppOrgOrgFinanceWalletRoute
@@ -862,6 +870,7 @@ export interface FileRoutesByTo {
   '/app/org/$org/leads/drafts': typeof AuthenticatedAppOrgOrgLeadsDraftsRoute
   '/app/org/$org/projects/$id': typeof AuthenticatedAppOrgOrgProjectsIdRoute
   '/app/org/$org/customers': typeof AuthenticatedAppOrgOrgCustomersIndexRoute
+  '/app/org/$org/employees': typeof AuthenticatedAppOrgOrgEmployeesIndexRoute
   '/app/org/$org/leads': typeof AuthenticatedAppOrgOrgLeadsIndexRoute
   '/app/org/$org/projects': typeof AuthenticatedAppOrgOrgProjectsIndexRoute
   '/app/org/$org/finance/invoices/$slug': typeof AuthenticatedAppOrgOrgFinanceInvoicesSlugRoute
@@ -947,7 +956,6 @@ export interface FileRoutesById {
   '/_authenticated/app/finance/invoices/$slug': typeof AuthenticatedAppFinanceInvoicesSlugRoute
   '/_authenticated/app/finance/invoices/new': typeof AuthenticatedAppFinanceInvoicesNewRoute
   '/_authenticated/app/org/$org/analytics': typeof AuthenticatedAppOrgOrgAnalyticsRoute
-  '/_authenticated/app/org/$org/employees': typeof AuthenticatedAppOrgOrgEmployeesRoute
   '/_authenticated/app/org/$org/inbox': typeof AuthenticatedAppOrgOrgInboxRoute
   '/_authenticated/app/org/$org/operations': typeof AuthenticatedAppOrgOrgOperationsRoute
   '/_authenticated/app/org/$org/transfers': typeof AuthenticatedAppOrgOrgTransfersRoute
@@ -955,6 +963,7 @@ export interface FileRoutesById {
   '/_authenticated/app/finance/invoices/': typeof AuthenticatedAppFinanceInvoicesIndexRoute
   '/_authenticated/app/org/$org/': typeof AuthenticatedAppOrgOrgIndexRoute
   '/_authenticated/app/org/$org/customers/$code': typeof AuthenticatedAppOrgOrgCustomersCodeRoute
+  '/_authenticated/app/org/$org/employees/$userId': typeof AuthenticatedAppOrgOrgEmployeesUserIdRoute
   '/_authenticated/app/org/$org/finance/expenses': typeof AuthenticatedAppOrgOrgFinanceExpensesRoute
   '/_authenticated/app/org/$org/finance/recycle-bin': typeof AuthenticatedAppOrgOrgFinanceRecycleBinRoute
   '/_authenticated/app/org/$org/finance/wallet': typeof AuthenticatedAppOrgOrgFinanceWalletRoute
@@ -963,6 +972,7 @@ export interface FileRoutesById {
   '/_authenticated/app/org/$org/leads/drafts': typeof AuthenticatedAppOrgOrgLeadsDraftsRoute
   '/_authenticated/app/org/$org/projects/$id': typeof AuthenticatedAppOrgOrgProjectsIdRoute
   '/_authenticated/app/org/$org/customers/': typeof AuthenticatedAppOrgOrgCustomersIndexRoute
+  '/_authenticated/app/org/$org/employees/': typeof AuthenticatedAppOrgOrgEmployeesIndexRoute
   '/_authenticated/app/org/$org/leads/': typeof AuthenticatedAppOrgOrgLeadsIndexRoute
   '/_authenticated/app/org/$org/projects/': typeof AuthenticatedAppOrgOrgProjectsIndexRoute
   '/_authenticated/app/org/$org/finance/invoices/$slug': typeof AuthenticatedAppOrgOrgFinanceInvoicesSlugRoute
@@ -1048,7 +1058,6 @@ export interface FileRouteTypes {
     | '/app/finance/invoices/$slug'
     | '/app/finance/invoices/new'
     | '/app/org/$org/analytics'
-    | '/app/org/$org/employees'
     | '/app/org/$org/inbox'
     | '/app/org/$org/operations'
     | '/app/org/$org/transfers'
@@ -1056,6 +1065,7 @@ export interface FileRouteTypes {
     | '/app/finance/invoices/'
     | '/app/org/$org/'
     | '/app/org/$org/customers/$code'
+    | '/app/org/$org/employees/$userId'
     | '/app/org/$org/finance/expenses'
     | '/app/org/$org/finance/recycle-bin'
     | '/app/org/$org/finance/wallet'
@@ -1064,6 +1074,7 @@ export interface FileRouteTypes {
     | '/app/org/$org/leads/drafts'
     | '/app/org/$org/projects/$id'
     | '/app/org/$org/customers/'
+    | '/app/org/$org/employees/'
     | '/app/org/$org/leads/'
     | '/app/org/$org/projects/'
     | '/app/org/$org/finance/invoices/$slug'
@@ -1140,7 +1151,6 @@ export interface FileRouteTypes {
     | '/app/finance/invoices/$slug'
     | '/app/finance/invoices/new'
     | '/app/org/$org/analytics'
-    | '/app/org/$org/employees'
     | '/app/org/$org/inbox'
     | '/app/org/$org/operations'
     | '/app/org/$org/transfers'
@@ -1148,6 +1158,7 @@ export interface FileRouteTypes {
     | '/app/finance/invoices'
     | '/app/org/$org'
     | '/app/org/$org/customers/$code'
+    | '/app/org/$org/employees/$userId'
     | '/app/org/$org/finance/expenses'
     | '/app/org/$org/finance/recycle-bin'
     | '/app/org/$org/finance/wallet'
@@ -1156,6 +1167,7 @@ export interface FileRouteTypes {
     | '/app/org/$org/leads/drafts'
     | '/app/org/$org/projects/$id'
     | '/app/org/$org/customers'
+    | '/app/org/$org/employees'
     | '/app/org/$org/leads'
     | '/app/org/$org/projects'
     | '/app/org/$org/finance/invoices/$slug'
@@ -1240,7 +1252,6 @@ export interface FileRouteTypes {
     | '/_authenticated/app/finance/invoices/$slug'
     | '/_authenticated/app/finance/invoices/new'
     | '/_authenticated/app/org/$org/analytics'
-    | '/_authenticated/app/org/$org/employees'
     | '/_authenticated/app/org/$org/inbox'
     | '/_authenticated/app/org/$org/operations'
     | '/_authenticated/app/org/$org/transfers'
@@ -1248,6 +1259,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/finance/invoices/'
     | '/_authenticated/app/org/$org/'
     | '/_authenticated/app/org/$org/customers/$code'
+    | '/_authenticated/app/org/$org/employees/$userId'
     | '/_authenticated/app/org/$org/finance/expenses'
     | '/_authenticated/app/org/$org/finance/recycle-bin'
     | '/_authenticated/app/org/$org/finance/wallet'
@@ -1256,6 +1268,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/org/$org/leads/drafts'
     | '/_authenticated/app/org/$org/projects/$id'
     | '/_authenticated/app/org/$org/customers/'
+    | '/_authenticated/app/org/$org/employees/'
     | '/_authenticated/app/org/$org/leads/'
     | '/_authenticated/app/org/$org/projects/'
     | '/_authenticated/app/org/$org/finance/invoices/$slug'
@@ -1847,13 +1860,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppOrgOrgAnalyticsRouteImport
       parentRoute: typeof AuthenticatedAppOrgOrgRoute
     }
-    '/_authenticated/app/org/$org/employees': {
-      id: '/_authenticated/app/org/$org/employees'
-      path: '/employees'
-      fullPath: '/app/org/$org/employees'
-      preLoaderRoute: typeof AuthenticatedAppOrgOrgEmployeesRouteImport
-      parentRoute: typeof AuthenticatedAppOrgOrgRoute
-    }
     '/_authenticated/app/org/$org/inbox': {
       id: '/_authenticated/app/org/$org/inbox'
       path: '/inbox'
@@ -1887,6 +1893,20 @@ declare module '@tanstack/react-router' {
       path: '/customers/$code'
       fullPath: '/app/org/$org/customers/$code'
       preLoaderRoute: typeof AuthenticatedAppOrgOrgCustomersCodeRouteImport
+      parentRoute: typeof AuthenticatedAppOrgOrgRoute
+    }
+    '/_authenticated/app/org/$org/employees/': {
+      id: '/_authenticated/app/org/$org/employees/'
+      path: '/employees'
+      fullPath: '/app/org/$org/employees/'
+      preLoaderRoute: typeof AuthenticatedAppOrgOrgEmployeesIndexRouteImport
+      parentRoute: typeof AuthenticatedAppOrgOrgRoute
+    }
+    '/_authenticated/app/org/$org/employees/$userId': {
+      id: '/_authenticated/app/org/$org/employees/$userId'
+      path: '/employees/$userId'
+      fullPath: '/app/org/$org/employees/$userId'
+      preLoaderRoute: typeof AuthenticatedAppOrgOrgEmployeesUserIdRouteImport
       parentRoute: typeof AuthenticatedAppOrgOrgRoute
     }
     '/_authenticated/app/org/$org/finance/expenses': {
@@ -2121,12 +2141,12 @@ const AuthenticatedAppProfileRouteWithChildren =
 
 interface AuthenticatedAppOrgOrgRouteChildren {
   AuthenticatedAppOrgOrgAnalyticsRoute: typeof AuthenticatedAppOrgOrgAnalyticsRoute
-  AuthenticatedAppOrgOrgEmployeesRoute: typeof AuthenticatedAppOrgOrgEmployeesRoute
   AuthenticatedAppOrgOrgInboxRoute: typeof AuthenticatedAppOrgOrgInboxRoute
   AuthenticatedAppOrgOrgOperationsRoute: typeof AuthenticatedAppOrgOrgOperationsRoute
   AuthenticatedAppOrgOrgTransfersRoute: typeof AuthenticatedAppOrgOrgTransfersRoute
   AuthenticatedAppOrgOrgIndexRoute: typeof AuthenticatedAppOrgOrgIndexRoute
   AuthenticatedAppOrgOrgCustomersCodeRoute: typeof AuthenticatedAppOrgOrgCustomersCodeRoute
+  AuthenticatedAppOrgOrgEmployeesUserIdRoute: typeof AuthenticatedAppOrgOrgEmployeesUserIdRoute
   AuthenticatedAppOrgOrgFinanceExpensesRoute: typeof AuthenticatedAppOrgOrgFinanceExpensesRoute
   AuthenticatedAppOrgOrgFinanceRecycleBinRoute: typeof AuthenticatedAppOrgOrgFinanceRecycleBinRoute
   AuthenticatedAppOrgOrgFinanceWalletRoute: typeof AuthenticatedAppOrgOrgFinanceWalletRoute
@@ -2135,6 +2155,7 @@ interface AuthenticatedAppOrgOrgRouteChildren {
   AuthenticatedAppOrgOrgLeadsDraftsRoute: typeof AuthenticatedAppOrgOrgLeadsDraftsRoute
   AuthenticatedAppOrgOrgProjectsIdRoute: typeof AuthenticatedAppOrgOrgProjectsIdRoute
   AuthenticatedAppOrgOrgCustomersIndexRoute: typeof AuthenticatedAppOrgOrgCustomersIndexRoute
+  AuthenticatedAppOrgOrgEmployeesIndexRoute: typeof AuthenticatedAppOrgOrgEmployeesIndexRoute
   AuthenticatedAppOrgOrgLeadsIndexRoute: typeof AuthenticatedAppOrgOrgLeadsIndexRoute
   AuthenticatedAppOrgOrgProjectsIndexRoute: typeof AuthenticatedAppOrgOrgProjectsIndexRoute
   AuthenticatedAppOrgOrgFinanceInvoicesSlugRoute: typeof AuthenticatedAppOrgOrgFinanceInvoicesSlugRoute
@@ -2145,7 +2166,6 @@ interface AuthenticatedAppOrgOrgRouteChildren {
 const AuthenticatedAppOrgOrgRouteChildren: AuthenticatedAppOrgOrgRouteChildren =
   {
     AuthenticatedAppOrgOrgAnalyticsRoute: AuthenticatedAppOrgOrgAnalyticsRoute,
-    AuthenticatedAppOrgOrgEmployeesRoute: AuthenticatedAppOrgOrgEmployeesRoute,
     AuthenticatedAppOrgOrgInboxRoute: AuthenticatedAppOrgOrgInboxRoute,
     AuthenticatedAppOrgOrgOperationsRoute:
       AuthenticatedAppOrgOrgOperationsRoute,
@@ -2153,6 +2173,8 @@ const AuthenticatedAppOrgOrgRouteChildren: AuthenticatedAppOrgOrgRouteChildren =
     AuthenticatedAppOrgOrgIndexRoute: AuthenticatedAppOrgOrgIndexRoute,
     AuthenticatedAppOrgOrgCustomersCodeRoute:
       AuthenticatedAppOrgOrgCustomersCodeRoute,
+    AuthenticatedAppOrgOrgEmployeesUserIdRoute:
+      AuthenticatedAppOrgOrgEmployeesUserIdRoute,
     AuthenticatedAppOrgOrgFinanceExpensesRoute:
       AuthenticatedAppOrgOrgFinanceExpensesRoute,
     AuthenticatedAppOrgOrgFinanceRecycleBinRoute:
@@ -2168,6 +2190,8 @@ const AuthenticatedAppOrgOrgRouteChildren: AuthenticatedAppOrgOrgRouteChildren =
       AuthenticatedAppOrgOrgProjectsIdRoute,
     AuthenticatedAppOrgOrgCustomersIndexRoute:
       AuthenticatedAppOrgOrgCustomersIndexRoute,
+    AuthenticatedAppOrgOrgEmployeesIndexRoute:
+      AuthenticatedAppOrgOrgEmployeesIndexRoute,
     AuthenticatedAppOrgOrgLeadsIndexRoute:
       AuthenticatedAppOrgOrgLeadsIndexRoute,
     AuthenticatedAppOrgOrgProjectsIndexRoute:

@@ -271,7 +271,7 @@ export function EmployeesPage({ companySlug }: { companySlug?: string } = {}) {
     <EmployeesDirectory
       rows={rows}
       loading={employees.isLoading}
-      onOpen={(userId) => navigate({ to: "/app/employees/$userId", params: { userId } })}
+      onOpen={(userId) => (sisterName && companySlug ? navigate({ to: "/app/org/$org/employees/$userId", params: { org: companySlug, userId } }) : navigate({ to: "/app/employees/$userId", params: { userId } }))}
       eyebrow={sisterName ?? undefined}
       onCreate={sisterName ? undefined : () => {
         setStartDest(false);
