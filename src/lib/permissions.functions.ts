@@ -104,7 +104,7 @@ export const getMyPermissions = createServerFn({ method: "GET" })
     const isSuperAdmin = !!suRes.data;
     const isAdmin = isSuperAdmin || !!adRes.data;
     const isManager = !!managerRes.data;
-    const isFinance = isSuperAdmin || isAdmin || !!finRes.data;
+    const isFinance = isSuperAdmin || isAdmin || !!finRes.data || isManager;
     // NOTE: toggles apply on top of role. Even super_admins respect their
     // per-user overrides so a super_admin with lead_delete=false cannot
     // delete leads from the UI or server. Role only affects settings access.
