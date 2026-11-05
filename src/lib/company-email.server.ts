@@ -60,18 +60,20 @@ export function randomToken(len = 40) {
 // ---------- provider HTTP ----------
 type Res = { ok: boolean; status: number; body: any }; // eslint-disable-line @typescript-eslint/no-explicit-any
 async function call(url: string, headers: Record<string, string>, init?: { method?: string; body?: unknown }): Promise<Res> {
+  const signal = AbortSignal.timeout(20_000);
   try {
     const r = await fetch(url, {
       method: init?.method ?? "GET",
       headers: { ...headers, "Content-Type": "application/json", Accept: "application/json" },
       body: init?.body ? JSON.stringify(init.body) : undefined,
+      signal,
     });
     const text = await r.text();
     let body: unknown = null;
     try { body = text ? JSON.parse(text) : null; } catch { body = { message: text.slice(0, 300) }; }
     return { ok: r.ok, status: r.status, body };
   } catch (e) {
-    return { ok: false, status: 0, body: { message: e instanceof Error ? e.message : "Network error" } };
+    return { ok: false, status: 0, body: { message: signal.aborted ? "The provider check timed out. Please retry." : e instanceof Error ? e.message : "Network error" } };
   }
 }
 export const resend = (k: string, path: string, init?: { method?: string; body?: unknown }) =>

@@ -184,7 +184,7 @@ export function ConfirmSurface({
             <AnimatedBorderButton
               onClick={onConfirm}
               disabled={busy || !typedOk || confirmDisabled}
-              animate={!(busy || !typedOk || confirmDisabled)}
+              animate={!!busy || (typedOk && !confirmDisabled)}
               accent="#ffffff"
               surface="var(--color-destructive)"
               track="rgba(255,255,255,0.25)"

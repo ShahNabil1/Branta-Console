@@ -1,5 +1,11 @@
 # Roadmap
 
+## Resend disconnect Checking
+- [x] Preserve animated disabled confirmation while checking; expose failed preview and Retry instead of masking errors as Checking.
+- [x] Bound provider requests and disconnect preview; reproduce the stalled-response regression before fixing.
+- [x] Eight provider/repair tests and nine existing email/ownership tests pass; actual confirmation is disabled and animated, reduced-motion respected; build OK.
+- [ ] Verify real company disconnect preview; external unmanaged auth has no available test session.
+
 ## Company webhook repair
 - [x] Add inline Fix with the uploaded stationary/animated gear icon, Fixing and disabled pending state for Resend/Brevo webhook issues.
 - [x] Replace only company-owned webhooks, rotate encrypted provider-specific credentials, verify all supported events and refresh health checks; Resend lists all pages for repair and health checks.
