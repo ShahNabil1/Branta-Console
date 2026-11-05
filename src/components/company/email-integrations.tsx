@@ -19,6 +19,7 @@ import {
   RefreshCw,
   Send,
   ShieldCheck,
+  Radar,
   Star,
   Unplug,
   Webhook,
