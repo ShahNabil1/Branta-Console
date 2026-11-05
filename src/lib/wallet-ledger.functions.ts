@@ -18,12 +18,6 @@ export type WalletWithdrawalV2 = {
   id: string; employee_id: string; currency: string; amount: number; status: string; payment_method_snapshot: any;
   note: string | null; admin_note: string | null; transfer_ref: string | null; requested_at: string; paid_at: string | null;
 };
-export type MigrationPreviewRow = {
-  employee_id: string; name: string; currency: string; old_available: number; old_locked: number; old_requested: number; old_paid: number;
-  payouts_credited: number; paid_withdrawals: number; open_withdrawals: number; recalculated: number; difference: number;
-  payout_count: number; withdrawal_count: number; migrated: boolean; opening_balance: number | null;
-};
-
 const num = (o: any, keys: string[]) => { const r = { ...o }; for (const k of keys) r[k] = Number(r[k] ?? 0); return r; };
 const BAL_KEYS = ["ledger_balance","holds","available","pending_committed","legacy_pending","today_earned","week_earned","month_earned","total_earned","total_withdrawn"];
 
@@ -121,28 +115,6 @@ export const getWalletsOverview = createServerFn({ method: "GET" })
       employees,
       employeeFundCommitted: committed,
     };
-  });
-
-export const getMigrationPreview = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { data, error } = await (context.supabase as any).rpc("wallet_migration_preview");
-    if (error) throw dbError(error);
-    return ((data ?? []) as any[]).map((r) => num(r, ["old_available","old_locked","old_requested","old_paid","payouts_credited","paid_withdrawals","open_withdrawals","recalculated","difference","payout_count","withdrawal_count"])) as MigrationPreviewRow[];
-  });
-
-export const migrateWallet = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({
-    userId: z.string().uuid(), currency: z.string().default("BDT"), basis: z.enum(["legacy_balance", "recalculated"]),
-    reason: z.string().min(5).max(500), resolution: z.string().max(1000).optional(),
-  }).parse(d))
-  .handler(async ({ data, context }) => {
-    const { error } = await (context.supabase as any).rpc("wallet_migrate", {
-      _user: data.userId, _currency: data.currency, _basis: data.basis, _reason: data.reason, _resolution: data.resolution ?? null,
-    });
-    if (error) throw dbError(error);
-    return { ok: true };
   });
 
 export const postWalletEntry = createServerFn({ method: "POST" })
