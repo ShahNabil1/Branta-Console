@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 export type HoldingRole = "super_admin" | "admin" | "finance" | "manager" | "coo" | "user";
-export type CompanyRole = "member" | "manager" | "finance" | "super_admin";
+export type CompanyRole = "member" | "manager" | "finance" | "super_admin" | "coo";
 
 type Opt<T> = { value: T; label: string; note: string; icon: typeof User };
 
