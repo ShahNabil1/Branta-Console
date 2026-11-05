@@ -49,10 +49,14 @@ export const listCompanies = createServerFn({ method: "GET" })
     const ppl = await people(sb, rows.flatMap((r) => [r.ceo_user_id ?? "", r.coo_user_id ?? ""]));
     const manage = await Promise.all(rows.map((r) => sb.rpc("can_manage_company", { _company: r.id, _user: context.userId })));
     const fin = await Promise.all(rows.map((r) => sb.rpc("can_view_company_finance", { _company: r.id, _user: context.userId })));
+    const { data: meP } = await sb.from("profiles").select("id").eq("user_id", context.userId).maybeSingle();
+    const { data: myMem } = meP ? await sb.from("company_members").select("company_id, role").eq("user_id", (meP as { id: string }).id).eq("is_active", true) : { data: [] };
+    const myRole = new Map(((myMem ?? []) as { company_id: string; role: string }[]).map((m) => [m.company_id, m.role]));
     return rows.map((r, i) => ({
       ...r,
       canManage: !!manage[i]?.data,
       canFinance: !!fin[i]?.data,
+      myRole: myRole.get(r.id) ?? null,
       ceo: r.ceo_user_id ? ppl[r.ceo_user_id] ?? null : null,
       coo: r.coo_user_id ? ppl[r.coo_user_id] ?? null : null,
       memberCount: counts[r.id] ?? 0,
@@ -200,7 +204,7 @@ export const updateCompanyPrefixes = createServerFn({ method: "POST" })
   });
 
 // ---- Per-employee workspace access (explicit; never implied) ----
-export const WORKSPACE_ROLES = ["member", "manager", "finance", "super_admin"] as const;
+export const WORKSPACE_ROLES = ["member", "manager", "finance", "super_admin", "coo"] as const;
 export type WorkspaceRole = (typeof WORKSPACE_ROLES)[number];
 
 async function profileIdFor(admin: Sb, authUserId: string): Promise<string> {
@@ -248,9 +252,9 @@ export const setEmployeeWorkspace = createServerFn({ method: "POST" })
     const pid = await profileIdFor(admin, data.userId);
     const { data: co } = await admin.from("companies").select("ceo_user_id, coo_user_id, is_holding").eq("id", data.companyId).maybeSingle();
     if (!co) throw new Error("Company not found.");
-    if ((co.ceo_user_id === pid || co.coo_user_id === pid) && data.role !== "super_admin")
+    if ((co.ceo_user_id === pid || co.coo_user_id === pid) && data.role !== "super_admin" && data.role !== "coo")
       throw new Error("CEO/COO always keep full access. Change the company leadership first.");
-    if (!co.is_holding && data.role !== "super_admin") {
+    if (!co.is_holding && data.role !== "super_admin" && data.role !== "coo") {
       const { data: h } = await admin.from("companies").select("id").eq("is_holding", true).maybeSingle();
       const { data: hm } = h ? await admin.from("company_members").select("role, is_active").eq("company_id", h.id).eq("user_id", pid).maybeSingle() : { data: null };
       if (hm?.is_active && hm.role === "super_admin")

@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 export type HoldingRole = "super_admin" | "admin" | "finance" | "manager" | "coo" | "user";
-export type CompanyRole = "member" | "manager" | "finance" | "super_admin";
+export type CompanyRole = "member" | "manager" | "finance" | "super_admin" | "coo";
 
 type Opt<T> = { value: T; label: string; note: string; icon: typeof User };
 
@@ -23,10 +23,11 @@ const HOLDING: Opt<HoldingRole>[] = [
   { value: "super_admin", label: "Group Admin (GA)", note: "Full control of every company.", icon: Crown },
 ];
 const SISTER: Opt<CompanyRole>[] = [
-  { value: "member", label: "Member", note: "Works in this company only.", icon: User },
-  { value: "manager", label: "Manager", note: "Leads a team in this company.", icon: Users },
-  { value: "finance", label: "Finance", note: "This company's customers, invoices, expenses & wallet.", icon: Wallet },
-  { value: "super_admin", label: "Company admin", note: "Full control of this company only.", icon: Shield },
+  { value: "member", label: "Executive", note: "Workspace & CRM of this company only.", icon: User },
+  { value: "super_admin", label: "C.E.O", note: "Full control of this company only.", icon: Shield },
+  { value: "coo", label: "C.O.O", note: "Full control of this company only.", icon: Shield },
+  { value: "manager", label: "HR", note: "Workspace, CRM & Expenses of this company.", icon: Users },
+  { value: "finance", label: "Accounts", note: "Finance & Customers of this company.", icon: Wallet },
 ];
 
 export function CompanyRolePicker({

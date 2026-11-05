@@ -257,6 +257,12 @@ export function AppSidebar() {
         // Finance has no static items (its links render per company), so keep it explicitly.
         .filter((g) => g.label === "Finance" || g.items.length > 0);
     }
+    // Sister company: HR (company "manager") and Executive (company "member") stay inside their pages.
+    const sisterRole = (activeCompany as { myRole?: string | null } | null)?.myRole;
+    if (sister && !isAdmin && !ceo && (sisterRole === "manager" || sisterRole === "member")) {
+      return NAV.filter((g) => g.label === "Workspace" || g.label === "CRM" || (g.label === "Finance" && sisterRole === "manager"))
+        .map((g) => g.label === "Finance" ? g : { ...g, items: g.items.filter((it) => isOrgScoped(it.to)) });
+    }
     // Branta Tech (holding): page visibility follows the GA / Accounts / HR / C.E.O / C.O.O / Executive matrix.
     if (!sister && !isSuperAdmin) {
       const allow = (to: string) => holdingPageAllowed(perms, to);
@@ -408,7 +414,7 @@ export function AppSidebar() {
               </div>
               {group.label === "Finance" && activeCompany && !activeCompany.is_holding ? (
                 <div className="space-y-0.5">
-                  {SISTER_FINANCE.map((item) => {
+                  {SISTER_FINANCE.filter((item) => !(!(permsQ.data?.isAdmin) && !(activeCompany as { canManage?: boolean }).canManage && (activeCompany as { myRole?: string | null }).myRole === "manager") || item.plain === "/app/finance/expenses").map((item) => {
                     const active = isRouteActive(item.plain) || (item.plain === "/app/finance/invoices" && (activePath ?? "").startsWith("/app/finance/invoices"));
                     return (
                       <Link key={item.to} to={item.to} params={{ org: activeCompany.slug }} title={!exp ? item.label : undefined} className={itemClass(active)}>

@@ -57,5 +57,10 @@ function OrgLayout() {
   if (financeOnly && !/^\/(customers|finance)(\/|$)/.test(rest)) {
     return <Navigate to={`/app/org/${org}/customers` as never} replace />;
   }
+  const myRole = (company as { myRole?: string | null }).myRole;
+  if (!(perms?.isAdmin ?? perms?.isSuperAdmin) && !c.canManage && /^\/finance(\/|$)/.test(rest)
+    && (myRole === "member" || (myRole === "manager" && !/^\/finance\/expenses(\/|$)/.test(rest)))) {
+    return <Navigate to={`/app/org/${org}` as never} replace />;
+  }
   return <div className="contents" onClickCapture={keepInCompany}><Outlet /></div>;
 }
