@@ -1343,6 +1343,65 @@ export type Database = {
           },
         ]
       }
+      company_resend_accounts: {
+        Row: {
+          company_id: string
+          connected_at: string
+          connected_by: string | null
+          created_at: string
+          disconnected_at: string | null
+          id: string
+          is_active: boolean
+          last_error: string | null
+          refresh_token_enc: string | null
+          resend_domain: string | null
+          resend_domain_id: string | null
+          scopes: string[]
+          setup_state: Json
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          connected_at?: string
+          connected_by?: string | null
+          created_at?: string
+          disconnected_at?: string | null
+          id?: string
+          is_active?: boolean
+          last_error?: string | null
+          refresh_token_enc?: string | null
+          resend_domain?: string | null
+          resend_domain_id?: string | null
+          scopes?: string[]
+          setup_state?: Json
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          connected_at?: string
+          connected_by?: string | null
+          created_at?: string
+          disconnected_at?: string | null
+          id?: string
+          is_active?: boolean
+          last_error?: string | null
+          refresh_token_enc?: string | null
+          resend_domain?: string | null
+          resend_domain_id?: string | null
+          scopes?: string[]
+          setup_state?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_resend_accounts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_wallet_ledger: {
         Row: {
           amount: number
@@ -4709,6 +4768,33 @@ export type Database = {
           role_super_admin?: boolean
           updated_at?: string
           updated_by?: string | null
+        }
+        Relationships: []
+      }
+      oauth_client_registrations: {
+        Row: {
+          client_id: string
+          client_secret_enc: string | null
+          created_at: string
+          provider: string
+          redirect_uris: string[]
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          client_secret_enc?: string | null
+          created_at?: string
+          provider: string
+          redirect_uris?: string[]
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          client_secret_enc?: string | null
+          created_at?: string
+          provider?: string
+          redirect_uris?: string[]
+          updated_at?: string
         }
         Relationships: []
       }
