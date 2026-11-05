@@ -15,3 +15,4 @@
 - Provider health chips derive success only from their own affirmative test result; absent/skipped checks remain unknown — why: upstream failures cannot imply tracking or webhook health.
 - Per-card provider repairs use company-provider-repair.functions.ts; validate API before encrypted save, derive identity from verified Inbox, and domain DNS writes require the repair dialog confirmation — why: no credential cross-company reuse or unchecked health-read mutations.
 - Employee creation grants one company_members row; holding admin/finance roles are group-wide, sister roles stay company-scoped — why: no accidental cross-company access.
+- Branta Tech roles keep DB values (super_admin=Group Admin, finance=Accounts, admin=HR, manager=C.E.O, coo=C.O.O, user=Executive); labels and holding page access live only in src/lib/role-access.ts (sidebar + HoldingRoleGuard), has_role treats coo as manager — why: one matrix, no data migration of existing roles.
