@@ -58,6 +58,8 @@ export async function callerHasPermission(
   userId: string,
   key: keyof Omit<UserPermissions, "user_id">,
 ): Promise<boolean> {
+  const { data: ga } = await supabase.rpc("has_role", { _user_id: userId, _role: "super_admin" });
+  if (ga) return true;
   const { data } = await supabase
     .from("user_permissions")
     .select(key)
@@ -118,6 +120,7 @@ export const getMyPermissions = createServerFn({ method: "GET" })
       user_id: context.userId,
       ...DEFAULTS,
       ...(data ?? {}),
+      ...(isSuperAdmin ? Object.fromEntries(PERMISSION_KEYS.map((k) => [k, true])) : {}),
       isSuperAdmin,
       isAdmin,
       isManager: isManager || roles.includes("coo"),
