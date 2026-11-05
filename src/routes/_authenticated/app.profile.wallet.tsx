@@ -10,15 +10,15 @@ function WalletRedirect() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    toast.info("My Wallet সরানো হয়েছে", {
-      description: "এখন থেকে Finance & Payment ট্যাবে পাওয়া যাবে।",
+    toast.info("My Wallet নতুন জায়গায়", {
+      description: "এখন থেকে Profile → My Wallet ট্যাবে পাওয়া যাবে।",
     });
     navigate({ to: "/app/profile/finance", replace: true });
   }, [navigate]);
 
   return (
     <div className="p-6 text-sm text-muted-foreground">
-      Redirecting to Finance & Payment…
+      Redirecting to My Wallet…
     </div>
   );
 }

@@ -74,7 +74,7 @@ const STATIC_ENTRIES: StaticEntry[] = [
   // Profile
   { label: "My profile", group: "Profile", icon: User, to: "/app/profile", keywords: "me account" },
   { label: "Personal information", group: "Profile", icon: User, to: "/app/profile/personal", keywords: "name address kyc" },
-  { label: "Finance & Payment", group: "Profile", icon: Wallet, to: "/app/profile/finance", keywords: "bank mfs bkash nagad payment method" },
+  { label: "My Wallet", group: "Profile", icon: Wallet, to: "/app/profile/finance", keywords: "wallet balance statement" },
   { label: "My wallet", group: "Profile", icon: Wallet, to: "/app/profile/wallet", keywords: "balance payouts" },
   // Security sub-sections (all live on /app/profile/security)
   { label: "Security & Notification", group: "Security", icon: Shield, to: "/app/profile/security", keywords: "2fa passkey session" },
