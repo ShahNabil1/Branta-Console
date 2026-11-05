@@ -260,6 +260,7 @@ export const setEmployeeWorkspace = createServerFn({ method: "POST" })
         if (!managed.has(data.companyId) || !(await sc.managesEmployee(context.supabase, context.userId, data.userId)))
           throw new Error("You can only manage access to your own company.");
         if (data.userId === context.userId) throw new Error("You can't change your own company access.");
+        if (data.role === "super_admin" || data.role === "coo") throw new Error("Only Branta Tech group admins can appoint a company C.E.O or C.O.O.");
       }
     }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
