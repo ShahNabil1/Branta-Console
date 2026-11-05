@@ -8,7 +8,6 @@ import { DiscardCancelButton } from "@/components/company/danger-confirm";
 import { TrackerScheduleTab } from "@/components/employee/tracker-schedule-tab";
 import { MailActivity } from "@/components/employee/mail-activity";
 import admakaiLogo from "@/assets/apps/admakai.png";
-import { WalletLedgerView } from "@/components/finance/wallet-ledger-view";
 import { SessionHistoryLog } from "@/components/profile/session-history-log";
 // Employee detail page: full profile, RBAC, lead assignment, ban / delete,
 // password reset, one-click impersonation, wallet + sessions.
@@ -1451,30 +1450,7 @@ function ProfileTab({ e }: { e: EmployeeDetail }) {
 
 // ────────────────────────────────────────────────────────────────
 
-const currencyFmt = (n: number, cur: string) =>
-  `${cur === "USD" ? "$" : "৳"} ${Number(n).toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
 
-function WithdrawStatusBadge({ status }: { status: string }) {
-  const map: Record<string, string> = {
-    pending: "border-amber-300 bg-amber-50 text-amber-800",
-    approved: "border-sky-300 bg-sky-50 text-sky-700",
-    paid: "border-emerald-300 bg-emerald-50 text-emerald-700",
-    rejected: "border-rose-300 bg-rose-50 text-rose-700",
-  };
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-sm border px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.06em]",
-        map[status] ?? "border-border bg-muted text-muted-foreground",
-      )}
-    >
-      {status}
-    </span>
-  );
-}
 
 function PaymentMethodCard({ m }: { m: PaymentMethodLite }) {
   return (
