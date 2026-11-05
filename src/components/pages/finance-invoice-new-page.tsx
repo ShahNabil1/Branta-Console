@@ -1,4 +1,5 @@
 import { DiscardCancelButton } from "@/components/company/danger-confirm";
+import { useCompanyPath } from "@/components/company/use-company-path";
 import { useActiveCompany } from "@/components/company/company-switcher";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -31,6 +32,7 @@ type Stakeholder = { user_id: string; role: StakeholderRole; percent: number };
 
 
 export function NewInvoicePage() {
+  const cp = useCompanyPath();
   const activeCo = useActiveCompany().active;
   const workspace = activeCo?.slug ?? null;
   const sisterCompanyId = activeCo && !activeCo.is_holding ? activeCo.id : null;
@@ -146,7 +148,7 @@ export function NewInvoicePage() {
     <div className="mx-auto max-w-5xl space-y-5 px-4 py-6 sm:px-6">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <Link to="/app/finance/invoices" className="grid size-8 place-items-center rounded-sm border border-border text-muted-foreground hover:bg-muted">
+          <Link to={cp("/app/finance/invoices") as "/app/finance/invoices"} className="grid size-8 place-items-center rounded-sm border border-border text-muted-foreground hover:bg-muted">
             <ArrowLeft className="size-4" />
           </Link>
           <div>
@@ -157,7 +159,7 @@ export function NewInvoicePage() {
         <div className="flex gap-2">
           <DiscardCancelButton
             dirty={!!(customerId || projectId || title.trim() || description.trim() || notes.trim() || totalNum > 0 || startsOn || endsOn || projectCosts.length || plans.length || installments.length !== 1 || installments[0]?.label !== "Advance" || Number(installments[0]?.amount) > 0)}
-            onCancel={() => navigate({ to: "/app/finance/invoices" })} className="h-9 rounded-sm" disabled={submit.isPending} />
+            onCancel={() => navigate({ to: cp("/app/finance/invoices") as "/app/finance/invoices" })} className="h-9 rounded-sm" disabled={submit.isPending} />
           <Button onClick={() => submit.mutate()} disabled={!canSubmit || submit.isPending}
             className="h-9 rounded-sm bg-primary hover:bg-brand-700">
             {submit.isPending && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
@@ -331,7 +333,7 @@ export function NewInvoicePage() {
           <div className="flex gap-2">
             <DiscardCancelButton
             dirty={!!(customerId || projectId || title.trim() || description.trim() || notes.trim() || totalNum > 0 || startsOn || endsOn || projectCosts.length || plans.length || installments.length !== 1 || installments[0]?.label !== "Advance" || Number(installments[0]?.amount) > 0)}
-            onCancel={() => navigate({ to: "/app/finance/invoices" })} className="h-9 rounded-sm" disabled={submit.isPending} />
+            onCancel={() => navigate({ to: cp("/app/finance/invoices") as "/app/finance/invoices" })} className="h-9 rounded-sm" disabled={submit.isPending} />
             <Button onClick={() => submit.mutate()} disabled={!canSubmit || submit.isPending}
               className="h-9 rounded-sm bg-primary hover:bg-brand-700">
               {submit.isPending && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}

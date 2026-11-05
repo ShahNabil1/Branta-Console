@@ -1,3 +1,4 @@
+import { useCompanyPath } from "@/components/company/use-company-path";
 import { useSearch as useSearchRR, useParams as useParamsRR, useNavigate as useNavigateRR } from "@tanstack/react-router";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -177,8 +178,9 @@ function HoldingOverview() {
 // ---------- Building blocks ----------
 
 function QuickBtn({ to, icon: Icon, label }: { to: string; icon: React.ComponentType<{ className?: string }>; label: string }) {
+  const cp = useCompanyPath();
   return (
-    <Link to={to as "/app"} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-[12.5px] font-medium text-foreground transition hover:border-brand/40 hover:bg-muted">
+    <Link to={cp(to) as "/app"} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-[12.5px] font-medium text-foreground transition hover:border-brand/40 hover:bg-muted">
       <Icon className="size-3.5 text-muted-foreground" /> {label}
     </Link>
   );
