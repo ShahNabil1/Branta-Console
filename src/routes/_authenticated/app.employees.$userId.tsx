@@ -1,3 +1,4 @@
+import { ROLE_LABEL, ROLE_NOTE, roleLabel } from "@/lib/role-access";
 import { AnimatedBorderButton } from "@/components/AnimatedBorderButton";
 import { AlertDialog, AlertDialogContent } from "@/components/ui/alert-dialog";
 import { CalendarClock, Mail } from "lucide-react";
