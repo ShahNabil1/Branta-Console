@@ -660,6 +660,71 @@ export type Database = {
           },
         ]
       }
+      company_cloudflare_accounts: {
+        Row: {
+          account_ids: string[]
+          account_names: string[]
+          cf_email: string | null
+          cf_user_id: string | null
+          company_id: string
+          connected_at: string
+          connected_by: string | null
+          created_at: string
+          disconnected_at: string | null
+          id: string
+          is_active: boolean
+          last_checked_at: string | null
+          last_error: string | null
+          refresh_token_enc: string | null
+          scopes: string[]
+          updated_at: string
+        }
+        Insert: {
+          account_ids?: string[]
+          account_names?: string[]
+          cf_email?: string | null
+          cf_user_id?: string | null
+          company_id: string
+          connected_at?: string
+          connected_by?: string | null
+          created_at?: string
+          disconnected_at?: string | null
+          id?: string
+          is_active?: boolean
+          last_checked_at?: string | null
+          last_error?: string | null
+          refresh_token_enc?: string | null
+          scopes?: string[]
+          updated_at?: string
+        }
+        Update: {
+          account_ids?: string[]
+          account_names?: string[]
+          cf_email?: string | null
+          cf_user_id?: string | null
+          company_id?: string
+          connected_at?: string
+          connected_by?: string | null
+          created_at?: string
+          disconnected_at?: string | null
+          id?: string
+          is_active?: boolean
+          last_checked_at?: string | null
+          last_error?: string | null
+          refresh_token_enc?: string | null
+          scopes?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_cloudflare_accounts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_deduction_configs: {
         Row: {
           company_id: string

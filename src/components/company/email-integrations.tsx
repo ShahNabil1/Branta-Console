@@ -49,6 +49,7 @@ import {
 import { cn } from "@/lib/utils";
 import { DangerConfirm, DiscardCancelButton } from "@/components/company/danger-confirm";
 import { GoogleAccountCard, GoogleMark, GmailMark } from "@/components/company/google-account-card";
+import { CloudflareAccountCard } from "@/components/company/cloudflare-account-card";
 import resendLogo from "@/assets/email/resend.webp.asset.json";
 import brevoLogo from "@/assets/email/brevo.webp.asset.json";
 import resendMarkWhite from "@/assets/email/resend-mark-white.png.asset.json";
@@ -228,6 +229,7 @@ export function EmailIntegrations({ slug, accent }: { slug: string; accent: stri
           </div>
         </div>
         <GoogleAccountCard slug={slug} accent={accent} />
+        <CloudflareAccountCard slug={slug} />
         <InboxAddress slug={slug} accent={accent} inbox={d.inboxGmail ? d.inbox : null} gmail={d.inboxGmail} />
         {!d.inbox?.verified_at && (
           <div className="relative mt-4 flex items-center gap-2 rounded-lg border border-dashed border-border bg-muted/30 px-3 py-2 text-[12px] font-semibold text-muted-foreground">

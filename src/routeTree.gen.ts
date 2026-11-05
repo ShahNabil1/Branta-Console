@@ -74,6 +74,7 @@ import { Route as AuthenticatedAppProfileWalletRouteImport } from './routes/_aut
 import { Route as AuthenticatedAppProjectsIndexRouteImport } from './routes/_authenticated/app.projects.index'
 import { Route as AuthenticatedAppProjectsIdRouteImport } from './routes/_authenticated/app.projects.$id'
 import { Route as ApiPublicBrevoWebhookRouteImport } from './routes/api/public/brevo.webhook'
+import { Route as ApiPublicCloudflareCallbackRouteImport } from './routes/api/public/cloudflare.callback'
 import { Route as ApiPublicExpensesVoucherDotpdfRouteImport } from './routes/api/public/expenses.$voucher[.]pdf'
 import { Route as ApiPublicGoogleOauthCallbackRouteImport } from './routes/api/public/google-oauth.callback'
 import { Route as ApiPublicHooksInvoiceRemindersRouteImport } from './routes/api/public/hooks/invoice-reminders'
@@ -477,6 +478,12 @@ const ApiPublicBrevoWebhookRoute = ApiPublicBrevoWebhookRouteImport.update({
   path: '/api/public/brevo/webhook',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicCloudflareCallbackRoute =
+  ApiPublicCloudflareCallbackRouteImport.update({
+    id: '/api/public/cloudflare/callback',
+    path: '/api/public/cloudflare/callback',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicExpensesVoucherDotpdfRoute =
   ApiPublicExpensesVoucherDotpdfRouteImport.update({
     id: '/api/public/expenses/$voucher.pdf',
@@ -721,6 +728,7 @@ export interface FileRoutesByFullPath {
   '/app/profile/wallet': typeof AuthenticatedAppProfileWalletRoute
   '/app/projects/$id': typeof AuthenticatedAppProjectsIdRoute
   '/api/public/brevo/webhook': typeof ApiPublicBrevoWebhookRoute
+  '/api/public/cloudflare/callback': typeof ApiPublicCloudflareCallbackRoute
   '/api/public/expenses/$voucher.pdf': typeof ApiPublicExpensesVoucherDotpdfRoute
   '/api/public/google-oauth/callback': typeof ApiPublicGoogleOauthCallbackRoute
   '/api/public/hooks/invoice-reminders': typeof ApiPublicHooksInvoiceRemindersRoute
@@ -811,6 +819,7 @@ export interface FileRoutesByTo {
   '/app/profile/wallet': typeof AuthenticatedAppProfileWalletRoute
   '/app/projects/$id': typeof AuthenticatedAppProjectsIdRoute
   '/api/public/brevo/webhook': typeof ApiPublicBrevoWebhookRoute
+  '/api/public/cloudflare/callback': typeof ApiPublicCloudflareCallbackRoute
   '/api/public/expenses/$voucher.pdf': typeof ApiPublicExpensesVoucherDotpdfRoute
   '/api/public/google-oauth/callback': typeof ApiPublicGoogleOauthCallbackRoute
   '/api/public/hooks/invoice-reminders': typeof ApiPublicHooksInvoiceRemindersRoute
@@ -910,6 +919,7 @@ export interface FileRoutesById {
   '/_authenticated/app/profile/wallet': typeof AuthenticatedAppProfileWalletRoute
   '/_authenticated/app/projects/$id': typeof AuthenticatedAppProjectsIdRoute
   '/api/public/brevo/webhook': typeof ApiPublicBrevoWebhookRoute
+  '/api/public/cloudflare/callback': typeof ApiPublicCloudflareCallbackRoute
   '/api/public/expenses/$voucher.pdf': typeof ApiPublicExpensesVoucherDotpdfRoute
   '/api/public/google-oauth/callback': typeof ApiPublicGoogleOauthCallbackRoute
   '/api/public/hooks/invoice-reminders': typeof ApiPublicHooksInvoiceRemindersRoute
@@ -1009,6 +1019,7 @@ export interface FileRouteTypes {
     | '/app/profile/wallet'
     | '/app/projects/$id'
     | '/api/public/brevo/webhook'
+    | '/api/public/cloudflare/callback'
     | '/api/public/expenses/$voucher.pdf'
     | '/api/public/google-oauth/callback'
     | '/api/public/hooks/invoice-reminders'
@@ -1099,6 +1110,7 @@ export interface FileRouteTypes {
     | '/app/profile/wallet'
     | '/app/projects/$id'
     | '/api/public/brevo/webhook'
+    | '/api/public/cloudflare/callback'
     | '/api/public/expenses/$voucher.pdf'
     | '/api/public/google-oauth/callback'
     | '/api/public/hooks/invoice-reminders'
@@ -1197,6 +1209,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/profile/wallet'
     | '/_authenticated/app/projects/$id'
     | '/api/public/brevo/webhook'
+    | '/api/public/cloudflare/callback'
     | '/api/public/expenses/$voucher.pdf'
     | '/api/public/google-oauth/callback'
     | '/api/public/hooks/invoice-reminders'
@@ -1247,6 +1260,7 @@ export interface RootRouteChildren {
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   ApiPublicR2HealthRoute: typeof ApiPublicR2HealthRoute
   ApiPublicBrevoWebhookRoute: typeof ApiPublicBrevoWebhookRoute
+  ApiPublicCloudflareCallbackRoute: typeof ApiPublicCloudflareCallbackRoute
   ApiPublicExpensesVoucherDotpdfRoute: typeof ApiPublicExpensesVoucherDotpdfRoute
   ApiPublicGoogleOauthCallbackRoute: typeof ApiPublicGoogleOauthCallbackRoute
   ApiPublicHooksInvoiceRemindersRoute: typeof ApiPublicHooksInvoiceRemindersRoute
@@ -1713,6 +1727,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/brevo/webhook'
       fullPath: '/api/public/brevo/webhook'
       preLoaderRoute: typeof ApiPublicBrevoWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/cloudflare/callback': {
+      id: '/api/public/cloudflare/callback'
+      path: '/api/public/cloudflare/callback'
+      fullPath: '/api/public/cloudflare/callback'
+      preLoaderRoute: typeof ApiPublicCloudflareCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/expenses/$voucher.pdf': {
@@ -2222,6 +2243,7 @@ const rootRouteChildren: RootRouteChildren = {
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   ApiPublicR2HealthRoute: ApiPublicR2HealthRoute,
   ApiPublicBrevoWebhookRoute: ApiPublicBrevoWebhookRoute,
+  ApiPublicCloudflareCallbackRoute: ApiPublicCloudflareCallbackRoute,
   ApiPublicExpensesVoucherDotpdfRoute: ApiPublicExpensesVoucherDotpdfRoute,
   ApiPublicGoogleOauthCallbackRoute: ApiPublicGoogleOauthCallbackRoute,
   ApiPublicHooksInvoiceRemindersRoute: ApiPublicHooksInvoiceRemindersRoute,
