@@ -61,10 +61,15 @@ export function ResendOAuthCard({ slug, companyName, onReady }: { slug: string; 
 
   const [needSub, setNeedSub] = useState(false);
   const [sub, setSub] = useState("links");
-  const runAll = async (_quick?: boolean, trackingSubdomain?: string) => {
-    setBusy("setup"); setSteps({}); setNeedSub(false);
+  const [failedAt, setFailedAt] = useState<SetupStage | null>(null);
+  const runAll = async (_quick?: boolean, trackingSubdomain?: string, from?: SetupStage) => {
+    const start = from ? Math.max(0, STAGES.findIndex((x) => x.id === from)) : 0;
+    setBusy("setup"); setNeedSub(false); setFailedAt(null);
+    setSteps((p) => from ? Object.fromEntries(Object.entries(p).filter(([k]) => STAGES.findIndex((x) => x.id === k) < start)) : {});
+    let current: SetupStage | null = null;
     try {
-      for (const s of STAGES) {
+      for (const s of STAGES.slice(start)) {
+        current = s.id;
         setRunning(s.id);
         let r = await setup({ data: { slug, stage: s.id, ...(s.id === "tracking" && trackingSubdomain ? { trackingSubdomain } : {}) } });
         if (r.needsInput) { setSteps((p) => ({ ...p, [s.id]: r })); setNeedSub(true); return; }
@@ -74,11 +79,15 @@ export function ResendOAuthCard({ slug, companyName, onReady }: { slug: string; 
           r = await setup({ data: { slug, stage: "verify" } });
         }
         setSteps((p) => ({ ...p, [s.id]: r }));
-        if (!r.ok) { toast.error(r.detail); return; }
+        if (!r.ok) { setFailedAt(s.id); toast.error(r.detail); return; }
       }
       toast.success(`Resend is ready for ${inbox?.email}.`);
       onReady?.();
-    } catch (e) { toast.error(err(e)); }
+    } catch (e) {
+      const msg = err(e);
+      if (current) { const id = current; setSteps((p) => ({ ...p, [id]: { ok: false, detail: msg } as SetupStep })); setFailedAt(id); }
+      toast.error(msg);
+    }
     finally { setRunning(null); setBusy(null); void refresh(); }
   };
 
@@ -164,11 +173,16 @@ export function ResendOAuthCard({ slug, companyName, onReady }: { slug: string; 
                     {s.label}
                   </div>
                   <p className="mt-1 line-clamp-3 break-words text-[11px] font-semibold text-muted-foreground">{st?.detail ?? (live ? "Working…" : "Waiting")}</p>
+                  {failedAt === s.id && !busy && (
+                    <Button size="sm" variant="outline" className="mt-2 h-7 w-full text-[11.5px]" onClick={() => runAll(verified, undefined, s.id)}>
+                      <RotateCcw className="size-3" /> Retry this step
+                    </Button>
+                  )}
                 </div>
               );
             })}
           </div>
-          {a.last_error && !busy && !needSub && (
+          {a.last_error && !busy && !needSub && !failedAt && (
             <div className="flex items-center gap-2">
               <p className="flex-1 text-[11.5px] font-semibold text-destructive">{a.last_error}</p>
               <Button size="sm" variant="outline" onClick={() => runAll(verified)}><TestLoader active={false} /> Retry</Button>

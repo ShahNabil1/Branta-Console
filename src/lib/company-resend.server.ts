@@ -199,6 +199,16 @@ export async function pushResendDns(companyId: string, domain: string, records: 
         if (type === "MX") body.priority = Number(r.priority ?? 10);
         // Replace a stale DKIM/SPF value at the same name; otherwise add alongside.
         const stale = type === "TXT" ? (existing ?? []).find((e) => (name.includes("_domainkey") || norm(e.content).startsWith("v=spf1")) && (name.includes("_domainkey") || content.startsWith("v=spf1"))) : null;
+        // A CNAME can't share its name with A/AAAA/CNAME (and nothing can share with a CNAME): overwrite the clash.
+        const { result: sameName } = await cf.cfApi<Any[]>(cft, `/zones/${zone.id}/dns_records?name=${encodeURIComponent(name)}`);
+        const clashes = (sameName ?? []).filter((e) => type === "CNAME" ? ["A", "AAAA", "CNAME"].includes(e.type) : e.type === "CNAME");
+        if (clashes.length) {
+          const [keep, ...rest] = clashes;
+          for (const e of rest) await cf.cfApi(cft, `/zones/${zone.id}/dns_records/${e.id}`, { method: "DELETE" });
+          if (keep.type === type) await cf.cfApi(cft, `/zones/${zone.id}/dns_records/${keep.id}`, { method: "PATCH", body: JSON.stringify(body) });
+          else { await cf.cfApi(cft, `/zones/${zone.id}/dns_records/${keep.id}`, { method: "DELETE" }); await cf.cfApi(cft, `/zones/${zone.id}/dns_records`, { method: "POST", body: JSON.stringify(body) }); }
+          updated++; continue;
+        }
         if (stale) { await cf.cfApi(cft, `/zones/${zone.id}/dns_records/${stale.id}`, { method: "PATCH", body: JSON.stringify(body) }); updated++; }
         else { await cf.cfApi(cft, `/zones/${zone.id}/dns_records`, { method: "POST", body: JSON.stringify(body) }); added++; }
       }
