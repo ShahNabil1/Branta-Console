@@ -413,6 +413,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
   const e = detail.data;
   const p = e.profile;
   const canSuperAdmin = !!admin.data?.isSuperAdmin && !isImpersonating();
+  const showRbac = !!(admin.data as { isGroupAdmin?: boolean } | undefined)?.isGroupAdmin || !orgFromPath(typeof window !== "undefined" ? window.location.pathname : "");
   const canJobRole = (canSuperAdmin || !!detail.data?.canEditJobRole) && !isImpersonating();
 
   const toggleRole = (r: EmployeeRole) => {
@@ -1023,7 +1024,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
         <div className="space-y-4">
           <WorkspaceAccess userId={userId} />
           {/* RBAC */}
-          <section className="rounded-lg border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
+          {showRbac && (<>          <section className="rounded-lg border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
             <div className="mb-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="size-4 text-brand" strokeWidth={2} />
@@ -1077,7 +1078,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
               })}
             </div>
             } />
-          </section>
+          </section></>)}
           <AppAccessSection userId={userId} roles={e.roles} allowedApps={e.allowedApps} />
           {canSuperAdmin && <PermissionsTab userId={userId} isGA={e.roles.includes("super_admin")} />}
         </div>
