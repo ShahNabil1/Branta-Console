@@ -13,7 +13,7 @@ import {
   generateTempPassword,
 } from "@/lib/branta-credentials";
 
-const ROLE_ENUM = z.enum(["super_admin", "admin", "finance", "manager", "user"]);
+const ROLE_ENUM = z.enum(["super_admin", "admin", "finance", "manager", "coo", "user"]);
 export type EmployeeRole = z.infer<typeof ROLE_ENUM>;
 
 const uuid = z.string().uuid();
@@ -110,7 +110,7 @@ export interface EmployeeDetail {
 
 
 
-const ROLE_ORDER = ["super_admin", "admin", "finance", "manager", "user"];
+const ROLE_ORDER = ["super_admin", "admin", "finance", "manager", "coo", "user"];
 const primaryRole = (roles: string[]): EmployeeRole => {
   for (const r of ROLE_ORDER) if (roles.includes(r)) return r as EmployeeRole;
   return "user";

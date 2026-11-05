@@ -114,11 +114,7 @@ export const Route = createFileRoute("/_authenticated/app/employees/$userId")({
 });
 
 const ROLE_OPTIONS: { value: EmployeeRole; label: string; note: string }[] = [
-  { value: "user", label: "User", note: "Standard operator access" },
-  { value: "manager", label: "Manager", note: "Team lead, extended reads" },
-  { value: "finance", label: "Finance", note: "Full finance CRUD access" },
-  { value: "admin", label: "Admin", note: "Manages employees & settings" },
-  { value: "super_admin", label: "Super admin", note: "Full unrestricted access" },
+  ...(["user", "manager", "coo", "admin", "finance", "super_admin"] as const).map((r) => ({ value: r as EmployeeRole, label: ROLE_LABEL[r], note: ROLE_NOTE[r] })),
 ];
 
 function EmployeeDetailPage() {
@@ -1671,7 +1667,7 @@ function RoleBadge({ role }: { role: EmployeeRole }) {
         cls,
       )}
     >
-      {role.replace("_", " ")}
+      {roleLabel(role)}
     </span>
   );
 }

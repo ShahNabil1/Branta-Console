@@ -82,7 +82,7 @@ export async function assertCallerPermission(
 /** Called by any signed-in user to learn their own effective toggles. */
 export const getMyPermissions = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<UserPermissions & { isSuperAdmin: boolean; isAdmin: boolean; isManager: boolean; isFinance: boolean }> => {
+  .handler(async ({ context }): Promise<UserPermissions & { isSuperAdmin: boolean; isAdmin: boolean; isManager: boolean; isFinance: boolean; roles: string[] }> => {
     const [suRes, adRes, managerRes, finRes] = await Promise.all([
       context.supabase.rpc("has_role", {
         _user_id: context.userId,
@@ -109,20 +109,21 @@ export const getMyPermissions = createServerFn({ method: "GET" })
     // per-user overrides so a super_admin with lead_delete=false cannot
     // delete leads from the UI or server. Role only affects settings access.
 
-    const { data } = await context.supabase
-      .from("user_permissions")
-      .select("*")
-      .eq("user_id", context.userId)
-      .maybeSingle();
+    const [{ data }, rolesRes] = await Promise.all([
+      context.supabase.from("user_permissions").select("*").eq("user_id", context.userId).maybeSingle(),
+      context.supabase.from("user_roles").select("role").eq("user_id", context.userId),
+    ]);
+    const roles = ((rolesRes.data ?? []) as { role: string }[]).map((r) => String(r.role));
     return {
       user_id: context.userId,
       ...DEFAULTS,
       ...(data ?? {}),
       isSuperAdmin,
       isAdmin,
-      isManager,
+      isManager: isManager || roles.includes("coo"),
       isFinance,
-    } as UserPermissions & { isSuperAdmin: boolean; isAdmin: boolean; isManager: boolean; isFinance: boolean };
+      roles,
+    } as UserPermissions & { isSuperAdmin: boolean; isAdmin: boolean; isManager: boolean; isFinance: boolean; roles: string[] };
   });
 
 export const getUserPermissions = createServerFn({ method: "GET" })

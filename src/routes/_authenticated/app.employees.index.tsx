@@ -121,14 +121,8 @@ export const Route = createFileRoute("/_authenticated/app/employees/")({
   ),
 });
 
-type Role = "super_admin" | "admin" | "finance" | "manager" | "user";
-const ROLE_OPTIONS: { value: Role; label: string; note: string }[] = [
-  { value: "user", label: "User", note: "Standard operator access." },
-  { value: "manager", label: "Manager", note: "Team lead — extended read access." },
-  { value: "finance", label: "Finance", note: "Full finance CRUD access." },
-  { value: "admin", label: "Admin", note: "Manages employees and settings." },
-  { value: "super_admin", label: "Super admin", note: "Full unrestricted access." },
-];
+type Role = "super_admin" | "admin" | "finance" | "manager" | "coo" | "user";
+const ROLE_OPTIONS: { value: Role; label: string; note: string }[] = (["user", "manager", "coo", "admin", "finance", "super_admin"] as const).map((r) => ({ value: r, label: ROLE_LABEL[r], note: ROLE_NOTE[r] }));
 
 const roleBadge = (role: string) => {
   switch (role) {
