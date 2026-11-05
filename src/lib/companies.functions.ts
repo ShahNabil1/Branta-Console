@@ -12,7 +12,7 @@ export type CompanyRow = {
   ceo_user_id: string | null; coo_user_id: string | null;
   is_holding: boolean; status: string; created_at: string;
   tagline?: string | null; description?: string | null; company_type?: string | null; industry?: string | null;
-  founded_year?: number | null; support_email?: string | null; logo_url?: string | null;
+  founded_year?: number | null; support_email?: string | null; logo_url?: string | null; services?: string[] | null;
   brand_kit?: { logo_primary?: string | null; logo_inverse?: string | null; mark?: string | null; primary?: string; secondary?: string } | null;
   address_line1?: string | null; division?: string | null; district?: string | null;
   upazila?: string | null; post_office?: string | null; postcode?: string | null; updated_at?: string;
@@ -145,7 +145,8 @@ export const PatchCompanySchema = z.object({
     support_email: nul(254).refine((v) => !v || z.string().email().safeParse(v).success, "Invalid support email"),
     phone: nul(11).refine((v) => !v || /^01[3-9]\d{8}$/.test(v), "Enter a valid 11-digit BD number"),
     website_url: nul(300).refine((v) => !v || /^[a-z0-9-]+(\.[a-z0-9-]+)+(\/\S*)?$/i.test(v), "Enter a domain like example.com"),
-    logo_url: nul(500),
+    logo_url: nul(500).refine((v) => !v || /^https:\/\//.test(v), "Logo must be an https URL"),
+    services: z.array(z.string().trim().min(1).max(80)).max(60).optional(),
     address_line1: nul(200).refine((v) => !v || !/[^A-Za-z0-9\s,./#()'&:-]/.test(v), "English only"),
     division: nul(60), district: nul(60), upazila: nul(80), post_office: nul(80),
     postcode: nul(4).refine((v) => !v || /^\d{4}$/.test(v), "Postcode must be 4 digits"),

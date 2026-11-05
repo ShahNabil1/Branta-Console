@@ -562,6 +562,7 @@ export type Database = {
           phone: string | null
           post_office: string | null
           postcode: string | null
+          services: string[]
           slug: string
           status: string
           support_email: string | null
@@ -598,6 +599,7 @@ export type Database = {
           phone?: string | null
           post_office?: string | null
           postcode?: string | null
+          services?: string[]
           slug: string
           status?: string
           support_email?: string | null
@@ -634,6 +636,7 @@ export type Database = {
           phone?: string | null
           post_office?: string | null
           postcode?: string | null
+          services?: string[]
           slug?: string
           status?: string
           support_email?: string | null
@@ -1517,6 +1520,27 @@ export type Database = {
           revoked_at?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      customer_role_options: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          label: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          label: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          label?: string
         }
         Relationships: []
       }

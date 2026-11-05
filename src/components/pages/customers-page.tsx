@@ -34,6 +34,7 @@ import { getMyPermissions } from "@/lib/permissions.functions";
 import { getProjectCounts } from "@/lib/client-projects.functions";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { cn } from "@/lib/utils";
+import { CustomerDrawer } from "@/components/finance/customer-drawer";
 
 
 
@@ -55,7 +56,6 @@ export function CustomersPage() {
   const list = useServerFn(listCustomers);
   const countsFn = useServerFn(getProjectCounts);
   const { data: projCounts } = useQuery({ queryKey: ["client-project-counts"], queryFn: () => countsFn(), staleTime: 30_000 });
-  const create = useServerFn(createCustomer);
   const workspace = useActiveCompany().active?.slug ?? null;
   const remove = useServerFn(deleteCustomer);
   const confirm = useConfirm();
@@ -70,57 +70,12 @@ export function CustomersPage() {
 
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({
-    name: "",
-    role: "",
-    company: "",
-    email: "",
-    phone: "",
-    source: "",
-    service: "",
-    currency: "BDT" as "BDT" | "USD",
-    notes: "",
-  });
-
   const query = useQuery({
     queryKey: ["customers", "list", workspace],
     queryFn: () => list({ data: { workspace } }),
     staleTime: 15_000,
   });
 
-  const createMut = useMutation({
-    mutationFn: async () =>
-      create({
-        data: {
-          ...form,
-          workspace,
-          email: form.email || null,
-          role: form.role || null,
-          company: form.company || null,
-          phone: form.phone || null,
-          source: form.source || null,
-          service: form.service || null,
-          notes: form.notes || null,
-        },
-      }),
-    onSuccess: () => {
-      toast.success("Customer added");
-      setOpen(false);
-      setForm({
-        name: "",
-        role: "",
-        company: "",
-        email: "",
-        phone: "",
-        source: "",
-        service: "",
-        currency: "BDT",
-        notes: "",
-      });
-      qc.invalidateQueries({ queryKey: ["customers", "list"] });
-    },
-    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : String(e)),
-  });
 
   const deleteMut = useMutation({
     mutationFn: async (id: string) => remove({ data: { id } }),
@@ -318,101 +273,7 @@ export function CustomersPage() {
         )}
       </div>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>New customer</DialogTitle>
-          </DialogHeader>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2">
-              <label className="text-[11px] text-muted-foreground">Name *</label>
-              <Input
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="text-[11px] text-muted-foreground">Role</label>
-              <Input
-                value={form.role}
-                onChange={(e) => setForm({ ...form, role: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="text-[11px] text-muted-foreground">Company</label>
-              <Input
-                value={form.company}
-                onChange={(e) => setForm({ ...form, company: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="text-[11px] text-muted-foreground">Email</label>
-              <Input
-                type="email"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="text-[11px] text-muted-foreground">Phone</label>
-              <Input
-                value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="text-[11px] text-muted-foreground">Source</label>
-              <Input
-                value={form.source}
-                onChange={(e) => setForm({ ...form, source: e.target.value })}
-                placeholder="e.g. referral, website"
-              />
-            </div>
-            <div>
-              <label className="text-[11px] text-muted-foreground">Service</label>
-              <Input
-                value={form.service}
-                onChange={(e) => setForm({ ...form, service: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="text-[11px] text-muted-foreground">Currency</label>
-              <Select
-                value={form.currency}
-                onValueChange={(v) => setForm({ ...form, currency: v as "BDT" | "USD" })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="BDT">BDT</SelectItem>
-                  <SelectItem value="USD">USD</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="col-span-2">
-              <label className="text-[11px] text-muted-foreground">Notes</label>
-              <Textarea
-                rows={3}
-                value={form.notes}
-                onChange={(e) => setForm({ ...form, notes: e.target.value })}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={() => createMut.mutate()}
-              disabled={!form.name.trim() || createMut.isPending}
-            >
-              {createMut.isPending && <Loader2 className="size-3.5 animate-spin" />}
-              Create
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <CustomerDrawer open={open} onOpenChange={setOpen} />
     </div>
   );
 }

@@ -346,7 +346,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
 
-  const [tab, setTab] = useState<"profile" | "wallet" | "permissions" | "schedule" | "workspaces">(
+  const [tab, setTab] = useState<"profile" | "wallet" | "access" | "schedule">(
     "profile",
   );
   const [avatarOpen, setAvatarOpen] = useState(false);
@@ -985,8 +985,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
             { id: "profile", label: "Profile", icon: UserCog },
             { id: "wallet", label: "Wallet & Earnings", icon: Wallet },
             { id: "schedule", label: "Shift Schedule", icon: CalendarClock },
-            { id: "permissions", label: "Permissions", icon: ShieldCheck },
-            { id: "workspaces", label: "Workspaces", icon: Building2 },
+            { id: "access", label: "Workspace & Permissions", icon: ShieldCheck },
           ] as const satisfies readonly { id: typeof tab; label: string; icon: typeof UserCog }[]
         }
       />
@@ -1015,10 +1014,9 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
         <WalletTab userId={userId} walletFn={walletFn} />
       ) : tab === "schedule" ? (
         <TrackerScheduleTab userId={userId} />
-      ) : tab === "workspaces" ? (
-        <WorkspaceAccess userId={userId} />
       ) : (
         <div className="space-y-4">
+          <WorkspaceAccess userId={userId} />
           {/* RBAC */}
           <section className="rounded-lg border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
             <div className="mb-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
