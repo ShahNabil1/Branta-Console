@@ -328,7 +328,7 @@ export const updateEmployeeRoles = createServerFn({ method: "POST" })
       user_id: data.userId,
       role,
     }));
-    const ins = await supabaseAdmin.from("user_roles").insert(rows);
+    const ins = await supabaseAdmin.from("user_roles").insert(rows as never);
     if (ins.error) throw new Error(ins.error.message);
 
     try {

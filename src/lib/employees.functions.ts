@@ -240,7 +240,7 @@ export const createEmployee = createServerFn({ method: "POST" })
     try {
       const { error: roleErr } = await supabaseAdmin
         .from("user_roles")
-        .insert({ user_id: newUserId, role: globalRole });
+        .insert({ user_id: newUserId, role: globalRole } as never);
       if (roleErr && !/duplicate|unique/i.test(roleErr.message)) {
         throw new Error(roleErr.message);
       }
