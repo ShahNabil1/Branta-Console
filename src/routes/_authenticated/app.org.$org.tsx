@@ -1,11 +1,10 @@
 import type { MouseEvent } from "react";
-import { createFileRoute, Link, Navigate, Outlet, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, Navigate, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { isOrgScoped, orgFromPath, toCompanyPath } from "@/lib/org-path";
 import { Loader2 } from "lucide-react";
 import { useCompanies } from "@/components/company/company-switcher";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useRouterState } from "@tanstack/react-router";
 import { getMyPermissions } from "@/lib/permissions.functions";
 
 export const Route = createFileRoute("/_authenticated/app/org/$org")({
