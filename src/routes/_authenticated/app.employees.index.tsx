@@ -1,3 +1,4 @@
+import { useActiveCompany } from "@/components/company/company-switcher";
 import { ROLE_LABEL, ROLE_NOTE } from "@/lib/role-access";
 import { toast } from "sonner";
 import { TestLoader } from "@/components/ui/test-loader";
@@ -194,6 +195,7 @@ const EVENT_STYLES: Record<
 export function EmployeesPage({ companySlug }: { companySlug?: string } = {}) {
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const companies = useActiveCompany();
 
   const isAdminFn = useServerFn(checkIsAdmin);
   const listFn = useServerFn(listEmployees);
@@ -262,17 +264,20 @@ export function EmployeesPage({ companySlug }: { companySlug?: string } = {}) {
   }
 
   const rows = employees.data ?? [];
+  const sisterCo = companySlug ? companies.list.find((c) => c.slug === companySlug) : undefined;
+  const sisterName = sisterCo && !sisterCo.is_holding ? sisterCo.name : null;
 
   return (
     <EmployeesDirectory
       rows={rows}
       loading={employees.isLoading}
       onOpen={(userId) => navigate({ to: "/app/employees/$userId", params: { userId } })}
-      onCreate={() => {
+      eyebrow={sisterName ?? undefined}
+      onCreate={sisterName ? undefined : () => {
         setStartDest(false);
         setOpen(true);
       }}
-      onRouting={() => {
+      onRouting={sisterName ? undefined : () => {
         setStartDest(true);
         setOpen(true);
       }}

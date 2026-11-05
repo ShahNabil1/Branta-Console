@@ -59,13 +59,15 @@ export function EmployeesDirectory({
   onOpen,
   onCreate,
   onRouting,
+  eyebrow = "Branta Tech Group",
   children,
 }: {
   rows: EmployeeRow[];
   loading: boolean;
   onOpen: (userId: string) => void;
-  onCreate: () => void;
+  onCreate?: () => void;
   onRouting?: () => void;
+  eyebrow?: string;
   children?: ReactNode;
 }) {
   const online = useOnlineUsers();
@@ -113,7 +115,7 @@ export function EmployeesDirectory({
     <div className="mx-auto max-w-6xl space-y-6 p-4 md:p-8">
       <PageHero
         icon={Users}
-        eyebrow="Branta Tech Group"
+        eyebrow={eyebrow}
         title="Employees"
         subtitle={loading ? undefined : `${counts.all} people · ${counts.online} active now`}
         actions={
@@ -127,12 +129,12 @@ export function EmployeesDirectory({
                 <CloudflareMark className="size-4" /> Email Routing
               </Button>
             )}
-            <Button
+            {onCreate && <Button
               onClick={onCreate}
               className="gap-1.5 shadow-md shadow-brand/25 transition-all hover:-translate-y-0.5 hover:shadow-lg active:scale-95"
             >
               <Plus className="size-4" /> Create employee
-            </Button>
+            </Button>}
           </>
         }
       />
