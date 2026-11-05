@@ -289,3 +289,22 @@ export const deleteCustomer = createServerFn({ method: "POST" })
     if (error) throw dbError(error);
     return { ok: true as const };
   });
+
+// ---- Customer drawer: shared, growing list of contact roles ----
+export const listCustomerRoleOptions = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<string[]> => {
+    const { data, error } = await (context.supabase as any).from("customer_role_options").select("label").order("label");
+    if (error) throw dbError(error);
+    return ((data ?? []) as { label: string }[]).map((r) => r.label);
+  });
+
+export const addCustomerRoleOption = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ label: z.string().trim().min(1).max(120) }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { error } = await (context.supabase as any).from("customer_role_options")
+      .insert({ label: data.label, created_by: context.userId });
+    if (error && error.code !== "23505") throw dbError(error);
+    return { ok: true };
+  });
