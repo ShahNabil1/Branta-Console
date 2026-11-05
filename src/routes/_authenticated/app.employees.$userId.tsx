@@ -8,7 +8,6 @@ import { DiscardCancelButton } from "@/components/company/danger-confirm";
 import { TrackerScheduleTab } from "@/components/employee/tracker-schedule-tab";
 import { MailActivity } from "@/components/employee/mail-activity";
 import admakaiLogo from "@/assets/apps/admakai.png";
-import { WalletLedgerView } from "@/components/finance/wallet-ledger-view";
 import { SessionHistoryLog } from "@/components/profile/session-history-log";
 // Employee detail page: full profile, RBAC, lead assignment, ban / delete,
 // password reset, one-click impersonation, wallet + sessions.
