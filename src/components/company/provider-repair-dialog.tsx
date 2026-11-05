@@ -21,8 +21,8 @@ export function ProviderRepairDialog({ kind, provider, domain, busy, error, onCl
       <DialogDescription className="font-mono text-[12px]">{domain}</DialogDescription>
       {kind === "api" ? <>
         {mode === "choose" && provider === "resend" ? <div className="grid grid-cols-2 gap-2">
-          <Button variant="outline" disabled={busy} onClick={() => onApi("oauth")} className="h-20 flex-col gap-2 border-primary/25 bg-primary/5"><img src={resend.url} alt="" className="size-6" />Connect Resend<ArrowRight className="size-3.5" /></Button>
-          <Button variant="outline" disabled={busy} onClick={() => setMode("manual")} className="h-20 flex-col gap-2"><KeyRound className="size-5" />Manual API Key<ArrowRight className="size-3.5" /></Button>
+          <Button variant="outline" disabled={busy} onClick={() => onApi("oauth")} className="h-24 flex-col gap-2 whitespace-normal border-primary/25 bg-primary/5"><img src={resend.url} alt="" className="size-6" />Connect Resend<ArrowRight className="size-3.5" /></Button>
+          <Button variant="outline" disabled={busy} onClick={() => setMode("manual")} className="h-24 flex-col gap-2 whitespace-normal"><KeyRound className="size-5" />Manual API Key<ArrowRight className="size-3.5" /></Button>
         </div> : <form className="space-y-3" onSubmit={e => { e.preventDefault(); if (key.trim()) onApi("manual", key.trim()); }}>
           <label className="block text-[12px] font-semibold">Full-access API key<Input className="mt-1 font-mono" type="password" autoComplete="off" value={key} disabled={busy} onChange={e => setKey(e.target.value)} placeholder={provider === "resend" ? "re_…" : "xkeysib-…"} /></label>
           <div className="flex justify-end gap-2">{provider === "resend" && <Button variant="outline" disabled={busy} onClick={() => { setMode("choose"); setKey(""); }}>Back</Button>}<Button type="submit" disabled={busy || !key.trim()}>{busy ? <TestLoader active /> : <ShieldCheck className="size-3.5" />}{busy ? "Fixing…" : "Validate & Fix"}</Button></div>

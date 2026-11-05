@@ -310,7 +310,6 @@ function ProviderPanel({
   const apiRepair = useServerFn(repairProviderApi);
   const domainRepair = useServerFn(repairProviderDomain);
   const startConnect = useServerFn(startResendConnect);
-  const qc = useQueryClient();
   const popupAbort = useRef<AbortController | null>(null);
   useEffect(() => () => popupAbort.current?.abort(), [slug]);
   const [checks, setChecks] = useState<TestCheck[] | null>(null);
@@ -592,7 +591,11 @@ function ProviderPanel({
                     <WebhookFixButton fixing={fixingKind === "webhook"} disabled={locked || !!busy} onClick={() => void fixWebhook()} />
                   )}
                   {c.kind === "tracking" && !c.ok && (
-                    <WebhookFixButton fixing={fixingKind === "tracking"} disabled={locked || !!busy} onClick={() => void fixTracking(c.needsInput)} />
+                    <WebhookFixButton fixing={fixingKind === "tracking"} disabled={locked || !!busy} onClick={() => {
+                      if (checks.some(check => check.kind === "api" && !check.ok)) openRepair("api");
+                      else if (checks.some(check => check.kind === "domain" && !check.ok)) openRepair("domain");
+                      else void fixTracking(c.needsInput);
+                    }} />
                   )}
                   {(c.kind === "api" || c.kind === "domain") && !c.ok && (
                     <WebhookFixButton fixing={fixingKind === c.kind} disabled={locked || !!busy} onClick={() => { if (c.kind === "api" || c.kind === "domain") openRepair(c.kind); }} />
