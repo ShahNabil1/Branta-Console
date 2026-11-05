@@ -1,3 +1,4 @@
+import { orgFromPath } from "@/lib/org-path";
 import { ROLE_LABEL, ROLE_NOTE, roleLabel } from "@/lib/role-access";
 import { AnimatedBorderButton } from "@/components/AnimatedBorderButton";
 import { AlertDialog, AlertDialogContent } from "@/components/ui/alert-dialog";
@@ -121,6 +122,11 @@ const ROLE_OPTIONS: { value: EmployeeRole; label: string; note: string }[] = [
 
 function EmployeeDetailPage() {
   const { userId: segment } = Route.useParams();
+  return <EmployeeDetailBySegment segment={segment} />;
+}
+
+/** Shared by the Branta route and each sister company's /app/org/<slug>/employees/<id>. */
+export function EmployeeDetailBySegment({ segment }: { segment: string }) {
   const resolveFn = useServerFn(resolveEmployeeSlug);
   const resolved = useQuery({
     queryKey: ["employee.slug", segment],
@@ -293,7 +299,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
               .join(", ") || "no records"
           }).`,
         );
-      navigate({ to: "/app/employees" });
+      (orgFromPath(window.location.pathname) ? navigate({ to: "/app/org/$org/employees", params: { org: orgFromPath(window.location.pathname)! } }) : navigate({ to: "/app/employees" }));
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
@@ -498,7 +504,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 lg:flex lg:justify-between">
         <div className="flex min-w-0 items-center gap-3">
           <button
-            onClick={() => navigate({ to: "/app/employees" })}
+            onClick={() => (orgFromPath(window.location.pathname) ? navigate({ to: "/app/org/$org/employees", params: { org: orgFromPath(window.location.pathname)! } }) : navigate({ to: "/app/employees" }))}
             className="grid size-8 place-items-center rounded-sm border border-border bg-card text-muted-foreground hover:bg-muted"
           >
             <ArrowLeft className="size-4" />
@@ -627,7 +633,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
             onOpenChange={setOffOpen}
             onFinished={() => {
               void qc.invalidateQueries({ queryKey: ["employees.list"] });
-              navigate({ to: "/app/employees" });
+              (orgFromPath(window.location.pathname) ? navigate({ to: "/app/org/$org/employees", params: { org: orgFromPath(window.location.pathname)! } }) : navigate({ to: "/app/employees" }));
             }}
           />
         </div>
