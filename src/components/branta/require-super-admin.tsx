@@ -20,7 +20,7 @@ export function RequireSuperAdmin({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-  if (permsQ.data && !(permsQ.data.isAdmin ?? permsQ.data.isSuperAdmin)) {
+  if (permsQ.data && !(permsQ.data.isAdmin || permsQ.data.isSuperAdmin || permsQ.data.isManager)) {
     return <Navigate to="/app" replace />;
   }
   return <>{children}</>;
