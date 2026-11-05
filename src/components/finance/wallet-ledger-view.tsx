@@ -123,16 +123,7 @@ export function WalletLedgerView({ userId, own, admin }: { userId?: string; own?
 
   if (q.isLoading) return <div className="p-6 text-[12px] text-muted-foreground"><Loader2 className="mr-2 inline size-3.5 animate-spin" />Loading wallet…</div>;
   if (q.error) return <div className="rounded-md border border-destructive/30 bg-destructive/5 p-4 text-[12px] text-destructive">{(q.error as Error).message}</div>;
-  if (!bal?.migrated) {
-    return (
-      <div className="space-y-3">
-        <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-[12px] text-amber-800">
-          This wallet has not been moved to the new Wallet Ledger yet. Figures below come from the legacy wallet.
-        </div>
-        <WalletStatement userId={userId} />
-      </div>
-    );
-  }
+  if (!bal) return <div className="rounded-md border border-border bg-card p-4 text-[12px] text-muted-foreground">No wallet activity yet.</div>;
   const cur = bal.currency;
   return (
     <div className="space-y-4">
