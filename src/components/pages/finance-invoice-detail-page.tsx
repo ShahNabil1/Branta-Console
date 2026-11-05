@@ -312,7 +312,6 @@ export function InvoiceDetail() {
         </div>
       </div>
 
-      <InvoiceFundAllocation invoiceId={q.data.invoice.id} />
       <InvoiceEmployeeEarnings invoiceId={q.data.invoice.id} currency={q.data.invoice.currency} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -817,18 +816,6 @@ function EditInvoiceDialog({
           <section className="rounded-sm border border-border p-3">
             <ProjectCostEditor costs={editCosts} onChange={setEditCosts} total={totalNum} currency={currency} compact />
           </section>
-
-          {sisterCtx && (
-            <section className="rounded-sm border border-border p-3">
-              <CompanyFundPreview ctx={sisterCtx} amount={Math.max(totalNum - costSum, 0)} currency={currency} />
-            </section>
-          )}
-          {!sisterCtx && fundLedger && plans && (
-            <section className="rounded-sm border border-border p-3">
-              <EmployeeFundPlanner net={Math.max(totalNum - costSum, 0)} currency={currency} projectId={(invoice as { project_id?: string | null }).project_id ?? null} plans={plans} onChange={setPlans} onPoolChange={(p) => p !== empPool && setEmpPool(p)} />
-              {planOver && <span className="sr-only">{EXCEEDS_MSG}</span>}
-            </section>
-          )}
 
           <section className={cn("rounded-sm border border-border p-3", fundLedger && "hidden")}>
             <div className="mb-2 flex items-center justify-between"><h4 className="text-[13px] font-semibold">Legacy Revenue Split</h4><span className={cn("font-mono text-[11px]", Math.abs(pctSum - 100) < 0.01 ? "text-emerald-600" : "text-rose-600")}>{pctSum.toFixed(2)}%</span></div>
