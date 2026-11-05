@@ -1046,7 +1046,13 @@ export const disconnectProvider = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) =>
     z
-      .object({ slug: Slug, provider: Provider, confirmedHookIds: z.array(z.string()).max(100) })
+      .object({
+        slug: Slug,
+        provider: Provider,
+        confirmedHookIds: z.array(z.string()).max(100),
+        // Provider unreachable / key invalid: skip remote cleanup, erase only our stored credentials.
+        force: z.boolean().optional(),
+      })
       .parse(i),
   )
   .handler(async ({ data, context }) => {
@@ -1055,10 +1061,11 @@ export const disconnectProvider = createServerFn({ method: "POST" })
     let removed = 0;
     const r = await row(admin, co.id, data.provider);
     const key = r?.api_key_enc ? await m.open(r.api_key_enc) : null;
-    if (!key) throw new Error("No stored API key available. Verify the API key first.");
-    const hooks = await disconnectHooks(data.provider, co.slug, key);
+    if (!key && !data.force) throw new Error("No stored API key available. Verify the API key first.");
+    const hooks = data.force || !key ? [] : await disconnectHooks(data.provider, co.slug, key);
     const { sameWebhookIds } = await import("@/lib/company-webhook-policy");
     if (
+      !data.force &&
       !sameWebhookIds(
         hooks.map((hook) => hook.id),
         data.confirmedHookIds,
@@ -1070,8 +1077,8 @@ export const disconnectProvider = createServerFn({ method: "POST" })
     for (const hook of hooks) {
       const result =
         data.provider === "resend"
-          ? await m.resend(key, `/webhooks/${encodeURIComponent(hook.id)}`, { method: "DELETE" })
-          : await m.brevo(key, `/webhooks/${encodeURIComponent(hook.id)}`, { method: "DELETE" });
+          ? await m.resend(key!, `/webhooks/${encodeURIComponent(hook.id)}`, { method: "DELETE" })
+          : await m.brevo(key!, `/webhooks/${encodeURIComponent(hook.id)}`, { method: "DELETE" });
       if (result.ok || result.status === 404) removed++;
       else
         throw new Error(

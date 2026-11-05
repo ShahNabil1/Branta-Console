@@ -668,13 +668,17 @@ function DisconnectButton({ p, slug, v }: { p: P; slug: string; v: ProviderView 
         title={`Disconnect ${META[p].name}?`}
         subject={`${v.sender_name} <${v.sender_email}>`}
         busy={!!busy}
-        confirmLabel={busy === "preview" ? "Checking…" : busy === "dc" ? "Disconnecting…" : previewError ? "Retry" : "Disconnect"}
+        confirmLabel={busy === "preview" ? "Checking…" : busy === "dc" ? "Disconnecting…" : previewError ? "Disconnect anyway" : "Disconnect"}
         cancelLabel="Keep it"
         points={
           busy === "preview"
             ? [`Checking ${META[p].name} webhooks…`]
             : previewError
-              ? [previewError]
+              ? [
+                  `${META[p].name} didn't respond: ${previewError}`,
+                  `Its webhooks can't be removed on ${META[p].name}'s side — delete them there later if needed.`,
+                  "Disconnecting erases the API key, signing secret and webhook from Branta Console.",
+                ]
               : hooks === null
                 ? ["Check the company webhooks before disconnecting."]
               : [
@@ -691,16 +695,18 @@ function DisconnectButton({ p, slug, v }: { p: P; slug: string; v: ProviderView 
         onCancel={() => setConfirm(false)}
         onConfirm={() => {
           if (busy) return;
-          if (hooks === null || previewError) {
+          const force = !!previewError;
+          if (hooks === null && !force) {
             void loadPreview();
             return;
           }
           setBusy("dc");
-          void disc({ data: { slug, provider: p, confirmedHookIds: hooks.map((h) => h.id) } })
+          void disc({ data: { slug, provider: p, confirmedHookIds: (hooks ?? []).map((h) => h.id), force } })
             .then(async (r) => {
               setConfirm(false);
               await refresh();
-              toast.success(`Disconnected · removed ${r.removed} Branta Tech webhook(s)`);
+              setPreviewError(null);
+              toast.success(force ? "Disconnected · credentials erased from Branta Console" : `Disconnected · removed ${r.removed} Branta Tech webhook(s)`);
             })
             .catch((e) => toast.error(err(e)))
             .finally(() => setBusy(null));
