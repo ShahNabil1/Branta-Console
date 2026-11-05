@@ -9,7 +9,7 @@ import {
   type WalletEntry, type WalletBalanceV2,
 } from "@/lib/wallet-ledger.functions";
 import { getMyProfile, type PaymentMethod } from "@/lib/profile.functions";
-import { PeriodFilter, Stat, money, periodRange, inRange, WalletStatement, type Period } from "@/components/finance/wallet-statement";
+import { PeriodFilter, Stat, money, periodRange, inRange, type Period } from "@/components/finance/wallet-statement";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -198,14 +198,6 @@ export function WalletLedgerView({ userId, own, admin }: { userId?: string; own?
         </table>
         </div>
       </section>
-
-      <details className="rounded-md border border-border bg-card">
-        <summary className="cursor-pointer px-4 py-2.5 text-[13px] font-semibold">Legacy Wallet History <span className="ml-1 rounded-sm border border-border px-1 text-[10px] uppercase text-muted-foreground">Legacy · read-only</span></summary>
-        <div className="border-t border-border p-3">
-          <p className="mb-2 text-[11.5px] text-muted-foreground">Old payouts and withdrawals before the move. Their closing balance is already included in the Opening Balance entry above.</p>
-          <WalletStatement userId={userId} />
-        </div>
-      </details>
 
       {modal && <WithdrawModal bal={modal} onClose={() => setModal(null)} onDone={() => { setModal(null); invalidate(); }} />}
     </div>

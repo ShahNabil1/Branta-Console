@@ -63,7 +63,7 @@ const STATIC_ENTRIES: StaticEntry[] = [
   { label: "Invoices", group: "Finance", icon: FileText, to: "/app/finance/invoices", keywords: "billing bt" },
   { label: "New invoice", group: "Finance", icon: FileSignature, to: "/app/finance/invoices/new", keywords: "create invoice" },
   { label: "Company Wallet", group: "Finance", icon: Wallet, to: "/app/finance/wallet", keywords: "balance ledger" },
-  { label: "Withdrawals", group: "Finance", icon: Banknote, to: "/app/finance/withdrawals", keywords: "payout cashout" },
+  { label: "Withdrawals", group: "Finance", icon: Banknote, to: "/app/finance/employee-wallets", keywords: "payout cashout" },
   { label: "Expenses", group: "Finance", icon: Receipt, to: "/app/finance/expenses", keywords: "spend costs" },
   { label: "Invoice templates", group: "Finance", icon: Palette, to: "/app/finance/templates", keywords: "pdf email template branding logo" },
   // Admin
