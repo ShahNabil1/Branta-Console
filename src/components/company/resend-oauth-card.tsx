@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { CheckCircle2, Clock, Globe, KeyRound, Loader2, ShieldCheck, Unplug, Webhook, XCircle, Zap, type LucideIcon } from "lucide-react";
+import { CheckCircle2, Clock, Globe, KeyRound, Loader2, Radar, ShieldCheck, Unplug, Webhook, XCircle, Zap, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DisconnectButton } from "@/components/ui/disconnect-button";
 import { ConfirmSurface } from "@/components/ui/confirm-surface";
@@ -16,6 +16,7 @@ import resendWordmarkBlack from "@/assets/email/resend-wordmark-black.png.asset.
 const err = (e: unknown) => (e instanceof Error ? e.message : "Something went wrong");
 const STAGES: { id: SetupStage; label: string; icon: LucideIcon }[] = [
   { id: "domain", label: "Add domain", icon: Globe },
+  { id: "tracking", label: "Tracking & TLS", icon: Radar },
   { id: "dns", label: "Cloudflare DNS", icon: Zap },
   { id: "verify", label: "Verify", icon: ShieldCheck },
   { id: "key", label: "API key", icon: KeyRound },
@@ -58,12 +59,15 @@ export function ResendOAuthCard({ slug, companyName, onReady }: { slug: string; 
     finally { if (!c.signal.aborted) setBusy(null); }
   };
 
-  const runAll = async (onlyKeys: boolean) => {
-    setBusy("setup"); setSteps({});
+  const [needSub, setNeedSub] = useState(false);
+  const [sub, setSub] = useState("links");
+  const runAll = async (_quick?: boolean, trackingSubdomain?: string) => {
+    setBusy("setup"); setSteps({}); setNeedSub(false);
     try {
-      for (const s of STAGES.filter((x) => !onlyKeys || x.id === "key" || x.id === "webhook")) {
+      for (const s of STAGES) {
         setRunning(s.id);
-        let r = await setup({ data: { slug, stage: s.id } });
+        let r = await setup({ data: { slug, stage: s.id, ...(s.id === "tracking" && trackingSubdomain ? { trackingSubdomain } : {}) } });
+        if (r.needsInput) { setSteps((p) => ({ ...p, [s.id]: r })); setNeedSub(true); return; }
         for (let i = 0; s.id === "verify" && r.pending && i < 8; i++) {
           setSteps((p) => ({ ...p, verify: r }));
           await sleep(15_000);
@@ -107,7 +111,7 @@ export function ResendOAuthCard({ slug, companyName, onReady }: { slug: string; 
             {q.isLoading ? "Loading…" : a
               ? !inbox ? "Verify the In-app Gmail Inbox Address below first — its address becomes the sender."
                 : ready ? `Ready · sending as ${inbox.name} <${inbox.email}> — manage it in the Resend card below.`
-                : busy === "setup" ? (verified ? `${inbox.domain} is already verified · creating API key and webhook…` : `Setting up ${inbox.domain}…`)
+                : busy === "setup" ? (verified ? `${inbox.domain} is verified · checking tracking, API key and webhook…` : `Setting up ${inbox.domain}…`)
                 : `Sender ${inbox.name} <${inbox.email}>`
               : "Sign in or create a Resend account in the popup — the Console does the rest."}
           </p>
@@ -128,9 +132,22 @@ export function ResendOAuthCard({ slug, companyName, onReady }: { slug: string; 
         )}
       </div>
 
-      {a && inbox && !ready && !(verified && busy === "setup") && Object.keys(steps).length + (running ? 1 : 0) > 0 && (
+      {a && inbox && !ready && Object.keys(steps).length + (running ? 1 : 0) > 0 && (
         <div className="relative mt-4 space-y-3">
-          <div className="grid gap-2 sm:grid-cols-5">
+          {needSub && !busy && (
+            <form
+              className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/40 bg-card p-3"
+              onSubmit={(e) => { e.preventDefault(); const v = sub.trim().toLowerCase(); if (/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(v)) void runAll(false, v); else toast.error("Use letters, numbers and dashes only."); }}
+            >
+              <div className="min-w-0 basis-full text-[12px] font-bold">Tracking subdomain <span className="font-semibold text-muted-foreground">— needed for open & click events</span></div>
+              <div className="flex h-9 items-center overflow-hidden rounded-md border border-border bg-background focus-within:border-primary">
+                <input value={sub} onChange={(e) => setSub(e.target.value)} className="h-full w-28 bg-transparent px-2.5 text-[13px] font-semibold outline-none" aria-label="Tracking subdomain" />
+                <span className="pr-2.5 font-mono text-[12px] text-muted-foreground">.{inbox.domain}</span>
+              </div>
+              <Button type="submit" size="sm"><Radar className="size-3.5" /> Set up tracking</Button>
+            </form>
+          )}
+          <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
             {STAGES.map((s) => {
               const st = steps[s.id];
               const live = running === s.id;
@@ -149,7 +166,7 @@ export function ResendOAuthCard({ slug, companyName, onReady }: { slug: string; 
               );
             })}
           </div>
-          {a.last_error && !busy && (
+          {a.last_error && !busy && !needSub && (
             <div className="flex items-center gap-2">
               <p className="flex-1 text-[11.5px] font-semibold text-destructive">{a.last_error}</p>
               <Button size="sm" variant="outline" onClick={() => runAll(verified)}><TestLoader active={false} /> Retry</Button>
