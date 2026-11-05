@@ -257,10 +257,10 @@ export const getOverviewKpis = createServerFn({ method: "POST" })
         .eq("user_id", scope)
         .eq("status", "available")
         .limit(2000),
-      supabase.from("withdrawal_requests")
+      (supabase as any).from("wallet_withdrawals")
         .select("currency, amount")
-        .eq("user_id", scope)
-        .in("status", ["pending", "approved"])
+        .eq("employee_id", scope)
+        .in("status", ["requested", "approved"])
         .limit(1000),
     ]);
 
