@@ -1,5 +1,9 @@
 # Roadmap
 
+## Provider health chip accuracy
+- [x] Stop treating absent tracking results as success; retain successful silent checks and show pending/unknown states.
+- [x] Ten provider-state/tracking tests pass and build OK; real company test remains unavailable with external unmanaged auth.
+
 ## Resend disconnect Checking
 - [x] Preserve animated disabled confirmation while checking; expose failed preview and Retry instead of masking errors as Checking.
 - [x] Bound provider requests and disconnect preview; reproduce the stalled-response regression before fixing.
