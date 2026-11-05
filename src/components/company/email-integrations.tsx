@@ -1518,9 +1518,9 @@ function InboxAddress({
                   )}
                 />
                 <div className="relative flex items-center gap-2.5">
-                  <span className="grid size-9 shrink-0 place-items-center rounded-lg border border-border bg-background shadow-sm transition-transform group-hover:scale-110">
+                  <span className="grid size-12 shrink-0 place-items-center overflow-visible rounded-lg border border-border bg-background p-1 shadow-sm transition-transform group-hover:scale-110">
                     {meta.img ? (
-                      <img src={meta.img} alt="" className="size-6 object-contain" />
+                      <img src={meta.img} alt="" className="size-full object-contain" />
                     ) : (
                       <GmailMark className="size-5" />
                     )}
