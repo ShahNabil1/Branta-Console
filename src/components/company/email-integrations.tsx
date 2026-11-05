@@ -69,7 +69,6 @@ import brevoWordmark from "@/assets/email/brevo-wordmark.png.asset.json";
 import switchAccountIcon from "@/assets/integrations/switch-account.png.asset.json";
 import cfRoutingIcon from "@/assets/integrations/cloudflare-email-routing.png.asset.json";
 import routingRuleIcon from "@/assets/integrations/email-routing-rule.png.asset.json";
-import { GmailMark } from "@/components/company/google-account-card";
 import verifiedIcon from "@/assets/company/connection-verified.png.asset.json";
 import {
   AlertDialog,
