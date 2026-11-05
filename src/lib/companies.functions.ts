@@ -220,13 +220,15 @@ export const listEmployeeWorkspaces = createServerFn({ method: "GET" })
     const { isGroupAdmin } = await import("@/lib/group-admin");
     const sc = await import("@/lib/company-scope.server");
     let only: Set<string> | null = null;
-    if (!(await isGroupAdmin(context.supabase, context.userId))) {
+    const callerGA = await isGroupAdmin(context.supabase, context.userId);
+    if (!callerGA) {
       if (!(await sc.managesEmployee(context.supabase, context.userId, data.userId))) throw new Error("Only group admins can manage workspace access.");
       only = await sc.managedCompanyIds(context.supabase, context.userId);
     }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as unknown as Sb;
     const pid = await profileIdFor(admin, data.userId);
+    const callerPid = await profileIdFor(admin, context.userId);
     const [{ data: cos, error }, { data: mem }] = await Promise.all([
       admin.from("companies").select("id, name, slug, is_holding, status, logo_url, brand_kit, ceo_user_id, coo_user_id").order("is_holding", { ascending: false }).order("created_at"),
       admin.from("company_members").select("company_id, role, is_active").eq("user_id", pid),
@@ -240,7 +242,10 @@ export const listEmployeeWorkspaces = createServerFn({ method: "GET" })
     return list.map((c) => {
       const m = byCo.get(c.id);
       const leader = c.ceo_user_id === pid ? "CEO" : c.coo_user_id === pid ? "COO" : groupAdmin && !c.is_holding ? "Group admin" : null;
-      return { ...c, role: m?.is_active ? (m.role as WorkspaceRole) : null, leader };
+      // C.E.O outranks C.O.O: only the C.E.O (or a group admin) can appoint or demote the C.O.O.
+      const callerIsCeo = !c.is_holding && c.ceo_user_id === callerPid;
+      const canEdit = callerGA ? leader !== "Group admin" : leader === null || (leader === "COO" && callerIsCeo);
+      return { ...c, role: m?.is_active ? (m.role as WorkspaceRole) : null, leader, canEdit, canCoo: callerGA || callerIsCeo, canCeo: callerGA };
     });
   });
 
@@ -252,15 +257,17 @@ export const setEmployeeWorkspace = createServerFn({ method: "POST" })
     role: z.enum(WORKSPACE_ROLES).nullable(),
   }).parse(i))
   .handler(async ({ data, context }) => {
+    let callerGA = false;
     {
       const { isGroupAdmin } = await import("@/lib/group-admin");
-      if (!(await isGroupAdmin(context.supabase, context.userId))) {
+      callerGA = await isGroupAdmin(context.supabase, context.userId);
+      if (!callerGA) {
         const sc = await import("@/lib/company-scope.server");
         const managed = await sc.managedCompanyIds(context.supabase, context.userId);
         if (!managed.has(data.companyId) || !(await sc.managesEmployee(context.supabase, context.userId, data.userId)))
           throw new Error("You can only manage access to your own company.");
         if (data.userId === context.userId) throw new Error("You can't change your own company access.");
-        if (data.role === "super_admin" || data.role === "coo") throw new Error("Only Branta Tech group admins can appoint a company C.E.O or C.O.O.");
+        if (data.role === "super_admin") throw new Error("Only Branta Tech group admins can appoint a company C.E.O.");
       }
     }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -268,8 +275,31 @@ export const setEmployeeWorkspace = createServerFn({ method: "POST" })
     const pid = await profileIdFor(admin, data.userId);
     const { data: co } = await admin.from("companies").select("ceo_user_id, coo_user_id, is_holding").eq("id", data.companyId).maybeSingle();
     if (!co) throw new Error("Company not found.");
-    if ((co.ceo_user_id === pid || co.coo_user_id === pid) && data.role !== "super_admin" && data.role !== "coo")
-      throw new Error("CEO/COO always keep full access. Change the company leadership first.");
+    const callerPid = await profileIdFor(admin, context.userId);
+    const callerIsCeo = !co.is_holding && co.ceo_user_id === callerPid;
+    if (!callerGA && data.role === "coo" && !callerIsCeo) throw new Error("Only the company C.E.O can appoint a C.O.O.");
+    if (co.ceo_user_id === pid && data.role !== "super_admin" && !callerGA)
+      throw new Error("Only a Branta Tech group admin can change the C.E.O.");
+    if (co.coo_user_id === pid && data.role !== "coo" && !callerGA && !callerIsCeo)
+      throw new Error("Only the C.E.O can change the C.O.O.");
+    // One C.E.O and one C.O.O per company: the previous holder steps down to Executive.
+    if (!co.is_holding) {
+      const patch: Record<string, string | null> = {};
+      if (data.role === "super_admin" && co.ceo_user_id !== pid) {
+        if (co.ceo_user_id) await admin.from("company_members").update({ role: "member" }).eq("company_id", data.companyId).eq("user_id", co.ceo_user_id);
+        patch.ceo_user_id = pid; if (co.coo_user_id === pid) patch.coo_user_id = null;
+      } else if (data.role === "coo" && co.coo_user_id !== pid) {
+        if (co.coo_user_id) await admin.from("company_members").update({ role: "member" }).eq("company_id", data.companyId).eq("user_id", co.coo_user_id);
+        patch.coo_user_id = pid; if (co.ceo_user_id === pid) patch.ceo_user_id = null;
+      } else {
+        if (co.ceo_user_id === pid && data.role !== "super_admin") patch.ceo_user_id = null;
+        if (co.coo_user_id === pid && data.role !== "coo") patch.coo_user_id = null;
+      }
+      if (Object.keys(patch).length) {
+        const { error: pe } = await admin.from("companies").update(patch).eq("id", data.companyId);
+        if (pe) throw dbError(pe);
+      }
+    }
     if (!co.is_holding && data.role !== "super_admin" && data.role !== "coo") {
       const { data: h } = await admin.from("companies").select("id").eq("is_holding", true).maybeSingle();
       const { data: hm } = h ? await admin.from("company_members").select("role, is_active").eq("company_id", h.id).eq("user_id", pid).maybeSingle() : { data: null };

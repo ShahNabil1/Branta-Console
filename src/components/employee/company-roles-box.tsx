@@ -63,9 +63,9 @@ export function CompanyRolesBox({ userId, holding, limited }: { userId: string; 
       )}
       {co?.is_holding ? holding : co && (
         <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
-          {SISTER_ROLE_OPTIONS.filter((r) => !limited || co.role === r.value || (r.value !== "super_admin" && r.value !== "coo")).map((r) => {
+          {SISTER_ROLE_OPTIONS.filter((r) => !limited || co.role === r.value || (r.value === "super_admin" ? co.canCeo : r.value === "coo" ? co.canCoo : true)).map((r) => {
             const active = co.role === r.value;
-            const locked = !!co.leader;
+            const locked = !co.canEdit;
             const busy = m.isPending && m.variables === r.value;
             return (
               <button key={r.value} type="button" disabled={locked || m.isPending} onClick={() => !active && m.mutate(r.value)}
