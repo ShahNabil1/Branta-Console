@@ -13,3 +13,20 @@ export async function companyMemberUserIds(slug: string): Promise<Set<string>> {
   if (pErr) throw new Error(pErr.message);
   return new Set((profs ?? []).map((p) => (p as { user_id: string }).user_id).filter(Boolean));
 }
+
+/** True when the caller is CEO/COO (can_manage_company) of a sister company the target employee is an active member of. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function managesEmployee(supabase: any, callerId: string, targetUserId: string): Promise<boolean> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: prof } = await supabaseAdmin.from("profiles").select("id").eq("user_id", targetUserId).maybeSingle();
+  if (!prof) return false;
+  const { data: mem } = await supabaseAdmin
+    .from("company_members").select("company_id, companies!inner(is_holding)")
+    .eq("profile_id" as never, (prof as { id: string }).id).eq("is_active", true);
+  for (const m of (mem ?? []) as unknown as { company_id: string; companies: { is_holding: boolean } }[]) {
+    if (m.companies?.is_holding) continue;
+    const { data } = await supabase.rpc("can_manage_company", { _company: m.company_id, _user: callerId });
+    if (data) return true;
+  }
+  return false;
+}
