@@ -272,10 +272,10 @@ export const getInvoiceFundPreviewContext = createServerFn({ method: "GET" })
       sb.from("fund_allocation_versions").select("id,name,fund_allocation_version_items(percent,finance_funds(code,name,display_order))").order("effective_from", { ascending: false }).order("created_at", { ascending: false }).limit(1).maybeSingle(),
       sb.from("profiles").select("id,user_id,full_name,legal_full_name,avatar_url,employee_code,job_role").is("deactivated_at", null).order("full_name").limit(1000),
       data.projectId ? sb.from("client_tasks").select("id,title").eq("project_id", data.projectId).is("archived_at", null).order("created_at") : Promise.resolve({ data: [] }),
-      sb.from("v_wallet_balances").select("user_id,currency,available"),
+      sb.rpc("wallet_balances_v2", { _user: null }),
     ]);
     const wallet = new Map<string, number>();
-    ((bals ?? []) as any[]).forEach((b) => { if (b.currency === "BDT") wallet.set(b.user_id, Number(b.available ?? 0)); });
+    ((bals ?? []) as any[]).forEach((b) => { if (b.currency === "BDT") wallet.set(b.employee_id, Number(b.available ?? 0)); });
     const funds = ((ver?.fund_allocation_version_items ?? []) as any[])
       .map((i) => ({ code: i.finance_funds?.code as string, name: i.finance_funds?.name as string, order: Number(i.finance_funds?.display_order ?? 0), percent: Number(i.percent) }))
       .sort((a, b) => a.order - b.order);

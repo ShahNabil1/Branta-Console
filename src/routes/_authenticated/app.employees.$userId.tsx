@@ -13,6 +13,7 @@ import { SessionHistoryLog } from "@/components/profile/session-history-log";
 // Employee detail page: full profile, RBAC, lead assignment, ban / delete,
 // password reset, one-click impersonation, wallet + sessions.
 import { useEffect, useMemo, useState } from "react";
+import { WalletLedgerView } from "@/components/finance/wallet-ledger-view";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -56,7 +57,6 @@ import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
   assignLeadOwner,
   getEmployeeDetail,
-  getEmployeeWallet,
   listAssignedLeads,
   listEmployeeSessions,
   resendOnboardingInstructions,
@@ -174,7 +174,6 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
   const setJobRoleFn = useServerFn(setEmployeeJobRole);
   const tgStatusFn = useServerFn(getEmployeeTelegramStatus);
   const tgUnsubFn = useServerFn(adminUnsubscribeTelegram);
-  const walletFn = useServerFn(getEmployeeWallet);
   const sessionsFn = useServerFn(listEmployeeSessions);
   const revokeSessionFn = useServerFn(revokeEmployeeSession);
 
@@ -1011,7 +1010,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
           </section>
         </>
       ) : tab === "wallet" ? (
-        <WalletTab userId={userId} walletFn={walletFn} />
+        <WalletLedgerView userId={userId} admin />
       ) : tab === "schedule" ? (
         <TrackerScheduleTab userId={userId} />
       ) : (
@@ -1457,335 +1456,6 @@ const currencyFmt = (n: number, cur: string) =>
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
-
-function WalletTab({
-  userId,
-  walletFn,
-}: {
-  userId: string;
-  walletFn: ReturnType<typeof useServerFn<typeof getEmployeeWallet>>;
-}) {
-  const wallet = useQuery({
-    queryKey: ["employee.wallet", userId],
-    queryFn: () => walletFn({ data: { userId } }),
-  });
-
-  if (wallet.isLoading) {
-    return (
-      <section className="flex items-center gap-2 rounded-sm border border-border bg-card p-6 text-[13px] text-muted-foreground">
-        <Loader2 className="size-4 animate-spin" /> Loading wallet…
-      </section>
-    );
-  }
-  if (wallet.error || !wallet.data) {
-    return (
-      <section className="rounded-sm border border-rose-200 bg-rose-50 p-4 text-[12.5px] text-rose-700">
-        {wallet.error instanceof Error ? wallet.error.message : "Wallet unavailable"}
-      </section>
-    );
-  }
-
-  const { balances, payouts, withdrawals } = wallet.data;
-
-  const lifetimePaid = payouts
-    .filter((p) => p.status === "paid")
-    .reduce<Record<string, number>>((acc, p) => {
-      acc[p.currency] = (acc[p.currency] ?? 0) + Number(p.amount);
-      return acc;
-    }, {});
-  const lifetimeCurrencies = Object.keys(lifetimePaid);
-
-  return (
-    <div className="flex flex-col gap-4">
-      {/* Balances */}
-      <section className="rounded-lg border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
-        <div className="mb-3 flex items-center gap-2">
-          <Wallet className="size-4 text-brand" strokeWidth={2} />
-          <h3 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Balance
-          </h3>
-        </div>
-        {balances.length === 0 ? (
-          <p className="text-[12.5px] text-muted-foreground">No balance yet.</p>
-        ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {balances.flatMap((b) => [
-              <BalanceCard
-                key={`${b.currency}-locked`}
-                label="Locked"
-                value={b.locked}
-                currency={b.currency}
-                tone="muted"
-              />,
-              <BalanceCard
-                key={`${b.currency}-avail`}
-                label="Available"
-                value={b.available}
-                currency={b.currency}
-                tone="brand"
-              />,
-              <BalanceCard
-                key={`${b.currency}-req`}
-                label="Requested"
-                value={b.requested}
-                currency={b.currency}
-                tone="amber"
-              />,
-              <BalanceCard
-                key={`${b.currency}-paid`}
-                label="Lifetime paid"
-                value={b.paid}
-                currency={b.currency}
-                tone="emerald"
-              />,
-            ])}
-          </div>
-        )}
-        {lifetimeCurrencies.length > 0 && (
-          <div className="mt-3 text-[11.5px] text-muted-foreground">
-            Lifetime payout total:{" "}
-            {lifetimeCurrencies.map((c) => currencyFmt(lifetimePaid[c] ?? 0, c)).join(" · ")}
-          </div>
-        )}
-      </section>
-
-      <WalletLedgerView userId={userId} admin />
-      {/* Payouts */}
-      <section className="rounded-lg border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
-        <div className="mb-3 flex items-center gap-2">
-          <h3 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Payment history ({payouts.length})
-          </h3>
-        </div>
-        {payouts.length === 0 ? (
-          <p className="text-[12.5px] text-muted-foreground">No payouts yet.</p>
-        ) : (
-          <>
-            <div className="divide-y divide-border rounded-sm border border-border sm:hidden">
-              {payouts.map((r) => (
-                <div key={r.id} className="space-y-2 p-3">
-                  <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
-                    <div className="min-w-0">
-                      <div className="font-mono text-[11px] font-semibold uppercase text-muted-foreground">
-                        Invoice
-                      </div>
-                      {r.invoice_slug ? (
-                        <Link
-                          to="/app/finance/invoices/$slug"
-                          params={{ slug: r.invoice_slug }}
-                          className="block truncate font-mono text-[13px] font-semibold text-brand hover:underline"
-                        >
-                          {r.invoice_slug}
-                        </Link>
-                      ) : (
-                        <span>—</span>
-                      )}
-                    </div>
-                    <div className="shrink-0 text-right font-mono text-[14px] font-bold">
-                      {currencyFmt(Number(r.amount), r.currency)}
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-[12px] text-muted-foreground">
-                    <span className="font-medium">
-                      {r.installment_label ?? "No installment label"}
-                    </span>
-                    <PayoutStatusBadge status={r.status} />
-                    <span className="w-full font-mono">
-                      {new Date(
-                        r.paid_at ?? r.requested_at ?? r.unlocked_at ?? r.created_at,
-                      ).toLocaleDateString()}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="hidden overflow-x-auto rounded-sm border border-border sm:block">
-              <table className="min-w-[620px] w-full text-left text-[12.5px]">
-                <thead className="bg-muted text-[10.5px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-                  <tr>
-                    <th className="px-3 py-2">Invoice</th>
-                    <th className="px-3 py-2">Installment</th>
-                    <th className="px-3 py-2 text-right">Amount</th>
-                    <th className="px-3 py-2">Status</th>
-                    <th className="px-3 py-2">When</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {payouts.map((r) => (
-                    <tr key={r.id}>
-                      <td className="px-3 py-1.5 font-mono">
-                        {r.invoice_slug ? (
-                          <Link
-                            to="/app/finance/invoices/$slug"
-                            params={{ slug: r.invoice_slug }}
-                            className="text-brand hover:underline"
-                          >
-                            {r.invoice_slug}
-                          </Link>
-                        ) : (
-                          "—"
-                        )}
-                      </td>
-                      <td className="px-3 py-1.5">{r.installment_label ?? "—"}</td>
-                      <td className="px-3 py-1.5 text-right font-mono">
-                        {currencyFmt(Number(r.amount), r.currency)}
-                      </td>
-                      <td className="px-3 py-1.5">
-                        <PayoutStatusBadge status={r.status} />
-                      </td>
-                      <td className="px-3 py-1.5 font-mono text-[11.5px] text-muted-foreground">
-                        {new Date(
-                          r.paid_at ?? r.requested_at ?? r.unlocked_at ?? r.created_at,
-                        ).toLocaleDateString()}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
-      </section>
-
-      {/* Withdrawals */}
-      <section className="rounded-lg border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
-        <div className="mb-3 flex items-center gap-2">
-          <h3 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Withdrawal requests ({withdrawals.length})
-          </h3>
-        </div>
-        {withdrawals.length === 0 ? (
-          <p className="text-[12.5px] text-muted-foreground">No withdrawal requests.</p>
-        ) : (
-          <>
-            <div className="divide-y divide-border rounded-sm border border-border sm:hidden">
-              {withdrawals.map((w) => (
-                <div key={w.id} className="space-y-2 p-3">
-                  <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
-                    <div className="min-w-0 font-mono text-[11px] font-medium text-muted-foreground">
-                      {new Date(w.requested_at).toLocaleString()}
-                    </div>
-                    <div className="shrink-0 font-mono text-[14px] font-bold">
-                      {currencyFmt(Number(w.amount), w.currency)}
-                    </div>
-                  </div>
-                  <WithdrawStatusBadge status={w.status} />
-                  <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-[12px]">
-                    <dt className="text-muted-foreground">Transfer ref</dt>
-                    <dd className="min-w-0 break-all font-mono font-semibold">
-                      {w.transfer_ref ? (
-                        <span className="inline-flex items-center gap-1">
-                          {w.transfer_ref}
-                          <CopyBtn value={w.transfer_ref} small />
-                        </span>
-                      ) : (
-                        "—"
-                      )}
-                    </dd>
-                    <dt className="text-muted-foreground">Note</dt>
-                    <dd className="min-w-0 break-words font-medium">{w.admin_note ?? "—"}</dd>
-                  </dl>
-                </div>
-              ))}
-            </div>
-            <div className="hidden overflow-x-auto rounded-sm border border-border sm:block">
-              <table className="min-w-[720px] w-full text-left text-[12.5px]">
-                <thead className="bg-muted text-[10.5px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-                  <tr>
-                    <th className="px-3 py-2">Requested</th>
-                    <th className="px-3 py-2 text-right">Amount</th>
-                    <th className="px-3 py-2">Status</th>
-                    <th className="px-3 py-2">Transfer ref</th>
-                    <th className="px-3 py-2">Note</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {withdrawals.map((w) => (
-                    <tr key={w.id}>
-                      <td className="px-3 py-1.5 font-mono text-[11.5px]">
-                        {new Date(w.requested_at).toLocaleString()}
-                      </td>
-                      <td className="px-3 py-1.5 text-right font-mono">
-                        {currencyFmt(Number(w.amount), w.currency)}
-                      </td>
-                      <td className="px-3 py-1.5">
-                        <WithdrawStatusBadge status={w.status} />
-                      </td>
-                      <td className="px-3 py-1.5 font-mono text-[11.5px]">
-                        {w.transfer_ref ? (
-                          <span className="inline-flex items-center gap-1">
-                            {w.transfer_ref}
-                            <CopyBtn value={w.transfer_ref} small />
-                          </span>
-                        ) : (
-                          "—"
-                        )}
-                      </td>
-                      <td className="px-3 py-1.5 text-[11.5px] text-muted-foreground">
-                        {w.admin_note ?? "—"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
-      </section>
-    </div>
-  );
-}
-
-function BalanceCard({
-  label,
-  value,
-  currency,
-  tone,
-}: {
-  label: string;
-  value: number;
-  currency: string;
-  tone: "brand" | "muted" | "amber" | "emerald";
-}) {
-  const cls =
-    tone === "brand"
-      ? "border-brand/30 bg-brand/5"
-      : tone === "amber"
-        ? "border-amber-200 bg-amber-50"
-        : tone === "emerald"
-          ? "border-emerald-200 bg-emerald-50"
-          : "border-border bg-muted/40";
-  return (
-    <div className={cn("rounded-sm border p-3", cls)}>
-      <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-        {label} · {currency}
-      </div>
-      <div className="mt-1 font-mono text-[17px] font-semibold">
-        {currencyFmt(Number(value), currency)}
-      </div>
-    </div>
-  );
-}
-
-function PayoutStatusBadge({ status }: { status: string }) {
-  const map: Record<string, string> = {
-    locked: "border-border bg-muted text-muted-foreground",
-    available: "border-emerald-300 bg-emerald-50 text-emerald-700",
-    requested: "border-amber-300 bg-amber-50 text-amber-800",
-    paid: "border-brand/40 bg-brand/10 text-brand",
-  };
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-sm border px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.06em]",
-        map[status] ?? "border-border bg-muted text-muted-foreground",
-      )}
-    >
-      {status === "locked" && <Lock className="mr-1 size-3" />}
-      {status}
-    </span>
-  );
-}
 
 function WithdrawStatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {

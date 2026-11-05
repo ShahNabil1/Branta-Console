@@ -32,7 +32,6 @@ import {
   PieChart,
   Gauge,
   Contact,
-  ArrowDownToLine,
   CalendarClock,
   Puzzle,
   Pin,
@@ -152,7 +151,6 @@ const FINANCE_NAV: FinanceNavGroup[] = [
       { label: "Salary", to: "/app/finance/salary", icon: BadgeDollarSign, tone: "amber" },
       { label: "Salary Report", to: "/app/finance/salary-report", icon: CalendarClock, tone: "indigo" },
       { label: "Wallet", to: "/app/finance/wallet", icon: Wallet, tone: "brand" },
-      { label: "Withdrawals", to: "/app/finance/withdrawals", icon: ArrowDownToLine, tone: "rose" },
     ],
   },
   {
