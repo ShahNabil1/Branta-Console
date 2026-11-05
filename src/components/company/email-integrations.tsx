@@ -49,6 +49,7 @@ import {
   type ProviderView,
 } from "@/lib/company-email.functions";
 import { cn } from "@/lib/utils";
+import { providerCheckState } from "@/lib/provider-check-state";
 import { DangerConfirm, DiscardCancelButton } from "@/components/company/danger-confirm";
 import { GoogleAccountCard, GoogleMark, GmailMark } from "@/components/company/google-account-card";
 import { CloudflareAccountCard } from "@/components/company/cloudflare-account-card";
@@ -313,7 +314,7 @@ function ProviderPanel({
         setChecks(r.checks);
         if (r.ok) toast.success(`${m.name} is working.`);
         else toast.error(r.checks.find((c) => !c.ok)?.detail ?? "Check failed");
-      } else if (!r.ok) setChecks(r.checks);
+      } else setChecks(r.checks);
     } catch (e) {
       if (!silent) toast.error(err(e));
     } finally {
@@ -328,7 +329,6 @@ function ProviderPanel({
     void runTest(true);
   }, [configured]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const failed = (k: string) => checks?.find((c) => c.kind === k && !c.ok);
   const fixWebhook = async () => {
     if (fixingRef.current || busy) return;
     fixingRef.current = true;
@@ -461,10 +461,12 @@ function ProviderPanel({
       {configured && (
         <div className="mt-3 flex flex-wrap gap-2">
           {chips.map((c) => {
-            const bad = failed(c.k);
+            const state = providerCheckState(checks, c.k, busy === "test");
+            const bad = state === "issue";
             return (
               <span
                 key={c.k}
+                title={state === "unknown" ? "Not verified — run Test to check" : state === "pending" ? "Checking…" : state === "issue" ? "Issue" : "Working"}
                 className={cn(
                   "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11.5px] font-bold",
                   bad
@@ -480,18 +482,20 @@ function ProviderPanel({
                   <ShieldCheck className="size-3" />
                 )}
                 {c.label}
-                {bad ? (
+                {state === "pending" ? (
+                  <TestLoader className="size-3" active />
+                ) : bad ? (
                   <XCircle className="size-3" />
-                ) : (
+                ) : state === "success" ? (
                   <CheckCircle2 className="size-3 text-status-converted" />
-                )}
+                ) : <span className="text-[10px] font-semibold text-muted-foreground">Not checked</span>}
               </span>
             );
           })}
         </div>
       )}
 
-      {configured && checks && (
+      {configured && checks?.some(c => !c.ok) && (
         <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           {checks.map((c, i) => {
             const I = c.kind === "webhook" ? Webhook : c.kind === "domain" ? ShieldCheck : c.kind === "tracking" ? Radar : KeyRound;
