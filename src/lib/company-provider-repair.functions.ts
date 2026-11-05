@@ -35,11 +35,11 @@ export const repairProviderApi = createServerFn({ method: "POST" })
     if (!key || !key.startsWith(data.provider === "resend" ? "re_" : "xkeysib-")) throw new Error("Enter a valid provider API key.");
     const check = data.provider === "resend" ? await m.resend(key, "/domains") : await m.brevo(key, "/account");
     if (!check.ok) throw new Error(`${data.provider} ${check.status}: ${check.body?.message ?? "API key rejected"}`);
-    const { error } = await admin.from("company_email_providers").update({
+    const { data: saved, error } = await admin.from("company_email_providers").update({
       api_key_enc: await m.seal(key), api_key_hint: null, sender_email: email, sender_name: name,
       domain: email.split("@")[1], updated_by: context.userId,
-    }).eq("company_id", company.id).eq("provider", data.provider).eq("is_active", true);
-    if (error) throw new Error("Could not save the repaired API connection.");
+    }).eq("company_id", company.id).eq("provider", data.provider).eq("is_active", true).select("id").maybeSingle();
+    if (error || !saved) throw new Error("Could not save the repaired API connection.");
     return { ok: true };
   });
 
@@ -54,9 +54,11 @@ export const repairProviderDomain = createServerFn({ method: "POST" })
     if (!key) throw new Error("Fix the API connection first.");
     const domain = email.split("@")[1];
     const rs = await import("./company-resend.server");
-    const { repairResendDomain } = await import("./provider-repair");
-    if (data.provider !== "resend") throw new Error("Use Brevo domain verification to finish this sender.");
-    const result = await repairResendDomain(domain, data.subdomain, (path, init) => m.resend(key, path, init), records => rs.pushResendDns(company.id, domain, records));
+    const { repairResendDomain, repairBrevoDomain } = await import("./provider-repair");
+    const push = (records: any[]) => rs.pushResendDns(company.id, domain, records);
+    const result = data.provider === "resend"
+      ? await repairResendDomain(domain, data.subdomain, (path, init) => m.resend(key, path, init), push)
+      : await repairBrevoDomain(domain, email, name, (path, init) => m.brevo(key, path, init), push);
     const { error } = await admin.from("company_email_providers").update({ sender_name: name, sender_email: email, domain,
       domain_verified_at: result.ok ? new Date().toISOString() : null, updated_by: context.userId,
     }).eq("company_id", company.id).eq("provider", data.provider);
