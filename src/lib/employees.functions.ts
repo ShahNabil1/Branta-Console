@@ -210,7 +210,7 @@ export const createEmployee = createServerFn({ method: "POST" })
     // Creation grants exactly one workspace. Holding (Branta Tech) roles are
     // group-wide; a sister-company employee gets a plain global "user" role and
     // their real role only inside that company.
-    const { data: co } = await supabaseAdmin.from("companies").select("id, is_holding").eq("id", data.companyId).maybeSingle();
+    const { data: co } = await supabaseAdmin.from("companies").select("id, is_holding, name").eq("id", data.companyId).maybeSingle();
     if (!co) throw new Error("Choose a company for this employee.");
     const globalRole = co.is_holding ? data.role : "user";
     const memberRole = co.is_holding
@@ -313,7 +313,10 @@ export const createEmployee = createServerFn({ method: "POST" })
         brantaId: local,
         tempPassword: password,
         loginUrl,
-        role: data.role,
+        // Mail shows the role the employee actually holds in their workspace.
+        role: co.is_holding
+          ? data.role
+          : `${({ member: "Member", manager: "Manager", finance: "Finance", super_admin: "Company admin" } as Record<string, string>)[memberRole] ?? memberRole} · ${(co as { name?: string }).name ?? ""}`,
       });
     } catch (err) {
       // Roll back the auth user if role assignment or email send failed —
