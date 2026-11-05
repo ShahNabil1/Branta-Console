@@ -27,6 +27,8 @@ const CreateInput = z.object({
   personalGmail: z.string().trim().toLowerCase().email().max(200).optional(),
   skipRouting: z.boolean().optional(),
   grantAdmakai: z.boolean().optional(),
+  companyId: z.string().uuid(),
+  companyRole: z.enum(["member", "manager", "finance", "super_admin"]).optional(),
 });
 
 /** Checks/registers the personal Gmail as a Cloudflare destination. */
@@ -88,6 +90,17 @@ export const listEmployees = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
     );
+    // Creation grants exactly one workspace. Holding (Branta Tech) roles are
+    // group-wide; a sister-company employee gets a plain global "user" role and
+    // their real role only inside that company.
+    const { data: co } = await supabaseAdmin.from("companies").select("id, is_holding").eq("id", data.companyId).maybeSingle();
+    if (!co) throw new Error("Choose a company for this employee.");
+    const globalRole = co.is_holding ? data.role : "user";
+    const memberRole = co.is_holding
+      ? (data.role === "super_admin" || data.role === "admin" ? "super_admin" : data.role === "finance" ? "finance" : data.role === "manager" ? "manager" : "member")
+      : (data.companyRole ?? "member");
+    if (!co.is_holding && memberRole === "super_admin" && !isSuperAdmin)
+      throw new Error("Only a super_admin can create a company admin.");
 
     // page 1, up to 200 users — internal ops app, fine for now.
     const { data, error } = await supabaseAdmin.auth.admin.listUsers({
@@ -227,7 +240,7 @@ export const createEmployee = createServerFn({ method: "POST" })
     try {
       const { error: roleErr } = await supabaseAdmin
         .from("user_roles")
-        .insert({ user_id: newUserId, role: data.role });
+        .insert({ user_id: newUserId, role: globalRole });
       if (roleErr && !/duplicate|unique/i.test(roleErr.message)) {
         throw new Error(roleErr.message);
       }
@@ -246,6 +259,12 @@ export const createEmployee = createServerFn({ method: "POST" })
         .update(profilePatch as never)
         .eq("user_id", newUserId);
       if (profErr) throw dbError(profErr);
+
+      const { data: prof } = await supabaseAdmin.from("profiles").select("id").eq("user_id", newUserId).maybeSingle();
+      if (!prof?.id) throw new Error("Employee profile not found.");
+      const { error: memErr } = await supabaseAdmin.from("company_members")
+        .upsert({ company_id: co.id, user_id: prof.id, role: memberRole, is_active: true } as never, { onConflict: "company_id,user_id" });
+      if (memErr) throw dbError(memErr);
 
       // Cloudflare Email Routing: forward name@brantatech.com -> personal Gmail
       // before the welcome mail goes out.
