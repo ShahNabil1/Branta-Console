@@ -14,3 +14,4 @@
 - Company email requests bound both headers and bodies; disconnect preview also has a client deadline and shows errors before empty results — why: failed reads must never leave Checking forever or allow unchecked disconnects.
 - Provider health chips derive success only from their own affirmative test result; absent/skipped checks remain unknown — why: upstream failures cannot imply tracking or webhook health.
 - Per-card provider repairs use company-provider-repair.functions.ts; validate API before encrypted save, derive identity from verified Inbox, and domain DNS writes require the repair dialog confirmation — why: no credential cross-company reuse or unchecked health-read mutations.
+- Employee creation grants one company_members row; holding admin/finance roles are group-wide, sister roles stay company-scoped — why: no accidental cross-company access.

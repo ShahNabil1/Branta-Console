@@ -197,7 +197,7 @@ export const updateCompanyPrefixes = createServerFn({ method: "POST" })
   });
 
 // ---- Per-employee workspace access (explicit; never implied) ----
-export const WORKSPACE_ROLES = ["member", "manager", "super_admin"] as const;
+export const WORKSPACE_ROLES = ["member", "manager", "finance", "super_admin"] as const;
 export type WorkspaceRole = (typeof WORKSPACE_ROLES)[number];
 
 async function profileIdFor(admin: Sb, authUserId: string): Promise<string> {

@@ -95,6 +95,7 @@ import { CloudflareMark, DrawerHero, StepPills } from "@/components/branta/page-
 import { Button } from "@/components/ui/button";
 import { MailActivity } from "@/components/employee/mail-activity";
 import { WorkspaceAccess } from "@/components/employee/workspace-access";
+import { CompanyRolePicker, type CompanyRole } from "@/components/employee/company-role-picker";
 
 export const Route = createFileRoute("/_authenticated/app/employees/")({
   head: () => ({
@@ -341,7 +342,10 @@ function CreateEmployeeModal({
   >("idle");
   const [gmailMsg, setGmailMsg] = useState<string | null>(null);
   const manualRouting = false as boolean;
-  const [grantAdmakai, setGrantAdmakai] = useState(false);
+  const [companyId, setCompanyId] = useState<string | null>(null);
+  const [companyIsHolding, setCompanyIsHolding] = useState(true);
+  const [companyRole, setCompanyRole] = useState<CompanyRole>("member");
+  const [generating, setGenerating] = useState(false);
   const checkFn = useServerFn(checkEmailDestination);
   const prepFn = useServerFn(prepareEmailRouting);
   const [step, setStep] = useState(1);
@@ -414,11 +418,12 @@ function CreateEmployeeModal({
         data: {
           local,
           password,
-          role,
           fullName: fullName.trim() || undefined,
           personalGmail: gmailOk ? gmail.trim().toLowerCase() : undefined,
           skipRouting: manualRouting,
-          grantAdmakai: role === "super_admin" ? false : grantAdmakai,
+          companyId: companyId!,
+          role: companyIsHolding ? role : "user",
+          companyRole: companyIsHolding ? undefined : companyRole,
         },
       }),
     onSuccess: (res) => {
@@ -448,10 +453,14 @@ function CreateEmployeeModal({
   };
 
   const onGenerate = () => {
-    const pw = generateTempPassword();
-    setPassword(pw);
-    setPasswordError(null);
-    setShowPw(true);
+    if (generating) return;
+    setGenerating(true);
+    window.setTimeout(() => {
+      setPassword(generateTempPassword());
+      setPasswordError(null);
+      setShowPw(true);
+      setGenerating(false);
+    }, 450);
   };
 
   const onCopyPassword = async () => {
@@ -483,8 +492,9 @@ function CreateEmployeeModal({
       !passwordError &&
       local.length >= LOCAL_MIN &&
       password.length === PASSWORD_LEN &&
+      !!companyId &&
       (manualRouting || gmailStatus === "verified"),
-    [create.isPending, localError, passwordError, local, password, manualRouting, gmailStatus],
+    [companyId, create.isPending, localError, passwordError, local, password, manualRouting, gmailStatus],
   );
 
   const roleOptions = canCreateSuperAdmin
@@ -868,7 +878,7 @@ function CreateEmployeeModal({
                     title="Step 3 · Password, role & app access"
                     items={[
                       "Generate a temporary password — the employee must change it on first sign-in.",
-                      "Pick the role. Admakai access is off unless you switch it on (Super Admins always have it).",
+                      "Pick the company, then the role — it applies only inside that company (Branta Tech admins & finance cover every company).",
                       "Create user sends the welcome email with the Branta ID and temporary password to the verified Gmail.",
                     ]}
                   />
@@ -884,10 +894,11 @@ function CreateEmployeeModal({
                       <button
                         type="button"
                         onClick={onGenerate}
-                        className="inline-flex items-center gap-1 rounded-sm border border-border bg-card px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.06em] text-foreground transition-colors hover:bg-muted"
+                        disabled={generating}
+                        className="group inline-flex h-7 items-center gap-1.5 rounded-full border border-brand/30 bg-brand/5 pl-2 pr-3 text-[11.5px] font-semibold text-brand shadow-sm transition-all duration-200 hover:-translate-y-px hover:border-brand/60 hover:bg-brand/10 hover:shadow-md active:scale-95 disabled:pointer-events-none"
                       >
-                        <RefreshCw className="size-3" strokeWidth={2} />
-                        Generate
+                        <TestLoader tone="refresh" active={generating} className="size-3.5" />
+                        {generating ? "Generating…" : password ? "Regenerate" : "Generate"}
                       </button>
                     </div>
                     <div className="relative">
@@ -975,64 +986,15 @@ function CreateEmployeeModal({
                     </div>
                   </div>
 
-                  {/* Role */}
-                  <div>
-                    <label className="mb-1.5 block text-[12px] font-medium text-muted-foreground">
-                      Role
-                    </label>
-                    <div className="grid grid-cols-1 gap-1.5 min-[420px]:grid-cols-2">
-                      {roleOptions.map((r) => {
-                        const active = role === r.value;
-                        return (
-                          <button
-                            key={r.value}
-                            type="button"
-                            onClick={() => setRole(r.value)}
-                            className={cn(
-                              "rounded-sm border px-2.5 py-2 text-left transition-colors",
-                              active
-                                ? "border-brand bg-brand/5"
-                                : "border-border bg-card hover:bg-muted",
-                            )}
-                          >
-                            <div className="text-[12.5px] font-semibold text-foreground">
-                              {r.label}
-                            </div>
-                            <div className="mt-0.5 text-[10.5px] text-muted-foreground">
-                              {r.note}
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Admakai access */}
-                  <div className="flex items-center gap-3 rounded-sm border border-border px-3 py-2.5">
-                    <img
-                      src={admakaiLogo}
-                      alt=""
-                      className="size-8 shrink-0 rounded-sm border border-border bg-card object-contain p-1"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="text-[12.5px] font-semibold text-foreground">
-                        Admakai Creative Studio
-                      </div>
-                      <div className="text-[10.5px] text-muted-foreground">
-                        {role === "super_admin"
-                          ? "Super Admins always have access."
-                          : grantAdmakai
-                            ? "Access will be granted on creation."
-                            : "No access unless switched on."}
-                      </div>
-                    </div>
-                    <Switch
-                      checked={role === "super_admin" ? true : grantAdmakai}
-                      disabled={role === "super_admin"}
-                      onCheckedChange={setGrantAdmakai}
-                      aria-label="Grant Admakai access"
-                    />
-                  </div>
+                  <CompanyRolePicker
+                    companyId={companyId}
+                    onCompany={(id, h) => { setCompanyId(id); setCompanyIsHolding(h); }}
+                    holdingRole={role}
+                    onHoldingRole={setRole}
+                    companyRole={companyRole}
+                    onCompanyRole={setCompanyRole}
+                    canSuperAdmin={canCreateSuperAdmin}
+                  />
 
                   {formError && (
                     <div className="rounded-sm border border-rose-200 bg-rose-50 px-3 py-2 text-[12px] text-rose-700">
