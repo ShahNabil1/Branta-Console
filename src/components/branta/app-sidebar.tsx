@@ -250,9 +250,10 @@ export function AppSidebar() {
     const isSuperAdmin = perms.isSuperAdmin ?? false;
     const sister = activeCompany && !activeCompany.is_holding;
     const ceo = Boolean(sister && (activeCompany as { canManage?: boolean }).canManage);
-    const isFinance = Boolean(perms.isFinance ?? isAdmin) || ceo;
+    const companyFinance = Boolean(sister && (activeCompany as { canFinance?: boolean }).canFinance);
+    const isFinance = Boolean(perms.isFinance ?? isAdmin) || ceo || companyFinance;
     // In a sister workspace, Branta Finance staff (not admin/CEO) only see Customers + Finance.
-    if (sister && !isAdmin && !ceo && perms.isFinance) {
+    if (sister && !isAdmin && !ceo && (perms.isFinance || companyFinance)) {
       return NAV.map((g) => g.label === "Finance" ? g : { ...g, items: g.items.filter((it) => it.to === "/app/customers") })
         .filter((g) => g.items.length > 0);
     }
