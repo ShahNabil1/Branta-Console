@@ -17,7 +17,7 @@ const RESERVED_LOCALS = new Set([
   "hostmaster", "webmaster", "security", "noreply", "no-reply", "mailer-daemon",
 ]);
 
-const RoleEnum = z.enum(["super_admin", "admin", "manager", "user"]);
+const RoleEnum = z.enum(["super_admin", "admin", "finance", "manager", "user"]);
 
 const CreateInput = z.object({
   local: z.string(),
