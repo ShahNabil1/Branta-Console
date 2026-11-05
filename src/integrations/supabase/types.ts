@@ -5995,17 +5995,6 @@ export type Database = {
           },
         ]
       }
-      v_wallet_balances: {
-        Row: {
-          available: number | null
-          currency: string | null
-          locked: number | null
-          paid_total: number | null
-          requested: number | null
-          user_id: string | null
-        }
-        Relationships: []
-      }
     }
     Functions: {
       _company_wallet_credit: {
@@ -6480,29 +6469,6 @@ export type Database = {
           status: string
           task: string
           transaction_type: string
-        }[]
-      }
-      wallet_transactions: {
-        Args: { _user?: string }
-        Returns: {
-          client: string
-          credit: number
-          currency: string
-          debit: number
-          description: string
-          installment: string
-          invoice_slug: string
-          occurred_at: string
-          pending: number
-          project: string
-          project_id: string
-          reference: string
-          source: string
-          status: string
-          task: string
-          txn_id: string
-          txn_type: string
-          user_id: string
         }[]
       }
       wallet_withdrawal_set_status: {
