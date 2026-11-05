@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.company_head_can_remove(uuid, uuid) FROM authenticated;

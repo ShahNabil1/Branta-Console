@@ -940,7 +940,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
               </div>
               {!canJobRole && (
                 <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-                  <Lock className="size-3" /> Group Admin only
+                  <Lock className="size-3" /> {isImpersonating() ? "View only while impersonating" : "Group Admin or company head"}
                 </span>
               )}
             </div>
