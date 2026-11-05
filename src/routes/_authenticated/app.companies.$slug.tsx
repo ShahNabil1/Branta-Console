@@ -1028,7 +1028,9 @@ function LogoUploader({ value, name, onChange }: { value: string; name: string; 
     <div className="flex flex-wrap items-center gap-3 rounded-lg border border-dashed border-border p-3">
       <div className="grid h-14 w-32 shrink-0 place-items-center overflow-hidden rounded-md bg-[var(--company-artwork-paper)] ring-1 ring-border">
         {up.isPending ? <Loader2 className="size-4 animate-spin text-muted-foreground" />
-          : value ? <img src={value} alt={name} className="max-h-12 w-auto max-w-[7.5rem] object-contain" />
+          : value ? (broken
+            ? <span className="max-w-[7rem] truncate rounded bg-muted px-2 py-1 text-[10px] font-bold text-muted-foreground">{previewExt(value)}</span>
+            : <img src={value} alt={name} className="max-h-12 w-auto max-w-[7.5rem] object-contain" onError={() => setBroken(true)} />)
           : <ImageUp className="size-5 text-muted-foreground" />}
       </div>
       <div className="flex flex-wrap gap-2">
