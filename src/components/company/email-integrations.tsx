@@ -31,6 +31,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { getInboxDomains, verifyInboxRouting, type RoutingResult } from "@/lib/company-inbox-routing.functions";
 import {
   connectBrevoWebhook,
   connectResendWebhook,
@@ -43,8 +45,6 @@ import {
   repairCompanyWebhook,
   fixResendTracking,
   verifyEmailProvider,
-  sendInboxProbe,
-  pollInboxProbe,
   type Check as CheckT,
   type ProviderView,
 } from "@/lib/company-email.functions";
@@ -233,8 +233,8 @@ export function EmailIntegrations({ slug, accent }: { slug: string; accent: stri
         </div>
         <GoogleAccountCard slug={slug} accent={accent} />
         <CloudflareAccountCard slug={slug} />
-        <ResendOAuthCard slug={slug} companyName={d.company.name} onReady={() => void q.refetch()} />
         <InboxAddress slug={slug} accent={accent} inbox={d.inboxGmail ? d.inbox : null} gmail={d.inboxGmail} />
+        <ResendOAuthCard slug={slug} companyName={d.company.name} onReady={() => void q.refetch()} />
         {!d.inbox?.verified_at && (
           <div className="relative mt-4 flex items-center gap-2 rounded-lg border border-dashed border-border bg-muted/30 px-3 py-2 text-[12px] font-semibold text-muted-foreground">
             <Lock className="size-3.5" /> Verify the Inbox address first — Resend and Brevo unlock
@@ -1213,122 +1213,59 @@ function InboxAddress({
   inbox: Data["inbox"];
   gmail: string | null;
 }) {
-  const send = useServerFn(sendInboxProbe);
-  const poll = useServerFn(pollInboxProbe);
+  const loadDomains = useServerFn(getInboxDomains);
+  const verify = useServerFn(verifyInboxRouting);
   const refresh = useRefresh(slug);
+  const dq = useQuery({
+    queryKey: ["inbox-domains", slug],
+    queryFn: () => loadDomains({ data: { slug } }),
+    enabled: !!gmail,
+    staleTime: 60_000,
+  });
+  const domains = dq.data?.domains ?? [];
   const [editing, setEditing] = useState(!inbox);
   const [askChange, setAskChange] = useState(false);
-  const [email, setEmail] = useState(inbox?.email ?? "");
-  const [run, setRun] = useState<{
-    id: string | null;
-    stage: "sending" | "sent" | "delivered" | "forwarded" | "verified" | "failed";
-    msg: string;
-    t0: number;
-  } | null>(null);
-  const [pct, setPct] = useState(0);
-  const valid = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
-  const busy = !!run && !["verified", "failed"].includes(run.stage);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(
-    () => () => {
-      if (timer.current) clearTimeout(timer.current);
-    },
-    [],
-  );
-  const STAGE_PCT = {
-    sending: 10,
-    sent: 35,
-    delivered: 60,
-    forwarded: 85,
-    verified: 100,
-    failed: 100,
-  } as const;
+  const [local, setLocal] = useState(inbox?.email.split("@")[0] ?? "hello");
+  const [domain, setDomain] = useState(inbox?.email.split("@")[1] ?? "");
+  const [name, setName] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [res, setRes] = useState<RoutingResult | null>(null);
+  const stop = useRef(false);
+  useEffect(() => () => void (stop.current = true), []);
   useEffect(() => {
-    if (!run) return;
-    const floor = STAGE_PCT[run.stage];
-    const ceil =
-      run.stage === "sending"
-        ? 25
-        : run.stage === "sent"
-          ? 55
-          : run.stage === "delivered"
-            ? 80
-            : run.stage === "forwarded"
-              ? 95
-              : 100;
-    setPct((p) => Math.max(p, floor));
-    if (!busy) return;
-    const iv = setInterval(() => setPct((p) => Math.min(ceil, p + (ceil - p) * 0.08)), 400);
-    return () => clearInterval(iv);
-  }, [run?.stage, busy]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!domain && domains[0]) setDomain(domains[0].name);
+  }, [domains, domain]);
+  useEffect(() => {
+    if (!name && dq.data?.senderName) setName(dq.data.senderName);
+  }, [dq.data?.senderName, name]);
 
-  const tick = (id: string, t0: number) => {
-    timer.current = setTimeout(async () => {
-      try {
-        const r = await poll({ data: { slug, emailId: id } });
-        if (r.stage === "verified") {
-          setRun({ id, stage: "verified", msg: r.message, t0 });
-          toast.success("Inbox address verified");
-          await refresh();
-          return;
-        }
-        if (r.stage === "failed") {
-          setRun({ id, stage: "failed", msg: r.message, t0 });
-          return;
-        }
-        if (Date.now() - t0 > 90_000) {
-          setRun({
-            id,
-            stage: "failed",
-            t0,
-            msg:
-              r.stage === "delivered"
-                ? `The receiving server accepted the email, but it never reached ${gmail}. Add a Cloudflare Email Routing rule that forwards this address to ${gmail}, then Retry.`
-                : "No delivery confirmation after 90 seconds. Press Retry.",
-          });
-          return;
-        }
-        setRun({ id, stage: r.stage, msg: r.message, t0 });
-        tick(id, t0);
-      } catch (e) {
-        setRun({ id, stage: "failed", msg: err(e), t0 });
-      }
-    }, 3000);
-  };
-  const begin = async (addr: string) => {
-    if (timer.current) clearTimeout(timer.current);
-    const t0 = Date.now();
-    setPct(0);
+  const l = local.trim().toLowerCase();
+  const n = name.trim();
+  const localOk = /^[a-z0-9](?:[a-z0-9._+-]{0,62}[a-z0-9])?$/.test(l);
+  const nameOk = n.length > 0 && n.length <= 80 && !/[<>"\r\n]/.test(n);
+  const canRun = localOk && nameOk && !!domain && domains.some((d) => d.name === domain);
+
+  const run = async (enableRouting = false) => {
+    setBusy(true);
     setEditing(false);
-    setRun({
-      id: null,
-      stage: "sending",
-      msg: "Sending an automatic test email via Branta Tech's Resend…",
-      t0,
-    });
+    stop.current = false;
     try {
-      const r = await send({ data: { slug, email: addr } });
+      let r = await verify({ data: { slug, local: l, domain, senderName: n, enableRouting } });
+      const t0 = Date.now();
+      while (r.stage === "destination_pending" && !stop.current && Date.now() - t0 < 180_000) {
+        setRes(r);
+        await new Promise((ok) => setTimeout(ok, 6000));
+        r = await verify({ data: { slug, local: l, domain, senderName: n } });
+      }
+      setRes(r);
+      if (r.stage === "verified") toast.success(r.message);
       await refresh();
-      setRun({
-        id: r.emailId,
-        stage: "sent",
-        msg: "Sent by Branta Tech's Resend. Waiting for the receiving server…",
-        t0,
-      });
-      tick(r.emailId, t0);
     } catch (e) {
-      setRun({ id: null, stage: "failed", msg: err(e), t0 });
+      setRes({ stage: "failed", message: err(e), steps: [] });
+    } finally {
+      setBusy(false);
     }
   };
-  const STEPS = [
-    { k: "sent", label: "Sent via Resend" },
-    { k: "delivered", label: "Accepted by domain" },
-    { k: "forwarded", label: `Arrived in ${gmail}` },
-    { k: "verified", label: "Routing verified" },
-  ] as const;
-  const order = ["sending", "sent", "delivered", "forwarded", "verified"];
-  const reached = (k: string) =>
-    run && run.stage !== "failed" ? order.indexOf(run.stage) >= order.indexOf(k) : false;
 
   if (!gmail)
     return (
@@ -1345,12 +1282,12 @@ function InboxAddress({
       </div>
     );
 
+  const cfMissing = dq.data && !dq.data.connected;
+  const verified = !!inbox?.verified_at && !editing && !busy && res?.stage !== "failed";
+
   return (
     <div className="relative mt-4 overflow-hidden rounded-xl border border-border bg-background p-4">
-      <span
-        className="absolute inset-y-0 left-0 w-1"
-        style={{ background: inbox?.verified_at ? "var(--color-status-converted)" : accent }}
-      />
+      <span className="absolute inset-y-0 left-0 w-1" style={{ background: verified ? "var(--color-status-converted)" : accent }} />
       <div className="flex flex-wrap items-center gap-3">
         <span className="grid size-9 shrink-0 place-items-center rounded-md border border-border bg-card">
           <GmailMark className="size-5" />
@@ -1358,122 +1295,176 @@ function InboxAddress({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-[13.5px] font-bold">In-app Gmail Inbox Address</h3>
-            {inbox?.verified_at && !editing && !busy && (
+            {verified && (
               <span className="flex items-center gap-1 rounded-full bg-status-converted/15 px-2 py-0.5 text-[10.5px] font-bold text-status-converted">
                 <CheckCircle2 className="size-3" /> Verified
               </span>
             )}
             {!inbox?.verified_at && inbox && !editing && !busy && (
-              <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10.5px] font-bold text-amber-600">
-                Not verified
-              </span>
+              <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10.5px] font-bold text-amber-600">Not verified</span>
             )}
           </div>
           <div className="truncate text-[11.5px] font-semibold text-muted-foreground">
             {inbox && !editing ? (
               <>
+                {dq.data?.senderName && <span className="text-foreground">{dq.data.senderName} · </span>}
                 <b className="font-mono text-foreground">{inbox.email}</b> → {gmail}
               </>
             ) : (
-              <>Forwarding destination: {gmail}</>
+              <>Routed by Cloudflare Email Routing to {gmail}</>
             )}
           </div>
         </div>
 
-        {editing ? (
-          <div className="flex flex-wrap items-center gap-2 animate-in fade-in slide-in-from-right-2">
-            <Input
-              value={email}
-              onChange={(e) => setEmail(e.target.value.toLowerCase())}
-              placeholder="info@admakai.com"
-              className="h-9 w-64"
-            />
-            <Button className="h-9" disabled={!valid || !!busy} onClick={() => begin(email.trim().toLowerCase())}>
-              <ShieldCheck className="size-4" /> Save & verify
+        {!editing && inbox && !busy && (
+          <div className="flex flex-wrap items-center gap-2 animate-in fade-in">
+            <Button size="sm" variant="outline" className="h-9 shrink-0 gap-2 bg-card px-3 font-semibold text-foreground" onClick={() => setAskChange(true)}>
+              <img src={switchAccountIcon.url} alt="" aria-hidden="true" width={20} height={20} className="size-5 shrink-0 object-contain" /> Change address
             </Button>
-            {inbox && (
-              <DiscardCancelButton
-                dirty={email.trim() !== inbox.email}
-                className="h-9 gap-1 font-bold"
-                onCancel={() => {
-                  setEmail(inbox.email);
-                  setEditing(false);
-                }}
-              />
+            {!inbox.verified_at && (
+              <AutoVerifyButton disabled={!canRun} onClick={() => void run()} />
             )}
+            <ChangeInboxDialog
+              open={askChange}
+              email={inbox.email}
+              verified={!!inbox.verified_at}
+              onCancel={() => setAskChange(false)}
+              onConfirm={() => {
+                setAskChange(false);
+                setRes(null);
+                setEditing(true);
+              }}
+            />
           </div>
-        ) : run && run.stage !== "verified" && (busy || run.stage === "failed") ? (
-          <div className="flex w-72 items-center gap-2.5 rounded-lg border border-border bg-card px-3 py-2 shadow-sm animate-in fade-in slide-in-from-right-2">
-            {busy ? (
-              <Loader2 className="size-4 shrink-0 animate-spin" style={{ color: accent }} />
-            ) : (
-              <XCircle className="size-4 shrink-0 text-destructive" />
-            )}
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center justify-between gap-2 text-[11.5px] font-bold">
-                <span className="truncate">
-                  {run.stage === "failed"
-                    ? "Verification failed"
-                    : (STEPS.find((s) => !reached(s.k))?.label ?? "Verifying…")}
-                </span>
-                <span className="font-mono tabular-nums" style={{ color: run.stage === "failed" ? undefined : accent }}>
-                  {Math.round(pct)}%
-                </span>
-              </div>
-              <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-border">
-                <div
-                  className="h-full rounded-full transition-all duration-500 ease-out"
-                  style={{
-                    width: `${pct}%`,
-                    background: run.stage === "failed" ? "var(--color-destructive)" : accent,
-                  }}
-                />
-              </div>
-            </div>
-            {run.stage === "failed" && inbox && (
-              <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => begin(inbox.email)}>
-                <RefreshCw className="size-3.5" /> Retry
-              </Button>
-            )}
-          </div>
-        ) : (
-          inbox && (
-            <div className="flex flex-wrap items-center gap-2 animate-in fade-in">
-              <Button size="sm" variant="outline" className="h-9 shrink-0 gap-2 bg-card px-3 font-semibold text-foreground" onClick={() => setAskChange(true)}>
-                <img src={switchAccountIcon.url} alt="" aria-hidden="true" width={20} height={20} className="size-5 shrink-0 object-contain" /> Change address
-              </Button>
-              {!inbox.verified_at && (
-                <button
-                  type="button"
-                  onClick={() => begin(inbox.email)}
-                  className="group inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-card px-3.5 text-[12.5px] font-bold text-foreground shadow-sm transition-all hover:-translate-y-px hover:border-status-converted/40 hover:shadow-md"
-                >
-                  <img src={verifiedIcon.url} alt="" aria-hidden="true" width={20} height={20} className="size-5 shrink-0 object-contain transition-transform group-hover:scale-110" />
-                  Auto-verify
-                  <ArrowRight className="size-3.5 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-                </button>
-              )}
-              <ChangeInboxDialog
-                open={askChange}
-                email={inbox.email}
-                verified={!!inbox.verified_at}
-                onCancel={() => setAskChange(false)}
-                onConfirm={() => {
-                  setAskChange(false);
-                  setEditing(true);
-                }}
-              />
-            </div>
-          )
         )}
       </div>
-      {run?.stage === "failed" && !editing && (
-        <p className="mt-2 flex items-start gap-2 rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-2 text-[12px] font-semibold leading-snug text-destructive animate-in fade-in">
-          <XCircle className="mt-px size-3.5 shrink-0" />
-          <span>{run.msg}</span>
-        </p>
+
+      {editing && (
+        <div className="mt-4 animate-in fade-in slide-in-from-top-1">
+          {cfMissing ? (
+            <div className="flex items-center gap-2 rounded-lg border border-dashed border-border bg-muted/30 px-3 py-2 text-[12px] font-semibold text-muted-foreground">
+              <Lock className="size-3.5" /> Connect Cloudflare above first — the address uses its domain.
+            </div>
+          ) : dq.isLoading ? (
+            <div className="flex h-[60px] items-center gap-2 text-[12px] font-semibold text-muted-foreground">
+              <TestLoader /> Loading Cloudflare domains…
+            </div>
+          ) : !domains.length ? (
+            <div className="rounded-lg border border-dashed border-border bg-muted/30 px-3 py-2 text-[12px] font-semibold text-muted-foreground">
+              No domains in the connected Cloudflare account.
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+              <label className="space-y-1">
+                <span className="text-[11.5px] font-bold text-muted-foreground">Sender name</span>
+                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Company name" className="h-9" />
+              </label>
+              <label className="space-y-1">
+                <span className="text-[11.5px] font-bold text-muted-foreground">Sender email</span>
+                <div className="flex h-9 items-stretch overflow-hidden rounded-md border border-input bg-card focus-within:ring-1 focus-within:ring-ring">
+                  <input
+                    value={local}
+                    onChange={(e) => setLocal(e.target.value.toLowerCase())}
+                    placeholder="hello"
+                    className="min-w-0 flex-1 bg-transparent px-2.5 font-mono text-[13px] outline-none"
+                    aria-label="Address before @"
+                  />
+                  {domains.length === 1 ? (
+                    <span className="flex items-center gap-1 border-l border-border bg-muted/50 px-2.5 font-mono text-[12.5px] font-semibold text-muted-foreground">
+                      @{domains[0].name} <Lock className="size-3" />
+                    </span>
+                  ) : (
+                    <Select value={domain} onValueChange={setDomain}>
+                      <SelectTrigger className="h-full w-auto rounded-none border-0 border-l border-border bg-muted/50 font-mono text-[12.5px] shadow-none">
+                        <SelectValue placeholder="@domain" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {domains.map((d) => (
+                          <SelectItem key={d.id} value={d.name} className="font-mono text-[12.5px]">@{d.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+              </label>
+              <div className="flex gap-2">
+                <AutoVerifyButton disabled={!canRun} onClick={() => void run()} />
+                {inbox && (
+                  <DiscardCancelButton
+                    dirty={`${l}@${domain}` !== inbox.email}
+                    className="h-9 gap-1 font-bold"
+                    onCancel={() => {
+                      setLocal(inbox.email.split("@")[0]);
+                      setDomain(inbox.email.split("@")[1]);
+                      setEditing(false);
+                    }}
+                  />
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {(busy || res) && !editing && (
+        <div className="mt-3 space-y-1.5 rounded-lg border border-border bg-card p-3 animate-in fade-in">
+          {(["routing", "destination", "rule"] as const).map((id) => {
+            const s = res?.steps.find((x) => x.id === id);
+            const label = { routing: "Email Routing", destination: "Destination address", rule: "Routing rule" }[id];
+            const waiting = busy && !s && (res?.steps.length ?? 0) === ["routing", "destination", "rule"].indexOf(id);
+            return (
+              <div key={id} className="flex items-start gap-2 text-[12px] font-semibold">
+                {s ? (
+                  s.ok ? <CheckCircle2 className="mt-px size-3.5 shrink-0 text-status-converted" />
+                    : busy ? <Loader2 className="mt-px size-3.5 shrink-0 animate-spin" style={{ color: accent }} />
+                    : <XCircle className="mt-px size-3.5 shrink-0 text-destructive" />
+                ) : waiting ? (
+                  <Loader2 className="mt-px size-3.5 shrink-0 animate-spin" style={{ color: accent }} />
+                ) : (
+                  <span className="mt-1 size-2 shrink-0 rounded-full bg-border" />
+                )}
+                <span className="w-36 shrink-0 font-bold">{label}</span>
+                <span className="text-muted-foreground">{s?.detail ?? (waiting ? "Checking…" : "")}</span>
+              </div>
+            );
+          })}
+          {res?.stage === "routing_off" && !busy && (
+            <Button size="sm" className="mt-1 h-8" onClick={() => void run(true)}>
+              <Sparkles className="size-3.5" /> Turn on Email Routing
+            </Button>
+          )}
+          {res?.stage === "failed" && !busy && (
+            <div className="flex items-start gap-2 rounded-md border border-destructive/25 bg-destructive/5 px-3 py-2 text-[12px] font-semibold text-destructive">
+              <XCircle className="mt-px size-3.5 shrink-0" />
+              <span className="flex-1">{res.message}</span>
+              <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => void run()}>
+                <RefreshCw className="size-3.5" /> Retry
+              </Button>
+            </div>
+          )}
+          {res?.stage === "destination_pending" && !busy && (
+            <Button size="sm" variant="outline" className="mt-1 h-8" onClick={() => void run()}>
+              <RefreshCw className="size-3.5" /> Check again
+            </Button>
+          )}
+        </div>
       )}
     </div>
+  );
+}
+
+function AutoVerifyButton({ disabled, onClick }: { disabled?: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className="group inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-card px-3.5 text-[12.5px] font-bold text-foreground shadow-sm transition-all hover:-translate-y-px hover:border-status-converted/40 hover:shadow-md disabled:pointer-events-none disabled:opacity-50"
+    >
+      <img src={verifiedIcon.url} alt="" aria-hidden="true" width={20} height={20} className="size-5 shrink-0 object-contain transition-transform group-hover:scale-110" />
+      Auto-verify
+      <ArrowRight className="size-3.5 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+    </button>
   );
 }
 
