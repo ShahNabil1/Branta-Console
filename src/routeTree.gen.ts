@@ -44,7 +44,6 @@ import { Route as AuthenticatedAppCustomersCodeRouteImport } from './routes/_aut
 import { Route as AuthenticatedAppEmployeesIndexRouteImport } from './routes/_authenticated/app.employees.index'
 import { Route as AuthenticatedAppEmployeesUserIdRouteImport } from './routes/_authenticated/app.employees.$userId'
 import { Route as AuthenticatedAppFinanceIndexRouteImport } from './routes/_authenticated/app.finance.index'
-import { Route as AuthenticatedAppFinanceEmployeeEarningsRouteImport } from './routes/_authenticated/app.finance.employee-earnings'
 import { Route as AuthenticatedAppFinanceEmployeePaymentsRouteImport } from './routes/_authenticated/app.finance.employee-payments'
 import { Route as AuthenticatedAppFinanceEmployeeWalletsRouteImport } from './routes/_authenticated/app.finance.employee-wallets'
 import { Route as AuthenticatedAppFinanceExpensesRouteImport } from './routes/_authenticated/app.finance.expenses'
@@ -299,12 +298,6 @@ const AuthenticatedAppFinanceIndexRoute =
   AuthenticatedAppFinanceIndexRouteImport.update({
     id: '/',
     path: '/',
-    getParentRoute: () => AuthenticatedAppFinanceRoute,
-  } as any)
-const AuthenticatedAppFinanceEmployeeEarningsRoute =
-  AuthenticatedAppFinanceEmployeeEarningsRouteImport.update({
-    id: '/employee-earnings',
-    path: '/employee-earnings',
     getParentRoute: () => AuthenticatedAppFinanceRoute,
   } as any)
 const AuthenticatedAppFinanceEmployeePaymentsRoute =
@@ -707,7 +700,6 @@ export interface FileRoutesByFullPath {
   '/app/companies/$slug': typeof AuthenticatedAppCompaniesSlugRoute
   '/app/customers/$code': typeof AuthenticatedAppCustomersCodeRoute
   '/app/employees/$userId': typeof AuthenticatedAppEmployeesUserIdRoute
-  '/app/finance/employee-earnings': typeof AuthenticatedAppFinanceEmployeeEarningsRoute
   '/app/finance/employee-payments': typeof AuthenticatedAppFinanceEmployeePaymentsRoute
   '/app/finance/employee-wallets': typeof AuthenticatedAppFinanceEmployeeWalletsRoute
   '/app/finance/expenses': typeof AuthenticatedAppFinanceExpensesRoute
@@ -800,7 +792,6 @@ export interface FileRoutesByTo {
   '/app/companies/$slug': typeof AuthenticatedAppCompaniesSlugRoute
   '/app/customers/$code': typeof AuthenticatedAppCustomersCodeRoute
   '/app/employees/$userId': typeof AuthenticatedAppEmployeesUserIdRoute
-  '/app/finance/employee-earnings': typeof AuthenticatedAppFinanceEmployeeEarningsRoute
   '/app/finance/employee-payments': typeof AuthenticatedAppFinanceEmployeePaymentsRoute
   '/app/finance/employee-wallets': typeof AuthenticatedAppFinanceEmployeeWalletsRoute
   '/app/finance/expenses': typeof AuthenticatedAppFinanceExpensesRoute
@@ -900,7 +891,6 @@ export interface FileRoutesById {
   '/_authenticated/app/companies/$slug': typeof AuthenticatedAppCompaniesSlugRoute
   '/_authenticated/app/customers/$code': typeof AuthenticatedAppCustomersCodeRoute
   '/_authenticated/app/employees/$userId': typeof AuthenticatedAppEmployeesUserIdRoute
-  '/_authenticated/app/finance/employee-earnings': typeof AuthenticatedAppFinanceEmployeeEarningsRoute
   '/_authenticated/app/finance/employee-payments': typeof AuthenticatedAppFinanceEmployeePaymentsRoute
   '/_authenticated/app/finance/employee-wallets': typeof AuthenticatedAppFinanceEmployeeWalletsRoute
   '/_authenticated/app/finance/expenses': typeof AuthenticatedAppFinanceExpensesRoute
@@ -1001,7 +991,6 @@ export interface FileRouteTypes {
     | '/app/companies/$slug'
     | '/app/customers/$code'
     | '/app/employees/$userId'
-    | '/app/finance/employee-earnings'
     | '/app/finance/employee-payments'
     | '/app/finance/employee-wallets'
     | '/app/finance/expenses'
@@ -1094,7 +1083,6 @@ export interface FileRouteTypes {
     | '/app/companies/$slug'
     | '/app/customers/$code'
     | '/app/employees/$userId'
-    | '/app/finance/employee-earnings'
     | '/app/finance/employee-payments'
     | '/app/finance/employee-wallets'
     | '/app/finance/expenses'
@@ -1193,7 +1181,6 @@ export interface FileRouteTypes {
     | '/_authenticated/app/companies/$slug'
     | '/_authenticated/app/customers/$code'
     | '/_authenticated/app/employees/$userId'
-    | '/_authenticated/app/finance/employee-earnings'
     | '/_authenticated/app/finance/employee-payments'
     | '/_authenticated/app/finance/employee-wallets'
     | '/_authenticated/app/finance/expenses'
@@ -1530,13 +1517,6 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/app/finance/'
       preLoaderRoute: typeof AuthenticatedAppFinanceIndexRouteImport
-      parentRoute: typeof AuthenticatedAppFinanceRoute
-    }
-    '/_authenticated/app/finance/employee-earnings': {
-      id: '/_authenticated/app/finance/employee-earnings'
-      path: '/employee-earnings'
-      fullPath: '/app/finance/employee-earnings'
-      preLoaderRoute: typeof AuthenticatedAppFinanceEmployeeEarningsRouteImport
       parentRoute: typeof AuthenticatedAppFinanceRoute
     }
     '/_authenticated/app/finance/employee-payments': {
@@ -2009,7 +1989,6 @@ const AuthenticatedAppCustomersRouteWithChildren =
   )
 
 interface AuthenticatedAppFinanceRouteChildren {
-  AuthenticatedAppFinanceEmployeeEarningsRoute: typeof AuthenticatedAppFinanceEmployeeEarningsRoute
   AuthenticatedAppFinanceEmployeePaymentsRoute: typeof AuthenticatedAppFinanceEmployeePaymentsRoute
   AuthenticatedAppFinanceEmployeeWalletsRoute: typeof AuthenticatedAppFinanceEmployeeWalletsRoute
   AuthenticatedAppFinanceExpensesRoute: typeof AuthenticatedAppFinanceExpensesRoute
@@ -2035,8 +2014,6 @@ interface AuthenticatedAppFinanceRouteChildren {
 
 const AuthenticatedAppFinanceRouteChildren: AuthenticatedAppFinanceRouteChildren =
   {
-    AuthenticatedAppFinanceEmployeeEarningsRoute:
-      AuthenticatedAppFinanceEmployeeEarningsRoute,
     AuthenticatedAppFinanceEmployeePaymentsRoute:
       AuthenticatedAppFinanceEmployeePaymentsRoute,
     AuthenticatedAppFinanceEmployeeWalletsRoute:
