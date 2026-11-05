@@ -1316,13 +1316,13 @@ function InboxAddress({
           </div>
         </div>
 
-        {!editing && inbox && !busy && (
+        {!editing && inbox && (
           <div className="flex flex-wrap items-center gap-2 animate-in fade-in">
             <Button size="sm" variant="outline" className="h-9 shrink-0 gap-2 bg-card px-3 font-semibold text-foreground" onClick={() => setAskChange(true)}>
               <img src={switchAccountIcon.url} alt="" aria-hidden="true" width={20} height={20} className="size-5 shrink-0 object-contain" /> Change address
             </Button>
             {!inbox.verified_at && (
-              <AutoVerifyButton disabled={!canRun} onClick={() => void run()} />
+              <AutoVerifyButton busy={busy} disabled={!canRun || busy} onClick={() => void run()} />
             )}
             <ChangeInboxDialog
               open={askChange}
@@ -1388,7 +1388,7 @@ function InboxAddress({
                 </div>
               </label>
               <div className="flex gap-2">
-                <AutoVerifyButton disabled={!canRun} onClick={() => void run()} />
+                <AutoVerifyButton busy={busy} disabled={!canRun || busy} onClick={() => void run()} />
                 {inbox && (
                   <DiscardCancelButton
                     dirty={`${l}@${domain}` !== inbox.email}
@@ -1453,17 +1453,17 @@ function InboxAddress({
   );
 }
 
-function AutoVerifyButton({ disabled, onClick }: { disabled?: boolean; onClick: () => void }) {
+function AutoVerifyButton({ busy, disabled, onClick }: { busy?: boolean; disabled?: boolean; onClick: () => void }) {
   return (
     <button
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className="group inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-card px-3.5 text-[12.5px] font-bold text-foreground shadow-sm transition-all hover:-translate-y-px hover:border-status-converted/40 hover:shadow-md disabled:pointer-events-none disabled:opacity-50"
+      className={cn("group inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-card px-3.5 text-[12.5px] font-bold text-foreground shadow-sm transition-all hover:-translate-y-px hover:border-status-converted/40 hover:shadow-md disabled:pointer-events-none", busy ? "opacity-100" : "disabled:opacity-50")}
     >
-      <img src={verifiedIcon.url} alt="" aria-hidden="true" width={20} height={20} className="size-5 shrink-0 object-contain transition-transform group-hover:scale-110" />
-      Auto-verify
-      <ArrowRight className="size-3.5 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+      {busy ? <TestLoader className="size-5" tone="export" active /> : <img src={verifiedIcon.url} alt="" aria-hidden="true" width={20} height={20} className="size-5 shrink-0 object-contain transition-transform group-hover:scale-110 animate-in fade-in zoom-in-75" />}
+      {busy ? "Verifying…" : "Auto-verify"}
+      {!busy && <ArrowRight className="size-3.5 text-muted-foreground transition-transform group-hover:translate-x-0.5" />}
     </button>
   );
 }

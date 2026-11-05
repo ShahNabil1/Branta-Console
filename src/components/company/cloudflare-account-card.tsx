@@ -12,6 +12,7 @@ import {
   getCloudflareConnection,
   startCloudflareConnect,
   testCloudflareConnection,
+  enableCloudflareRouting,
 } from "@/lib/company-cloudflare.functions";
 import { connectCloudflareInPopup } from "@/lib/cloudflare-connect-popup";
 import { cn } from "@/lib/utils";
@@ -19,7 +20,7 @@ import cfIcon from "@/assets/integrations/cloudflare-icon.png.asset.json";
 import cfWordmark from "@/assets/integrations/cloudflare-wordmark.png.asset.json";
 
 const err = (e: unknown) => (e instanceof Error ? e.message : "Something went wrong");
-type Check = { id: string; label: string; ok: boolean; detail: string };
+type Check = { id: string; label: string; ok: boolean; detail: string; zone?: string; off?: boolean };
 const CF_ORANGE = "#F38020";
 
 export function CloudflareMark({ className }: { className?: string }) {
@@ -32,6 +33,17 @@ export function CloudflareAccountCard({ slug }: { slug: string }) {
   const start = useServerFn(startCloudflareConnect);
   const test = useServerFn(testCloudflareConnection);
   const disc = useServerFn(disconnectCloudflare);
+  const enable = useServerFn(enableCloudflareRouting);
+  const [enabling, setEnabling] = useState(false);
+  const runEnable = async (zone: string) => {
+    setEnabling(true);
+    try {
+      await enable({ data: { slug, zone } });
+      setChecks((cs) => cs?.map((c) => c.id === "routing" ? { ...c, ok: true, off: false, detail: `On for ${zone}.` } : c) ?? cs);
+      toast.success(`Email Routing is on for ${zone}.`);
+      await refresh();
+    } catch (e) { toast.error(err(e)); } finally { setEnabling(false); }
+  };
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ["company-cloudflare", slug], queryFn: () => get({ data: { slug } }), staleTime: 5 * 60_000 });
   const [busy, setBusy] = useState<"connect" | "test" | "disc" | null>(null);
@@ -159,8 +171,13 @@ export function CloudflareAccountCard({ slug }: { slug: string }) {
                     {c.label}
                     {c.ok ? <CheckCircle2 className="size-3.5 text-status-converted" /> : <XCircle className="size-3.5 text-destructive" />}
                   </div>
-                  <div className={cn("text-[10.5px] font-bold uppercase tracking-wide", c.ok ? "text-status-converted" : "text-destructive")}>{c.ok ? "Working" : "Failed"}</div>
+                  <div className={cn("text-[10.5px] font-bold uppercase tracking-wide", c.ok ? "text-status-converted" : "text-destructive")}>{c.ok ? (c.id === "routing" ? "Enabled" : "Working") : c.off ? "Off" : "Failed"}</div>
                 </div>
+                {c.off && c.zone && (
+                  <Button size="sm" variant="outline" className="h-8 shrink-0 animate-in fade-in" disabled={enabling || !!busy} onClick={() => void runEnable(c.zone!)}>
+                    <TestLoader active={enabling} /> {enabling ? "Enabling…" : "Enable"}
+                  </Button>
+                )}
               </div>
               <p className="relative mt-2 break-words text-[11.5px] font-semibold text-muted-foreground">{c.detail}</p>
             </div>
