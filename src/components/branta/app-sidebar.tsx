@@ -255,7 +255,8 @@ export function AppSidebar() {
     // In a sister workspace, Branta Finance staff (not admin/CEO) only see Customers + Finance.
     if (sister && !isAdmin && !ceo && (perms.isFinance || companyFinance)) {
       return NAV.map((g) => g.label === "Finance" ? g : { ...g, items: g.items.filter((it) => it.to === "/app/customers") })
-        .filter((g) => g.items.length > 0);
+        // Finance has no static items (its links render per company), so keep it explicitly.
+        .filter((g) => g.label === "Finance" || g.items.length > 0);
     }
     return NAV.map((g) => {
       if (g.label === "Admin" && !isAdmin) return { ...g, items: [] };
