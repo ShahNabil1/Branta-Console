@@ -393,7 +393,7 @@ export function LeadsPage() {
               variant="outline"
               className="hidden h-9 rounded-sm text-[12.5px] md:inline-flex"
             >
-              <Link to="/app/leads/drafts">
+              <Link to={companyPath("/app/leads/drafts") as "/app/leads/drafts"}>
                 <FileText className="mr-1.5 size-3.5" />
                 Drafts
               </Link>
