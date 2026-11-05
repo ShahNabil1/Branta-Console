@@ -55,7 +55,7 @@ export const testCloudflareConnection = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { co, admin } = await gate(context, data.slug);
     const cf = await import("@/lib/company-cloudflare.server");
-    const checks: { id: string; label: string; ok: boolean; detail: string }[] = [];
+    const checks: { id: string; label: string; ok: boolean; detail: string; zone?: string; off?: boolean }[] = [];
     let token: string | null = null;
     try {
       cf.clearCache(co.id);
@@ -72,7 +72,7 @@ export const testCloudflareConnection = createServerFn({ method: "POST" })
         if (zones[0]) {
           await cf.cfApi(token, `/zones/${zones[0].id}/dns_records?per_page=1`);
           const er = await cf.cfApi<Any>(token, `/zones/${zones[0].id}/email/routing`).then((r) => r.result).catch((e: Error) => ({ error: e.message }));
-          checks.push({ id: "routing", label: "Email Routing", ok: !er?.error, detail: er?.error ?? `${zones[0].name}: ${er?.enabled ? "on" : "off"}` });
+          checks.push({ id: "routing", label: "Email Routing", ok: !er?.error && !!er?.enabled, detail: er?.error ?? (er?.enabled ? `On for ${zones[0].name}.` : `Off for ${zones[0].name}.`), ...(er?.error ? {} : { zone: zones[0].name, off: !er?.enabled }) });
         }
       } catch (e) {
         checks.push({ id: "dns", label: "Domains & DNS", ok: false, detail: e instanceof Error ? e.message : "Could not list domains." });
@@ -95,5 +95,22 @@ export const disconnectCloudflare = createServerFn({ method: "POST" })
     cf.clearCache(co.id);
     // Keep the row as history; drop the credential.
     await admin.from("company_cloudflare_accounts").update({ is_active: false, refresh_token_enc: null, disconnected_at: new Date().toISOString() }).eq("company_id", co.id);
+    return { ok: true };
+  });
+
+/** Turns on Email Routing for one zone in the company's Cloudflare account. */
+export const enableCloudflareRouting = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => Slug.extend({ zone: z.string().trim().min(1).max(253) }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { co } = await gate(context, data.slug);
+    const cf = await import("@/lib/company-cloudflare.server");
+    const { result: zones } = await cf.companyCfApi<Any[]>(co.id, `/zones?name=${encodeURIComponent(data.zone)}`);
+    const zone = zones?.[0];
+    if (!zone) throw new Error(`${data.zone} is not in the connected Cloudflare account.`);
+    await cf.companyCfApi(co.id, `/zones/${zone.id}/email/routing/dns`, { method: "POST", body: "{}" })
+      .catch(() => cf.companyCfApi(co.id, `/zones/${zone.id}/email/routing/enable`, { method: "POST", body: "{}" }));
+    const er = (await cf.companyCfApi<Any>(co.id, `/zones/${zone.id}/email/routing`)).result;
+    if (!er?.enabled) throw new Error(`Cloudflare has not turned on Email Routing for ${data.zone} yet. Try again shortly.`);
     return { ok: true };
   });
