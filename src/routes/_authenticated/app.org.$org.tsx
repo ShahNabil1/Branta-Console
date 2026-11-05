@@ -1,8 +1,11 @@
 import type { MouseEvent } from "react";
-import { createFileRoute, Link, Navigate, Outlet, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, Navigate, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { isOrgScoped, orgFromPath, toCompanyPath } from "@/lib/org-path";
 import { Loader2 } from "lucide-react";
 import { useCompanies } from "@/components/company/company-switcher";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { getMyPermissions } from "@/lib/permissions.functions";
 
 export const Route = createFileRoute("/_authenticated/app/org/$org")({
   head: () => ({ meta: [{ title: "Company workspace · Branta Console" }, { name: "robots", content: "noindex" }] }),
@@ -15,6 +18,9 @@ function OrgLayout() {
   const q = useCompanies();
   const company = (q.data ?? []).find((c) => c.slug === org);
   const navigate = useNavigate();
+  const permsFn = useServerFn(getMyPermissions);
+  const permsQ = useQuery({ queryKey: ["my-permissions"], queryFn: () => permsFn(), staleTime: 60_000 });
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   // Shared pages link to plain /app/... URLs; inside a sister workspace every such
   // company-page link stays in this company (preventDefault stops Link's own navigation).
@@ -41,5 +47,15 @@ function OrgLayout() {
     );
   }
   if (company.is_holding) return <Navigate to="/app" replace />;
+  if (permsQ.isLoading) return <div className="grid h-full place-items-center text-muted-foreground"><Loader2 className="size-4 animate-spin" /></div>;
+  // Finance-only staff (not admin/CEO) may open exactly what their sidebar shows:
+  // Customers and this company's Finance pages. Anything else goes to Customers.
+  const perms = permsQ.data as { isAdmin?: boolean; isSuperAdmin?: boolean; isFinance?: boolean } | undefined;
+  const c = company as { canManage?: boolean; canFinance?: boolean };
+  const financeOnly = !(perms?.isAdmin ?? perms?.isSuperAdmin) && !c.canManage && Boolean(perms?.isFinance || c.canFinance);
+  const rest = pathname.slice(`/app/org/${org}`.length);
+  if (financeOnly && !/^\/(customers|finance)(\/|$)/.test(rest)) {
+    return <Navigate to={`/app/org/${org}/customers` as never} replace />;
+  }
   return <div className="contents" onClickCapture={keepInCompany}><Outlet /></div>;
 }
