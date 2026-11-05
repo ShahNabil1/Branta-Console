@@ -56,7 +56,6 @@ export function CustomersPage() {
   const list = useServerFn(listCustomers);
   const countsFn = useServerFn(getProjectCounts);
   const { data: projCounts } = useQuery({ queryKey: ["client-project-counts"], queryFn: () => countsFn(), staleTime: 30_000 });
-  const create = useServerFn(createCustomer);
   const workspace = useActiveCompany().active?.slug ?? null;
   const remove = useServerFn(deleteCustomer);
   const confirm = useConfirm();
@@ -71,57 +70,12 @@ export function CustomersPage() {
 
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({
-    name: "",
-    role: "",
-    company: "",
-    email: "",
-    phone: "",
-    source: "",
-    service: "",
-    currency: "BDT" as "BDT" | "USD",
-    notes: "",
-  });
-
   const query = useQuery({
     queryKey: ["customers", "list", workspace],
     queryFn: () => list({ data: { workspace } }),
     staleTime: 15_000,
   });
 
-  const createMut = useMutation({
-    mutationFn: async () =>
-      create({
-        data: {
-          ...form,
-          workspace,
-          email: form.email || null,
-          role: form.role || null,
-          company: form.company || null,
-          phone: form.phone || null,
-          source: form.source || null,
-          service: form.service || null,
-          notes: form.notes || null,
-        },
-      }),
-    onSuccess: () => {
-      toast.success("Customer added");
-      setOpen(false);
-      setForm({
-        name: "",
-        role: "",
-        company: "",
-        email: "",
-        phone: "",
-        source: "",
-        service: "",
-        currency: "BDT",
-        notes: "",
-      });
-      qc.invalidateQueries({ queryKey: ["customers", "list"] });
-    },
-    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : String(e)),
-  });
 
   const deleteMut = useMutation({
     mutationFn: async (id: string) => remove({ data: { id } }),
