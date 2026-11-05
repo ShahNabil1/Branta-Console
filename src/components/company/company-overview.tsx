@@ -9,6 +9,7 @@ import { companyAccent } from "@/lib/active-company";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCompanies } from "./company-switcher";
 import { companyIdentity } from "@/lib/company-identity";
+import { toCompanyPath } from "@/lib/org-path";
 
 function greeting() {
   const h = Number(new Intl.DateTimeFormat("en-US", { hour: "numeric", hour12: false, timeZone: "Asia/Dhaka" }).format(new Date()));
@@ -22,6 +23,8 @@ export function CompanyOverview({ slug, name }: { slug: string; name: string }) 
   const q = useQuery({ queryKey: ["company-overview", slug], queryFn: () => fn({ data: { company: slug } }), staleTime: 30_000 });
   const accent = companyAccent(slug);
   const d = q.data;
+  const isHolding = companies.data?.find(c => c.slug === slug)?.is_holding ?? false;
+  const inboxPath = toCompanyPath("/app/inbox", slug, isHolding);
   const tiles = [
     { label: "New leads · 30d", value: d?.kpis.newLeads30d, icon: TrendingUp, color: "var(--color-brand)" },
     { label: "Open leads", value: d?.kpis.openLeads, icon: Users, color: "var(--color-status-converted)" },
@@ -39,7 +42,7 @@ export function CompanyOverview({ slug, name }: { slug: string; name: string }) 
             <p className="text-[12px] font-semibold text-muted-foreground">{greeting()}</p>
             <h1 className="text-[20px] font-bold tracking-tight">{name} workspace</h1>
           </div>
-          <Link to="/app/inbox" className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-[12.5px] font-bold text-primary-foreground shadow-md shadow-brand/25 transition-all hover:-translate-y-0.5 active:scale-95">
+          <Link to={inboxPath as "/app/inbox"} className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-[12.5px] font-bold text-primary-foreground shadow-md shadow-brand/25 transition-all hover:-translate-y-0.5 active:scale-95">
             <Inbox className="size-4" /> Open Inbox
           </Link>
         </div>
@@ -87,7 +90,7 @@ export function CompanyOverview({ slug, name }: { slug: string; name: string }) 
         <Panel title="Latest mail" icon={Mail} loading={q.isLoading} empty={!d?.inbox.length} emptyText="No mail yet.">
           {d?.inbox.map((m) => (
             <li key={m.id}>
-              <Link to="/app/inbox" className="flex items-start gap-2 rounded-md px-2 py-2 transition-colors hover:bg-muted/60">
+              <Link to={inboxPath as "/app/inbox"} className="flex items-start gap-2 rounded-md px-2 py-2 transition-colors hover:bg-muted/60">
                 <span className="mt-1.5 size-1.5 shrink-0 rounded-full" style={{ background: m.unread ? accent : "transparent" }} />
                 <div className="min-w-0 flex-1">
                   <p className={`truncate text-[12.5px] ${m.unread ? "font-bold" : "font-medium"}`}>{m.from}</p>
