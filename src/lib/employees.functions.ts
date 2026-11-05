@@ -445,6 +445,7 @@ export const checkIsAdmin = createServerFn({ method: "GET" })
     ]);
     return {
       isSuperAdmin: !!su.data,
+      isGroupAdmin: !!su.data || !!ad.data,
       isAdmin: !!su.data || !!ad.data || (await managesCompany(context.supabase, context.userId, input.companySlug))
         || (input.targetUserId ? await (await import("@/lib/company-scope.server")).managesEmployee(context.supabase, context.userId, input.targetUserId) : false),
     };

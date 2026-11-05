@@ -217,7 +217,13 @@ export const listEmployeeWorkspaces = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => z.object({ userId: z.string().uuid() }).parse(i))
   .handler(async ({ data, context }) => {
-    await assertGroupAdmin(context.supabase, context.userId, "Only group admins can manage workspace access.");
+    const { isGroupAdmin } = await import("@/lib/group-admin");
+    const sc = await import("@/lib/company-scope.server");
+    let only: Set<string> | null = null;
+    if (!(await isGroupAdmin(context.supabase, context.userId))) {
+      if (!(await sc.managesEmployee(context.supabase, context.userId, data.userId))) throw new Error("Only group admins can manage workspace access.");
+      only = await sc.managedCompanyIds(context.supabase, context.userId);
+    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as unknown as Sb;
     const pid = await profileIdFor(admin, data.userId);
@@ -227,7 +233,7 @@ export const listEmployeeWorkspaces = createServerFn({ method: "GET" })
     ]);
     if (error) throw dbError(error);
     const byCo = new Map(((mem ?? []) as { company_id: string; role: string; is_active: boolean }[]).map((m) => [m.company_id, m]));
-    const list = (cos ?? []) as CompanyRow[];
+    const list = ((cos ?? []) as CompanyRow[]).filter((c) => !only || only.has(c.id));
     const hold = list.find((c) => c.is_holding);
     const hm = hold ? byCo.get(hold.id) : undefined;
     const groupAdmin = !!hm?.is_active && hm.role === "super_admin";
@@ -246,7 +252,17 @@ export const setEmployeeWorkspace = createServerFn({ method: "POST" })
     role: z.enum(WORKSPACE_ROLES).nullable(),
   }).parse(i))
   .handler(async ({ data, context }) => {
-    await assertGroupAdmin(context.supabase, context.userId, "Only group admins can manage workspace access.");
+    {
+      const { isGroupAdmin } = await import("@/lib/group-admin");
+      if (!(await isGroupAdmin(context.supabase, context.userId))) {
+        const sc = await import("@/lib/company-scope.server");
+        const managed = await sc.managedCompanyIds(context.supabase, context.userId);
+        if (!managed.has(data.companyId) || !(await sc.managesEmployee(context.supabase, context.userId, data.userId)))
+          throw new Error("You can only manage access to your own company.");
+        if (data.userId === context.userId) throw new Error("You can't change your own company access.");
+        if (data.role === "super_admin" || data.role === "coo") throw new Error("Only Branta Tech group admins can appoint a company C.E.O or C.O.O.");
+      }
+    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as unknown as Sb;
     const pid = await profileIdFor(admin, data.userId);

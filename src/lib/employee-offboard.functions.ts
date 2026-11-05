@@ -31,7 +31,10 @@ export const offboardPreflight = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => z.object({ userId: z.string().uuid() }).parse(i))
   .handler(async ({ data, context }) => {
-    await assertAdmin(context.supabase, context.userId);
+    { const sc = await import("@/lib/company-scope.server");
+      if (!(await sc.managesEmployee(context.supabase, context.userId, data.userId))) await assertAdmin(context.supabase, context.userId);
+      else if (!(await sc.isGroupStaff(context.supabase, context.userId)) && !(await sc.onlyInManagedCompanies(context.supabase, context.userId, data.userId)))
+        throw new Error("This employee also works for Branta Tech or another company. Turn off their access to your company in Workspace & Permissions instead."); }
     if (data.userId === context.userId) throw new Error("You can't remove your own account.");
     const { admin, email, profile } = await target(data.userId);
     if (!email) throw new Error("This employee's login account no longer exists.");
@@ -70,7 +73,10 @@ export const offboardStep = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => z.object({ userId: z.string().uuid(), step: z.enum(STEPS) }).parse(i))
   .handler(async ({ data, context }): Promise<StepResult & { result?: "deleted" | "deactivated" }> => {
-    await assertAdmin(context.supabase, context.userId);
+    { const sc = await import("@/lib/company-scope.server");
+      if (!(await sc.managesEmployee(context.supabase, context.userId, data.userId))) await assertAdmin(context.supabase, context.userId);
+      else if (!(await sc.isGroupStaff(context.supabase, context.userId)) && !(await sc.onlyInManagedCompanies(context.supabase, context.userId, data.userId)))
+        throw new Error("This employee also works for Branta Tech or another company. Turn off their access to your company in Workspace & Permissions instead."); }
     if (data.userId === context.userId) throw new Error("You can't remove your own account.");
     const { admin, email, profile } = await target(data.userId);
     const cf = await import("@/lib/cloudflare-email.server");

@@ -7,7 +7,8 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { DEFAULT_SCHEDULE, shiftScheduleSchema, type ShiftSchedule } from "@/lib/tracker-schedule";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function assertAdmin(supabase: any, userId: string) {
+async function assertAdmin(supabase: any, userId: string, target?: string) {
+  if (target && (await (await import("@/lib/company-scope.server")).managesEmployee(supabase, userId, target))) return;
   const [su, ad] = await Promise.all([
     supabase.rpc("has_role", { _user_id: userId, _role: "super_admin" }),
     supabase.rpc("has_role", { _user_id: userId, _role: "admin" }),
@@ -19,7 +20,7 @@ export const getTrackerSchedule = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { userId: string }) => z.object({ userId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    await assertAdmin(context.supabase, context.userId);
+    await assertAdmin(context.supabase, context.userId, data.userId);
     const { trackerAdmin, trackerUserIdFor } = await import("@/lib/tracker.server");
     const id = await trackerUserIdFor(data.userId);
     if (!id) return { linked: false, schedule: DEFAULT_SCHEDULE, saved: false };
@@ -34,7 +35,7 @@ export const saveTrackerSchedule = createServerFn({ method: "POST" })
     z.object({ userId: z.string().uuid(), schedule: shiftScheduleSchema }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    await assertAdmin(context.supabase, context.userId);
+    await assertAdmin(context.supabase, context.userId, data.userId);
     const { trackerAdmin, trackerUserIdFor, syncTrackerEmployee } = await import("@/lib/tracker.server");
     let id = await trackerUserIdFor(data.userId);
     if (!id) {

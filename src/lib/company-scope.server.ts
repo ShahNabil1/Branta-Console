@@ -18,6 +18,9 @@ export async function companyMemberUserIds(slug: string): Promise<Set<string>> {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function managesEmployee(supabase: any, callerId: string, targetUserId: string): Promise<boolean> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  // Group-wide staff (GA / HR / Accounts) are never managed by a sister company.
+  const { data: gr } = await supabaseAdmin.from("user_roles").select("role").eq("user_id", targetUserId).in("role", ["super_admin", "admin", "finance"]);
+  if ((gr ?? []).length > 0) return false;
   const { data: prof } = await supabaseAdmin.from("profiles").select("id").eq("user_id", targetUserId).maybeSingle();
   if (!prof) return false;
   const { data: mem } = await supabaseAdmin
@@ -54,4 +57,37 @@ export async function employeeCompanies(userIds: string[]): Promise<Map<string, 
   }
   out.forEach((l) => l.sort((a, b) => Number(b.isHolding) - Number(a.isHolding)));
   return out;
+}
+
+/** Company ids (sister only) the caller can manage. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function managedCompanyIds(supabase: any, callerId: string): Promise<Set<string>> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: cos } = await supabaseAdmin.from("companies").select("id").eq("is_holding", false);
+  const out = new Set<string>();
+  for (const c of (cos ?? []) as { id: string }[]) {
+    const { data } = await supabase.rpc("can_manage_company", { _company: c.id, _user: callerId });
+    if (data) out.add(c.id);
+  }
+  return out;
+}
+
+/** True when every active company of the target is one the caller manages (safe to fully remove). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function onlyInManagedCompanies(supabase: any, callerId: string, targetUserId: string): Promise<boolean> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: prof } = await supabaseAdmin.from("profiles").select("id").eq("user_id", targetUserId).maybeSingle();
+  if (!prof) return false;
+  const { data: mem } = await supabaseAdmin.from("company_members").select("company_id").eq("user_id", (prof as { id: string }).id).eq("is_active", true);
+  const managed = await managedCompanyIds(supabase, callerId);
+  const ids = ((mem ?? []) as { company_id: string }[]).map((m) => m.company_id);
+  return ids.length > 0 && ids.every((id) => managed.has(id));
+}
+
+/** Branta holding staff who may already manage employees group-wide (GA / HR / C.E.O / C.O.O). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function isGroupStaff(supabase: any, userId: string): Promise<boolean> {
+  const roles = ["super_admin", "admin", "manager"];
+  const r = await Promise.all(roles.map((role) => supabase.rpc("has_role", { _user_id: userId, _role: role })));
+  return r.some((x) => !!x.data);
 }
