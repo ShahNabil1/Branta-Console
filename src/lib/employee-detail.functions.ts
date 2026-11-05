@@ -368,7 +368,7 @@ export const setEmployeeBan = createServerFn({ method: "POST" })
     z.object({ userId: uuid, ban: z.boolean() }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    await assertAdmin(context.supabase, context.userId);
+    if (!(await (await import("@/lib/company-scope.server")).managesEmployee(context.supabase, context.userId, data.userId))) await assertAdmin(context.supabase, context.userId);
     if (data.userId === context.userId)
       throw new Error("You cannot ban your own account.");
     const { supabaseAdmin } = await import(
@@ -388,7 +388,7 @@ export const resetEmployeePassword = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ userId: uuid, resetTwoFactor: z.boolean().default(false) }).parse(input))
   .handler(async ({ data, context }) => {
-    const { isSuperAdmin } = await assertAdmin(context.supabase, context.userId);
+    const isSuperAdmin = (await (await import("@/lib/company-scope.server")).managesEmployee(context.supabase, context.userId, data.userId)) ? false : (await assertAdmin(context.supabase, context.userId)).isSuperAdmin;
     const { isStrongSession } = await import("@/lib/session-assurance.server");
     if (!await isStrongSession(context.supabase, context.claims, context.userId))
       throw new Error("Verify your two-factor authentication or passkey before resetting an employee password.");
@@ -441,7 +441,7 @@ export const resendOnboardingInstructions = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ userId: uuid }).parse(input))
   .handler(async ({ data, context }) => {
-    await assertAdmin(context.supabase, context.userId);
+    if (!(await (await import("@/lib/company-scope.server")).managesEmployee(context.supabase, context.userId, data.userId))) await assertAdmin(context.supabase, context.userId);
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
     );
@@ -749,7 +749,7 @@ export const listEmployeeSessions = createServerFn({ method: "GET" })
   .inputValidator((input: unknown) => z.object({ userId: uuid }).parse(input))
   .handler(async ({ data, context }): Promise<EmployeeSessionRow[]> => {
     if (data.userId !== context.userId) {
-      await assertAdmin(context.supabase, context.userId);
+      if (!(await (await import("@/lib/company-scope.server")).managesEmployee(context.supabase, context.userId, data.userId))) await assertAdmin(context.supabase, context.userId);
     }
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
@@ -778,7 +778,7 @@ export const revokeEmployeeSession = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     if (data.userId !== context.userId) {
-      await assertAdmin(context.supabase, context.userId);
+      if (!(await (await import("@/lib/company-scope.server")).managesEmployee(context.supabase, context.userId, data.userId))) await assertAdmin(context.supabase, context.userId);
     }
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"

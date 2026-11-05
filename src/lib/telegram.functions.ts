@@ -109,7 +109,7 @@ export const adminUnsubscribeTelegram = createServerFn({ method: "POST" })
         _role: "admin",
       }),
     ]);
-    if (!su.data && !ad.data) throw new Error("Forbidden: admin role required");
+    if (!su.data && !ad.data && !(await (await import("@/lib/company-scope.server")).managesEmployee(context.supabase, context.userId, data.userId))) throw new Error("Forbidden: admin role required");
     return unlinkForUser(data.userId);
   });
 
