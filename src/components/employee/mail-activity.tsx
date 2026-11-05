@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { syncRecentEmailEvents, unblockEmployeeMail } from "@/lib/employees.functions";
 import { cn } from "@/lib/utils";
+import { listEmployeeMailEvents } from "@/lib/employee-detail.functions";
 
 interface Ev { id: string; event: string; email: string; subject: string | null; reason: string | null; message_id: string | null; occurred_at: string; raw?: { by_name?: string; by?: string } | null }
 
@@ -48,17 +49,19 @@ export function mailTone(ev?: string) {
   return "border-border bg-muted text-muted-foreground";
 }
 
-export function MailActivity({ emails }: { emails: string[] }) {
+export function MailActivity({ emails, userId }: { emails: string[]; userId?: string }) {
+  const listFn = useServerFn(listEmployeeMailEvents);
   const qc = useQueryClient();
   const syncFn = useServerFn(syncRecentEmailEvents);
   const unblockFn = useServerFn(unblockEmployeeMail);
   const list = useMemo(() => Array.from(new Set(emails.filter(Boolean).map((e) => e.toLowerCase()))), [emails]);
   const q = useQuery({
-    queryKey: ["mail-activity", list],
+    queryKey: ["mail-activity", list, userId],
     enabled: list.length > 0,
     refetchInterval: 30_000,
     queryFn: async () => {
       try { await syncFn(); } catch (e) { console.error("[mail-activity] Brevo sync failed", e); }
+      if (userId) return (await listFn({ data: { userId } })) as unknown as Ev[];
       const { data, error } = await supabase.from("email_events")
         .select("id, event, email, subject, reason, message_id, occurred_at, raw")
         .in("email", list).order("occurred_at", { ascending: false }).limit(200);

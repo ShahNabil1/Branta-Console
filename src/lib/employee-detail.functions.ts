@@ -856,3 +856,31 @@ export const updateEmployeeAllowedApps = createServerFn({ method: "POST" })
     { const { syncEmployeeAppsSafe } = await import("@/lib/employee-app-sync.server"); await syncEmployeeAppsSafe(data.userId); }
     return { ok: true as const, allowedApps: allowed };
   });
+
+/** Mail delivery events for one employee's addresses — Branta admins or the employee's company CEO/COO. */
+export const listEmployeeMailEvents = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ userId: uuid }).parse(input))
+  .handler(async ({ data, context }) => {
+    const manages = await (await import("@/lib/company-scope.server")).managesEmployee(context.supabase, context.userId, data.userId);
+    if (!manages) await assertAdmin(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: p } = await supabaseAdmin.from("profiles").select("email, personal_gmail").eq("user_id", data.userId).maybeSingle();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const list = [...new Set([(p as any)?.email, (p as any)?.personal_gmail].filter(Boolean).map((e: string) => e.toLowerCase()))];
+    if (!list.length) return [];
+    const { data: rows, error } = await supabaseAdmin.from("email_events")
+      .select("id, event, email, subject, reason, message_id, occurred_at, raw")
+      .in("email", list).order("occurred_at", { ascending: false }).limit(200);
+    if (error) throw dbError(error);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const out = (rows ?? []) as any[];
+    const ids = [...new Set(out.filter((r) => r.event === "unblocked" && r.raw?.by && !r.raw.by_name).map((r) => r.raw.by as string))];
+    if (ids.length) {
+      const { data: ps } = await supabaseAdmin.from("profiles").select("id, full_name, email").in("id", ids);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const nm = new Map((ps ?? []).map((x: any) => [x.id, x.full_name || x.email]));
+      out.forEach((r) => { if (r.raw?.by && !r.raw.by_name) r.raw.by_name = nm.get(r.raw.by) ?? undefined; });
+    }
+    return out;
+  });

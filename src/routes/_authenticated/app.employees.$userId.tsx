@@ -803,7 +803,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
                 This password is shown only here. Closing this dialog clears it. The employee must
                 choose a new password after signing in.
               </p>
-              <MailActivity emails={[e.email, p.personal_gmail ?? ""]} />
+              <MailActivity userId={userId} emails={[e.email, p.personal_gmail ?? ""]} />
               <Button className="w-full" onClick={() => resetOpenChange(false)}>
                 Done
               </Button>
@@ -1106,7 +1106,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
             className="flex-1 overflow-y-auto p-5 animate-in fade-in slide-in-from-right-2 duration-300"
           >
             {logsTab === "mail" ? (
-              <MailActivity emails={[e.email, e.profile.personal_gmail ?? ""]} />
+              <MailActivity userId={userId} emails={[e.email, e.profile.personal_gmail ?? ""]} />
             ) : (
               <SessionsSection
                 userId={userId}
