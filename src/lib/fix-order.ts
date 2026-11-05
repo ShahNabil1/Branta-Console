@@ -8,7 +8,7 @@ const NEEDS: Record<FixKind, FixKind[]> = {
 };
 const LABEL: Record<FixKind, string> = { api: "API key", domain: "Domain", tracking: "Tracking & TLS", webhook: "Webhook" };
 
-export function fixBlocker(kind: FixKind, checks: { kind: string; ok: boolean }[]): string | null {
+export function fixBlocker(kind: FixKind, checks: { kind?: string; ok: boolean }[]): string | null {
   const first = NEEDS[kind].find((k) => checks.some((c) => c.kind === k && !c.ok));
   return first ? `Fix ${LABEL[first]} first` : null;
 }
