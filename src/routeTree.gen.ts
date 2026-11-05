@@ -89,8 +89,10 @@ import { Route as AuthenticatedAppFinanceInvoicesSlugRouteImport } from './route
 import { Route as AuthenticatedAppFinanceInvoicesNewRouteImport } from './routes/_authenticated/app.finance.invoices.new'
 import { Route as AuthenticatedAppOrgOrgIndexRouteImport } from './routes/_authenticated/app.org.$org.index'
 import { Route as AuthenticatedAppOrgOrgAnalyticsRouteImport } from './routes/_authenticated/app.org.$org.analytics'
+import { Route as AuthenticatedAppOrgOrgEmployeesRouteImport } from './routes/_authenticated/app.org.$org.employees'
 import { Route as AuthenticatedAppOrgOrgInboxRouteImport } from './routes/_authenticated/app.org.$org.inbox'
 import { Route as AuthenticatedAppOrgOrgOperationsRouteImport } from './routes/_authenticated/app.org.$org.operations'
+import { Route as AuthenticatedAppOrgOrgTransfersRouteImport } from './routes/_authenticated/app.org.$org.transfers'
 import { Route as AuthenticatedAppOrgOrgCustomersIndexRouteImport } from './routes/_authenticated/app.org.$org.customers.index'
 import { Route as AuthenticatedAppOrgOrgCustomersCodeRouteImport } from './routes/_authenticated/app.org.$org.customers.$code'
 import { Route as AuthenticatedAppOrgOrgFinanceExpensesRouteImport } from './routes/_authenticated/app.org.$org.finance.expenses'
@@ -566,6 +568,12 @@ const AuthenticatedAppOrgOrgAnalyticsRoute =
     path: '/analytics',
     getParentRoute: () => AuthenticatedAppOrgOrgRoute,
   } as any)
+const AuthenticatedAppOrgOrgEmployeesRoute =
+  AuthenticatedAppOrgOrgEmployeesRouteImport.update({
+    id: '/employees',
+    path: '/employees',
+    getParentRoute: () => AuthenticatedAppOrgOrgRoute,
+  } as any)
 const AuthenticatedAppOrgOrgInboxRoute =
   AuthenticatedAppOrgOrgInboxRouteImport.update({
     id: '/inbox',
@@ -576,6 +584,12 @@ const AuthenticatedAppOrgOrgOperationsRoute =
   AuthenticatedAppOrgOrgOperationsRouteImport.update({
     id: '/operations',
     path: '/operations',
+    getParentRoute: () => AuthenticatedAppOrgOrgRoute,
+  } as any)
+const AuthenticatedAppOrgOrgTransfersRoute =
+  AuthenticatedAppOrgOrgTransfersRouteImport.update({
+    id: '/transfers',
+    path: '/transfers',
     getParentRoute: () => AuthenticatedAppOrgOrgRoute,
   } as any)
 const AuthenticatedAppOrgOrgCustomersIndexRoute =
@@ -740,8 +754,10 @@ export interface FileRoutesByFullPath {
   '/app/finance/invoices/$slug': typeof AuthenticatedAppFinanceInvoicesSlugRoute
   '/app/finance/invoices/new': typeof AuthenticatedAppFinanceInvoicesNewRoute
   '/app/org/$org/analytics': typeof AuthenticatedAppOrgOrgAnalyticsRoute
+  '/app/org/$org/employees': typeof AuthenticatedAppOrgOrgEmployeesRoute
   '/app/org/$org/inbox': typeof AuthenticatedAppOrgOrgInboxRoute
   '/app/org/$org/operations': typeof AuthenticatedAppOrgOrgOperationsRoute
+  '/app/org/$org/transfers': typeof AuthenticatedAppOrgOrgTransfersRoute
   '/app/finance/funds/': typeof AuthenticatedAppFinanceFundsIndexRoute
   '/app/finance/invoices/': typeof AuthenticatedAppFinanceInvoicesIndexRoute
   '/app/org/$org/': typeof AuthenticatedAppOrgOrgIndexRoute
@@ -830,8 +846,10 @@ export interface FileRoutesByTo {
   '/app/finance/invoices/$slug': typeof AuthenticatedAppFinanceInvoicesSlugRoute
   '/app/finance/invoices/new': typeof AuthenticatedAppFinanceInvoicesNewRoute
   '/app/org/$org/analytics': typeof AuthenticatedAppOrgOrgAnalyticsRoute
+  '/app/org/$org/employees': typeof AuthenticatedAppOrgOrgEmployeesRoute
   '/app/org/$org/inbox': typeof AuthenticatedAppOrgOrgInboxRoute
   '/app/org/$org/operations': typeof AuthenticatedAppOrgOrgOperationsRoute
+  '/app/org/$org/transfers': typeof AuthenticatedAppOrgOrgTransfersRoute
   '/app/finance/funds': typeof AuthenticatedAppFinanceFundsIndexRoute
   '/app/finance/invoices': typeof AuthenticatedAppFinanceInvoicesIndexRoute
   '/app/org/$org': typeof AuthenticatedAppOrgOrgIndexRoute
@@ -929,8 +947,10 @@ export interface FileRoutesById {
   '/_authenticated/app/finance/invoices/$slug': typeof AuthenticatedAppFinanceInvoicesSlugRoute
   '/_authenticated/app/finance/invoices/new': typeof AuthenticatedAppFinanceInvoicesNewRoute
   '/_authenticated/app/org/$org/analytics': typeof AuthenticatedAppOrgOrgAnalyticsRoute
+  '/_authenticated/app/org/$org/employees': typeof AuthenticatedAppOrgOrgEmployeesRoute
   '/_authenticated/app/org/$org/inbox': typeof AuthenticatedAppOrgOrgInboxRoute
   '/_authenticated/app/org/$org/operations': typeof AuthenticatedAppOrgOrgOperationsRoute
+  '/_authenticated/app/org/$org/transfers': typeof AuthenticatedAppOrgOrgTransfersRoute
   '/_authenticated/app/finance/funds/': typeof AuthenticatedAppFinanceFundsIndexRoute
   '/_authenticated/app/finance/invoices/': typeof AuthenticatedAppFinanceInvoicesIndexRoute
   '/_authenticated/app/org/$org/': typeof AuthenticatedAppOrgOrgIndexRoute
@@ -1028,8 +1048,10 @@ export interface FileRouteTypes {
     | '/app/finance/invoices/$slug'
     | '/app/finance/invoices/new'
     | '/app/org/$org/analytics'
+    | '/app/org/$org/employees'
     | '/app/org/$org/inbox'
     | '/app/org/$org/operations'
+    | '/app/org/$org/transfers'
     | '/app/finance/funds/'
     | '/app/finance/invoices/'
     | '/app/org/$org/'
@@ -1118,8 +1140,10 @@ export interface FileRouteTypes {
     | '/app/finance/invoices/$slug'
     | '/app/finance/invoices/new'
     | '/app/org/$org/analytics'
+    | '/app/org/$org/employees'
     | '/app/org/$org/inbox'
     | '/app/org/$org/operations'
+    | '/app/org/$org/transfers'
     | '/app/finance/funds'
     | '/app/finance/invoices'
     | '/app/org/$org'
@@ -1216,8 +1240,10 @@ export interface FileRouteTypes {
     | '/_authenticated/app/finance/invoices/$slug'
     | '/_authenticated/app/finance/invoices/new'
     | '/_authenticated/app/org/$org/analytics'
+    | '/_authenticated/app/org/$org/employees'
     | '/_authenticated/app/org/$org/inbox'
     | '/_authenticated/app/org/$org/operations'
+    | '/_authenticated/app/org/$org/transfers'
     | '/_authenticated/app/finance/funds/'
     | '/_authenticated/app/finance/invoices/'
     | '/_authenticated/app/org/$org/'
@@ -1821,6 +1847,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppOrgOrgAnalyticsRouteImport
       parentRoute: typeof AuthenticatedAppOrgOrgRoute
     }
+    '/_authenticated/app/org/$org/employees': {
+      id: '/_authenticated/app/org/$org/employees'
+      path: '/employees'
+      fullPath: '/app/org/$org/employees'
+      preLoaderRoute: typeof AuthenticatedAppOrgOrgEmployeesRouteImport
+      parentRoute: typeof AuthenticatedAppOrgOrgRoute
+    }
     '/_authenticated/app/org/$org/inbox': {
       id: '/_authenticated/app/org/$org/inbox'
       path: '/inbox'
@@ -1833,6 +1866,13 @@ declare module '@tanstack/react-router' {
       path: '/operations'
       fullPath: '/app/org/$org/operations'
       preLoaderRoute: typeof AuthenticatedAppOrgOrgOperationsRouteImport
+      parentRoute: typeof AuthenticatedAppOrgOrgRoute
+    }
+    '/_authenticated/app/org/$org/transfers': {
+      id: '/_authenticated/app/org/$org/transfers'
+      path: '/transfers'
+      fullPath: '/app/org/$org/transfers'
+      preLoaderRoute: typeof AuthenticatedAppOrgOrgTransfersRouteImport
       parentRoute: typeof AuthenticatedAppOrgOrgRoute
     }
     '/_authenticated/app/org/$org/customers/': {
@@ -2081,8 +2121,10 @@ const AuthenticatedAppProfileRouteWithChildren =
 
 interface AuthenticatedAppOrgOrgRouteChildren {
   AuthenticatedAppOrgOrgAnalyticsRoute: typeof AuthenticatedAppOrgOrgAnalyticsRoute
+  AuthenticatedAppOrgOrgEmployeesRoute: typeof AuthenticatedAppOrgOrgEmployeesRoute
   AuthenticatedAppOrgOrgInboxRoute: typeof AuthenticatedAppOrgOrgInboxRoute
   AuthenticatedAppOrgOrgOperationsRoute: typeof AuthenticatedAppOrgOrgOperationsRoute
+  AuthenticatedAppOrgOrgTransfersRoute: typeof AuthenticatedAppOrgOrgTransfersRoute
   AuthenticatedAppOrgOrgIndexRoute: typeof AuthenticatedAppOrgOrgIndexRoute
   AuthenticatedAppOrgOrgCustomersCodeRoute: typeof AuthenticatedAppOrgOrgCustomersCodeRoute
   AuthenticatedAppOrgOrgFinanceExpensesRoute: typeof AuthenticatedAppOrgOrgFinanceExpensesRoute
@@ -2103,9 +2145,11 @@ interface AuthenticatedAppOrgOrgRouteChildren {
 const AuthenticatedAppOrgOrgRouteChildren: AuthenticatedAppOrgOrgRouteChildren =
   {
     AuthenticatedAppOrgOrgAnalyticsRoute: AuthenticatedAppOrgOrgAnalyticsRoute,
+    AuthenticatedAppOrgOrgEmployeesRoute: AuthenticatedAppOrgOrgEmployeesRoute,
     AuthenticatedAppOrgOrgInboxRoute: AuthenticatedAppOrgOrgInboxRoute,
     AuthenticatedAppOrgOrgOperationsRoute:
       AuthenticatedAppOrgOrgOperationsRoute,
+    AuthenticatedAppOrgOrgTransfersRoute: AuthenticatedAppOrgOrgTransfersRoute,
     AuthenticatedAppOrgOrgIndexRoute: AuthenticatedAppOrgOrgIndexRoute,
     AuthenticatedAppOrgOrgCustomersCodeRoute:
       AuthenticatedAppOrgOrgCustomersCodeRoute,
