@@ -186,7 +186,7 @@ export function ExpensesPage() {
 
   const listEmp = useServerFn(listEmployeesForFinance);
   const emps = useQuery({
-    queryKey: ["finance-employees"], queryFn: () => listEmp(), staleTime: 60_000,
+    queryKey: ["finance-employees", workspace], queryFn: () => listEmp({ data: { workspace } }), staleTime: 60_000,
     enabled: !!isAdmin.data?.isAdmin,
   });
   const employeeItems: SearchableItem[] = (emps.data ?? []).map((e) => ({
