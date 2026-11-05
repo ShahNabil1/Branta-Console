@@ -88,33 +88,6 @@ export const requestCompanyLoan = createServerFn({ method: "POST" })
     return { id: id as string };
   });
 
-export const decideCompanyLoan = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) =>
-    z.object({ loanId: z.string().uuid(), approve: z.boolean(), note: z.string().max(300).optional() }).parse(i),
-  )
-  .handler(async ({ data, context }) => {
-    const { error } = await (context.supabase as any).rpc("company_loan_decide", {
-      _loan: data.loanId, _approve: data.approve, _note: data.note ?? null,
-    });
-    if (error) throw dbError(error);
-    return { ok: true };
-  });
-
-export const moveCompanyWalletFunds = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) =>
-    z.object({ companyId: z.string().uuid(), from: z.string(), to: z.string(), amount: z.number().positive(), reason: z.string().trim().min(3).max(300) }).parse(i),
-  )
-  .handler(async ({ data, context }) => {
-    const { data: id, error } = await (context.supabase as any).rpc("company_wallet_move", {
-      _company: data.companyId, _from: data.from, _to: data.to, _amount: data.amount, _reason: data.reason,
-    });
-    if (error) throw dbError(error);
-    return { movementId: id as string };
-  });
-
-
 /** Invoice form: which company a customer belongs to, and that sister company's active fund split. */
 export const getCustomerFundContext = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

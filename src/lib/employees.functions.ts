@@ -426,32 +426,6 @@ export const checkIsAdmin = createServerFn({ method: "GET" })
     };
   });
 
-export const getEmployeeDeleteBlockers = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ userId: z.string().uuid() }).parse(input))
-  .handler(async ({ data, context }) => {
-    const { data: blk, error } = await (context.supabase as never as { rpc: (f: string, a: object) => Promise<{ data: unknown; error: { message: string; code?: string } | null }> })
-      .rpc("employee_delete_blockers", { _user_id: data.userId });
-    if (error) throw dbError(error);
-    return (blk ?? {}) as Record<string, number>;
-  });
-
-export const reactivateEmployee = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ userId: z.string().uuid() }).parse(input))
-  .handler(async ({ data, context }) => {
-    await assertAdmin(context.supabase, context.userId);
-    const { error } = await (context.supabase as never as { rpc: (f: string, a: object) => Promise<{ error: { message: string; code?: string } | null }> })
-      .rpc("reactivate_employee", { _user_id: data.userId });
-    if (error) throw dbError(error);
-    try {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      await supabaseAdmin.auth.admin.updateUserById(data.userId, { ban_duration: "none" });
-    } catch { /* ignore */ }
-    { const { syncEmployeeAppsSafe } = await import("@/lib/employee-app-sync.server"); await syncEmployeeAppsSafe(data.userId); }
-    return { ok: true as const };
-  });
-
 /** Lists Cloudflare destination addresses (verified + pending). */
 export const listEmailDestinations = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

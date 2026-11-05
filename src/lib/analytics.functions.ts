@@ -322,39 +322,6 @@ export const getOverviewKpis = createServerFn({ method: "POST" })
     };
   });
 
-// ---------- Overview: inbox / meetings / follow-ups ----------
-export const getOverviewInbox = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d) => scopeInput.parse(d))
-  .handler(async ({ data, context }): Promise<OverviewInboxItem[]> => {
-    const cid = await workspaceCompany(context.supabase, context.userId, data.workspace);
-    const scope = await resolveScopeUser(context.supabase, context.userId, data.userId ?? null);
-    const { data: rows, error } = await context.supabase
-      .from("inbox_messages")
-      .select("gmail_message_id, from_email, from_name, subject, snippet, received_at, is_unread, handled_by").eq("company_id", cid)
-      .or(`handled_by.eq.${scope},handled_by.is.null`)
-      .eq("is_unread", true)
-      .order("received_at", { ascending: false })
-      .limit(8);
-    if (error) throw dbError(error);
-    return ((rows ?? []) as unknown as {
-      gmail_message_id: string;
-      from_email: string;
-      from_name: string | null;
-      subject: string | null;
-      snippet: string | null;
-      received_at: string;
-      is_unread: boolean;
-    }[]).map((r) => ({
-      id: r.gmail_message_id,
-      from: r.from_name || r.from_email,
-      subject: r.subject ?? "(no subject)",
-      snippet: r.snippet ?? "",
-      received_at: r.received_at,
-      is_unread: r.is_unread,
-    }));
-  });
-
 export const getTodaysMeetings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => scopeInput.parse(d))
@@ -377,28 +344,6 @@ export const getTodaysMeetings = createServerFn({ method: "POST" })
     }>).map((r) => ({
       id: r.id, title: r.title, starts_at: r.starts_at, ends_at: r.ends_at,
       meeting_link: r.meeting_link, lead_slug: r.leads?.slug ?? null,
-    }));
-  });
-
-export const getFollowUps = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d) => scopeInput.parse(d))
-  .handler(async ({ data, context }): Promise<OverviewFollowUp[]> => {
-    const cid = await workspaceCompany(context.supabase, context.userId, data.workspace);
-    const scope = await resolveScopeUser(context.supabase, context.userId, data.userId ?? null);
-    const { data: rows, error } = await context.supabase
-      .from("leads")
-      .select("id, slug, name, company, next_action, last_activity_at, status").eq("company_id", cid)
-      .eq("owner_id", scope)
-      .eq("is_draft", false)
-      .not("status", "in", "(converted,lost)")
-      .order("last_activity_at", { ascending: true })
-      .limit(10);
-    if (error) throw dbError(error);
-    const fiveDaysAgo = Date.now() - 5 * 24 * 3600_000;
-    return ((rows ?? []) as OverviewFollowUp[]).map((r) => ({
-      ...r,
-      stalled: new Date(r.last_activity_at).getTime() < fiveDaysAgo,
     }));
   });
 

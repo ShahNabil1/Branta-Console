@@ -1435,56 +1435,6 @@ export const updateExpense = createServerFn({ method: "POST" })
     return expense;
   });
 
-/** Turns the public share link for one expense on or off. */
-export const setExpenseShare = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d: { id: string; enabled: boolean }) =>
-    z.object({ id: z.string().uuid(), enabled: z.boolean() }).parse(d),
-  )
-  .handler(async ({ data, context }) => {
-    await ensureFinanceAdmin(context.supabase as never, context.userId);
-    const { data: row } = await context.supabase
-      .from("expenses").select("share_token, voucher_no").eq("id", data.id).maybeSingle();
-    const current = row as { share_token: string | null; voucher_no: string | null } | null;
-    const token =
-      current?.share_token ??
-      Array.from(crypto.getRandomValues(new Uint8Array(24)))
-        .map((b) => b.toString(16).padStart(2, "0"))
-        .join("");
-    const { error } = await context.supabase
-      .from("expenses")
-      .update({ share_enabled: data.enabled, share_token: token } as never)
-      .eq("id", data.id);
-    if (error) throw dbError(error);
-    await writeExpenseLog(context.supabase, {
-      expenseId: data.id,
-      voucherNo: current?.voucher_no ?? null,
-      actorId: context.userId,
-      action: data.enabled ? "share_enabled" : "share_disabled",
-    });
-    return {
-      enabled: data.enabled,
-      token,
-      voucher_no: current?.voucher_no ?? null,
-    };
-  });
-
-/** Short-lived signed URL for one stored receipt/attachment. */
-export const getExpenseAttachmentUrl = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d: { path: string; download?: boolean }) =>
-    z.object({ path: z.string().min(1).max(600), download: z.boolean().optional() }).parse(d),
-  )
-  .handler(async ({ data, context }) => {
-    await ensureFinanceAdmin(context.supabase as never, context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: signed, error } = await supabaseAdmin.storage
-      .from("expense-receipts")
-      .createSignedUrl(data.path, 300, data.download ? { download: true } : undefined);
-    if (error || !signed) throw new Error(error?.message ?? "Could not sign URL");
-    return { url: signed.signedUrl };
-  });
-
 /**
  * Soft delete — the expense moves to the Recycle Bin for 30 days instead of
  * disappearing. A reason is mandatory and stored with the record.

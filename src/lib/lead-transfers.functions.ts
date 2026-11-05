@@ -237,21 +237,6 @@ export const listAllTransferRequests = createServerFn({ method: "GET" })
     return hydrate(context.supabase, rows ?? []);
   });
 
-export const countPendingTransfers = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<number> => {
-    const { data: su } = await context.supabase.rpc("has_role", {
-      _user_id: context.userId,
-      _role: "super_admin",
-    });
-    if (!su) return 0;
-    const { count } = await context.supabase
-      .from("lead_transfer_requests")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "pending");
-    return count ?? 0;
-  });
-
 export const decideTransferRequests = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
