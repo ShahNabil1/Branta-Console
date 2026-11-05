@@ -90,17 +90,6 @@ export const listEmployees = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
     );
-    // Creation grants exactly one workspace. Holding (Branta Tech) roles are
-    // group-wide; a sister-company employee gets a plain global "user" role and
-    // their real role only inside that company.
-    const { data: co } = await supabaseAdmin.from("companies").select("id, is_holding").eq("id", data.companyId).maybeSingle();
-    if (!co) throw new Error("Choose a company for this employee.");
-    const globalRole = co.is_holding ? data.role : "user";
-    const memberRole = co.is_holding
-      ? (data.role === "super_admin" || data.role === "admin" ? "super_admin" : data.role === "finance" ? "finance" : data.role === "manager" ? "manager" : "member")
-      : (data.companyRole ?? "member");
-    if (!co.is_holding && memberRole === "super_admin" && !isSuperAdmin)
-      throw new Error("Only a super_admin can create a company admin.");
 
     // page 1, up to 200 users — internal ops app, fine for now.
     const { data, error } = await supabaseAdmin.auth.admin.listUsers({
@@ -218,6 +207,17 @@ export const createEmployee = createServerFn({ method: "POST" })
       "@/integrations/supabase/client.server"
     );
 
+    // Creation grants exactly one workspace. Holding (Branta Tech) roles are
+    // group-wide; a sister-company employee gets a plain global "user" role and
+    // their real role only inside that company.
+    const { data: co } = await supabaseAdmin.from("companies").select("id, is_holding").eq("id", data.companyId).maybeSingle();
+    if (!co) throw new Error("Choose a company for this employee.");
+    const globalRole = co.is_holding ? data.role : "user";
+    const memberRole = co.is_holding
+      ? (data.role === "super_admin" || data.role === "admin" ? "super_admin" : data.role === "finance" ? "finance" : data.role === "manager" ? "manager" : "member")
+      : (data.companyRole ?? "member");
+    if (!co.is_holding && memberRole === "super_admin" && !isSuperAdmin)
+      throw new Error("Only a super_admin can create a company admin.");
     // Create the auth user. email_confirm=true so they can sign in right away.
     const meta: Record<string, unknown> = {};
     if (data.fullName) meta.full_name = data.fullName;
