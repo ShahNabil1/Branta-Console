@@ -40,6 +40,7 @@ import {
   setFinanceSender,
   testEmailProvider,
   repairCompanyWebhook,
+  fixResendTracking,
   verifyEmailProvider,
   sendInboxProbe,
   pollInboxProbe,
@@ -264,7 +265,7 @@ export function EmailIntegrations({ slug, accent }: { slug: string; accent: stri
   );
 }
 
-type TestCheck = CheckT & { kind?: "api" | "domain" | "webhook" };
+type TestCheck = CheckT & { kind?: "api" | "domain" | "tracking" | "webhook"; needsInput?: boolean };
 
 function ProviderPanel({
   p,
@@ -291,6 +292,8 @@ function ProviderPanel({
   const connected = !flowing && !!v?.domain_verified_at && !!v?.webhook_verified_at;
   const test = useServerFn(testEmailProvider);
   const repair = useServerFn(repairCompanyWebhook);
+  const fixTrack = useServerFn(fixResendTracking);
+  const [sub, setSub] = useState("links");
   const def = useServerFn(setDefaultProvider);
   const refresh = useRefresh(slug);
   const [busy, setBusy] = useState<"test" | "def" | "fix" | null>(null);
@@ -343,12 +346,33 @@ function ProviderPanel({
       setBusy(null);
     }
   };
+  const fixTracking = async (needsInput?: boolean) => {
+    if (fixingRef.current || busy) return;
+    const v = sub.trim().toLowerCase();
+    if (needsInput && !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(v)) { toast.error("Use letters, numbers and dashes only."); return; }
+    fixingRef.current = true;
+    setBusy("fix");
+    try {
+      const r = await fixTrack({ data: { slug, subdomain: needsInput ? v : undefined } });
+      const result = await test({ data: { slug, provider: p } });
+      setChecks(result.checks);
+      if (r.ok) toast.success("Tracking & TLS fixed.");
+      else if (r.pending) toast.message("Settings fixed · Resend is still verifying the tracking DNS. Test again in a few minutes.");
+      else toast.error(r.detail || "Tracking still needs attention.");
+    } catch (e) {
+      toast.error(err(e));
+    } finally {
+      fixingRef.current = false;
+      setBusy(null);
+    }
+  };
   const chips =
     p === "resend"
       ? [
           { k: "api", label: "API key" },
           { k: "webhook", label: "Webhook" },
           { k: "domain", label: `Domain · ${domain}` },
+          { k: "tracking", label: "Tracking & TLS" },
         ]
       : [
           { k: "api", label: "API key" },
@@ -510,10 +534,19 @@ function ProviderPanel({
                   {c.kind === "webhook" && !c.ok && (
                     <WebhookFixButton fixing={busy === "fix"} disabled={locked || !!busy} onClick={() => void fixWebhook()} />
                   )}
+                  {c.kind === "tracking" && !c.ok && (
+                    <WebhookFixButton fixing={busy === "fix"} disabled={locked || !!busy} onClick={() => void fixTracking(c.needsInput)} />
+                  )}
                 </div>
                 <p className="relative mt-2 break-words text-[11.5px] font-semibold text-muted-foreground">
                   {c.detail}
                 </p>
+                {c.kind === "tracking" && !c.ok && c.needsInput && (
+                  <div className="relative mt-2 flex h-8 items-center overflow-hidden rounded-md border border-border bg-background focus-within:border-primary">
+                    <input value={sub} onChange={(e) => setSub(e.target.value)} aria-label="Tracking subdomain" className="h-full w-20 min-w-0 flex-1 bg-transparent px-2 text-[12px] font-semibold outline-none" />
+                    <span className="truncate pr-2 font-mono text-[11px] text-muted-foreground">.{domain}</span>
+                  </div>
+                )}
               </div>
             );
           })}

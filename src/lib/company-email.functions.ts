@@ -1594,3 +1594,42 @@ export const testEmailProvider = createServerFn({ method: "POST" })
       .eq("id", r.id);
     return { ok, checks };
   });
+
+/** Fixes Resend tracking: subdomain (when missing), open + click tracking on, TLS opportunistic, tracking DNS via Cloudflare, then verify. */
+export const fixResendTracking = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({ slug: Slug, subdomain: z.string().trim().toLowerCase().max(63).optional() }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { co, admin } = await gate(context, data.slug);
+    const m = await import("@/lib/company-email.server");
+    const t = await import("@/lib/resend-tracking");
+    const r = await row(admin, co.id, "resend");
+    if (!r?.is_active) throw new Error("Resend is not connected.");
+    const key = await m.open(r.api_key_enc);
+    if (!key) throw new Error("Resend credentials are missing. Disconnect and connect again.");
+    const domain = (r.domain || String(r.sender_email).split("@")[1]).toLowerCase();
+    const l = await m.resend(key, "/domains");
+    const hit = ((l.body?.data ?? []) as Any[]).find((x) => String(x.name).toLowerCase() === domain);
+    if (!hit) throw new Error(`${domain} isn't in Resend.`);
+    let d = (await m.resend(key, `/domains/${hit.id}`)).body;
+    const issues = t.trackingIssues(d);
+    if (issues.includes("subdomain")) {
+      if (!data.subdomain || !t.SUBDOMAIN_RE.test(data.subdomain)) throw new Error("Enter a tracking subdomain (letters, numbers, dashes).");
+    }
+    if (issues.some((i) => i !== "dns")) {
+      const body: Any = { open_tracking: true, click_tracking: true, tls: "opportunistic" };
+      if (issues.includes("subdomain")) body.tracking_subdomain = data.subdomain;
+      const p = await m.resend(key, `/domains/${hit.id}`, { method: "PATCH", body });
+      if (!p.ok) throw new Error(`Resend ${p.status}: ${p.body?.message ?? "could not update domain"}`);
+      d = (await m.resend(key, `/domains/${hit.id}`)).body;
+    }
+    if (t.trackingIssues(d).includes("dns") || !d?.tracking_subdomain) {
+      const rs = await import("@/lib/company-resend.server");
+      const pushed = await rs.pushResendDns(co.id, domain, d?.records ?? []);
+      if (!pushed.ok) throw new Error(pushed.detail);
+      await m.resend(key, `/domains/${hit.id}/verify`, { method: "POST" });
+      d = (await m.resend(key, `/domains/${hit.id}`)).body;
+    }
+    const left = t.trackingIssues(d);
+    return { ok: !left.length, pending: left.length === 1 && left[0] === "dns", detail: left.map((i) => t.ISSUE_LABEL[i]).join(" · ") };
+  });
