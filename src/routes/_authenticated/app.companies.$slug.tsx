@@ -1036,7 +1036,7 @@ function LogoUploader({ value, name, onChange }: { value: string; name: string; 
       <div className="flex flex-wrap gap-2">
         <label className={cn("inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-border bg-card px-3 text-[12px] font-bold transition-all hover:border-brand/50 hover:text-brand active:scale-95", up.isPending && "pointer-events-none opacity-60")}>
           <ImageUp className="size-3.5" /> {up.isPending ? "Uploading…" : value ? "Replace logo" : "Upload logo"}
-          <input type="file" accept={LOGO_TYPES.join(",")} className="sr-only" disabled={up.isPending}
+          <input type="file" accept={IMAGE_ACCEPT} className="sr-only" disabled={up.isPending}
             onChange={(ev) => { const file = ev.target.files?.[0]; ev.target.value = ""; if (file) up.mutate(file); }} />
         </label>
         {value && !up.isPending && (
