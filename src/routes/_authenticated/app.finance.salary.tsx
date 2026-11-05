@@ -289,7 +289,7 @@ function SalaryPage() {
                 <td className="px-3 py-2">{String(s.paid_on).slice(0, 10)}</td>
                 <td className="px-3 py-2">
                   <span className={s.status === "void" ? "text-destructive" : "text-emerald-600"}>
-                    {s.status === "void" ? "Void" : s.status === "paid" ? "Paid" : "Issued"}
+                    {s.status === "void" ? "Void" : String(s.status) === "paid" ? "Paid" : "Issued"}
                   </span>
                 </td>
                 <td className="px-3 py-2">
@@ -384,7 +384,7 @@ function SalaryPage() {
             amount={fmt(s.net_amount, s.currency)}
             badge={
               <span className={`rounded-sm px-1.5 py-0.5 text-[10px] font-semibold uppercase ${s.status === "void" ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-700"}`}>
-                {s.status === "void" ? "Void" : s.status === "paid" ? "Paid" : "Issued"}
+                {s.status === "void" ? "Void" : String(s.status) === "paid" ? "Paid" : "Issued"}
               </span>
             }
             fields={[
