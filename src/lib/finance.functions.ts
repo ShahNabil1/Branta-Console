@@ -2094,18 +2094,29 @@ export const getFinanceReport = createServerFn({ method: "GET" })
 // ==================== Employee list (for stakeholder picker) ====================
 export const listEmployeesForFinance = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((d: { workspace?: string | null } | undefined) => z.object({ workspace: z.string().max(80).nullish() }).parse(d ?? {}))
+  .handler(async ({ data: input, context }) => {
+    // A workspace limits the list to that company's active members only.
+    let allowed: Set<string> | null = null;
+    if (input.workspace) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: co } = await supabaseAdmin.from("companies").select("id, is_holding").eq("slug", input.workspace).maybeSingle();
+      if (co && !co.is_holding) {
+        const { data: mem } = await supabaseAdmin.from("company_members").select("user_id").eq("company_id", co.id).eq("is_active", true);
+        allowed = new Set(((mem ?? []) as { user_id: string }[]).map((m) => m.user_id));
+      }
+    }
     // Any authenticated user can list employees for the stakeholder picker
     // (invoice creators may have `finance_invoice` permission without the
     // finance role). Only non-sensitive profile fields are returned.
 
     const { data, error } = await context.supabase
       .from("profiles")
-      .select("user_id, full_name, employee_code, job_role, avatar_url")
+      .select("id, user_id, full_name, employee_code, job_role, avatar_url")
       .is("deactivated_at" as never, null)
       .order("full_name");
     if (error) throw dbError(error);
-    const rows = (data ?? []) as {
+    const rows = ((data ?? []) as { id: string }[]).filter((r) => !allowed || allowed.has(r.id)).map(({ id: _id, ...r }) => r) as unknown as {
       user_id: string;
       full_name: string | null;
       employee_code: string | null;
