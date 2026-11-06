@@ -96,7 +96,9 @@ export const getLeadDashboard = createServerFn({ method: "GET" })
       .select("user_id,full_name,employee_code")
       .limit(1000);
     const nameOf = new Map<string, string>();
+    const allowed = await (await import("@/lib/company-scope.server")).visibleWorkspaceUserIds(context.supabase, context.userId, data.workspace ?? null);
     for (const p of profs ?? []) {
+      if (allowed && !allowed.has(p.user_id) && !own.has(p.user_id)) continue;
       nameOf.set(p.user_id, `${p.full_name ?? "Unnamed"}${p.employee_code ? ` (${p.employee_code})` : ""}`);
     }
     const sortDesc = (m: Map<string, number>) =>
