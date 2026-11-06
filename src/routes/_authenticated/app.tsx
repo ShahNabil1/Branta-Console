@@ -32,7 +32,7 @@ function AppShell() {
   usePresenceTracker();
   const statusFn = useServerFn(getOnboardingStatus);
 
-  // Gate: force new employees through password + telegram before the app
+  // Gate: force new employees through a password change before the app
   // renders. The check is cheap (one profile row) and cached at the layout
   // level, so nested routes don't re-fetch it.
   const status = useQuery({
@@ -40,7 +40,7 @@ function AppShell() {
     // Admins impersonating skip onboarding; the employee still sees it.
     queryFn: () =>
       isImpersonating()
-        ? Promise.resolve({ mustChangePassword: false, mustLinkTelegram: false, passwordResetPending: false })
+        ? Promise.resolve({ mustChangePassword: false, passwordResetPending: false })
         : statusFn(),
     staleTime: 60_000,
   });
@@ -49,8 +49,6 @@ function AppShell() {
     if (!status.data) return;
     if (status.data.mustChangePassword) {
       navigate({ to: "/onboarding/password", replace: true });
-    } else if (status.data.mustLinkTelegram) {
-      navigate({ to: "/onboarding/telegram", replace: true });
     }
   }, [status.data, navigate]);
 
@@ -78,7 +76,7 @@ function AppShell() {
     return () => clearTimeout(t);
   }, [fetching]);
   const blocked =
-    status.data?.mustChangePassword || status.data?.mustLinkTelegram || status.isLoading;
+    status.data?.mustChangePassword || status.isLoading;
   const leaving = cycleDone && !blocked && (settled || capHit);
   useEffect(() => {
     if (!leaving) return;

@@ -484,7 +484,6 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
   const onboardingPending = !e.passwordResetPending && e.mustChangePassword;
   const pendingSteps = [
     e.mustChangePassword ? "set their personal password" : null,
-    e.mustLinkTelegram ? "link Telegram" : null,
   ].filter(Boolean) as string[];
 
   const onResendOnboarding = async () => {

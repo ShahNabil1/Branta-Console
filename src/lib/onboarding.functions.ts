@@ -1,53 +1,27 @@
-// First-sign-in onboarding gate: forces new employees to (1) replace the
-// admin-issued temporary password and (2) link Telegram before the app is
-// usable. Flags live on `profiles.must_change_password` /
-// `profiles.must_link_telegram` and self-clear once each step is done.
+// First-sign-in onboarding gate: forces employees to replace an
+// admin-issued temporary password before the app is usable. Telegram is
+// optional and connected from Profile → Security.
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export interface OnboardingStatus {
   mustChangePassword: boolean;
-  mustLinkTelegram: boolean;
   passwordResetPending: boolean;
 }
 
 export const getOnboardingStatus = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<OnboardingStatus> => {
-    const { supabaseAdmin } = await import(
-      "@/integrations/supabase/client.server"
-    );
-
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: prof } = await supabaseAdmin
       .from("profiles")
-      .select("must_change_password, must_link_telegram")
+      .select("must_change_password")
       .eq("user_id", context.userId)
       .maybeSingle();
-
-    let mustChangePassword = !!prof?.must_change_password;
-    let mustLinkTelegram = !!prof?.must_link_telegram;
-
-    // Self-heal: if Telegram is already linked (e.g. the employee linked it
-    // then signed out mid-onboarding), clear the flag so we don't loop.
-    if (mustLinkTelegram) {
-      const { data: sub } = await supabaseAdmin
-        .from("telegram_subscriptions")
-        .select("active")
-        .eq("user_id", context.userId)
-        .maybeSingle();
-      if (sub?.active) {
-        await supabaseAdmin
-          .from("profiles")
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .update({ must_link_telegram: false } as any)
-          .eq("user_id", context.userId);
-        mustLinkTelegram = false;
-      }
-    }
-
     const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.getUserById(context.userId);
     if (authError || !authUser.user) throw new Error("Could not check password change status.");
-    void mustLinkTelegram;
-    // Telegram is optional now (Phase 6): never gate the app on it.
-    return { mustChangePassword, mustLinkTelegram: false, passwordResetPending: authUser.user.app_metadata?.password_reset_pending === true };
+    return {
+      mustChangePassword: !!prof?.must_change_password,
+      passwordResetPending: authUser.user.app_metadata?.password_reset_pending === true,
+    };
   });

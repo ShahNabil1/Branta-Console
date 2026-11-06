@@ -48,10 +48,7 @@ function OnboardingPasswordPage() {
   useEffect(() => {
     if (!status.data) return;
     if (!status.data.mustChangePassword) {
-      navigate({
-        to: status.data.mustLinkTelegram ? "/onboarding/telegram" : "/app",
-        replace: true,
-      });
+      navigate({ to: "/app", replace: true });
     }
   }, [status.data, navigate]);
 
@@ -81,11 +78,7 @@ function OnboardingPasswordPage() {
       await setFn({ data: { new_password: next } });
       toast.success("Password updated");
       await qc.invalidateQueries({ queryKey: ["onboarding.status"] });
-      const fresh = await statusFn();
-      navigate({
-        to: fresh.mustLinkTelegram ? "/onboarding/telegram" : "/app",
-        replace: true,
-      });
+      navigate({ to: "/app", replace: true });
     } catch (e2) {
       setErr(e2 instanceof Error ? e2.message : "Password change failed.");
     } finally {

@@ -68,7 +68,6 @@ export interface EmployeeDetail {
   bannedUntil: string | null;
   isBanned: boolean;
   mustChangePassword: boolean;
-  mustLinkTelegram: boolean;
   passwordResetPending: boolean;
   allowedApps: string[];
   workEmailVerified: boolean;
@@ -189,7 +188,6 @@ export const getEmployeeDetail = createServerFn({ method: "GET" })
       bannedUntil,
       isBanned,
       mustChangePassword: !!(prof.data as any)?.must_change_password,
-      mustLinkTelegram: !!(prof.data as any)?.must_link_telegram,
       passwordResetPending: u.app_metadata?.password_reset_pending === true,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       allowedApps: ((prof.data as any)?.allowed_apps as string[] | null) ?? [],
