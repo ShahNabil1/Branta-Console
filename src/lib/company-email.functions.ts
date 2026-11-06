@@ -38,12 +38,8 @@ async function gate(ctx: { supabase: unknown; userId: string }, slug: string) {
     .eq("slug", slug)
     .maybeSingle();
   if (!co) throw new Error("Company not found.");
-  const { assertGroupAdmin } = await import("@/lib/group-admin");
-  await assertGroupAdmin(
-    sb,
-    ctx.userId,
-    "Only Branta Tech group admins can manage company integrations.",
-  );
+  const { assertCompanyOperator } = await import("@/lib/group-admin");
+  await assertCompanyOperator(sb, ctx.userId, (co as { id: string }).id);
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   return { co: co as { id: string; slug: string; name: string }, admin: supabaseAdmin as Any };
 }

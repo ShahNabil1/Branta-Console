@@ -5,10 +5,10 @@ import { z } from "zod";
 const Input = z.object({ slug: z.string().trim().min(1).max(80), provider: z.enum(["resend", "brevo"]) });
 async function gate(context: { supabase: unknown; userId: string }, slug: string) {
   const sb = context.supabase as any;
-  const { assertGroupAdmin } = await import("./group-admin");
-  await assertGroupAdmin(sb, context.userId, "Only group admins can repair company integrations.");
   const { data: company } = await sb.from("companies").select("id,name").eq("slug", slug).maybeSingle();
   if (!company) throw new Error("Company not found.");
+  const { assertCompanyOperator } = await import("./group-admin");
+  await assertCompanyOperator(sb, context.userId, company.id);
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const admin = supabaseAdmin as any;
   const { data: inbox } = await admin.from("company_inbox_addresses").select("email,sender_name,verified_at").eq("company_id", company.id).maybeSingle();

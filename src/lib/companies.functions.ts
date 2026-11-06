@@ -1,7 +1,7 @@
 // Companies (Group of Companies). Reads use the caller's RLS; creation is
 // admin-only and runs with the admin client after the role check.
 import { createServerFn } from "@tanstack/react-start";
-import { assertGroupAdmin } from "@/lib/group-admin";
+import { assertCompanyOperator } from "@/lib/group-admin";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { dbError } from "@/lib/db-errors";
 import { z } from "zod";
@@ -68,10 +68,10 @@ export const getCompany = createServerFn({ method: "GET" })
   .inputValidator((i: unknown) => z.object({ slug: z.string().min(1).max(80) }).parse(i))
   .handler(async ({ data, context }) => {
     const sb = context.supabase as unknown as Sb;
-    await assertGroupAdmin(sb, context.userId);
     const { data: row, error } = await sb.from("companies").select("*").eq("slug", data.slug).maybeSingle();
     if (error) throw dbError(error);
     if (!row) return null;
+    await assertCompanyOperator(sb, context.userId, (row as CompanyRow).id);
     const c = row as CompanyRow;
     const { data: mem } = await sb.from("company_members").select("user_id, role").eq("company_id", c.id).eq("is_active", true);
     const members = (mem ?? []) as { user_id: string; role: string }[];
@@ -171,7 +171,7 @@ export const updateCompanyInfo = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => PatchCompanySchema.parse(i))
   .handler(async ({ data, context }) => {
     const sb = context.supabase as unknown as Sb;
-    await assertGroupAdmin(sb, context.userId);
+    await assertCompanyOperator(sb, context.userId, data.id);
     const patch = Object.fromEntries(Object.entries(data.patch).filter(([, v]) => v !== undefined));
     if (!Object.keys(patch).length) return { ok: true };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -189,7 +189,7 @@ export const updateCompanyPrefixes = createServerFn({ method: "POST" })
     const { PrefixesSchema, prefixConflicts } = await import("@/lib/brand-kit");
     const prefixes = PrefixesSchema.parse(data.prefixes);
     const sb = context.supabase as unknown as Sb;
-    await assertGroupAdmin(sb, context.userId);
+    await assertCompanyOperator(sb, context.userId, data.id);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as unknown as Sb;
     const { data: rows, error: e1 } = await admin.from("companies").select("id, name, is_holding, code_prefixes").neq("id", data.id);

@@ -54,7 +54,7 @@ function OrgLayout() {
   const c = company as { canManage?: boolean; canFinance?: boolean };
   const financeOnly = !(perms?.isAdmin ?? perms?.isSuperAdmin) && !c.canManage && Boolean(perms?.isFinance || c.canFinance);
   const rest = pathname.slice(`/app/org/${org}`.length);
-  if (financeOnly && !/^\/(customers|finance)(\/|$)/.test(rest)) {
+  if (financeOnly && !/^\/(customers|finance|my-company)(\/|$)/.test(rest)) {
     return <Navigate to={`/app/org/${org}/customers` as never} replace />;
   }
   const myRole = (company as { myRole?: string | null }).myRole;

@@ -25,6 +25,7 @@ import { Route as AuthenticatedAppFinanceRouteImport } from './routes/_authentic
 import { Route as AuthenticatedAppInboxRouteImport } from './routes/_authenticated/app.inbox'
 import { Route as AuthenticatedAppLeadsRouteImport } from './routes/_authenticated/app.leads'
 import { Route as AuthenticatedAppMailQueueRouteImport } from './routes/_authenticated/app.mail-queue'
+import { Route as AuthenticatedAppMyCompanyRouteImport } from './routes/_authenticated/app.my-company'
 import { Route as AuthenticatedAppNotificationsRouteImport } from './routes/_authenticated/app.notifications'
 import { Route as AuthenticatedAppOperationsRouteImport } from './routes/_authenticated/app.operations'
 import { Route as AuthenticatedAppProfileRouteImport } from './routes/_authenticated/app.profile'
@@ -90,6 +91,7 @@ import { Route as AuthenticatedAppFinanceInvoicesNewRouteImport } from './routes
 import { Route as AuthenticatedAppOrgOrgIndexRouteImport } from './routes/_authenticated/app.org.$org.index'
 import { Route as AuthenticatedAppOrgOrgAnalyticsRouteImport } from './routes/_authenticated/app.org.$org.analytics'
 import { Route as AuthenticatedAppOrgOrgInboxRouteImport } from './routes/_authenticated/app.org.$org.inbox'
+import { Route as AuthenticatedAppOrgOrgMyCompanyRouteImport } from './routes/_authenticated/app.org.$org.my-company'
 import { Route as AuthenticatedAppOrgOrgOperationsRouteImport } from './routes/_authenticated/app.org.$org.operations'
 import { Route as AuthenticatedAppOrgOrgTransfersRouteImport } from './routes/_authenticated/app.org.$org.transfers'
 import { Route as AuthenticatedAppOrgOrgCustomersIndexRouteImport } from './routes/_authenticated/app.org.$org.customers.index'
@@ -192,6 +194,12 @@ const AuthenticatedAppMailQueueRoute =
   AuthenticatedAppMailQueueRouteImport.update({
     id: '/mail-queue',
     path: '/mail-queue',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppMyCompanyRoute =
+  AuthenticatedAppMyCompanyRouteImport.update({
+    id: '/my-company',
+    path: '/my-company',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
 const AuthenticatedAppNotificationsRoute =
@@ -575,6 +583,12 @@ const AuthenticatedAppOrgOrgInboxRoute =
     path: '/inbox',
     getParentRoute: () => AuthenticatedAppOrgOrgRoute,
   } as any)
+const AuthenticatedAppOrgOrgMyCompanyRoute =
+  AuthenticatedAppOrgOrgMyCompanyRouteImport.update({
+    id: '/my-company',
+    path: '/my-company',
+    getParentRoute: () => AuthenticatedAppOrgOrgRoute,
+  } as any)
 const AuthenticatedAppOrgOrgOperationsRoute =
   AuthenticatedAppOrgOrgOperationsRouteImport.update({
     id: '/operations',
@@ -699,6 +713,7 @@ export interface FileRoutesByFullPath {
   '/app/inbox': typeof AuthenticatedAppInboxRoute
   '/app/leads': typeof AuthenticatedAppLeadsRouteWithChildren
   '/app/mail-queue': typeof AuthenticatedAppMailQueueRoute
+  '/app/my-company': typeof AuthenticatedAppMyCompanyRoute
   '/app/notifications': typeof AuthenticatedAppNotificationsRoute
   '/app/operations': typeof AuthenticatedAppOperationsRoute
   '/app/profile': typeof AuthenticatedAppProfileRouteWithChildren
@@ -762,6 +777,7 @@ export interface FileRoutesByFullPath {
   '/app/finance/invoices/new': typeof AuthenticatedAppFinanceInvoicesNewRoute
   '/app/org/$org/analytics': typeof AuthenticatedAppOrgOrgAnalyticsRoute
   '/app/org/$org/inbox': typeof AuthenticatedAppOrgOrgInboxRoute
+  '/app/org/$org/my-company': typeof AuthenticatedAppOrgOrgMyCompanyRoute
   '/app/org/$org/operations': typeof AuthenticatedAppOrgOrgOperationsRoute
   '/app/org/$org/transfers': typeof AuthenticatedAppOrgOrgTransfersRoute
   '/app/finance/funds/': typeof AuthenticatedAppFinanceFundsIndexRoute
@@ -794,6 +810,7 @@ export interface FileRoutesByTo {
   '/app/analytics': typeof AuthenticatedAppAnalyticsRoute
   '/app/inbox': typeof AuthenticatedAppInboxRoute
   '/app/mail-queue': typeof AuthenticatedAppMailQueueRoute
+  '/app/my-company': typeof AuthenticatedAppMyCompanyRoute
   '/app/notifications': typeof AuthenticatedAppNotificationsRoute
   '/app/operations': typeof AuthenticatedAppOperationsRoute
   '/app/settings': typeof AuthenticatedAppSettingsRoute
@@ -855,6 +872,7 @@ export interface FileRoutesByTo {
   '/app/finance/invoices/new': typeof AuthenticatedAppFinanceInvoicesNewRoute
   '/app/org/$org/analytics': typeof AuthenticatedAppOrgOrgAnalyticsRoute
   '/app/org/$org/inbox': typeof AuthenticatedAppOrgOrgInboxRoute
+  '/app/org/$org/my-company': typeof AuthenticatedAppOrgOrgMyCompanyRoute
   '/app/org/$org/operations': typeof AuthenticatedAppOrgOrgOperationsRoute
   '/app/org/$org/transfers': typeof AuthenticatedAppOrgOrgTransfersRoute
   '/app/finance/funds': typeof AuthenticatedAppFinanceFundsIndexRoute
@@ -894,6 +912,7 @@ export interface FileRoutesById {
   '/_authenticated/app/inbox': typeof AuthenticatedAppInboxRoute
   '/_authenticated/app/leads': typeof AuthenticatedAppLeadsRouteWithChildren
   '/_authenticated/app/mail-queue': typeof AuthenticatedAppMailQueueRoute
+  '/_authenticated/app/my-company': typeof AuthenticatedAppMyCompanyRoute
   '/_authenticated/app/notifications': typeof AuthenticatedAppNotificationsRoute
   '/_authenticated/app/operations': typeof AuthenticatedAppOperationsRoute
   '/_authenticated/app/profile': typeof AuthenticatedAppProfileRouteWithChildren
@@ -957,6 +976,7 @@ export interface FileRoutesById {
   '/_authenticated/app/finance/invoices/new': typeof AuthenticatedAppFinanceInvoicesNewRoute
   '/_authenticated/app/org/$org/analytics': typeof AuthenticatedAppOrgOrgAnalyticsRoute
   '/_authenticated/app/org/$org/inbox': typeof AuthenticatedAppOrgOrgInboxRoute
+  '/_authenticated/app/org/$org/my-company': typeof AuthenticatedAppOrgOrgMyCompanyRoute
   '/_authenticated/app/org/$org/operations': typeof AuthenticatedAppOrgOrgOperationsRoute
   '/_authenticated/app/org/$org/transfers': typeof AuthenticatedAppOrgOrgTransfersRoute
   '/_authenticated/app/finance/funds/': typeof AuthenticatedAppFinanceFundsIndexRoute
@@ -996,6 +1016,7 @@ export interface FileRouteTypes {
     | '/app/inbox'
     | '/app/leads'
     | '/app/mail-queue'
+    | '/app/my-company'
     | '/app/notifications'
     | '/app/operations'
     | '/app/profile'
@@ -1059,6 +1080,7 @@ export interface FileRouteTypes {
     | '/app/finance/invoices/new'
     | '/app/org/$org/analytics'
     | '/app/org/$org/inbox'
+    | '/app/org/$org/my-company'
     | '/app/org/$org/operations'
     | '/app/org/$org/transfers'
     | '/app/finance/funds/'
@@ -1091,6 +1113,7 @@ export interface FileRouteTypes {
     | '/app/analytics'
     | '/app/inbox'
     | '/app/mail-queue'
+    | '/app/my-company'
     | '/app/notifications'
     | '/app/operations'
     | '/app/settings'
@@ -1152,6 +1175,7 @@ export interface FileRouteTypes {
     | '/app/finance/invoices/new'
     | '/app/org/$org/analytics'
     | '/app/org/$org/inbox'
+    | '/app/org/$org/my-company'
     | '/app/org/$org/operations'
     | '/app/org/$org/transfers'
     | '/app/finance/funds'
@@ -1190,6 +1214,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/inbox'
     | '/_authenticated/app/leads'
     | '/_authenticated/app/mail-queue'
+    | '/_authenticated/app/my-company'
     | '/_authenticated/app/notifications'
     | '/_authenticated/app/operations'
     | '/_authenticated/app/profile'
@@ -1253,6 +1278,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/finance/invoices/new'
     | '/_authenticated/app/org/$org/analytics'
     | '/_authenticated/app/org/$org/inbox'
+    | '/_authenticated/app/org/$org/my-company'
     | '/_authenticated/app/org/$org/operations'
     | '/_authenticated/app/org/$org/transfers'
     | '/_authenticated/app/finance/funds/'
@@ -1411,6 +1437,13 @@ declare module '@tanstack/react-router' {
       path: '/mail-queue'
       fullPath: '/app/mail-queue'
       preLoaderRoute: typeof AuthenticatedAppMailQueueRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/my-company': {
+      id: '/_authenticated/app/my-company'
+      path: '/my-company'
+      fullPath: '/app/my-company'
+      preLoaderRoute: typeof AuthenticatedAppMyCompanyRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
     '/_authenticated/app/notifications': {
@@ -1868,6 +1901,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppOrgOrgInboxRouteImport
       parentRoute: typeof AuthenticatedAppOrgOrgRoute
     }
+    '/_authenticated/app/org/$org/my-company': {
+      id: '/_authenticated/app/org/$org/my-company'
+      path: '/my-company'
+      fullPath: '/app/org/$org/my-company'
+      preLoaderRoute: typeof AuthenticatedAppOrgOrgMyCompanyRouteImport
+      parentRoute: typeof AuthenticatedAppOrgOrgRoute
+    }
     '/_authenticated/app/org/$org/operations': {
       id: '/_authenticated/app/org/$org/operations'
       path: '/operations'
@@ -2143,6 +2183,7 @@ const AuthenticatedAppProfileRouteWithChildren =
 interface AuthenticatedAppOrgOrgRouteChildren {
   AuthenticatedAppOrgOrgAnalyticsRoute: typeof AuthenticatedAppOrgOrgAnalyticsRoute
   AuthenticatedAppOrgOrgInboxRoute: typeof AuthenticatedAppOrgOrgInboxRoute
+  AuthenticatedAppOrgOrgMyCompanyRoute: typeof AuthenticatedAppOrgOrgMyCompanyRoute
   AuthenticatedAppOrgOrgOperationsRoute: typeof AuthenticatedAppOrgOrgOperationsRoute
   AuthenticatedAppOrgOrgTransfersRoute: typeof AuthenticatedAppOrgOrgTransfersRoute
   AuthenticatedAppOrgOrgIndexRoute: typeof AuthenticatedAppOrgOrgIndexRoute
@@ -2168,6 +2209,7 @@ const AuthenticatedAppOrgOrgRouteChildren: AuthenticatedAppOrgOrgRouteChildren =
   {
     AuthenticatedAppOrgOrgAnalyticsRoute: AuthenticatedAppOrgOrgAnalyticsRoute,
     AuthenticatedAppOrgOrgInboxRoute: AuthenticatedAppOrgOrgInboxRoute,
+    AuthenticatedAppOrgOrgMyCompanyRoute: AuthenticatedAppOrgOrgMyCompanyRoute,
     AuthenticatedAppOrgOrgOperationsRoute:
       AuthenticatedAppOrgOrgOperationsRoute,
     AuthenticatedAppOrgOrgTransfersRoute: AuthenticatedAppOrgOrgTransfersRoute,
@@ -2218,6 +2260,7 @@ interface AuthenticatedAppRouteChildren {
   AuthenticatedAppInboxRoute: typeof AuthenticatedAppInboxRoute
   AuthenticatedAppLeadsRoute: typeof AuthenticatedAppLeadsRouteWithChildren
   AuthenticatedAppMailQueueRoute: typeof AuthenticatedAppMailQueueRoute
+  AuthenticatedAppMyCompanyRoute: typeof AuthenticatedAppMyCompanyRoute
   AuthenticatedAppNotificationsRoute: typeof AuthenticatedAppNotificationsRoute
   AuthenticatedAppOperationsRoute: typeof AuthenticatedAppOperationsRoute
   AuthenticatedAppProfileRoute: typeof AuthenticatedAppProfileRouteWithChildren
@@ -2240,6 +2283,7 @@ const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
   AuthenticatedAppInboxRoute: AuthenticatedAppInboxRoute,
   AuthenticatedAppLeadsRoute: AuthenticatedAppLeadsRouteWithChildren,
   AuthenticatedAppMailQueueRoute: AuthenticatedAppMailQueueRoute,
+  AuthenticatedAppMyCompanyRoute: AuthenticatedAppMyCompanyRoute,
   AuthenticatedAppNotificationsRoute: AuthenticatedAppNotificationsRoute,
   AuthenticatedAppOperationsRoute: AuthenticatedAppOperationsRoute,
   AuthenticatedAppProfileRoute: AuthenticatedAppProfileRouteWithChildren,

@@ -39,6 +39,8 @@ import {
   Handshake,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CompanyAvatar } from "@/components/company/company-avatar";
+import { companyIdentity } from "@/lib/company-identity";
 import { resolveActivePath } from "@/lib/nav-active";
 import { stripOrg, isOrgScoped, toCompanyPath } from "@/lib/org-path";
 import { BRAND_LOGO as brandLogo } from "@/lib/brand-assets";
@@ -293,6 +295,27 @@ export function AppSidebar() {
       .filter((g) => (g.label === "Finance" ? isFinance : g.items.length > 0));
   }, [permsQ.data, activeCompany]);
 
+  // My Company: the user's own company (holding staff → Branta Tech, sister staff → that company); Executives excluded.
+  const myCompany = useMemo(() => {
+    const perms = permsQ.data;
+    if (!perms || !activeCompany) return null;
+    const roles = (perms as { roles?: string[] }).roles ?? [];
+    const holdingStaff = Boolean(perms.isSuperAdmin || perms.isAdmin) || roles.some((r) => r !== "user");
+    const myRole = (activeCompany as { myRole?: string | null }).myRole;
+    const ok = activeCompany.is_holding ? holdingStaff : !holdingStaff && !!myRole && myRole !== "member";
+    if (!ok) return null;
+    const c = activeCompany as { slug: string; name: string; logo_url?: string | null; brand_kit?: unknown };
+    const icon = companyIdentity(c.slug, c as never).icon;
+    const Icon = ({ className }: { className?: string }) => <CompanyAvatar name={c.name} slug={c.slug} iconUrl={icon} className={cn(className, "rounded text-[9px]")} />;
+    return { label: "My Company", to: "/app/my-company", icon: Icon as IconType, tone: "brand" as Tone, brand: true };
+  }, [permsQ.data, activeCompany]);
+  const navAll = useMemo<NavGroup[]>(() => {
+    if (!myCompany) return nav;
+    const has = nav.some((g) => g.label === "Admin");
+    const groups = has ? nav : [...nav, { label: "Admin", items: [] }];
+    return groups.map((g) => (g.label === "Admin" ? { ...g, items: [myCompany, ...g.items] } : g));
+  }, [nav, myCompany]);
+
   const toggleFinanceGroup = (label: string) => {
     setOpenFinanceGroups((current) =>
       current.includes(label) ? current.filter((i) => i !== label) : [...current.slice(-1), label],
@@ -406,7 +429,7 @@ export function AppSidebar() {
         </div>
 
         <nav className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-2 py-2 [scrollbar-width:thin]">
-          {nav.map((group) => (
+          {navAll.map((group) => (
             <div key={group.label} className="mb-3">
               <div
                 className={cn(
