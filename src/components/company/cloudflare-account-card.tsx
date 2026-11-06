@@ -16,8 +16,8 @@ import {
 } from "@/lib/company-cloudflare.functions";
 import { connectCloudflareInPopup } from "@/lib/cloudflare-connect-popup";
 import { cn } from "@/lib/utils";
-import cfIcon from "@/assets/integrations/cloudflare-icon.png.asset.json";
-import cfWordmark from "@/assets/integrations/cloudflare-wordmark.png.asset.json";
+import { INTEGRATIONS_CLOUDFLARE_ICON as cfIcon } from "@/lib/brand-assets";
+import { INTEGRATIONS_CLOUDFLARE_WORDMARK as cfWordmark } from "@/lib/brand-assets";
 
 const err = (e: unknown) => (e instanceof Error ? e.message : "Something went wrong");
 type Check = { id: string; label: string; ok: boolean; detail: string; zone?: string; off?: boolean };

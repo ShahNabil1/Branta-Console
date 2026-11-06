@@ -59,17 +59,17 @@ import { DangerConfirm, DiscardCancelButton } from "@/components/company/danger-
 import { GoogleAccountCard, GoogleMark, GmailMark } from "@/components/company/google-account-card";
 import { CloudflareAccountCard } from "@/components/company/cloudflare-account-card";
 import { ResendOAuthCard } from "@/components/company/resend-oauth-card";
-import resendLogo from "@/assets/email/resend.webp.asset.json";
-import brevoLogo from "@/assets/email/brevo.webp.asset.json";
-import resendMarkWhite from "@/assets/email/resend-mark-white.png.asset.json";
-import resendWordmarkWhite from "@/assets/email/resend-wordmark-white.png.asset.json";
-import resendWordmarkBlack from "@/assets/email/resend-wordmark-black.png.asset.json";
-import brevoIcon from "@/assets/email/brevo-icon.png.asset.json";
-import brevoWordmark from "@/assets/email/brevo-wordmark.png.asset.json";
-import switchAccountIcon from "@/assets/integrations/switch-account.png.asset.json";
-import cfRoutingIcon from "@/assets/integrations/cloudflare-email-routing-mark.png.asset.json";
-import routingRuleIcon from "@/assets/integrations/email-routing-rule-envelope.png.asset.json";
-import verifiedIcon from "@/assets/company/connection-verified.png.asset.json";
+import { EMAIL_RESEND as resendLogo } from "@/lib/brand-assets";
+import { EMAIL_BREVO as brevoLogo } from "@/lib/brand-assets";
+import { EMAIL_RESEND_MARK_WHITE as resendMarkWhite } from "@/lib/brand-assets";
+import { EMAIL_RESEND_WORDMARK_WHITE as resendWordmarkWhite } from "@/lib/brand-assets";
+import { EMAIL_RESEND_WORDMARK_BLACK as resendWordmarkBlack } from "@/lib/brand-assets";
+import { EMAIL_BREVO_ICON as brevoIcon } from "@/lib/brand-assets";
+import { EMAIL_BREVO_WORDMARK as brevoWordmark } from "@/lib/brand-assets";
+import { INTEGRATIONS_SWITCH_ACCOUNT as switchAccountIcon } from "@/lib/brand-assets";
+import { INTEGRATIONS_CLOUDFLARE_EMAIL_ROUTING_MARK as cfRoutingIcon } from "@/lib/brand-assets";
+import { INTEGRATIONS_EMAIL_ROUTING_RULE_ENVELOPE as routingRuleIcon } from "@/lib/brand-assets";
+import { COMPANY_CONNECTION_VERIFIED as verifiedIcon } from "@/lib/brand-assets";
 import {
   AlertDialog,
   AlertDialogContent,

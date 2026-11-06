@@ -1,7 +1,7 @@
-import wordmark from "@/assets/companies/admakai-wordmark.png.asset.json";
-import inverse from "@/assets/companies/admakai-wordmark-inverse.png.asset.json";
-import mark from "@/assets/companies/admakai-mark.png.asset.json";
-import brantaIcon from "@/assets/companies/branta-icon.png.asset.json";
+import { COMPANIES_ADMAKAI_WORDMARK as wordmark } from "@/lib/brand-assets";
+import { COMPANIES_ADMAKAI_WORDMARK_INVERSE as inverse } from "@/lib/brand-assets";
+import { COMPANIES_ADMAKAI_MARK as mark } from "@/lib/brand-assets";
+import { COMPANIES_BRANTA_ICON as brantaIcon } from "@/lib/brand-assets";
 
 type IdentitySource = { logo_url?: string | null; brand_kit?: { logo_primary?: string | null; logo_inverse?: string | null; mark?: string | null } | null };
 const identities: Record<string, { logo?: string; inverse?: string; icon: string }> = {

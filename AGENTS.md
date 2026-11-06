@@ -42,3 +42,4 @@
 - Company invoice branding resolves server-side via company-invoice-template.server.ts with immutable snapshots; no in-app editor — why: sisters never show Branta logos/contacts, issued documents never change. renderInvoicePdf forces PAYMENT INFORMATION (bank, note, QR) to Branta Tech for all companies — why: one group bank account.
 - WebMCP uses screen-owned hooks, shared actions and static telemetry — why: agents only use visible controls.
 - Workspace access = explicit company_members rows (profiles.id; predicates join profiles.user_id), set via setEmployeeWorkspace; no implicit holding access — why: staff see only granted companies.
+- UI icons/logos are served from Cloudflare R2 (assets/… on the R2 public base) and registered only in src/lib/brand-assets.ts; no image files or asset pointers in src/assets — why: keep binaries out of the repo with one artwork registry.

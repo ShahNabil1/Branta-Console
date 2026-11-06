@@ -17,7 +17,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { ConfirmProvider } from "@/components/ui/confirm-dialog";
 import { DevToolsShield } from "@/components/branta/devtools-shield";
 import { markBooted } from "@/lib/boot-splash";
-import brantaIcon from "@/assets/companies/branta-icon.png.asset.json";
+import { COMPANIES_BRANTA_ICON as brantaIcon } from "@/lib/brand-assets";
 import { useRouterState } from "@tanstack/react-router";
 
 function NotFoundComponent() {

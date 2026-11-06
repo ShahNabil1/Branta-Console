@@ -4,7 +4,7 @@ import { ShieldCheck, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { oauthReturnPath } from "@/lib/oauth-return-path";
-import brandLogo from "@/assets/brand-logo.png.asset.json";
+import { BRAND_LOGO as brandLogo } from "@/lib/brand-assets";
 
 export const Route = createFileRoute("/.lovable/oauth/consent")({
   ssr: false,

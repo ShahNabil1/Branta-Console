@@ -13,9 +13,10 @@ import {
   stripToPassword,
   stripToDigits,
 } from "@/lib/branta-credentials";
-import brandLogo from "@/assets/brand-logo.png.asset.json";
-import admakaiLogo from "@/assets/apps/admakai-wordmark.png.asset.json";
-import trackerLogo from "@/assets/apps/tracker.png";
+import { BRAND_LOGO as brandLogo } from "@/lib/brand-assets";
+import { APPS_ADMAKAI_WORDMARK as admakaiLogo } from "@/lib/brand-assets";
+import { APPS_TRACKER as trackerLogoAsset } from "@/lib/brand-assets";
+const trackerLogo = trackerLogoAsset.url;
 import { registerSession } from "@/lib/user-sessions.functions";
 import { beginPasskeyLogin, finishPasskeyLogin } from "@/lib/passkeys.functions";
 import { ensureSessionKey } from "@/hooks/use-session-watcher";

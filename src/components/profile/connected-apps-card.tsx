@@ -14,8 +14,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { disconnectMyApp, getMyAppAccess, listMyConnectedApps } from "@/lib/tracker-sso.functions";
-import trackerLogo from "@/assets/apps/tracker.png";
-import admakaiLogo from "@/assets/apps/admakai.png";
+import { APPS_TRACKER as trackerLogoAsset } from "@/lib/brand-assets";
+const trackerLogo = trackerLogoAsset.url;
+import { APPS_ADMAKAI as admakaiLogoAsset } from "@/lib/brand-assets";
+const admakaiLogo = admakaiLogoAsset.url;
 
 type AppKey = "tracker_extension" | "admakai";
 

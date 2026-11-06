@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
-import gear from "@/assets/integrations/webhook-fix.gif.asset.json";
-import still from "@/assets/integrations/webhook-fix-still.png.asset.json";
+import { INTEGRATIONS_WEBHOOK_FIX as gear } from "@/lib/brand-assets";
+import { INTEGRATIONS_WEBHOOK_FIX_STILL as still } from "@/lib/brand-assets";
 
 export function WebhookFixButton({ fixing, disabled, onClick }: { fixing: boolean; disabled?: boolean; onClick: () => void }) {
   return (

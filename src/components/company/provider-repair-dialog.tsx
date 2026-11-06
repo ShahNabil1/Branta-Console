@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { TestLoader } from "@/components/ui/test-loader";
-import resend from "@/assets/email/resend.webp.asset.json";
-import brevo from "@/assets/email/brevo.webp.asset.json";
+import { EMAIL_RESEND as resend } from "@/lib/brand-assets";
+import { EMAIL_BREVO as brevo } from "@/lib/brand-assets";
 
 export function ProviderRepairDialog({ kind, provider, domain, busy, error, onClose, onApi, onDomain }: {
   kind: "api" | "domain" | null; provider: "resend" | "brevo"; domain: string; busy: boolean; error: string | null;

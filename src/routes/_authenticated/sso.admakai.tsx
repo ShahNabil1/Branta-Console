@@ -5,7 +5,7 @@ import { z } from "zod";
 import { issueAdmakaiSession } from "@/lib/admakai-sso.functions";
 import { isAdmakaiCallback } from "@/lib/admakai-policy";
 import { SsoHandoff, type HandoffStage } from "@/components/sso/sso-handoff";
-import admakaiLogo from "@/assets/apps/admakai-wordmark.png.asset.json";
+import { APPS_ADMAKAI_WORDMARK as admakaiLogo } from "@/lib/brand-assets";
 
 export const Route = createFileRoute("/_authenticated/sso/admakai")({
   validateSearch: z.object({ redirect_uri: z.string().optional(), state: z.string().max(200).optional() }),

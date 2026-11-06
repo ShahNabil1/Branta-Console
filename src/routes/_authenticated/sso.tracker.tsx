@@ -4,7 +4,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { issueTrackerSession, TRACKER_REDIRECT_RE } from "@/lib/tracker-sso.functions";
 import { SsoHandoff, type HandoffStage } from "@/components/sso/sso-handoff";
-import trackerLogo from "@/assets/apps/tracker.png";
+import { APPS_TRACKER as trackerLogoAsset } from "@/lib/brand-assets";
+const trackerLogo = trackerLogoAsset.url;
 
 export const Route = createFileRoute("/_authenticated/sso/tracker")({
   validateSearch: z.object({

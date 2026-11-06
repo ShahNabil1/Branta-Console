@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ArrowLeftRight, ShieldAlert, ShieldCheck } from "lucide-react";
-import brandLogo from "@/assets/brand-logo.png.asset.json";
+import { BRAND_LOGO as brandLogo } from "@/lib/brand-assets";
 
 export type HandoffStage = "verify" | "issue" | "done" | "error";
 

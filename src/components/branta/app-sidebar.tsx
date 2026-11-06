@@ -41,7 +41,7 @@ import {
 import { cn } from "@/lib/utils";
 import { resolveActivePath } from "@/lib/nav-active";
 import { stripOrg, isOrgScoped, toCompanyPath } from "@/lib/org-path";
-import brandLogo from "@/assets/brand-logo.png.asset.json";
+import { BRAND_LOGO as brandLogo } from "@/lib/brand-assets";
 import { getMyPermissions } from "@/lib/permissions.functions";
 import { holdingPageAllowed } from "@/lib/role-access";
 import { CompanySwitcher, useActiveCompany } from "@/components/company/company-switcher";

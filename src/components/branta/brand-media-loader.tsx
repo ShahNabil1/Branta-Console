@@ -1,4 +1,4 @@
-import brantaIcon from "@/assets/companies/branta-icon.png.asset.json";
+import { COMPANIES_BRANTA_ICON as brantaIcon } from "@/lib/brand-assets";
 import "./brand-media-loader.css";
 
 export function BrandMediaLoader() {

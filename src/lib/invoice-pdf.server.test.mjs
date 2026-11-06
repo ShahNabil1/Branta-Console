@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { PDFDocument } from "pdf-lib";
 import { renderInvoicePdf } from "./invoice-pdf.server.ts";
-import wordmark from "../assets/companies/admakai-wordmark.png.asset.json";
-import inverse from "../assets/companies/admakai-wordmark-inverse.png.asset.json";
+import { COMPANIES_ADMAKAI_WORDMARK as wordmark } from "./brand-assets.ts";
+import { COMPANIES_ADMAKAI_WORDMARK_INVERSE as inverse } from "./brand-assets.ts";
 
 const fixture = {
   invoice: {

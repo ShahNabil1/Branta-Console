@@ -12,7 +12,8 @@ import { TestLoader } from "@/components/ui/test-loader";
 import { DiscardCancelButton } from "@/components/company/danger-confirm";
 import { TrackerScheduleTab } from "@/components/employee/tracker-schedule-tab";
 import { MailActivity } from "@/components/employee/mail-activity";
-import admakaiLogo from "@/assets/apps/admakai.png";
+import { APPS_ADMAKAI as admakaiLogoAsset } from "@/lib/brand-assets";
+const admakaiLogo = admakaiLogoAsset.url;
 import { SessionHistoryLog } from "@/components/profile/session-history-log";
 // Employee detail page: full profile, RBAC, lead assignment, ban / delete,
 // password reset, one-click impersonation, wallet + sessions.

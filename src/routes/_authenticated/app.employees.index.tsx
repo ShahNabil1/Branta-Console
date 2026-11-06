@@ -3,7 +3,8 @@ import { ROLE_LABEL, ROLE_NOTE } from "@/lib/role-access";
 import { toast } from "sonner";
 import { TestLoader } from "@/components/ui/test-loader";
 import { UnderlineTabs } from "@/components/ui/underline-tabs";
-import admakaiLogo from "@/assets/apps/admakai.png";
+import { APPS_ADMAKAI as admakaiLogoAsset } from "@/lib/brand-assets";
+const admakaiLogo = admakaiLogoAsset.url;
 import { Switch } from "@/components/ui/switch";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -14,7 +15,7 @@ import { Progress } from "@/components/ui/progress";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Trash2, CircleCheck, CircleX, Search } from "lucide-react";
 import { GmailMark } from "@/components/company/google-account-card";
-import cfRoutingIcon from "@/assets/integrations/cloudflare-email-routing.png.asset.json";
+import { INTEGRATIONS_CLOUDFLARE_EMAIL_ROUTING as cfRoutingIcon } from "@/lib/brand-assets";
 
 const ROW_DELETE_STYLE = { height: 28, padding: "0 10px", fontSize: 11 } as const;
 function RowDeleteButton({

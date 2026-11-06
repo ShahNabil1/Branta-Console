@@ -10,7 +10,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Eye, EyeOff, KeyRound, Loader2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import brandLogo from "@/assets/brand-logo.png.asset.json";
+import { BRAND_LOGO as brandLogo } from "@/lib/brand-assets";
 import { setInitialPassword } from "@/lib/change-password.functions";
 import { getOnboardingStatus } from "@/lib/onboarding.functions";
 import {

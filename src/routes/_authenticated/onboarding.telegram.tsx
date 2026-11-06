@@ -6,7 +6,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
-import brandLogo from "@/assets/brand-logo.png.asset.json";
+import { BRAND_LOGO as brandLogo } from "@/lib/brand-assets";
 import { TelegramConnectCard } from "@/components/profile/telegram-connect-card";
 import { TelegramIcon } from "@/components/social/telegram-icon";
 import { getOnboardingStatus } from "@/lib/onboarding.functions";

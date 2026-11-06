@@ -9,8 +9,8 @@ import { CheckCircle2, Loader2, Unplug, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { disconnectGoogle, getGoogleConnection, startGoogleConnect, testGoogleConnection } from "@/lib/company-google.functions";
 import { cn } from "@/lib/utils";
-import googleWordmark from "@/assets/email/google-wordmark.png.asset.json";
-import switchAccountIcon from "@/assets/integrations/switch-account.png.asset.json";
+import { EMAIL_GOOGLE_WORDMARK as googleWordmark } from "@/lib/brand-assets";
+import { INTEGRATIONS_SWITCH_ACCOUNT as switchAccountIcon } from "@/lib/brand-assets";
 import { connectGoogleInPopup } from "@/lib/google-connect-popup";
 
 const err = (e: unknown) => (e instanceof Error ? e.message : "Something went wrong");

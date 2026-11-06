@@ -10,8 +10,8 @@ import { TestLoader } from "@/components/ui/test-loader";
 import { disconnectResendOAuth, getResendOAuth, runResendSetup, startResendConnect, type SetupStage, type SetupStep } from "@/lib/company-resend.functions";
 import { connectResendInPopup } from "@/lib/resend-connect-popup";
 import { cn } from "@/lib/utils";
-import resendLogo from "@/assets/email/resend.webp.asset.json";
-import resendWordmarkBlack from "@/assets/email/resend-wordmark-black.png.asset.json";
+import { EMAIL_RESEND as resendLogo } from "@/lib/brand-assets";
+import { EMAIL_RESEND_WORDMARK_BLACK as resendWordmarkBlack } from "@/lib/brand-assets";
 
 const err = (e: unknown) => (e instanceof Error ? e.message : "Something went wrong");
 const STAGES: { id: SetupStage; label: string; icon: LucideIcon }[] = [

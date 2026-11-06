@@ -2,11 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Lock, Plug, XCircle } from "lucide-react";
 import { GoogleMark, GmailMark } from "./google-account-card";
-import verifiedIcon from "@/assets/company/connection-verified.png.asset.json";
-import resendLogo from "@/assets/email/resend-wordmark-black.png.asset.json";
-import brevoLogo from "@/assets/email/brevo-wordmark.png.asset.json";
-import brantaLogo from "@/assets/branta-icon.svg.asset.json";
-import noConnectionIcon from "@/assets/company/no-connection.png.asset.json";
+import { COMPANY_CONNECTION_VERIFIED as verifiedIcon } from "@/lib/brand-assets";
+import { EMAIL_RESEND_WORDMARK_BLACK as resendLogo } from "@/lib/brand-assets";
+import { EMAIL_BREVO_WORDMARK as brevoLogo } from "@/lib/brand-assets";
+import { BRANTA_ICON as brantaLogo } from "@/lib/brand-assets";
+import { COMPANY_NO_CONNECTION as noConnectionIcon } from "@/lib/brand-assets";
 import { getCompanySetupStatus, type IntegrationItem, type SetupItem } from "@/lib/company-setup.functions";
 import { useActiveCompany } from "./company-switcher";
 

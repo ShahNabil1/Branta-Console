@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { companyIdentity } from "./company-identity";
-import wordmark from "@/assets/companies/admakai-wordmark.png.asset.json";
-import mark from "@/assets/companies/admakai-mark.png.asset.json";
+import { COMPANIES_ADMAKAI_WORDMARK as wordmark } from "@/lib/brand-assets";
+import { COMPANIES_ADMAKAI_MARK as mark } from "@/lib/brand-assets";
 
 describe("company identity isolation", () => {
   it("uses the authentic Admakai wordmark and separate square icon", () => {
