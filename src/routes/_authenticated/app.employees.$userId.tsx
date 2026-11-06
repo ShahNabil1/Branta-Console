@@ -1,5 +1,7 @@
 import { EmployeeCompanyBadges } from "@/components/company/employee-company-badges";
 import { orgFromPath } from "@/lib/org-path";
+import { listEmployeeWorkspaces } from "@/lib/companies.functions";
+import { SISTER_ROLE_OPTIONS } from "@/components/employee/company-roles-box";
 import { ROLE_LABEL, ROLE_NOTE, roleLabel } from "@/lib/role-access";
 import { AnimatedBorderButton } from "@/components/AnimatedBorderButton";
 import { AlertDialog, AlertDialogContent } from "@/components/ui/alert-dialog";
@@ -722,7 +724,7 @@ function EmployeeDetailInner({ userId }: { userId: string }) {
             </div>
             <EmployeeCompanyBadges companies={e.companies ?? []} size="md" className="mt-1.5" />
             <div className="mt-1 flex flex-wrap items-center gap-2">
-              <RoleBadge role={e.role} />
+              {orgFromPath(typeof window !== "undefined" ? window.location.pathname : "") ? <OrgRoleBadge userId={userId} /> : <RoleBadge role={e.role} />}
               <StatusBadge banned={e.isBanned} />
             </div>
           </div>
@@ -1673,6 +1675,21 @@ function AvatarDialog({
 }
 
 // ────────────────────────────────────────────────────────────────
+
+/** In a sister workspace the header shows the employee's role in that company, not the group role. */
+function OrgRoleBadge({ userId }: { userId: string }) {
+  const listFn = useServerFn(listEmployeeWorkspaces);
+  const q = useQuery({ queryKey: ["employee.workspaces", userId], queryFn: () => listFn({ data: { userId } }) });
+  const slug = orgFromPath(typeof window !== "undefined" ? window.location.pathname : "");
+  const co = (q.data ?? []).find((c) => c.slug === slug);
+  if (!co?.role) return null;
+  const label = SISTER_ROLE_OPTIONS.find((r) => r.value === co.role)?.label ?? co.role;
+  const lead = co.role === "super_admin" || co.role === "coo";
+  return (
+    <span className={cn("inline-flex items-center rounded-sm border px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.06em]",
+      lead ? "border-sky-300 bg-sky-50 text-sky-700" : "border-border bg-muted text-muted-foreground")}>{label}</span>
+  );
+}
 
 function RoleBadge({ role }: { role: EmployeeRole }) {
   const cls =
