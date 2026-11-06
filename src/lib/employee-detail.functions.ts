@@ -506,7 +506,7 @@ export const resendOnboardingInstructions = createServerFn({ method: "POST" })
       role,
     });
 
-    return { ok: true as const, pendingPassword: mustPwd, pendingTelegram: mustTg };
+    return { ok: true as const, pendingPassword: mustPwd };
   });
 
 // magic link via admin.generateLink and return its hashed_token; the client
