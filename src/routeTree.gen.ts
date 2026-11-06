@@ -15,6 +15,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
+import { Route as DownloadsTrackerExtensionRouteImport } from './routes/downloads.tracker-extension'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app.index'
 import { Route as AuthenticatedAppAnalyticsRouteImport } from './routes/_authenticated/app.analytics'
@@ -139,6 +140,12 @@ const AuthenticatedAppRoute = AuthenticatedAppRouteImport.update({
   path: '/app',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const DownloadsTrackerExtensionRoute =
+  DownloadsTrackerExtensionRouteImport.update({
+    id: '/downloads/tracker-extension',
+    path: '/downloads/tracker-extension',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
   id: '/.lovable/oauth/consent',
   path: '/.lovable/oauth/consent',
@@ -690,6 +697,7 @@ export interface FileRoutesByFullPath {
   '/mcp': typeof McpRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/app': typeof AuthenticatedAppRouteWithChildren
+  '/downloads/tracker-extension': typeof DownloadsTrackerExtensionRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/app/analytics': typeof AuthenticatedAppAnalyticsRoute
   '/app/companies': typeof AuthenticatedAppCompaniesRouteWithChildren
@@ -789,6 +797,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/mcp': typeof McpRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/downloads/tracker-extension': typeof DownloadsTrackerExtensionRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/app/analytics': typeof AuthenticatedAppAnalyticsRoute
   '/app/inbox': typeof AuthenticatedAppInboxRoute
@@ -885,6 +894,7 @@ export interface FileRoutesById {
   '/mcp': typeof McpRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_authenticated/app': typeof AuthenticatedAppRouteWithChildren
+  '/downloads/tracker-extension': typeof DownloadsTrackerExtensionRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/_authenticated/app/analytics': typeof AuthenticatedAppAnalyticsRoute
   '/_authenticated/app/companies': typeof AuthenticatedAppCompaniesRouteWithChildren
@@ -987,6 +997,7 @@ export interface FileRouteTypes {
     | '/mcp'
     | '/.well-known/oauth-protected-resource'
     | '/app'
+    | '/downloads/tracker-extension'
     | '/.lovable/oauth/consent'
     | '/app/analytics'
     | '/app/companies'
@@ -1086,6 +1097,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/mcp'
     | '/.well-known/oauth-protected-resource'
+    | '/downloads/tracker-extension'
     | '/.lovable/oauth/consent'
     | '/app/analytics'
     | '/app/inbox'
@@ -1181,6 +1193,7 @@ export interface FileRouteTypes {
     | '/mcp'
     | '/.well-known/oauth-protected-resource'
     | '/_authenticated/app'
+    | '/downloads/tracker-extension'
     | '/.lovable/oauth/consent'
     | '/_authenticated/app/analytics'
     | '/_authenticated/app/companies'
@@ -1282,6 +1295,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   McpRoute: typeof McpRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  DownloadsTrackerExtensionRoute: typeof DownloadsTrackerExtensionRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   ApiPublicR2HealthRoute: typeof ApiPublicR2HealthRoute
   ApiPublicBrevoWebhookRoute: typeof ApiPublicBrevoWebhookRoute
@@ -1341,6 +1355,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/app'
       preLoaderRoute: typeof AuthenticatedAppRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/downloads/tracker-extension': {
+      id: '/downloads/tracker-extension'
+      path: '/downloads/tracker-extension'
+      fullPath: '/downloads/tracker-extension'
+      preLoaderRoute: typeof DownloadsTrackerExtensionRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/.lovable/oauth/consent': {
       id: '/.lovable/oauth/consent'
@@ -2284,6 +2305,7 @@ const rootRouteChildren: RootRouteChildren = {
   McpRoute: McpRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
+  DownloadsTrackerExtensionRoute: DownloadsTrackerExtensionRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   ApiPublicR2HealthRoute: ApiPublicR2HealthRoute,
   ApiPublicBrevoWebhookRoute: ApiPublicBrevoWebhookRoute,

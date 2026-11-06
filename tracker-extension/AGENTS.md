@@ -1,1 +1,2 @@
 - Branta Tracker extension source lives here (own package, excluded from Console lint/tsc; ZIP builds go to Files); one active browser per employee via Tracker auth user_metadata.tracker_device with explicit takeover confirmation — why: the Shift lives on the server so a handover never resets time, and a second browser must never record overlapping intervals.
+- Tracker extension ZIPs are hosted in Cloudflare R2 (downloads/tracker/…), served via /downloads/tracker-extension redirect; version in src/lib/tracker-release.ts — why: keep binaries out of the repo and build.
