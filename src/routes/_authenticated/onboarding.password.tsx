@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { BRAND_LOGO as brandLogo } from "@/lib/brand-assets";
 import { setInitialPassword } from "@/lib/change-password.functions";
 import { getOnboardingStatus } from "@/lib/onboarding.functions";
+import { continueAfterPasswordChange } from "@/lib/password-continuation";
 import {
   PASSWORD_LEN,
   strongPasswordSchema,
@@ -75,7 +76,8 @@ function OnboardingPasswordPage() {
     setBusy(true);
     setErr(null);
     try {
-      await setFn({ data: { new_password: next } });
+      const res = await setFn({ data: { new_password: next } });
+      await continueAfterPasswordChange(res.continuation);
       toast.success("Password updated");
       await qc.invalidateQueries({ queryKey: ["onboarding.status"] });
       navigate({ to: "/app", replace: true });

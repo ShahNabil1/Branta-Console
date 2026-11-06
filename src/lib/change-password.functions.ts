@@ -107,7 +107,12 @@ export const changeMyPassword = createServerFn({ method: "POST" })
       console.error("[changeMyPassword] notify failed:", e);
     }
 
-    return { ok: true as const };
+    const { isStrongSession } = await import("@/lib/session-assurance.server");
+    const { mintPasswordContinuation } = await import("@/lib/password-continuation.server");
+    const continuation = await isStrongSession(context.supabase, context.claims, context.userId)
+      ? await mintPasswordContinuation(supabaseAdmin, context.userId, email)
+      : null;
+    return { ok: true as const, continuation };
   });
 
 // First-sign-in forced password change. Only allowed when
@@ -229,5 +234,9 @@ export const setInitialPassword = createServerFn({ method: "POST" })
       console.error("[setInitialPassword] notify failed:", e);
     }
 
-    return { ok: true as const };
+    const { mintPasswordContinuation } = await import("@/lib/password-continuation.server");
+    const continuation = authUser.user.email
+      ? await mintPasswordContinuation(supabaseAdmin, context.userId, authUser.user.email)
+      : null;
+    return { ok: true as const, continuation };
   });

@@ -43,3 +43,4 @@
 - WebMCP uses screen-owned hooks, shared actions and static telemetry — why: agents only use visible controls.
 - Workspace access = explicit company_members rows (profiles.id; predicates join profiles.user_id), set via setEmployeeWorkspace; no implicit holding access — why: staff see only granted companies.
 - UI icons/logos are served from Cloudflare R2 (assets/… on the R2 public base) and registered only in src/lib/brand-assets.ts; no image files or asset pointers in src/assets — why: keep binaries out of the repo with one artwork registry.
+- Password changes (onboarding, change, reset) return a one-time continuation (magic-link token + strong-session grant) via password-continuation.server.ts; the browser swaps into it — why: Supabase ends old sessions on password change and employees must not redo sign-in + 2FA.

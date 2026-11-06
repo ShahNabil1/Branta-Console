@@ -36,6 +36,7 @@ import {
   revokeAllOtherSessions,
 } from "@/lib/user-sessions.functions";
 import { changeMyPassword } from "@/lib/change-password.functions";
+import { continueAfterPasswordChange } from "@/lib/password-continuation";
 import { beginPasswordResetPasskey, resetMyPassword } from "@/lib/reset-password.functions";
 import { getPasskeyProvider } from "@/lib/passkey-providers";
 import { PasskeyProviderIcon } from "@/components/profile/passkey-provider-icon";
@@ -539,7 +540,8 @@ function ChangePasswordDialog({ open, onClose }: { open: boolean; onClose: () =>
     if (!canSubmit) return;
     setBusy(true);
     try {
-      await change({ data: { current_password: current, new_password: next } });
+      const res = await change({ data: { current_password: current, new_password: next } });
+      await continueAfterPasswordChange(res.continuation);
       toast.success("Password updated");
       onClose();
     } catch (err) {
@@ -612,11 +614,12 @@ function ResetPasswordDialog({ open, onClose }: { open: boolean; onClose: () => 
     if (!canSubmit) return;
     setBusy(true);
     try {
-      await reset({
+      const res = await reset({
         data: method === "totp"
           ? { method: "totp", code, new_password: next }
           : { method: "passkey", assertion_response: assertion, new_password: next },
       });
+      await continueAfterPasswordChange(res.continuation);
       toast.success("Password reset");
       onClose();
     } catch (err) {

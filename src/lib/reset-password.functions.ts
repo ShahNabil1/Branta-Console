@@ -153,5 +153,8 @@ export const resetMyPassword = createServerFn({ method: "POST" })
     } catch (e) {
       console.error("[resetMyPassword] notify failed:", e);
     }
-    return { ok: true as const };
+    // Identity was just re-proven (TOTP or passkey), so keep the employee signed in.
+    const { mintPasswordContinuation } = await import("@/lib/password-continuation.server");
+    const continuation = await mintPasswordContinuation(supabaseAdmin, context.userId, email);
+    return { ok: true as const, continuation };
   });
