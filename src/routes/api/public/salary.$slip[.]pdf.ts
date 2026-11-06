@@ -29,7 +29,7 @@ export const Route = createFileRoute("/api/public/salary/$slip.pdf")({
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const payload = await loadSalarySlipPayload(supabaseAdmin, slip);
-        if (!payload) return new Response("Not found", { status: 404 });
+        if (!payload) return new Response("Not found", { status: 404, headers: { "cache-control": "no-store" } });
 
         const { renderSalarySlipPdf } = await import("@/lib/invoice-pdf.server");
         const base = defaultSettings();
@@ -62,7 +62,7 @@ export const Route = createFileRoute("/api/public/salary/$slip.pdf")({
           headers: {
             "content-type": "application/pdf",
             "content-disposition": `inline; filename="Salary-${slip}${mode === "print" ? "-print" : ""}.pdf"`,
-            "cache-control": "private, max-age=300",
+            "cache-control": "private, no-store",
           },
         });
       },

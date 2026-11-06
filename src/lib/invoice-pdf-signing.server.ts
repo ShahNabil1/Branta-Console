@@ -149,7 +149,8 @@ export async function loadSalarySlipPayload(adminClient: any, slipNo: string) {
   const { data: slip, error } = await adminClient
     .from("salary_slips").select("*").eq("slip_no", slipNo).maybeSingle();
   if (error) throw new Error(error.message);
-  if (!slip) return null;
+  // A valid old signature must not bypass finance's revocation.
+  if (!slip || slip.status === "void") return null;
   const uids = [slip.user_id, slip.created_by].filter(Boolean) as string[];
   const [{ data: profs }, { data: settings }] = await Promise.all([
     adminClient.from("profiles")

@@ -259,8 +259,8 @@ export const listMySessions = createServerFn({ method: "GET" })
       "@/integrations/supabase/client.server"
     );
     await expireStale(supabaseAdmin, context.userId);
-    const admin = supabaseAdmin; const cutoff = new Date(Date.now() - 7 * 864e5).toISOString();
-    void admin.from("user_sessions").delete().not("revoked_at", "is", null).lt("revoked_at", cutoff).then(() => {});
+    // Viewing sessions never deletes anyone's security history.
+    const cutoff = new Date(Date.now() - 7 * 864e5).toISOString();
     const cols =
       "id,session_key,device,browser,os,ip,country,city,region,created_at,last_seen_at,revoked_at,logout_reason";
     const { data: rows, error } = await supabaseAdmin

@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { getCompanyFundConfig, getCompanyWallet, requestCompanyLoan } from "@/lib/company-wallet.functions";
 import { cn } from "@/lib/utils";
+import { walletCsvCell } from "@/lib/wallet-csv";
 
 const bdt = (n: number) => `৳${Math.round(n).toLocaleString("en-IN")}`;
 const STATUS: Record<string, string> = {
@@ -61,11 +62,10 @@ export function CompanyWallet({ companyId, companyName, accent }: { companyId: s
 
   const exportCsv = () => {
     const head = ["Date", "Description", "Record", "Fund", "In", "Out", "Balance"];
-    const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
     const lines = [...rows].reverse().map((r: any) => [
       new Date(r.occurred_at).toISOString().slice(0, 10), r.description, r.record_ref, name(r.bucket_key),
       r.direction === "credit" ? r.amount : "", r.direction === "debit" ? r.amount : "", r.running_balance,
-    ].map(esc).join(","));
+    ].map(walletCsvCell).join(","));
     const blob = new Blob([[head.join(","), ...lines].join("\n")], { type: "text/csv;charset=utf-8" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
