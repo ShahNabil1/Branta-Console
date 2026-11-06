@@ -1,5 +1,0 @@
-- Use OAuth issuer verification with the client claim required and caller-scoped Supabase; never import privileged clients — why: remote tools must preserve employee identity and RLS.
-- Require active employees, completed password changes and AAL2 on every data tool — why: OAuth must not bypass account gates.
-- Resolve an explicit company slug through resolveLeadCompany and preserve feature permissions and ownership — why: company records remain isolated.
-- Keep tools read-only with explicit field projections and bounded results; omit contact details and finance — why: expose only the minimal directory requested by the initial catalog.
-- Keep browser-local WebMCP out of defineMcp and module initialization free of I/O and runtime environment reads — why: manifest extraction and Worker cold starts must be safe.

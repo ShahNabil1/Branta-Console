@@ -79,8 +79,6 @@ import { useConfirm } from "@/components/ui/confirm-dialog";
 import { LeadCard } from "@/components/leads/lead-card";
 import { LeadFormSheet } from "@/components/leads/lead-form-sheet";
 import { followUpState } from "@/components/leads/lead-meta";
-import { useWebMCP } from "use-webmcp-tool";
-import { runWebMCPTool } from "@/lib/webmcp-telemetry";
 import { useCompanyPath } from "@/components/company/use-company-path";
 
 const PAGE_SIZE_OPTIONS = [50, 100, 150, 200] as const;
@@ -312,26 +310,6 @@ export function LeadsPage() {
     if (typeof value !== "string") throw new Error("Search must be text.");
     setSearch(value);
   }
-
-  useWebMCP({
-    name: "read_visible_leads",
-    description: "Read lead names, IDs and statuses on the current company page, respecting search, filters and pagination.",
-    enabled: !leadsQuery.isError,
-    annotations: { readOnlyHint: true, untrustedContentHint: true },
-    execute: () => runWebMCPTool("read_visible_leads", () => {
-      if (leadsQuery.isLoading) return "Leads are loading.";
-      return paged.length === 0 ? "No leads shown." : paged.map((r) => `${r.id}: ${r.slug ?? r.lead_code} — ${r.name} — ${r.status}`).join("\n");
-    }),
-  });
-  useWebMCP({
-    name: "search_visible_leads",
-    description: "Set the Leads screen's text search without changing the company or other filters; an empty string clears search.",
-    inputSchema: { type: "object", properties: { search: { type: "string", description: "The text to put in the existing lead search control." } }, required: ["search"], additionalProperties: false },
-    execute: ({ search: value }: { search: string }) => runWebMCPTool("search_visible_leads", () => {
-      changeLeadSearch(value);
-      return "Lead search updated.";
-    }),
-  });
 
   // Reset to page 1 when filters/search change the result set below current page
   useEffect(() => {

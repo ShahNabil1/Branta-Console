@@ -6,7 +6,6 @@
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 import { fileURLToPath } from "node:url";
-import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/tanstack/vite";
 
 const tslibEsm = fileURLToPath(new URL("./node_modules/tslib/tslib.es6.js", import.meta.url));
 
@@ -17,7 +16,6 @@ export default defineConfig({
     server: { entry: "server" },
   },
   vite: {
-    plugins: [mcpPlugin()],
     resolve: {
       alias: [{ find: /^tslib$/, replacement: tslibEsm }],
     },
