@@ -91,3 +91,22 @@ export async function isGroupStaff(supabase: any, userId: string): Promise<boole
   const r = await Promise.all(roles.map((role) => supabase.rpc("has_role", { _user_id: userId, _role: role })));
   return r.some((x) => !!x.data);
 }
+
+/**
+ * Employees a caller may pick in a sister workspace: that company's active members,
+ * minus Branta group staff (Group Admin / HR / Accounts) unless the caller is group staff.
+ * Returns null for the holding workspace (no restriction).
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function visibleWorkspaceUserIds(supabase: any, callerId: string, slug: string | null): Promise<Set<string> | null> {
+  if (!slug) return null;
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: co } = await supabaseAdmin.from("companies").select("is_holding").eq("slug", slug).maybeSingle();
+  if (!co || (co as { is_holding: boolean }).is_holding) return null;
+  const ids = await companyMemberUserIds(slug);
+  if (await isGroupStaff(supabase, callerId)) return ids;
+  const { data: gr } = await supabaseAdmin.from("user_roles").select("user_id")
+    .in("user_id", [...ids]).in("role", ["super_admin", "admin", "finance"]);
+  for (const r of (gr ?? []) as { user_id: string }[]) ids.delete(r.user_id);
+  return ids;
+}
