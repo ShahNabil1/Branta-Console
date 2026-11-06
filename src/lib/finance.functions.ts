@@ -1653,7 +1653,8 @@ export const listEmployeesForFinance = createServerFn({ method: "GET" })
       .is("deactivated_at" as never, null)
       .order("full_name");
     if (error) throw dbError(error);
-    const rows = ((data ?? []) as { id: string }[]).filter((r) => !allowed || allowed.has(r.id)).map(({ id: _id, ...r }) => r) as unknown as {
+    const visible = await (await import("@/lib/company-scope.server")).visibleWorkspaceUserIds(context.supabase, context.userId, input.workspace ?? null);
+    const rows = ((data ?? []) as { id: string; user_id: string }[]).filter((r) => (!allowed || allowed.has(r.id)) && (!visible || visible.has(r.user_id))).map(({ id: _id, ...r }) => r) as unknown as {
       user_id: string;
       full_name: string | null;
       employee_code: string | null;
