@@ -9,7 +9,7 @@ export const issueAdmakaiSession = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     if (!isAdmakaiCallback(data.redirect_uri)) throw new Error("This Admakai callback is not approved.");
     const [profile, roles, auth] = await Promise.all([
-      context.supabase.from("profiles").select("deactivated_at, allowed_apps, must_change_password, must_link_telegram").eq("user_id", context.userId).maybeSingle(),
+      context.supabase.from("profiles").select("deactivated_at, allowed_apps, must_change_password").eq("user_id", context.userId).maybeSingle(),
       context.supabase.from("user_roles").select("role").eq("user_id", context.userId),
       context.supabase.auth.getUser(),
     ]);

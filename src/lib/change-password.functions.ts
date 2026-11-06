@@ -207,15 +207,9 @@ export const setInitialPassword = createServerFn({ method: "POST" })
         dedupeKey: `pwd:${context.userId}:initial:${Date.now()}`,
         actorId: context.userId,
       });
-      // Check if onboarding is now complete (telegram already linked).
-      const { data: sub } = await supabaseAdmin
-        .from("telegram_subscriptions")
-        .select("active")
-        .eq("user_id", context.userId)
-        .maybeSingle();
       const { data: prof2 } = await supabaseAdmin
         .from("profiles")
-        .select("must_link_telegram, full_name")
+        .select("full_name")
         .eq("user_id", context.userId)
         .maybeSingle();
       const name =

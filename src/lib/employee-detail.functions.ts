@@ -138,7 +138,7 @@ export const getEmployeeDetail = createServerFn({ method: "GET" })
       supabaseAdmin
         .from("profiles")
         .select(
-          "full_name, legal_full_name, avatar_url, employee_code, job_role, phone_primary, phone_alt, address_line1, address_line2, city, district, division, upazila, post_office, postcode, country, bank_name, bank_account_name, bank_account_number, bank_routing, mfs_provider, mfs_number, payment_methods, nid_url, cv_url, identity_doc_type, nid_front_url, nid_back_url, passport_photo_url, passport_address_url, birth_certificate_url, personal_gmail, kyc_status, must_change_password, must_link_telegram, allowed_apps",
+          "full_name, legal_full_name, avatar_url, employee_code, job_role, phone_primary, phone_alt, address_line1, address_line2, city, district, division, upazila, post_office, postcode, country, bank_name, bank_account_name, bank_account_number, bank_routing, mfs_provider, mfs_number, payment_methods, nid_url, cv_url, identity_doc_type, nid_front_url, nid_back_url, passport_photo_url, passport_address_url, birth_certificate_url, personal_gmail, kyc_status, must_change_password, allowed_apps",
         )
         .eq("user_id", data.userId)
         .maybeSingle(),
@@ -457,12 +457,11 @@ export const resendOnboardingInstructions = createServerFn({ method: "POST" })
 
     const prof = await supabaseAdmin
       .from("profiles")
-      .select("must_change_password, must_link_telegram")
+      .select("must_change_password")
       .eq("user_id", data.userId)
       .maybeSingle();
     const mustPwd = !!(prof.data as any)?.must_change_password;
-    const mustTg = !!(prof.data as any)?.must_link_telegram;
-    if (!mustPwd && !mustTg) {
+    if (!mustPwd) {
       throw new Error(
         "This employee has already completed onboarding. Use Reset password instead.",
       );
@@ -480,7 +479,6 @@ export const resendOnboardingInstructions = createServerFn({ method: "POST" })
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .update({
         must_change_password: true,
-        must_link_telegram: false,
       } as any)
       .eq("user_id", data.userId);
 

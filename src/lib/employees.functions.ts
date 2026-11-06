@@ -265,12 +265,9 @@ export const createEmployee = createServerFn({ method: "POST" })
         throw new Error(roleErr.message);
       }
 
-      // Force onboarding on first sign-in: set a personal password AND
-      // link Telegram. Both flags self-clear once the employee completes
-      // the corresponding step.
+      // Force a personal password on first sign-in.
       const profilePatch: Record<string, unknown> = {
         must_change_password: true,
-        must_link_telegram: false,
       };
       if (data.personalGmail) profilePatch.personal_gmail = data.personalGmail;
       if (data.grantAdmakai) profilePatch.allowed_apps = ["admakai"];

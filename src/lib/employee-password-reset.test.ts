@@ -6,7 +6,7 @@ function fixture({ emailFails = false, resetTwoFactor = false, deleteFails = fal
   const writes: { table: string; value: any }[] = [];
   const removed: string[] = [];
   const authUpdates: any[] = [];
-  const profile = { user_id: "employee", must_link_telegram: false };
+  const profile = { user_id: "employee" };
   const telegram = { active: true, chat_id: "original-chat" };
   const factors = [{ id: "existing-totp", factor_type: "totp" }];
   const admin = {

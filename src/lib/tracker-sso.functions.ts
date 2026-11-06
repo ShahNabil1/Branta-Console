@@ -33,7 +33,7 @@ export const issueTrackerSession = createServerFn({ method: "POST" })
     const [{ data: prof }, { data: roles }, { data: userRes }] = await Promise.all([
       sb
         .from("profiles")
-        .select("full_name, employee_code, job_role, avatar_url, deactivated_at, must_change_password, must_link_telegram")
+        .select("full_name, employee_code, job_role, avatar_url, deactivated_at, must_change_password")
         .eq("user_id", context.userId)
         .maybeSingle(),
       sb.from("user_roles").select("role").eq("user_id", context.userId),
