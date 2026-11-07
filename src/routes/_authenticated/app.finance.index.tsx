@@ -6,9 +6,17 @@ import { getFinanceReport, type Currency } from "@/lib/finance.functions";
 import { KpiTile } from "@/components/branta/kpi-tile";
 import { FileText, TrendingUp, TrendingDown } from "lucide-react";
 import { ReportWorkspace } from "@/components/finance/report-workspace";
+import { FinanceExportButton } from "@/components/finance/finance-export-dialog";
 
 export const Route = createFileRoute("/_authenticated/app/finance/")({
-  head: () => ({ meta: [{ title: "Finance Dashboard · Branta" }] }),
+  head: () => ({ meta: [
+    { title: "Finance Dashboard · Branta Tech" },
+    { name: "description", content: "Branta Tech finance dashboard, income, expenses and admin finance reports." },
+    { property: "og:title", content: "Finance Dashboard · Branta Tech" },
+    { property: "og:description", content: "Company income, expenses and finance reports in Branta Console." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   component: FinanceDashboard,
 });
 
@@ -62,6 +70,7 @@ function FinanceDashboard() {
           </p>
         </div>
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+          <FinanceExportButton />
           <div className="inline-flex items-center rounded-sm border border-border bg-card p-0.5">
             {(["BDT", "USD"] as Currency[]).map((c) => (
               <button key={c}

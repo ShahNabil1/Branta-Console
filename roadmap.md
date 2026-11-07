@@ -1,5 +1,11 @@
 # Roadmap
 
+## Read-only finance export
+- [x] Map existing paid installment/manual ledger income and active expense fields; no data/schema changes. Current All time: income 309500, expenses 298597, net 10903 BDT.
+- [x] Add admin-only Finance Report date-range dialog and client-generated SheetJS three-sheet Excel / three-section A4 PDF.
+- [x] 23 calculation/access/expense regression tests pass; isolated real-component All time Excel/PDF downloads with actual records pass; workbook recalculation has 24 formulas and zero errors. All seven PDF pages inspected; fixed narrow total labels.
+- [ ] Verify authenticated admin export against the live console totals; external unmanaged authentication has no available test session.
+
 ## Provider issue repair
 - [x] Add per-card Fix and API repair choice with OAuth/manual validated key, then company-owned webhook repair and health recheck.
 - [x] Add company-scoped Resend/Brevo domain DNS repair, editable Resend tracking choice, confirmation and verified-result refresh.

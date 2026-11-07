@@ -3,6 +3,25 @@
 import { dbError } from "@/lib/db-errors";
 import { formatCategory } from "@/lib/expense-categories";
 import type { ExpenseReportRow } from "@/lib/expense-report-pdf.server";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
+import type { FinanceExpense } from "@/lib/finance-export";
+
+/** Simple finance export projection; preserves existing detailed expense reports. */
+export async function collectFinanceExpenses(sb: SupabaseClient<Database>, from: string | null, to: string | null): Promise<FinanceExpense[]> {
+  const result: FinanceExpense[] = [];
+  for (let offset = 0; ; offset += 1000) {
+    let query = sb.from("expenses").select("id, spent_on, request_purpose, notes, category, txn_id, amount")
+      .eq("currency", "BDT").is("deleted_at", null).order("spent_on").order("id").range(offset, offset + 999);
+    if (from) query = query.gte("spent_on", from);
+    if (to) query = query.lte("spent_on", to);
+    const { data, error } = await query;
+    if (error) throw dbError(error);
+    for (const r of data ?? []) result.push({ date: r.spent_on, purpose: r.request_purpose?.trim() || r.notes?.trim() || formatCategory(r.category), transactionId: r.txn_id ?? "", amount: Number(r.amount) });
+    if ((data?.length ?? 0) < 1000) break;
+  }
+  return result;
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Sb = any;
