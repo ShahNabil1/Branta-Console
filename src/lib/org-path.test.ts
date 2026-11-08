@@ -28,3 +28,10 @@ test("switching back to Branta Tech keeps My Company", () => {
 test("Back to Expenses stays in the sister workspace", () => {
   expect(toCompanyPath("/app/finance/expenses", "admakai", false)).toBe("/app/org/admakai/finance/expenses");
 });
+describe("tasks route", () => {
+  it("is company-scoped", () => {
+    expect(isOrgScoped("/app/tasks")).toBe(true);
+    expect(toCompanyPath("/app/tasks", "admakai", false)).toBe("/app/org/admakai/tasks");
+    expect(toCompanyPath("/app/org/admakai/tasks", "branta", true)).toBe("/app/tasks");
+  });
+});
