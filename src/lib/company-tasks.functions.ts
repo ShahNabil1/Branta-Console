@@ -171,7 +171,8 @@ export const getCompanyTask = createServerFn({ method: "POST" })
     for (const r of [asg, subs, assets, sub, com, act]) if (r.error) throw dbError(r.error);
     const ids = [t.created_by, t.approved_by, ...(asg.data ?? []).map((a: Sb) => a.user_id), ...(sub.data ?? []).flatMap((s: Sb) => [s.user_id, s.reviewed_by]),
       ...(com.data ?? []).map((c: Sb) => c.user_id), ...(act.data ?? []).map((a: Sb) => a.actor_id), ...(subs.data ?? []).flatMap((s: Sb) => [s.assignee_id, s.done_by]),
-      ...(assets.data ?? []).map((a: Sb) => a.assignee_id)].filter(Boolean) as string[];
+      ...(assets.data ?? []).map((a: Sb) => a.assignee_id),
+      ...(act.data ?? []).flatMap((a: Sb) => JSON.stringify(a.detail ?? {}).match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g) ?? [])].filter(Boolean) as string[];
     const people = await peopleFor(ids);
     const P = (u: string) => people[u] ?? { user_id: u, name: "Team member", avatar_url: null };
     const submissionRows = await signSubmissionFiles(sub.data ?? []);
@@ -268,10 +269,13 @@ export const updateCompanyTask = createServerFn({ method: "POST" })
     const patch: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(rest)) if (v !== undefined) patch[k] = k === "description" ? (typeof v === "string" ? v.trim() || null : null) : v;
     if (!Object.keys(patch).length) return { ok: true };
+    const { data: before } = await sb.from("company_tasks").select("title, description, priority, status, due_on, due_time, tags, project_id").eq("id", id).maybeSingle();
+    const changes = Object.keys(patch).map((k) => ({ field: k, from: before?.[k] ?? null, to: patch[k] ?? null }))
+      .filter((c) => JSON.stringify(c.from) !== JSON.stringify(c.to));
     if (patch.status && patch.status !== "done") { patch.approved_by = null; patch.approved_at = null; }
     const { error } = await sb.from("company_tasks").update(patch).eq("id", id);
     if (error) throw dbError(error);
-    await log(sb, context.userId, id, patch.status ? "status" : "updated", { fields: Object.keys(patch), status: patch.status });
+    if (changes.length) await log(sb, context.userId, id, changes.length === 1 && changes[0].field === "status" ? "status" : "updated", { fields: changes.map((c) => c.field), status: patch.status, from_status: before?.status ?? null, changes });
     return { ok: true };
   });
 
@@ -377,7 +381,7 @@ export const addCompanyTaskSubtask = createServerFn({ method: "POST" })
     const { count } = await sb.from("company_task_subtasks").select("id", { count: "exact", head: true }).eq("task_id", data.taskId);
     const { error } = await sb.from("company_task_subtasks").insert({ task_id: data.taskId, title: data.title, description: data.description || null, assignee_id: data.assignee_id || null, position: count ?? 0 });
     if (error) throw dbError(error);
-    await log(sb, context.userId, data.taskId, "subtask_added", { title: data.title });
+    await log(sb, context.userId, data.taskId, "subtask_added", { title: data.title, description: data.description || null, assignee_id: data.assignee_id || null });
     return { ok: true };
   });
 
@@ -386,12 +390,12 @@ export const updateCompanyTaskSubtask = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ id: Id, done: z.boolean().optional(), title: z.string().trim().min(1).max(300).optional(), description: z.string().trim().max(2000).optional().nullable(), assignee_id: Id.optional().nullable(), remove: z.boolean().optional() }).parse(d))
   .handler(async ({ data, context }) => {
     const sb = context.supabase as Sb;
-    const { data: s, error } = await sb.from("company_task_subtasks").select("task_id, title").eq("id", data.id).maybeSingle();
+    const { data: s, error } = await sb.from("company_task_subtasks").select("task_id, title, description, assignee_id").eq("id", data.id).maybeSingle();
     if (error) throw dbError(error);
     if (!s) throw new Error("Subtask not found.");
     if (data.remove) {
       const r = await sb.from("company_task_subtasks").delete().eq("id", data.id); if (r.error) throw dbError(r.error);
-      await log(sb, context.userId, s.task_id, "subtask_removed", { title: s.title });
+      await log(sb, context.userId, s.task_id, "subtask_removed", { title: s.title, description: s.description, assignee_id: s.assignee_id });
       return { ok: true };
     }
     const patch: Record<string, unknown> = {};
@@ -402,7 +406,8 @@ export const updateCompanyTaskSubtask = createServerFn({ method: "POST" })
     const { data: rows, error: ue } = await sb.from("company_task_subtasks").update(patch).eq("id", data.id).select("id");
     if (ue) throw dbError(ue);
     if (!rows?.length) throw new Error("Only this task's assignees can update subtasks.");
-    await log(sb, context.userId, s.task_id, data.done !== undefined ? (data.done ? "subtask_done" : "subtask_reopened") : "subtask_edited", { title: data.title ?? s.title });
+    const changes = Object.keys(patch).map((k) => ({ field: k, from: (s as Sb)[k] ?? null, to: patch[k] ?? null })).filter((c) => JSON.stringify(c.from) !== JSON.stringify(c.to));
+    if (changes.length) await log(sb, context.userId, s.task_id, "subtask_edited", { title: data.title ?? s.title, subtask_id: data.id, changes });
     return { ok: true };
   });
 
@@ -423,7 +428,7 @@ export const addCompanyTaskAssets = createServerFn({ method: "POST" })
     if ((count ?? 0) + data.assets.length > MAX_TASK_ASSETS) throw new Error(`A task can hold at most ${MAX_TASK_ASSETS} assets.`);
     const { error } = await sb.from("company_task_assets").insert(data.assets.map((a, i) => ({ task_id: data.taskId, ...assetRow(a), subtask_id: a.subtask_id || null, position: (count ?? 0) + i, created_by: context.userId })));
     if (error) throw dbError(error);
-    await log(sb, context.userId, data.taskId, "assets_added", { count: data.assets.length });
+    await log(sb, context.userId, data.taskId, "assets_added", { count: data.assets.length, items: data.assets.map((a) => ({ kind: a.kind, name: (a as Sb).file?.name ?? (a as Sb).title ?? (a as Sb).url ?? null, subtask_id: a.subtask_id || null, assignee_id: (a as Sb).assignee_id || null })) });
     return { ok: true };
   });
 
@@ -432,13 +437,14 @@ export const updateCompanyTaskAsset = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ id: Id, assignee_id: Id.optional().nullable(), title: z.string().trim().max(200).optional().nullable(), kind: AssetKind.optional(), subtask_id: Id.optional().nullable(), remove: z.boolean().optional() }).parse(d))
   .handler(async ({ data, context }) => {
     const sb = context.supabase as Sb;
-    const { data: a, error } = await sb.from("company_task_assets").select("task_id, url").eq("id", data.id).maybeSingle();
+    const { data: a, error } = await sb.from("company_task_assets").select("task_id, url, title, kind, subtask_id, assignee_id, file").eq("id", data.id).maybeSingle();
     if (error) throw dbError(error);
     if (!a) throw new Error("Asset not found.");
+    const assetName = a.title || a.file?.name || a.url;
     await assertManage(sb, context.userId, await taskCompany(sb, a.task_id));
     if (data.remove) {
       const r = await sb.from("company_task_assets").delete().eq("id", data.id); if (r.error) throw dbError(r.error);
-      await log(sb, context.userId, a.task_id, "asset_removed", { url: a.url });
+      await log(sb, context.userId, a.task_id, "asset_removed", { url: a.url, name: assetName, kind: a.kind, subtask_id: a.subtask_id, assignee_id: a.assignee_id, file: !!a.file });
       return { ok: true };
     }
     const patch: Record<string, unknown> = {};
@@ -453,7 +459,8 @@ export const updateCompanyTaskAsset = createServerFn({ method: "POST" })
       patch.subtask_id = data.subtask_id;
     }
     const r = await sb.from("company_task_assets").update(patch).eq("id", data.id); if (r.error) throw dbError(r.error);
-    await log(sb, context.userId, a.task_id, "asset_updated", { url: a.url, assignee_id: data.assignee_id });
+    const changes = Object.keys(patch).map((k) => ({ field: k, from: (a as Sb)[k] ?? null, to: patch[k] ?? null })).filter((c) => JSON.stringify(c.from) !== JSON.stringify(c.to));
+    if (changes.length) await log(sb, context.userId, a.task_id, "asset_updated", { url: a.url, name: assetName, kind: patch.kind ?? a.kind, changes });
     return { ok: true };
   });
 
@@ -549,8 +556,13 @@ export const reviewCompanyTaskSubmission = createServerFn({ method: "POST" })
       const { data: a } = await sb.from("company_task_assets").select("subtask_id").eq("id", s.asset_id).maybeSingle();
       subId = a?.subtask_id ?? null;
     }
-    if (subId) await sb.from("company_task_subtasks").update({ done: data.decision === "approved" }).eq("id", subId).eq("task_id", s.task_id);
-    await log(sb, context.userId, s.task_id, data.decision === "approved" ? "submission_approved" : "revision_requested", { for: s.user_id, note: data.note || null });
+    let subTitle: string | null = null;
+    if (subId) {
+      const { data: st } = await sb.from("company_task_subtasks").update({ done: data.decision === "approved" }).eq("id", subId).eq("task_id", s.task_id).select("title").maybeSingle();
+      subTitle = st?.title ?? null;
+    }
+    await log(sb, context.userId, s.task_id, data.decision === "approved" ? "submission_approved" : "revision_requested", { for: s.user_id, note: data.note || null, subtask_id: subId, subtask: subTitle, asset_id: s.asset_id ?? null });
+    if (subId && subTitle) await log(sb, context.userId, s.task_id, data.decision === "approved" ? "subtask_done" : "subtask_reopened", { title: subTitle, subtask_id: subId, for: s.user_id, auto: true });
     return { ok: true };
   });
 
@@ -559,10 +571,11 @@ export const setMyCompanyTaskStatus = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ taskId: Id, status: z.enum(["todo", "doing"]) }).parse(d))
   .handler(async ({ data, context }) => {
     const sb = context.supabase as Sb;
+    const { data: prev } = await sb.from("company_task_assignees").select("status").eq("task_id", data.taskId).eq("user_id", context.userId).maybeSingle();
     const { data: rows, error } = await sb.from("company_task_assignees").update({ status: data.status }).eq("task_id", data.taskId).eq("user_id", context.userId).select("id");
     if (error) throw dbError(error);
     if (!rows?.length) throw new Error("You are not assigned to this task.");
-    await log(sb, context.userId, data.taskId, "my_status", { status: data.status });
+    await log(sb, context.userId, data.taskId, "my_status", { status: data.status, from: prev?.status ?? null });
     return { ok: true };
   });
 
@@ -573,7 +586,7 @@ export const addCompanyTaskComment = createServerFn({ method: "POST" })
     const sb = context.supabase as Sb;
     const { error } = await sb.from("company_task_comments").insert({ task_id: data.taskId, user_id: context.userId, body: data.body });
     if (error) throw dbError(error);
-    await log(sb, context.userId, data.taskId, "commented");
+    await log(sb, context.userId, data.taskId, "commented", { body: data.body.slice(0, 300) });
     return { ok: true };
   });
 
@@ -582,10 +595,10 @@ export const deleteCompanyTaskComment = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ id: Id }).parse(d))
   .handler(async ({ data, context }) => {
     const sb = context.supabase as Sb;
-    const { data: rows, error } = await sb.from("company_task_comments").delete().eq("id", data.id).select("task_id");
+    const { data: rows, error } = await sb.from("company_task_comments").delete().eq("id", data.id).select("task_id, body, user_id");
     if (error) throw dbError(error);
     if (!rows?.length) throw new Error("You can't remove this comment.");
-    await log(sb, context.userId, rows[0].task_id, "comment_removed");
+    await log(sb, context.userId, rows[0].task_id, "comment_removed", { body: String(rows[0].body ?? "").slice(0, 300), for: rows[0].user_id });
     return { ok: true };
   });
 

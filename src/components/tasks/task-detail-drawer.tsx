@@ -26,6 +26,7 @@ import { ExpenseReceiptsGallery } from "@/components/finance/expense-receipts-ga
 import { downloadFile } from "@/components/finance/download-file";
 import { cn } from "@/lib/utils";
 import { DiscardCancelButton } from "@/components/company/danger-confirm";
+import { TaskActivityLog } from "./task-activity";
 import { TaskAssetComposer, type ComposedItem } from "./task-asset-composer";
 import { AREA, AvatarStack, FIELD, LABEL, PersonAvatar, PriorityBadge, SegmentedProgress, StatusChip, fmtDateTime, fmtDue, spring, AssetKindToggle, type AssetKind } from "./task-ui";
 
@@ -34,13 +35,6 @@ type UpdPatch = { id: string; title?: string; description?: string | null; prior
 type SubPatch = { id: string; done?: boolean; title?: string; description?: string | null; assignee_id?: string | null; remove?: boolean };
 type AssetPatch = { id: string; subtask_id?: string | null; assignee_id?: string | null; title?: string | null; kind?: AssetKind; remove?: boolean };
 
-const ACTIVITY_TEXT: Record<string, string> = {
-  created: "created the task", updated: "updated the task", status: "changed the status", approved: "approved the task", archived: "archived the task", unarchived: "restored the task", published: "made the task live", scheduled: "scheduled the task", drafted: "moved the task to drafts",
-  assignees: "changed the assignees", subtask_added: "added a subtask", subtask_removed: "removed a subtask", subtask_done: "completed a subtask",
-  subtask_reopened: "reopened a subtask", subtask_edited: "edited a subtask", assets_added: "added assets", asset_removed: "removed an asset",
-  asset_updated: "updated an asset", submitted: "submitted work", submission_approved: "approved a submission", revision_requested: "requested a revision",
-  my_status: "updated their progress", commented: "commented", comment_removed: "removed a comment", note: "added a note",
-};
 
 export function TaskDetailDrawer({ taskId, onClose, members, projects }: {
   taskId: string | null; onClose: () => void; members: TaskMember[]; projects: { id: string; title: string }[];
@@ -88,7 +82,7 @@ function Body({ taskId, onClose, members, projects }: { taskId: string; onClose:
             {tab === "overview" && <Overview t={t} members={members} projects={projects} refresh={refresh} />}
             {tab === "submissions" && <Submissions t={t} refresh={refresh} />}
             {tab === "comments" && <Comments t={t} refresh={refresh} />}
-            {tab === "activity" && <ActivityTab t={t} refresh={refresh} />}
+            {tab === "activity" && <ActivityTab t={t} refresh={refresh} projects={projects} />}
           </motion.div>
         </AnimatePresence>
       </div>
@@ -789,46 +783,31 @@ function Comments({ t, refresh }: { t: CompanyTaskDetail; refresh: () => void })
   );
 }
 
-function ActivityTab({ t, refresh }: { t: CompanyTaskDetail; refresh: () => void }) {
+function ActivityTab({ t, refresh, projects }: { t: CompanyTaskDetail; refresh: () => void; projects: { id: string; title: string }[] }) {
   const addNote = useServerFn(addCompanyTaskNote);
   const [note, setNote] = useState("");
   const post = useAct(() => addNote({ data: { taskId: t.id, note: note.trim() } }), refresh);
   return (
-    <div className="space-y-3">
-      {t.can.work && (
-        <div className="flex gap-2">
-          <Input value={note} onChange={(e) => setNote(e.target.value)} maxLength={2000} aria-label="Add an activity note" placeholder="Add an activity note" enterKeyHint="done"
-            onKeyDown={(e) => { if (e.key === "Enter" && note.trim() && !e.nativeEvent.isComposing) { e.preventDefault(); e.stopPropagation(); post.mutate(undefined, { onSuccess: () => setNote("") }); } }} className={`${FIELD} h-9`} />
-          <Button size="sm" disabled={!note.trim() || post.isPending} onClick={() => post.mutate(undefined, { onSuccess: () => setNote("") })} className="h-9 rounded-md">Add</Button>
-        </div>
-      )}
-      <ol className="relative space-y-3 border-l border-border pl-4">
-        {t.activity.map((a, i) => {
-          const who = t.people[a.actor_id];
-          const d = a.detail as { note?: string; status?: string };
-          return (
-            <motion.li key={a.id} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} transition={{ ...spring, delay: Math.min(i, 12) * 0.02 }} className="relative">
-              <span className="absolute -left-[21px] top-1 grid size-2.5 place-items-center rounded-full bg-card ring-2 ring-border" />
-              <div className="flex items-center gap-1.5 text-[12.5px]">
-                <PersonAvatar name={who?.name ?? "?"} src={who?.avatar_url} size={18} />
-                <span className="font-bold">{who?.name ?? "Team member"}</span>
-                <span className="text-muted-foreground">{ACTIVITY_TEXT[a.kind] ?? a.kind}{a.kind === "status" && d.status ? ` → ${statusLabel(d.status)}` : ""}</span>
-                <span className="ml-auto shrink-0 font-mono text-[10.5px] text-muted-foreground">{fmtDateTime(a.created_at)}</span>
-              </div>
-              {d.note && <p className="ml-6 mt-1 whitespace-pre-wrap rounded-md border border-border bg-muted/30 px-2 py-1 text-[12.5px]">{d.note}</p>}
-            </motion.li>
-          );
-        })}
-      </ol>
-    </div>
+    <TaskActivityLog t={t} projects={projects} composer={t.can.work ? (
+      <div className="flex gap-2">
+        <Input value={note} onChange={(e) => setNote(e.target.value)} maxLength={2000} aria-label="Add an activity note" placeholder="Add an activity note" enterKeyHint="done"
+          onKeyDown={(e) => { if (e.key === "Enter" && note.trim() && !e.nativeEvent.isComposing) { e.preventDefault(); e.stopPropagation(); post.mutate(undefined, { onSuccess: () => setNote("") }); } }} className={`${FIELD} h-9`} />
+        <Button size="sm" disabled={!note.trim() || post.isPending} onClick={() => post.mutate(undefined, { onSuccess: () => setNote("") })} className="h-9 rounded-md">Add</Button>
+      </div>
+    ) : undefined} />
   );
 }
 
 function Footer({ t, refresh, onClose }: { t: CompanyTaskDetail; refresh: () => void; onClose: () => void }) {
   const approve = useServerFn(approveCompanyTask), archive = useServerFn(archiveCompanyTask);
   const confirm = useConfirm();
-  const ap = useAct(() => approve({ data: { id: t.id } }), refresh, "Task approved");
+  const ap = useAct(() => approve({ data: { id: t.id } }), refresh, "Task completed");
   const pending = t.submissions.filter((s) => s.status === "pending").length;
+  const openSubs = t.subtasks.filter((s) => !s.done).length;
+  const notApproved = t.assignee_rows.filter((a) => a.status !== "approved").length;
+  // Completion only after review: every subtask ticked, every assignee approved, nothing waiting.
+  const ready = t.assignee_rows.length > 0 && openSubs === 0 && notApproved === 0 && pending === 0;
+  const waiting = pending ? `${pending} submission${pending > 1 ? "s" : ""} to review` : openSubs ? `${openSubs} subtask${openSubs > 1 ? "s" : ""} open` : notApproved ? `${notApproved} assignee${notApproved > 1 ? "s" : ""} not approved yet` : "Add assignees first";
   return (
     <div className="flex items-center justify-between gap-2 border-t border-border bg-card px-6 py-3.5">
       <div className="flex items-center gap-2"><span className="text-[12px] font-semibold text-muted-foreground">Team</span><AvatarStack people={t.assignees} max={6} /></div>
@@ -840,18 +819,21 @@ function Footer({ t, refresh, onClose }: { t: CompanyTaskDetail; refresh: () => 
             if (ok) { toast.success("Task archived"); refresh(); onClose(); }
           }} className="h-9 gap-1 rounded-md"><Archive className="size-4" />Archive</Button>
         )}
-        {t.can.review && !t.approved_at && (
+        {t.can.review && !t.approved_at && ready && (
           <Button onClick={async () => {
             const ok = await confirm({
-              tone: pending ? "warning" : "info", icon: BadgeCheck, title: `Approve "${t.title}"?`,
-              subject: "The task is marked as approved and done.",
-              points: pending ? [`${pending} submission${pending > 1 ? "s are" : " is"} still waiting for review.`] : undefined,
-              confirmLabel: "Approve task",
+              tone: "info", icon: BadgeCheck, title: `Mark "${t.title}" complete?`,
+              subject: "All work is reviewed and approved.",
+              points: [`${t.subtasks_total} of ${t.subtasks_total} subtasks done.`, `${t.assignee_rows.length} assignee${t.assignee_rows.length === 1 ? "" : "s"} approved.`, "The task moves to Done and is locked as completed.", "Submissions, comments and activity stay unchanged."],
+              confirmLabel: "Mark complete",
             });
             if (ok) ap.mutate(undefined);
           }} disabled={ap.isPending} className="h-9 gap-1.5 rounded-md shadow-md shadow-brand/25 transition-all active:scale-95">
-            {ap.isPending ? <TestLoader tone="white" /> : <BadgeCheck className="size-4" />}Approve task{pending ? ` (${pending} pending)` : ""}
+            {ap.isPending ? <TestLoader tone="white" /> : <BadgeCheck className="size-4" />}Mark complete
           </Button>
+        )}
+        {t.can.review && !t.approved_at && !ready && !t.archived_at && (
+          <span className="text-[11.5px] font-semibold text-muted-foreground" title="Review every submission first">{waiting}</span>
         )}
       </div>
     </div>
