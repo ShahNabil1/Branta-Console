@@ -435,7 +435,15 @@ function Footer({ t, refresh, onClose }: { t: CompanyTaskDetail; refresh: () => 
           }} className="h-9 gap-1 rounded-md"><Archive className="size-4" />Archive</Button>
         )}
         {t.can.review && !t.approved_at && (
-          <Button onClick={() => ap.mutate(undefined)} disabled={ap.isPending} className="h-9 gap-1.5 rounded-md shadow-md shadow-brand/25 transition-all active:scale-95">
+          <Button onClick={async () => {
+            const ok = await confirm({
+              tone: pending ? "warning" : "info", icon: BadgeCheck, title: `Approve "${t.title}"?`,
+              subject: "The task is marked as approved and done.",
+              points: pending ? [`${pending} submission${pending > 1 ? "s are" : " is"} still waiting for review.`] : undefined,
+              confirmLabel: "Approve task",
+            });
+            if (ok) ap.mutate(undefined);
+          }} disabled={ap.isPending} className="h-9 gap-1.5 rounded-md shadow-md shadow-brand/25 transition-all active:scale-95">
             {ap.isPending ? <TestLoader tone="white" /> : <BadgeCheck className="size-4" />}Approve task{pending ? ` (${pending} pending)` : ""}
           </Button>
         )}
