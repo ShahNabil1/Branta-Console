@@ -28,6 +28,7 @@ import {
   FileStack,
   HandCoins,
   FolderKanban,
+  SquareCheckBig,
   PieChart,
   Gauge,
   Contact,

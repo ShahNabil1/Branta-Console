@@ -28,6 +28,7 @@ import { Route as AuthenticatedAppNotificationsRouteImport } from './routes/_aut
 import { Route as AuthenticatedAppOperationsRouteImport } from './routes/_authenticated/app.operations'
 import { Route as AuthenticatedAppProfileRouteImport } from './routes/_authenticated/app.profile'
 import { Route as AuthenticatedAppSettingsRouteImport } from './routes/_authenticated/app.settings'
+import { Route as AuthenticatedAppTasksRouteImport } from './routes/_authenticated/app.tasks'
 import { Route as AuthenticatedAppTrackerSettingsRouteImport } from './routes/_authenticated/app.tracker-settings'
 import { Route as AuthenticatedAppTransfersRouteImport } from './routes/_authenticated/app.transfers'
 import { Route as AuthenticatedOnboardingPasswordRouteImport } from './routes/_authenticated/onboarding.password'
@@ -90,6 +91,7 @@ import { Route as AuthenticatedAppOrgOrgAnalyticsRouteImport } from './routes/_a
 import { Route as AuthenticatedAppOrgOrgInboxRouteImport } from './routes/_authenticated/app.org.$org.inbox'
 import { Route as AuthenticatedAppOrgOrgMyCompanyRouteImport } from './routes/_authenticated/app.org.$org.my-company'
 import { Route as AuthenticatedAppOrgOrgOperationsRouteImport } from './routes/_authenticated/app.org.$org.operations'
+import { Route as AuthenticatedAppOrgOrgTasksRouteImport } from './routes/_authenticated/app.org.$org.tasks'
 import { Route as AuthenticatedAppOrgOrgTransfersRouteImport } from './routes/_authenticated/app.org.$org.transfers'
 import { Route as AuthenticatedAppOrgOrgCustomersIndexRouteImport } from './routes/_authenticated/app.org.$org.customers.index'
 import { Route as AuthenticatedAppOrgOrgCustomersCodeRouteImport } from './routes/_authenticated/app.org.$org.customers.$code'
@@ -211,6 +213,11 @@ const AuthenticatedAppSettingsRoute =
     path: '/settings',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
+const AuthenticatedAppTasksRoute = AuthenticatedAppTasksRouteImport.update({
+  id: '/tasks',
+  path: '/tasks',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
 const AuthenticatedAppTrackerSettingsRoute =
   AuthenticatedAppTrackerSettingsRouteImport.update({
     id: '/tracker-settings',
@@ -575,6 +582,12 @@ const AuthenticatedAppOrgOrgOperationsRoute =
     path: '/operations',
     getParentRoute: () => AuthenticatedAppOrgOrgRoute,
   } as any)
+const AuthenticatedAppOrgOrgTasksRoute =
+  AuthenticatedAppOrgOrgTasksRouteImport.update({
+    id: '/tasks',
+    path: '/tasks',
+    getParentRoute: () => AuthenticatedAppOrgOrgRoute,
+  } as any)
 const AuthenticatedAppOrgOrgTransfersRoute =
   AuthenticatedAppOrgOrgTransfersRouteImport.update({
     id: '/transfers',
@@ -696,6 +709,7 @@ export interface FileRoutesByFullPath {
   '/app/operations': typeof AuthenticatedAppOperationsRoute
   '/app/profile': typeof AuthenticatedAppProfileRouteWithChildren
   '/app/settings': typeof AuthenticatedAppSettingsRoute
+  '/app/tasks': typeof AuthenticatedAppTasksRoute
   '/app/tracker-settings': typeof AuthenticatedAppTrackerSettingsRoute
   '/app/transfers': typeof AuthenticatedAppTransfersRoute
   '/onboarding/password': typeof AuthenticatedOnboardingPasswordRoute
@@ -756,6 +770,7 @@ export interface FileRoutesByFullPath {
   '/app/org/$org/inbox': typeof AuthenticatedAppOrgOrgInboxRoute
   '/app/org/$org/my-company': typeof AuthenticatedAppOrgOrgMyCompanyRoute
   '/app/org/$org/operations': typeof AuthenticatedAppOrgOrgOperationsRoute
+  '/app/org/$org/tasks': typeof AuthenticatedAppOrgOrgTasksRoute
   '/app/org/$org/transfers': typeof AuthenticatedAppOrgOrgTransfersRoute
   '/app/finance/funds/': typeof AuthenticatedAppFinanceFundsIndexRoute
   '/app/finance/invoices/': typeof AuthenticatedAppFinanceInvoicesIndexRoute
@@ -789,6 +804,7 @@ export interface FileRoutesByTo {
   '/app/notifications': typeof AuthenticatedAppNotificationsRoute
   '/app/operations': typeof AuthenticatedAppOperationsRoute
   '/app/settings': typeof AuthenticatedAppSettingsRoute
+  '/app/tasks': typeof AuthenticatedAppTasksRoute
   '/app/tracker-settings': typeof AuthenticatedAppTrackerSettingsRoute
   '/app/transfers': typeof AuthenticatedAppTransfersRoute
   '/onboarding/password': typeof AuthenticatedOnboardingPasswordRoute
@@ -848,6 +864,7 @@ export interface FileRoutesByTo {
   '/app/org/$org/inbox': typeof AuthenticatedAppOrgOrgInboxRoute
   '/app/org/$org/my-company': typeof AuthenticatedAppOrgOrgMyCompanyRoute
   '/app/org/$org/operations': typeof AuthenticatedAppOrgOrgOperationsRoute
+  '/app/org/$org/tasks': typeof AuthenticatedAppOrgOrgTasksRoute
   '/app/org/$org/transfers': typeof AuthenticatedAppOrgOrgTransfersRoute
   '/app/finance/funds': typeof AuthenticatedAppFinanceFundsIndexRoute
   '/app/finance/invoices': typeof AuthenticatedAppFinanceInvoicesIndexRoute
@@ -889,6 +906,7 @@ export interface FileRoutesById {
   '/_authenticated/app/operations': typeof AuthenticatedAppOperationsRoute
   '/_authenticated/app/profile': typeof AuthenticatedAppProfileRouteWithChildren
   '/_authenticated/app/settings': typeof AuthenticatedAppSettingsRoute
+  '/_authenticated/app/tasks': typeof AuthenticatedAppTasksRoute
   '/_authenticated/app/tracker-settings': typeof AuthenticatedAppTrackerSettingsRoute
   '/_authenticated/app/transfers': typeof AuthenticatedAppTransfersRoute
   '/_authenticated/onboarding/password': typeof AuthenticatedOnboardingPasswordRoute
@@ -949,6 +967,7 @@ export interface FileRoutesById {
   '/_authenticated/app/org/$org/inbox': typeof AuthenticatedAppOrgOrgInboxRoute
   '/_authenticated/app/org/$org/my-company': typeof AuthenticatedAppOrgOrgMyCompanyRoute
   '/_authenticated/app/org/$org/operations': typeof AuthenticatedAppOrgOrgOperationsRoute
+  '/_authenticated/app/org/$org/tasks': typeof AuthenticatedAppOrgOrgTasksRoute
   '/_authenticated/app/org/$org/transfers': typeof AuthenticatedAppOrgOrgTransfersRoute
   '/_authenticated/app/finance/funds/': typeof AuthenticatedAppFinanceFundsIndexRoute
   '/_authenticated/app/finance/invoices/': typeof AuthenticatedAppFinanceInvoicesIndexRoute
@@ -990,6 +1009,7 @@ export interface FileRouteTypes {
     | '/app/operations'
     | '/app/profile'
     | '/app/settings'
+    | '/app/tasks'
     | '/app/tracker-settings'
     | '/app/transfers'
     | '/onboarding/password'
@@ -1050,6 +1070,7 @@ export interface FileRouteTypes {
     | '/app/org/$org/inbox'
     | '/app/org/$org/my-company'
     | '/app/org/$org/operations'
+    | '/app/org/$org/tasks'
     | '/app/org/$org/transfers'
     | '/app/finance/funds/'
     | '/app/finance/invoices/'
@@ -1083,6 +1104,7 @@ export interface FileRouteTypes {
     | '/app/notifications'
     | '/app/operations'
     | '/app/settings'
+    | '/app/tasks'
     | '/app/tracker-settings'
     | '/app/transfers'
     | '/onboarding/password'
@@ -1142,6 +1164,7 @@ export interface FileRouteTypes {
     | '/app/org/$org/inbox'
     | '/app/org/$org/my-company'
     | '/app/org/$org/operations'
+    | '/app/org/$org/tasks'
     | '/app/org/$org/transfers'
     | '/app/finance/funds'
     | '/app/finance/invoices'
@@ -1182,6 +1205,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/operations'
     | '/_authenticated/app/profile'
     | '/_authenticated/app/settings'
+    | '/_authenticated/app/tasks'
     | '/_authenticated/app/tracker-settings'
     | '/_authenticated/app/transfers'
     | '/_authenticated/onboarding/password'
@@ -1242,6 +1266,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/org/$org/inbox'
     | '/_authenticated/app/org/$org/my-company'
     | '/_authenticated/app/org/$org/operations'
+    | '/_authenticated/app/org/$org/tasks'
     | '/_authenticated/app/org/$org/transfers'
     | '/_authenticated/app/finance/funds/'
     | '/_authenticated/app/finance/invoices/'
@@ -1418,6 +1443,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/app/settings'
       preLoaderRoute: typeof AuthenticatedAppSettingsRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/tasks': {
+      id: '/_authenticated/app/tasks'
+      path: '/tasks'
+      fullPath: '/app/tasks'
+      preLoaderRoute: typeof AuthenticatedAppTasksRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
     '/_authenticated/app/tracker-settings': {
@@ -1854,6 +1886,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppOrgOrgOperationsRouteImport
       parentRoute: typeof AuthenticatedAppOrgOrgRoute
     }
+    '/_authenticated/app/org/$org/tasks': {
+      id: '/_authenticated/app/org/$org/tasks'
+      path: '/tasks'
+      fullPath: '/app/org/$org/tasks'
+      preLoaderRoute: typeof AuthenticatedAppOrgOrgTasksRouteImport
+      parentRoute: typeof AuthenticatedAppOrgOrgRoute
+    }
     '/_authenticated/app/org/$org/transfers': {
       id: '/_authenticated/app/org/$org/transfers'
       path: '/transfers'
@@ -2121,6 +2160,7 @@ interface AuthenticatedAppOrgOrgRouteChildren {
   AuthenticatedAppOrgOrgInboxRoute: typeof AuthenticatedAppOrgOrgInboxRoute
   AuthenticatedAppOrgOrgMyCompanyRoute: typeof AuthenticatedAppOrgOrgMyCompanyRoute
   AuthenticatedAppOrgOrgOperationsRoute: typeof AuthenticatedAppOrgOrgOperationsRoute
+  AuthenticatedAppOrgOrgTasksRoute: typeof AuthenticatedAppOrgOrgTasksRoute
   AuthenticatedAppOrgOrgTransfersRoute: typeof AuthenticatedAppOrgOrgTransfersRoute
   AuthenticatedAppOrgOrgIndexRoute: typeof AuthenticatedAppOrgOrgIndexRoute
   AuthenticatedAppOrgOrgCustomersCodeRoute: typeof AuthenticatedAppOrgOrgCustomersCodeRoute
@@ -2148,6 +2188,7 @@ const AuthenticatedAppOrgOrgRouteChildren: AuthenticatedAppOrgOrgRouteChildren =
     AuthenticatedAppOrgOrgMyCompanyRoute: AuthenticatedAppOrgOrgMyCompanyRoute,
     AuthenticatedAppOrgOrgOperationsRoute:
       AuthenticatedAppOrgOrgOperationsRoute,
+    AuthenticatedAppOrgOrgTasksRoute: AuthenticatedAppOrgOrgTasksRoute,
     AuthenticatedAppOrgOrgTransfersRoute: AuthenticatedAppOrgOrgTransfersRoute,
     AuthenticatedAppOrgOrgIndexRoute: AuthenticatedAppOrgOrgIndexRoute,
     AuthenticatedAppOrgOrgCustomersCodeRoute:
@@ -2201,6 +2242,7 @@ interface AuthenticatedAppRouteChildren {
   AuthenticatedAppOperationsRoute: typeof AuthenticatedAppOperationsRoute
   AuthenticatedAppProfileRoute: typeof AuthenticatedAppProfileRouteWithChildren
   AuthenticatedAppSettingsRoute: typeof AuthenticatedAppSettingsRoute
+  AuthenticatedAppTasksRoute: typeof AuthenticatedAppTasksRoute
   AuthenticatedAppTrackerSettingsRoute: typeof AuthenticatedAppTrackerSettingsRoute
   AuthenticatedAppTransfersRoute: typeof AuthenticatedAppTransfersRoute
   AuthenticatedAppIndexRoute: typeof AuthenticatedAppIndexRoute
@@ -2224,6 +2266,7 @@ const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
   AuthenticatedAppOperationsRoute: AuthenticatedAppOperationsRoute,
   AuthenticatedAppProfileRoute: AuthenticatedAppProfileRouteWithChildren,
   AuthenticatedAppSettingsRoute: AuthenticatedAppSettingsRoute,
+  AuthenticatedAppTasksRoute: AuthenticatedAppTasksRoute,
   AuthenticatedAppTrackerSettingsRoute: AuthenticatedAppTrackerSettingsRoute,
   AuthenticatedAppTransfersRoute: AuthenticatedAppTransfersRoute,
   AuthenticatedAppIndexRoute: AuthenticatedAppIndexRoute,
