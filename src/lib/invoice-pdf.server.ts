@@ -680,7 +680,7 @@ export async function renderInvoicePdf(
     const cy = introTop - introH / 2;
     page.drawCircle({ x: X + 18, y: cy, size: 7, borderColor: dark, borderWidth: 1.1, color: white });
     draw("i", X + 18 - bold.widthOfTextAtSize("i", 9) / 2, cy - 3.2, 9, bold, dark);
-    introLines.forEach((ln, i) => draw(ln, X + 34, introTop - 13 - i * 12 + 1, 9, bold, dark));
+    introLines.forEach((ln, i) => draw(ln, X + 34, introTop - (introH - introLines.length * 12) / 2 - 9 - i * 12, 9, bold, dark));
     iy = introTop - introH - 10;
 
     // Grid: bank details (left) + Bangla QR (right).
