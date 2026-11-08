@@ -11,6 +11,7 @@
 
 import type { PDFDocument, PDFFont, PDFImage, PDFPage, RGB } from "pdf-lib";
 import { brandEmailList, embedBrandLogo, generatedByLine, type GeneratedBy } from "@/lib/brand/pdf-brand.server";
+import { STANDARD_BANK_LOGO_ASPECT, STANDARD_BANK_LOGO_PNG_B64 } from "@/lib/brand/standard-bank-logo.server";
 import { BANGLA_QR_ASPECT, BANGLA_QR_MERCHANT_ID, BANGLA_QR_PNG_B64 } from "@/lib/brand/bangla-qr.server";
 import { embeddedCompanyImage } from "@/lib/brand/company-images.server";
 
@@ -606,98 +607,140 @@ export async function renderInvoicePdf(
   if (s.sections.payment_info !== false) {
     // One group bank account: every company's invoice always shows the Branta Tech
     // payment details, note, intro and Bangla QR — never a per-company override.
-    const infoText = DEFAULT_PAYMENT_INFO;
-    const noteText = DEFAULT_PAYMENT_NOTE;
-    const intro =
-      "Pay via bank transfer using the details below, or scan the Bangla QR with bKash, Nagad, Rocket or any mobile banking / bank app. After payment, kindly share the receipt or confirmation for verification.";
-    const introLines = wrap(intro, font, 8.5, CONTENT_W - 28);
-    // Legacy saved settings may still carry the retired bKash/Nagad wallet lines — never render them.
-    const infoLines = infoText
-      .split("\n")
-      .map((l) => l.trim())
-      .filter(Boolean)
-      .filter((l) => !/^(bkash|bikash|nagad|rocket)\s*:/i.test(l));
-    const noteLines = wrap(noteText, font, 8, CONTENT_W - 28);
-    // Local-currency merchant QR only; never imply it accepts foreign currency.
-    // The QR pays into the single Branta Tech merchant account, so it appears on
-    // every company's BDT invoice.
-    const qrImage = cur === "BDT"
+    // Bangla QR is local-currency only; foreign-currency invoices get wire-transfer copy.
+    const isLocal = cur === "BDT";
+    const dark = hex(rgb, "#111827");
+    const line = hex(rgb, "#D1D5DB");
+    const soft = hex(rgb, "#F1F2F4");
+    const white = hex(rgb, "#FFFFFF");
+    const intro = isLocal
+      ? "Please complete your payment via direct bank transfer or by scanning the Bangla QR using any banking or MFS app. Kindly share the payment receipt for quick confirmation."
+      : "Please complete your payment via international bank / wire transfer (SWIFT) using the details below. Kindly share the payment receipt or SWIFT confirmation (MT103) for quick confirmation.";
+    const notice = isLocal
+      ? "All bank charges, transfer fees and MFS charges are payable by the client so that the full invoice amount is received. Please mention the Invoice No. as the payment reference."
+      : "All bank charges, including intermediary and correspondent bank fees, are payable by the client so that the full invoice amount is received. Please mention the Invoice No. as the payment reference.";
+    const bankRows: Array<[string, string, boolean]> = [
+      ["Bank Name", "Standard Islami Bank PLC", false],
+      ["Account Name", "Branta Tech", false],
+      ["Account Number", "03433001126", true],
+      ["Branch", "Bogra Branch", false],
+      ["Branch Code", "00034", true],
+      ["Routing Number", "210100374", true],
+      ["SWIFT Code", "SDBLBDDH", true],
+      ["Bank Address", "Helal Mansion, Sherpur Road, Sutrapur, Bogura", false],
+    ];
+    const merchantRows: Array<[string, string]> = [
+      ["Merchant Name", "BRANTA_TECH"],
+      ["Merchant ID", "9021020000007090"],
+      ["Terminal Label", BANGLA_QR_MERCHANT_ID],
+    ];
+    const qrImage = isLocal
       ? await pdf.embedPng(Uint8Array.from(atob(BANGLA_QR_PNG_B64), (c) => c.charCodeAt(0)))
       : null;
-    const qrW = 112;
+    const bankLogo = await pdf.embedPng(Uint8Array.from(atob(STANDARD_BANK_LOGO_PNG_B64), (c) => c.charCodeAt(0)));
+
+    const PAD = 14;
+    const innerW = CONTENT_W - PAD * 2;
+    const introLines = wrap(intro, bold, 9, innerW - 40);
+    const introH = 16 + introLines.length * 12;
+    const leftW = qrImage ? Math.round(innerW * 0.6) : innerW;
+    const rightW = innerW - leftW;
+    const labelW = 86;
+    const valW = leftW - 24 - labelW;
+    const rowLines = bankRows.map(([, v, m]) => wrap(v, m ? monoBold : bold, 8.5, valW));
+    const rowH = (n: number) => 6 + n * 10.5;
+    const tableH = rowLines.reduce((h, l) => h + rowH(l.length), 0);
+    const refH = 24;
+    const leftH = 12 + 18 + 6 + tableH + 10 + refH + 12;
+    const qrW = 132;
     const qrH = qrW * BANGLA_QR_ASPECT;
-    const qrGap = 18;
-    const detailW = CONTENT_W - 28 - (qrImage ? qrW + qrGap : 0);
-    const detailGap = 18;
-    const detailColW = (detailW - detailGap) / 2;
-    // Pair short bank details; keep long values full-width and wrapped.
-    // Measure with bold (the wider label font), so no field is clipped.
-    const detailRows: Array<Array<{ lines: string[]; x: number }>> = [];
-    let pending: string | undefined;
-    for (const ln of infoLines) {
-      if (bold.widthOfTextAtSize(safeText(ln), 8.5) <= detailColW) {
-        if (pending === undefined) pending = ln;
-        else {
-          detailRows.push([{ lines: [pending], x: SIDE + 14 }, { lines: [ln], x: SIDE + 14 + detailColW + detailGap }]);
-          pending = undefined;
-        }
-      } else {
-        if (pending !== undefined) {
-          detailRows.push([{ lines: [pending], x: SIDE + 14 }]);
-          pending = undefined;
-        }
-        detailRows.push([{ lines: wrap(ln, bold, 8.5, detailW), x: SIDE + 14 }]);
-      }
-    }
-    if (pending !== undefined) detailRows.push([{ lines: [pending], x: SIDE + 14 }]);
-    const detailLead = qrImage ? 9.5 : 11.5;
-    const detailH = detailRows.reduce((h, row) => h + Math.max(...row.map((cell) => cell.lines.length)) * detailLead, 0);
-    const paymentBodyH = qrImage ? Math.max(detailH + 52, qrH + 16) : detailH;
-    const blockH = 24 + introLines.length * 10 + 4 + paymentBodyH + 8 + noteLines.length * 9 + 4;
+    const rightH = qrImage ? 12 + 14 + qrH + 8 + merchantRows.length * 14 + 12 : 0;
+    const gridH = Math.max(leftH, rightH);
+    const noticeLines = wrap(notice, font, 8.5, innerW - 120);
+    const noticeH = 14 + noticeLines.length * 11;
+    const blockH = 16 + 14 + 8 + introH + 10 + gridH + 10 + noticeH + PAD;
     if (blockH + SIGNATURE_H + 14 > CONTENT_TOP - CONTENT_BOTTOM) {
-      throw new Error("Payment information is too long for one page. Shorten the bank details or payment note.");
+      throw new Error("Payment information is too long for one page.");
     }
     // Reserve the page-number band as well as the signature's writing space.
     ensure(blockH + 14 + (!hasTerms && !hasNotes ? SIGNATURE_H : 0));
 
     const top = y;
+    const X = SIDE + PAD;
     page.drawRectangle({ x: SIDE, y: top - blockH, width: CONTENT_W, height: blockH, color: panel, borderColor: hair, borderWidth: 0.5 });
     page.drawRectangle({ x: SIDE, y: top - blockH, width: 3, height: blockH, color: brand });
-    let iy = top - 15;
-    draw(label("payment", "PAYMENT INFORMATION"), SIDE + 14, iy, 9, bold, brand);
-    iy -= 13;
-    introLines.forEach((ln) => { draw(ln, SIDE + 14, iy, 8.5, font, muted); iy -= 10; });
-    iy -= 4;
-    const bodyTop = iy;
-    if (qrImage) {
-      const qx = PAGE_W - SIDE - 14 - qrW;
-      page.drawLine({ start: { x: qx - qrGap / 2, y: bodyTop + 8 }, end: { x: qx - qrGap / 2, y: bodyTop - paymentBodyH + 8 }, thickness: 0.5, color: hair });
-      const centered = (label: string, baseline: number, size: number, f: PDFFont, color: RGB) => {
-        draw(label, qx + (qrW - f.widthOfTextAtSize(label, size)) / 2, baseline, size, f, color);
-      };
-      centered("SCAN TO PAY", bodyTop, 9.5, bold, brand);
-      page.drawImage(qrImage, { x: qx, y: bodyTop - 10 - qrH, width: qrW, height: qrH });
-    }
-    detailRows.forEach((row) => {
-      row.forEach((cell) => cell.lines.forEach((ln, lineIndex) => {
-      const lineY = iy - lineIndex * detailLead;
-      // Use the measured width unchanged, including punctuation/spacing.
-      draw(ln, cell.x, lineY, 8.5, font, text);
-      }));
-      iy -= Math.max(...row.map((cell) => cell.lines.length)) * detailLead;
+    let iy = top - 22;
+    draw(label("payment", "PAYMENT INFORMATION"), X, iy, 11.5, bold, brand);
+    iy -= 12;
+
+    // Intro: print-safe white box, dark accent and info mark.
+    const introTop = iy;
+    page.drawRectangle({ x: X, y: introTop - introH, width: innerW, height: introH, color: white, borderColor: line, borderWidth: 0.6 });
+    page.drawRectangle({ x: X, y: introTop - introH, width: 2.2, height: introH, color: dark });
+    const cy = introTop - introH / 2;
+    page.drawCircle({ x: X + 18, y: cy, size: 7, borderColor: dark, borderWidth: 1.1, color: white });
+    draw("i", X + 18 - bold.widthOfTextAtSize("i", 9) / 2, cy - 3.2, 9, bold, dark);
+    introLines.forEach((ln, i) => draw(ln, X + 34, introTop - 13 - i * 12 + 1, 9, bold, dark));
+    iy = introTop - introH - 10;
+
+    // Grid: bank details (left) + Bangla QR (right).
+    const gTop = iy;
+    page.drawRectangle({ x: X, y: gTop - gridH, width: innerW, height: gridH, color: white, borderColor: hair, borderWidth: 0.6 });
+    const LX = X + 12;
+    let ly = gTop - 12;
+    const logoH = 14;
+    const logoW = logoH / STANDARD_BANK_LOGO_ASPECT;
+    page.drawImage(bankLogo, { x: LX, y: ly - logoH, width: logoW, height: logoH });
+    const cap = isLocal ? "BANK TRANSFER" : "INTERNATIONAL WIRE";
+    draw(cap, LX + leftW - 24 - bold.widthOfTextAtSize(cap, 7), ly - 10, 7, bold, muted);
+    ly -= 18 + 4;
+    page.drawLine({ start: { x: LX, y: ly }, end: { x: LX + leftW - 24, y: ly }, thickness: 0.6, color: hair });
+    ly -= 2;
+    bankRows.forEach(([k, , m], i) => {
+      const lines = rowLines[i];
+      const h = rowH(lines.length);
+      draw(k, LX, ly - 11, 8, bold, muted);
+      lines.forEach((ln, j) => draw(ln, LX + labelW, ly - 11 - j * 10.5, 8.5, m ? monoBold : bold, dark));
+      ly -= h;
+      if (i < bankRows.length - 1) page.drawLine({ start: { x: LX, y: ly }, end: { x: LX + leftW - 24, y: ly }, thickness: 0.4, color: soft });
     });
+    ly -= 10;
+    // Payment reference: dynamic company-prefixed invoice number.
+    const refW = leftW - 24;
+    page.drawRectangle({ x: LX, y: ly - refH, width: refW, height: refH, color: white, borderColor: hex(rgb, "#9CA3AF"), borderWidth: 0.6 });
+    draw("PAYMENT REFERENCE", LX + 9, ly - refH / 2 - 3, 8, bold, hex(rgb, "#374151"));
+    const refText = `Invoice No. ${inv.slug}`;
+    const badgeW = monoBold.widthOfTextAtSize(safeText(refText), 9) + 14;
+    page.drawRectangle({ x: LX + refW - 6 - badgeW, y: ly - refH + 5, width: badgeW, height: refH - 10, color: white, borderColor: dark, borderWidth: 1 });
+    draw(refText, LX + refW - 6 - badgeW + 7, ly - refH / 2 - 3.2, 9, monoBold, dark);
+
     if (qrImage) {
-      // Merchant identity + scan guidance sit under the bank details, using the empty left-column space.
-      iy -= 3;
-      draw(`BRANTA TECH  |  Bangla QR Merchant ID: ${BANGLA_QR_MERCHANT_ID}`, SIDE + 14, iy, 7.5, bold, text);
-      iy -= 10;
-      const qrNote = "To pay with bKash, Nagad, Rocket or any other mobile banking or bank app, simply scan the QR code.";
-      wrap(qrNote, font, 7.5, detailW).forEach((ln) => { draw(ln, SIDE + 14, iy, 7.5, font, muted); iy -= 9; });
+      const RX = X + leftW;
+      page.drawLine({ start: { x: RX, y: gTop }, end: { x: RX, y: gTop - gridH }, thickness: 0.6, color: hair });
+      const cx = RX + rightW / 2;
+      let ry = gTop - 12;
+      const st = "SCAN TO PAY";
+      draw(st, cx - bold.widthOfTextAtSize(st, 10) / 2, ry - 9, 10, bold, brand);
+      ry -= 16;
+      page.drawImage(qrImage, { x: cx - qrW / 2, y: ry - qrH, width: qrW, height: qrH });
+      ry -= qrH + 8;
+      const mx = RX + 12;
+      const mw = rightW - 24;
+      merchantRows.forEach(([k, v], i) => {
+        page.drawLine({ start: { x: mx, y: ry }, end: { x: mx + mw, y: ry }, thickness: 0.4, color: i ? soft : hair });
+        draw(k, mx, ry - 10, 7.5, bold, muted);
+        draw(v, mx + mw - monoBold.widthOfTextAtSize(safeText(v), 7.5), ry - 10, 7.5, monoBold, dark);
+        ry -= 14;
+      });
     }
-    iy = bodyTop - paymentBodyH - 4;
-    draw("Payment Note:", SIDE + 14, iy, 8, bold, muted);
-    iy -= 10;
-    noteLines.forEach((ln) => { draw(ln, SIDE + 14, iy, 8, font, muted); iy -= 9; });
+    iy = gTop - gridH - 10;
+
+    // Important notice: print-safe box with a divided title.
+    page.drawRectangle({ x: X, y: iy - noticeH, width: innerW, height: noticeH, color: white, borderColor: line, borderWidth: 0.6 });
+    page.drawRectangle({ x: X, y: iy - noticeH, width: 2.2, height: noticeH, color: dark });
+    draw("IMPORTANT NOTICE", X + 12, iy - noticeH / 2 - 3, 8, bold, dark);
+    page.drawLine({ start: { x: X + 104, y: iy - 6 }, end: { x: X + 104, y: iy - noticeH + 6 }, thickness: 0.6, color: line });
+    noticeLines.forEach((ln, i) => draw(ln, X + 114, iy - 14 - i * 11 + 1, 8.5, font, hex(rgb, "#1F2937")));
     y = top - blockH - 10;
   }
 
