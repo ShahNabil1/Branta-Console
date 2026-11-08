@@ -34,7 +34,7 @@ export type CompanyTaskDetail = CompanyTaskCard & {
   asset_rows: { id: string; title: string | null; url: string; assignee_id: string | null; position: number }[];
   submissions: { id: string; user_id: string; asset_id: string | null; link: string | null; note: string | null; status: string; review_note: string | null; reviewed_by: string | null; reviewed_at: string | null; created_at: string }[];
   comment_rows: { id: string; user_id: string; body: string; created_at: string }[];
-  activity: { id: string; actor_id: string; kind: string; detail: Record<string, unknown>; created_at: string }[];
+  activity: { id: string; actor_id: string; kind: string; detail: Record<string, string | number | boolean | null | string[]>; created_at: string }[];
   people: Record<string, TaskPerson>;
   me: string;
   can: { edit: boolean; work: boolean; review: boolean };

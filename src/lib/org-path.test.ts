@@ -1,5 +1,5 @@
-import { expect, test } from "vitest";
-import { toCompanyPath } from "./org-path";
+import { describe, expect, it, test } from "vitest";
+import { isOrgScoped, toCompanyPath } from "./org-path";
 
 test("sister Recycle Bin stays on that company's finance page", () => {
   expect(toCompanyPath("/app/finance/recycle-bin", "admakai", false)).toBe("/app/org/admakai/finance/recycle-bin");

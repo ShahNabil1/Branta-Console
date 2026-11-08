@@ -25,6 +25,9 @@ import { cn } from "@/lib/utils";
 import { AREA, AvatarStack, FIELD, LABEL, PersonAvatar, PriorityBadge, SegmentedProgress, StatusChip, fmtDate, fmtDateTime, spring } from "./task-ui";
 
 type Tab = "overview" | "submissions" | "comments" | "activity";
+type UpdPatch = { id: string; title?: string; description?: string | null; priority?: "low" | "normal" | "high" | "urgent"; status?: "todo" | "doing" | "in_review" | "done"; due_on?: string | null; tags?: string[]; project_id?: string | null };
+type SubPatch = { id: string; done?: boolean; title?: string; assignee_id?: string | null; remove?: boolean };
+type AssetPatch = { id: string; assignee_id?: string | null; title?: string | null; remove?: boolean };
 
 const ACTIVITY_TEXT: Record<string, string> = {
   created: "created the task", updated: "updated the task", status: "changed the status", approved: "approved the task", archived: "archived the task",
@@ -107,12 +110,12 @@ function Overview({ t, members, projects, refresh }: { t: CompanyTaskDetail; mem
   const updSub = useServerFn(updateCompanyTaskSubtask), addAssets = useServerFn(addCompanyTaskAssets), updAsset = useServerFn(updateCompanyTaskAsset);
   const myStatus = useServerFn(setMyCompanyTaskStatus), submit = useServerFn(submitCompanyTaskWork);
   const edit = t.can.edit, work = t.can.work;
-  const u = useAct((p: Parameters<typeof upd>[0]["data"]) => upd({ data: p }), refresh);
+  const u = useAct((p: UpdPatch) => upd({ data: p }), refresh);
   const asg = useAct((ids: string[]) => setAsg({ data: { id: t.id, userIds: ids } }), refresh);
   const sub = useAct((p: { title: string; assignee_id: string | null }) => addSub({ data: { taskId: t.id, ...p } }), refresh);
-  const subU = useAct((p: Parameters<typeof updSub>[0]["data"]) => updSub({ data: p }), refresh);
+  const subU = useAct((p: SubPatch) => updSub({ data: p }), refresh);
   const assets = useAct((urls: string[]) => addAssets({ data: { taskId: t.id, assets: urls.map((url) => ({ url })) } }), refresh, "Links added");
-  const assetU = useAct((p: Parameters<typeof updAsset>[0]["data"]) => updAsset({ data: p }), refresh);
+  const assetU = useAct((p: AssetPatch) => updAsset({ data: p }), refresh);
   const mine = useAct((s: "todo" | "doing") => myStatus({ data: { taskId: t.id, status: s } }), refresh);
   const sendAsset = useAct((p: { assetId: string; link: string; note: string }) => submit({ data: { taskId: t.id, assetId: p.assetId, link: p.link || null, note: p.note || null } }), refresh, "Submitted for review");
 
