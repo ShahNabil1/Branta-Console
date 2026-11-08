@@ -26,7 +26,7 @@ export const roleLabel = (r: string) => ROLE_LABEL[r as AppRole] ?? r;
 
 export type RolePerms = { isSuperAdmin?: boolean; isAdmin?: boolean; isFinance?: boolean; isManager?: boolean; roles?: string[] };
 
-const WORKSPACE_CRM = ["/app", "/app/operations", "/app/projects", "/app/analytics", "/app/leads/dashboard", "/app/leads", "/app/customers", "/app/inbox"];
+const WORKSPACE_CRM = ["/app", "/app/operations", "/app/projects", "/app/tasks", "/app/analytics", "/app/leads/dashboard", "/app/leads", "/app/customers", "/app/inbox"];
 const HR_EXTRA = ["/app/finance/expenses", "/app/finance/employee-wallets", "/app/tracker-settings", "/app/employees"];
 
 const under = (path: string, base: string) => base === "/app" ? path === "/app" || path === "/app/" : path === base || path.startsWith(base + "/");
@@ -47,7 +47,7 @@ export function holdingPageAllowed(p: RolePerms, path: string): boolean {
     return [...WORKSPACE_CRM, ...HR_EXTRA].some((b) => under(path, b));
   }
   if (roles.includes("finance")) {
-    return under(path, "/app/finance") || under(path, "/app/customers");
+    return under(path, "/app/finance") || under(path, "/app/customers") || under(path, "/app/tasks");
   }
   return WORKSPACE_CRM.some((b) => under(path, b));
 }
