@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
-  ArrowDownLeft, ArrowUpRight, Download, HandCoins, Info, Landmark, Loader2, Search, Wallet,
+  ArrowDownLeft, ArrowUpRight, Download, HandCoins, Landmark, Loader2, Search, Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -181,11 +181,6 @@ export function CompanyWallet({ companyId, companyName, accent }: { companyId: s
           </div>
         </section>
       )}
-
-      <div className="flex items-start gap-2 rounded-md border border-border bg-muted/40 px-3.5 py-2.5 text-[12px] text-muted-foreground">
-        <Info className="mt-0.5 size-3.5 shrink-0" />
-        This view shows only the company wallet — not real account (bank, bKash) balances. All real accounts are held by Branta Tech.
-      </div>
 
       <LoanDialog open={loanOpen} onClose={() => setLoanOpen(false)} companyId={companyId} companyName={companyName} />
     </div>
