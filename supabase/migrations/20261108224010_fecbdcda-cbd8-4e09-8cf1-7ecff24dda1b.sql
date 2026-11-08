@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.company_task_is_live(uuid) FROM PUBLIC, anon, authenticated;

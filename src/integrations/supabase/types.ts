@@ -1667,6 +1667,8 @@ export type Database = {
           position: number
           priority: string
           project_id: string | null
+          publish_state: string
+          scheduled_at: string | null
           status: string
           tags: string[]
           title: string
@@ -1686,6 +1688,8 @@ export type Database = {
           position?: number
           priority?: string
           project_id?: string | null
+          publish_state?: string
+          scheduled_at?: string | null
           status?: string
           tags?: string[]
           title: string
@@ -1705,6 +1709,8 @@ export type Database = {
           position?: number
           priority?: string
           project_id?: string | null
+          publish_state?: string
+          scheduled_at?: string | null
           status?: string
           tags?: string[]
           title?: string
@@ -6437,6 +6443,7 @@ export type Database = {
       }
       company_setup_missing: { Args: { _company: string }; Returns: string[] }
       company_task_company: { Args: { _task: string }; Returns: string }
+      company_task_is_live: { Args: { _task: string }; Returns: boolean }
       company_wallet_credit_installment: {
         Args: { _installment: string }
         Returns: number

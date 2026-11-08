@@ -15,6 +15,7 @@ const Workspace = z.string().regex(/^[a-z0-9-]{1,80}$/).optional().nullable();
 const Id = z.string().uuid();
 const Status = z.enum(["todo", "doing", "in_review", "done"]);
 const Priority = z.enum(["low", "normal", "high", "urgent"]);
+const PublishState = z.enum(["draft", "scheduled", "live"]);
 const Url = z.string().trim().url().max(2000).refine((u) => /^https?:\/\//i.test(u), "Use an http(s) link.");
 const AssetIn = z.object({ title: z.string().trim().max(200).optional().nullable(), url: Url, assignee_id: Id.optional().nullable() });
 const SubtaskIn = z.object({ title: z.string().trim().min(1).max(300), assignee_id: Id.optional().nullable() });
@@ -25,6 +26,7 @@ export type CompanyTaskCard = {
   id: string; title: string; description: string | null; priority: string; status: string;
   due_on: string | null; due_time: string | null; tags: string[]; project_id: string | null; project_title: string | null;
   created_by: string; created_at: string; approved_at: string | null;
+  publish_state: string; scheduled_at: string | null; archived_at: string | null;
   assignees: TaskPerson[]; subtasks_done: number; subtasks_total: number; comments: number; assets: number;
 };
 export type CompanyTaskDetail = CompanyTaskCard & {
@@ -101,8 +103,8 @@ export const listCompanyTasks = createServerFn({ method: "POST" })
     ]);
     if (!canView) throw new Error("You don't have access to this company's tasks.");
     const { data: tasks, error } = await sb.from("company_tasks")
-      .select("id, title, description, priority, status, due_on, due_time, tags, project_id, created_by, created_at, approved_at, position")
-      .eq("company_id", co.id).is("archived_at", null).order("position", { ascending: false }).limit(1000);
+      .select("id, title, description, priority, status, due_on, due_time, tags, project_id, created_by, created_at, approved_at, position, publish_state, scheduled_at, archived_at")
+      .eq("company_id", co.id).order("position", { ascending: false }).limit(1000);
     if (error) throw dbError(error);
     const ids = (tasks ?? []).map((t: { id: string }) => t.id);
     const [asg, subs, coms, assets, projects, members] = await Promise.all([
@@ -188,6 +190,8 @@ export const createCompanyTask = createServerFn({ method: "POST" })
     assignees: z.array(Id).max(50).default([]),
     subtasks: z.array(SubtaskIn).max(100).default([]),
     assets: z.array(AssetIn).max(MAX_TASK_ASSETS).default([]),
+    publish_state: PublishState.default("live"),
+    scheduled_at: z.string().datetime({ offset: true }).optional().nullable(),
   }).parse(d))
   .handler(async ({ data, context }) => {
     const sb = context.supabase as Sb;
@@ -197,7 +201,10 @@ export const createCompanyTask = createServerFn({ method: "POST" })
     const inTeam = (u?: string | null) => !u || assignees.includes(u);
     if (!data.subtasks.every((s) => inTeam(s.assignee_id)) || !data.assets.every((a) => inTeam(a.assignee_id)))
       throw new Error("Subtasks and assets can only be marked for this task's assignees.");
+    if (data.publish_state === "scheduled" && (!data.scheduled_at || new Date(data.scheduled_at).getTime() <= Date.now()))
+      throw new Error("Pick a future start date and time to schedule this task.");
     const { data: t, error } = await sb.from("company_tasks").insert({
+      publish_state: data.publish_state, scheduled_at: data.publish_state === "scheduled" ? data.scheduled_at : null,
       company_id: co.id, title: data.title, description: data.description?.trim() || null, priority: data.priority,
       status: data.status, due_on: data.due_on || null, due_time: data.due_on ? data.due_time || null : null, tags: [...new Set(data.tags)], project_id: data.project_id || null, created_by: context.userId,
     }).select("id").single();
@@ -219,7 +226,7 @@ export const createCompanyTask = createServerFn({ method: "POST" })
       await sb.from("company_tasks").delete().eq("id", t.id);
       throw e;
     }
-    await log(sb, context.userId, t.id, "created", { title: data.title, assignees: assignees.length, subtasks: data.subtasks.length, assets: data.assets.length });
+    await log(sb, context.userId, t.id, "created", { title: data.title, publish_state: data.publish_state, scheduled_at: data.publish_state === "scheduled" ? data.scheduled_at : null, assignees: assignees.length, subtasks: data.subtasks.length, assets: data.assets.length });
     return { id: t.id as string };
   });
 
@@ -272,6 +279,53 @@ export const archiveCompanyTask = createServerFn({ method: "POST" })
     const { error } = await sb.from("company_tasks").update({ archived_at: new Date().toISOString() }).eq("id", data.id);
     if (error) throw dbError(error);
     await log(sb, context.userId, data.id, "archived");
+    return { ok: true };
+  });
+
+export const unarchiveCompanyTask = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: Id }).parse(d))
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase as Sb;
+    await assertManage(sb, context.userId, await taskCompany(sb, data.id));
+    const { error } = await sb.from("company_tasks").update({ archived_at: null }).eq("id", data.id);
+    if (error) throw dbError(error);
+    await log(sb, context.userId, data.id, "unarchived");
+    return { ok: true };
+  });
+
+/** Draft / Scheduled / Live. Live now publishes immediately; scheduling needs a future time. */
+export const publishCompanyTask = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: Id, publish_state: PublishState, scheduled_at: z.string().datetime({ offset: true }).optional().nullable() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase as Sb;
+    await assertManage(sb, context.userId, await taskCompany(sb, data.id));
+    if (data.publish_state === "scheduled" && (!data.scheduled_at || new Date(data.scheduled_at).getTime() <= Date.now()))
+      throw new Error("Pick a future start date and time to schedule this task.");
+    const patch = data.publish_state === "scheduled" ? { publish_state: "scheduled", scheduled_at: data.scheduled_at }
+      : data.publish_state === "live" ? { publish_state: "live", scheduled_at: null }
+      : { publish_state: "draft", scheduled_at: null };
+    const { error } = await sb.from("company_tasks").update(patch).eq("id", data.id);
+    if (error) throw dbError(error);
+    await log(sb, context.userId, data.id, data.publish_state === "live" ? "published" : data.publish_state === "scheduled" ? "scheduled" : "drafted", { scheduled_at: patch.scheduled_at ?? null });
+    return { ok: true };
+  });
+
+/** Only tasks nobody has started (draft or scheduled, not yet live) can be deleted for good. */
+export const deleteCompanyTask = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: Id }).parse(d))
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase as Sb;
+    await assertManage(sb, context.userId, await taskCompany(sb, data.id));
+    const { data: t, error: e } = await sb.from("company_tasks").select("publish_state, scheduled_at").eq("id", data.id).maybeSingle();
+    if (e) throw dbError(e);
+    if (!t) throw new Error("Task not found.");
+    const live = t.publish_state === "live" || (t.publish_state === "scheduled" && new Date(t.scheduled_at).getTime() <= Date.now());
+    if (live) throw new Error("This task is already live. Archive it instead.");
+    const { error } = await sb.from("company_tasks").delete().eq("id", data.id);
+    if (error) throw dbError(error);
     return { ok: true };
   });
 

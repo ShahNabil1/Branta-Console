@@ -57,3 +57,17 @@ export function parseAssetLinks(text: string): string[] {
 export function subtaskProgress(subtasks: { done: boolean }[]): { done: number; total: number } {
   return { done: subtasks.filter((s) => s.done).length, total: subtasks.length };
 }
+
+/** Where a task shows: board (live), scheduled (waiting), draft, or archived. Schedules go live at the exact time. */
+export type TaskBucket = "board" | "scheduled" | "draft" | "archived";
+export function taskBucket(t: { publish_state: string; scheduled_at: string | null; archived_at: string | null }, now = Date.now()): TaskBucket {
+  if (t.archived_at) return "archived";
+  if (t.publish_state === "draft") return "draft";
+  if (t.publish_state === "scheduled" && t.scheduled_at && new Date(t.scheduled_at).getTime() > now) return "scheduled";
+  return "board";
+}
+/** Milliseconds until the next scheduled task goes live (for an exact refresh), or null. */
+export function nextGoLiveIn(tasks: { publish_state: string; scheduled_at: string | null; archived_at: string | null }[], now = Date.now()): number | null {
+  const times = tasks.filter((t) => taskBucket(t, now) === "scheduled").map((t) => new Date(t.scheduled_at!).getTime() - now);
+  return times.length ? Math.max(0, Math.min(...times)) : null;
+}

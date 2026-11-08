@@ -40,8 +40,10 @@ export function NewTaskDrawer({ open, onOpenChange, workspace, companyName, memb
   const [tag, setTag] = useState("");
   const [sub, setSub] = useState("");
   const [links, setLinks] = useState("");
+  const [mode, setMode] = useState<"live" | "scheduled" | "draft">("live");
+  const [startOn, setStartOn] = useState(""); const [startAt, setStartAt] = useState("09:00");
   const [lastOpen, setLastOpen] = useState(false);
-  if (open !== lastOpen) { setLastOpen(open); if (open) { setD(empty(initialStatus)); setStep(0); setTag(""); setSub(""); setLinks(""); } }
+  if (open !== lastOpen) { setLastOpen(open); if (open) { setD(empty(initialStatus)); setStep(0); setMode("live"); setStartOn(""); setTag(""); setSub(""); setLinks(""); } }
 
   const memberById = useMemo(() => new Map(members.map((m) => [m.user_id, m])), [members]);
   const memberItems = members.filter((m) => !d.assignees.includes(m.user_id))
@@ -80,15 +82,18 @@ export function NewTaskDrawer({ open, onOpenChange, workspace, companyName, memb
     assets: d.assets.map((a) => (a.assignee_id === u ? { ...a, assignee_id: "" } : a)),
   });
 
+  const startIso = startOn && startAt ? new Date(`${startOn}T${startAt}`).toISOString() : null;
+  const scheduleBad = mode === "scheduled" && (!startIso || new Date(startIso).getTime() <= Date.now());
   const save = useMutation({
     mutationFn: () => create({ data: {
+      publish_state: mode, scheduled_at: mode === "scheduled" ? startIso : null,
       workspace, title: d.title.trim(), description: d.description || null, priority: d.priority as "normal", status: d.status,
       due_on: d.due_on || null, due_time: d.due_on && d.due_time ? d.due_time : null, tags: d.tags, project_id: d.project_id || null, assignees: d.assignees,
       subtasks: d.subtasks.map((s) => ({ title: s.title, assignee_id: s.assignee_id || null })),
       assets: d.assets.map((a) => ({ url: a.url, title: a.title || null, assignee_id: a.assignee_id || null })),
     } }),
     onSuccess: (r) => {
-      toast.success("Task created");
+      toast.success(mode === "draft" ? "Draft saved" : mode === "scheduled" ? "Task scheduled" : "Task created");
       qc.invalidateQueries({ queryKey: ["company-tasks"] });
       onOpenChange(false);
       onCreated?.(r.id);
@@ -228,6 +233,32 @@ export function NewTaskDrawer({ open, onOpenChange, workspace, companyName, memb
                     </AnimatePresence>
                   </ul>
                 </div>
+                <div>
+                  <label className={LABEL}>When does it start?</label>
+                  <div role="radiogroup" aria-label="Publishing" className="mt-1.5 grid grid-cols-3 gap-1 rounded-lg border border-border bg-muted/40 p-1">
+                    {([["live", "Publish now"], ["scheduled", "Schedule"], ["draft", "Save as draft"]] as const).map(([k, l]) => (
+                      <button key={k} type="button" role="radio" aria-checked={mode === k} onClick={() => setMode(k)}
+                        className={`relative rounded-md px-2 py-1.5 text-[12.5px] font-bold transition-colors ${mode === k ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+                        {mode === k && <motion.span layoutId="task-publish-mode" transition={spring} className="absolute inset-0 rounded-md border border-border bg-card shadow-sm" />}
+                        <span className="relative">{l}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <AnimatePresence initial={false}>
+                    {mode === "scheduled" && (
+                      <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={spring} className="overflow-hidden">
+                        <div className="mt-2 grid grid-cols-[1fr_7.5rem] gap-2">
+                          <Input type="date" value={startOn} onChange={(e) => setStartOn(e.target.value)} className={FIELD} aria-label="Start date" />
+                          <Input type="time" value={startAt} onChange={(e) => setStartAt(e.target.value)} className={`${FIELD} font-mono`} aria-label="Start time" />
+                        </div>
+                        <p className={`mt-1.5 text-[11.5px] font-semibold ${scheduleBad && startOn ? "text-destructive" : "text-muted-foreground"}`}>
+                          {scheduleBad && startOn ? "Pick a time in the future." : "The task appears in To Do for everyone at exactly this time."}
+                        </p>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                  {mode === "draft" && <p className="mt-1.5 text-[11.5px] font-semibold text-muted-foreground">Only task managers can see drafts. Publish or schedule it later.</p>}
+                </div>
                 <div className="grid grid-cols-3 gap-2 rounded-lg border border-border bg-muted/30 p-3">
                   <div><div className="text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground">Assignees</div><div className="mt-0.5 font-mono text-[15px] font-bold">{d.assignees.length}</div></div>
                   <div><div className="text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground">Subtasks</div><div className="mt-0.5 font-mono text-[15px] font-bold">{d.subtasks.length}</div></div>
@@ -244,8 +275,8 @@ export function NewTaskDrawer({ open, onOpenChange, workspace, companyName, memb
             {step < 2 ? (
               <Button onClick={() => goTo(step + 1)} className="h-9 gap-1 rounded-md shadow-md shadow-brand/25 transition-all active:scale-95">Continue <ChevronRight className="size-4" /></Button>
             ) : (
-              <Button onClick={() => save.mutate()} disabled={save.isPending || !d.title.trim()} className="h-9 min-w-28 gap-1.5 rounded-md shadow-md shadow-brand/25 transition-all active:scale-95">
-                {save.isPending ? <TestLoader tone="white" /> : <Check className="size-4" />}{save.isPending ? "Creating…" : "Create task"}
+              <Button onClick={() => save.mutate()} disabled={save.isPending || !d.title.trim() || scheduleBad} className="h-9 min-w-28 gap-1.5 rounded-md shadow-md shadow-brand/25 transition-all active:scale-95">
+                {save.isPending ? <TestLoader tone="white" /> : <Check className="size-4" />}{save.isPending ? "Saving…" : mode === "draft" ? "Save draft" : mode === "scheduled" ? "Schedule task" : "Create task"}
               </Button>
             )}
           </div>

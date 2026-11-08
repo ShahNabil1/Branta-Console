@@ -4,7 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
-import { CalendarDays, FolderKanban, Link2, ListChecks, MessageSquare, Plus, Search, SquareCheckBig, X } from "lucide-react";
+import { Archive, ArchiveRestore, CalendarClock, CalendarDays, FilePen, FolderKanban, Link2, ListChecks, MessageSquare, Plus, Rocket, Search, SquareCheckBig, Trash2, X } from "lucide-react";
+import { toast } from "sonner";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { PageHero } from "@/components/branta/page-hero";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,8 +16,8 @@ import { UnderlineTabs } from "@/components/ui/underline-tabs";
 import { SearchableSelect } from "@/components/finance/searchable-select";
 import { useActiveCompany } from "@/components/company/company-switcher";
 import { supabase } from "@/integrations/supabase/client";
-import { listCompanyTasks, type CompanyTaskCard } from "@/lib/company-tasks.functions";
-import { TASK_STATUSES, type CompanyTaskStatus } from "@/lib/company-task-rules";
+import { deleteCompanyTask, listCompanyTasks, publishCompanyTask, unarchiveCompanyTask, type CompanyTaskCard } from "@/lib/company-tasks.functions";
+import { TASK_STATUSES, nextGoLiveIn, taskBucket, type CompanyTaskStatus, type TaskBucket } from "@/lib/company-task-rules";
 import { NewTaskDrawer } from "@/components/tasks/new-task-drawer";
 import { TaskDetailDrawer } from "@/components/tasks/task-detail-drawer";
 import { AvatarStack, PriorityBadge, SegmentedProgress, StatusDot, fmtDate, fmtDue, spring } from "@/components/tasks/task-ui";
@@ -44,7 +47,18 @@ export function TasksPage() {
     return () => { supabase.removeChannel(ch); };
   }, [companyId, qc]);
 
-  const tasks = q.data?.tasks ?? [];
+  // Scheduled tasks join the board at their exact start time: re-check then and refetch.
+  const [now, setNow] = useState(() => Date.now());
+  const all = q.data?.tasks ?? [];
+  useEffect(() => {
+    const ms = nextGoLiveIn(all, now);
+    if (ms === null) return;
+    const h = setTimeout(() => { setNow(Date.now()); qc.invalidateQueries({ queryKey: ["company-tasks"] }); }, Math.min(ms + 250, 2_147_000_000));
+    return () => clearTimeout(h);
+  }, [all, now, qc]);
+  const [view, setView] = useState<TaskBucket>("board");
+  const byBucket = (b: TaskBucket) => all.filter((t) => taskBucket(t, now) === b);
+  const tasks = byBucket("board");
   const visible = useMemo(() => {
     const s = search.trim().toLowerCase();
     return tasks.filter((t) => {
@@ -68,6 +82,18 @@ export function TasksPage() {
           </Button>
         ) : undefined} />
 
+      {canManage && (
+        <div className="rounded-lg border border-border bg-card px-2 shadow-sm">
+          <UnderlineTabs<TaskBucket> value={view} onChange={setView} ariaLabel="Task views" items={[
+            { id: "board", label: "Board", lead: <SquareCheckBig className="size-3.5" />, count: tasks.length },
+            { id: "scheduled", label: "Scheduled", lead: <CalendarClock className="size-3.5" />, count: byBucket("scheduled").length },
+            { id: "draft", label: "Drafts", lead: <FilePen className="size-3.5" />, count: byBucket("draft").length },
+            { id: "archived", label: "Archived", lead: <Archive className="size-3.5" />, count: byBucket("archived").length },
+          ]} />
+        </div>
+      )}
+
+      {view !== "board" ? <TaskQueue bucket={view} items={byBucket(view)} loading={q.isLoading} onOpen={setOpenId} /> : (<>
       <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card px-2 shadow-sm">
         <UnderlineTabs<Filter> value={filter} onChange={setFilter} ariaLabel="Task filter" className="min-w-0 flex-1" items={[
           { id: "all", label: "All Tasks", count: tasks.length },
@@ -113,6 +139,7 @@ export function TasksPage() {
           })}
         </div>
       </LayoutGroup>
+      </>)}
 
       {q.data && (
         <NewTaskDrawer open={!!creating} onOpenChange={(v) => !v && setCreating(null)} initialStatus={creating ?? "todo"} workspace={workspace}
@@ -155,5 +182,115 @@ function TaskCard({ t, index, onOpen }: { t: CompanyTaskCard; index: number; onO
         <span className="ml-auto"><AvatarStack people={t.assignees} size={20} /></span>
       </div>
     </motion.button>
+  );
+}
+
+const QUEUE_EMPTY: Record<Exclude<TaskBucket, "board">, string> = {
+  scheduled: "No scheduled tasks. Choose Schedule when creating a task.",
+  draft: "No drafts. Choose Save as draft when creating a task.",
+  archived: "No archived tasks.",
+};
+const fmtStart = (iso: string) => new Date(iso).toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: true });
+const pad = (n: number) => String(n).padStart(2, "0");
+
+/** Scheduled / Drafts / Archived: manager-only lists with reschedule, go-live, delete and restore. */
+function TaskQueue({ bucket, items, loading, onOpen }: { bucket: Exclude<TaskBucket, "board">; items: CompanyTaskCard[]; loading: boolean; onOpen: (id: string) => void }) {
+  const qc = useQueryClient();
+  const confirm = useConfirm();
+  const publish = useServerFn(publishCompanyTask), del = useServerFn(deleteCompanyTask), restore = useServerFn(unarchiveCompanyTask);
+  const [scheduling, setScheduling] = useState<CompanyTaskCard | null>(null);
+  const done = (msg: string) => { toast.success(msg); qc.invalidateQueries({ queryKey: ["company-tasks"] }); };
+  const run = async (fn: () => Promise<unknown>, msg: string) => { try { await fn(); done(msg); } catch (e) { toast.error((e as Error).message); } };
+
+  return (
+    <>
+      {loading ? <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-40 rounded-lg" />)}</div>
+        : !items.length ? <div className="rounded-lg border border-dashed border-border bg-card py-14 text-center text-[13px] font-semibold text-muted-foreground">{QUEUE_EMPTY[bucket]}</div>
+        : (
+          <motion.div layout className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <AnimatePresence initial={false}>
+              {items.map((t, i) => (
+                <motion.div key={t.id} layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0, transition: { ...spring, delay: Math.min(i, 8) * 0.03 } }} exit={{ opacity: 0, scale: 0.96 }}
+                  className="flex flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+                  <div className="flex items-center gap-2 border-b border-border/70 bg-muted/30 px-3 py-2 text-[11.5px] font-bold">
+                    {bucket === "scheduled" && <><CalendarClock className="size-3.5 text-brand" /><span>Starts {fmtStart(t.scheduled_at!)}</span></>}
+                    {bucket === "draft" && <><FilePen className="size-3.5 text-muted-foreground" /><span className="text-muted-foreground">Draft · only managers see it</span></>}
+                    {bucket === "archived" && <><Archive className="size-3.5 text-muted-foreground" /><span className="text-muted-foreground">Archived {fmtStart(t.archived_at!)}</span></>}
+                    <span className="ml-auto"><PriorityBadge value={t.priority} /></span>
+                  </div>
+                  <button type="button" onClick={() => onOpen(t.id)} className="flex-1 px-3 py-2.5 text-left hover:bg-muted/20" aria-label={`Open ${t.title} to edit`}>
+                    <div className="line-clamp-2 text-[14.5px] font-bold leading-snug">{t.title}</div>
+                    {t.description && <p className="mt-1 line-clamp-2 text-[12.5px] text-muted-foreground">{t.description}</p>}
+                    <div className="mt-2 flex items-center gap-2 text-[11.5px] font-semibold text-muted-foreground">
+                      {t.due_on && <span className="inline-flex items-center gap-1"><CalendarDays className="size-3.5" />Due {fmtDue(t.due_on, t.due_time)}</span>}
+                      <span className="ml-auto"><AvatarStack people={t.assignees} size={20} /></span>
+                    </div>
+                  </button>
+                  <div className="flex flex-wrap items-center gap-1.5 border-t border-border/70 px-3 py-2">
+                    {bucket === "archived" ? (
+                      <Button size="sm" variant="outline" className="h-8 gap-1 rounded-md" onClick={async () => {
+                        const ok = await confirm({ tone: "info", icon: ArchiveRestore, title: `Restore "${t.title}"?`, subject: "The task goes back to the board with its history.", confirmLabel: "Restore",
+                          onConfirm: async () => { await restore({ data: { id: t.id } }); } });
+                        if (ok) done("Task restored");
+                      }}><ArchiveRestore className="size-3.5" />Unarchive</Button>
+                    ) : (<>
+                      <Button size="sm" variant="outline" className="h-8 gap-1 rounded-md" onClick={() => setScheduling(t)}><CalendarClock className="size-3.5" />{bucket === "scheduled" ? "Reschedule" : "Schedule"}</Button>
+                      <Button size="sm" className="h-8 gap-1 rounded-md" onClick={async () => {
+                        const ok = await confirm({ tone: "info", icon: Rocket, title: `Go live with "${t.title}"?`, subject: "It appears in To Do right now and everyone can see and work on it.", confirmLabel: "Go live now",
+                          onConfirm: async () => { await publish({ data: { id: t.id, publish_state: "live" } }); } });
+                        if (ok) done("Task is live");
+                      }}><Rocket className="size-3.5" />Go live now</Button>
+                      {bucket === "scheduled" && <Button size="sm" variant="ghost" className="h-8 rounded-md" onClick={() => run(() => publish({ data: { id: t.id, publish_state: "draft" } }), "Moved to drafts")}>Move to draft</Button>}
+                      <Button size="sm" variant="ghost" aria-label="Delete task" className="ml-auto h-8 gap-1 rounded-md text-destructive hover:text-destructive" onClick={async () => {
+                        const ok = await confirm({ tone: "danger", title: `Delete "${t.title}"?`, description: "Nobody has started this task yet. It is removed for good.", confirmLabel: "Delete",
+                          onConfirm: async () => { await del({ data: { id: t.id } }); } });
+                        if (ok) done("Task deleted");
+                      }}><Trash2 className="size-3.5" />Delete</Button>
+                    </>)}
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </motion.div>
+        )}
+      <ScheduleDialog task={scheduling} onClose={() => setScheduling(null)} onSave={async (iso) => {
+        await publish({ data: { id: scheduling!.id, publish_state: "scheduled", scheduled_at: iso } });
+        done(bucket === "scheduled" ? "Task rescheduled" : "Task scheduled");
+      }} />
+    </>
+  );
+}
+
+function ScheduleDialog({ task, onClose, onSave }: { task: CompanyTaskCard | null; onClose: () => void; onSave: (iso: string) => Promise<void> }) {
+  const [day, setDay] = useState(""); const [time, setTime] = useState("09:00"); const [busy, setBusy] = useState(false);
+  const [last, setLast] = useState<string | null>(null);
+  if ((task?.id ?? null) !== last) {
+    setLast(task?.id ?? null);
+    if (task?.scheduled_at) { const d = new Date(task.scheduled_at); setDay(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`); setTime(`${pad(d.getHours())}:${pad(d.getMinutes())}`); }
+    else { setDay(""); setTime("09:00"); }
+  }
+  const iso = day && time ? new Date(`${day}T${time}`).toISOString() : null;
+  const bad = !iso || new Date(iso).getTime() <= Date.now();
+  return (
+    <Dialog open={!!task} onOpenChange={(v) => { if (!v && !busy) onClose(); }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>{task?.scheduled_at ? "Reschedule task" : "Schedule task"}</DialogTitle>
+          <DialogDescription>"{task?.title}" appears in To Do for everyone at exactly this time.</DialogDescription>
+        </DialogHeader>
+        <div className="grid grid-cols-[1fr_7.5rem] gap-2">
+          <Input type="date" value={day} onChange={(e) => setDay(e.target.value)} aria-label="Start date" />
+          <Input type="time" value={time} onChange={(e) => setTime(e.target.value)} aria-label="Start time" className="font-mono" />
+        </div>
+        {bad && day && <p className="text-[12px] font-semibold text-destructive">Pick a time in the future.</p>}
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={busy}>Cancel</Button>
+          <Button disabled={bad || busy} onClick={async () => {
+            setBusy(true);
+            try { await onSave(iso!); onClose(); } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
+          }}>{busy ? "Saving…" : "Save schedule"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

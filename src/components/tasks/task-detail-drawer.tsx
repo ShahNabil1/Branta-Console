@@ -30,7 +30,7 @@ type SubPatch = { id: string; done?: boolean; title?: string; assignee_id?: stri
 type AssetPatch = { id: string; assignee_id?: string | null; title?: string | null; remove?: boolean };
 
 const ACTIVITY_TEXT: Record<string, string> = {
-  created: "created the task", updated: "updated the task", status: "changed the status", approved: "approved the task", archived: "archived the task",
+  created: "created the task", updated: "updated the task", status: "changed the status", approved: "approved the task", archived: "archived the task", unarchived: "restored the task", published: "made the task live", scheduled: "scheduled the task", drafted: "moved the task to drafts",
   assignees: "changed the assignees", subtask_added: "added a subtask", subtask_removed: "removed a subtask", subtask_done: "completed a subtask",
   subtask_reopened: "reopened a subtask", subtask_edited: "edited a subtask", assets_added: "added assets", asset_removed: "removed an asset",
   asset_updated: "updated an asset", submitted: "submitted work", submission_approved: "approved a submission", revision_requested: "requested a revision",
@@ -427,9 +427,9 @@ function Footer({ t, refresh, onClose }: { t: CompanyTaskDetail; refresh: () => 
     <div className="flex items-center justify-between gap-2 border-t border-border bg-card px-6 py-3.5">
       <div className="flex items-center gap-2"><span className="text-[12px] font-semibold text-muted-foreground">Team</span><AvatarStack people={t.assignees} max={6} /></div>
       <div className="flex items-center gap-2">
-        {t.can.edit && (
+        {t.can.edit && !t.archived_at && (
           <Button variant="outline" onClick={async () => {
-            const ok = await confirm({ tone: "danger", title: `Archive "${t.title}"?`, description: "The task leaves the board. Its submissions, comments and activity stay in history.", confirmLabel: "Archive",
+            const ok = await confirm({ tone: "danger", title: `Archive "${t.title}"?`, description: "The task leaves the board and moves to the Archived list, where you can unarchive it anytime. Its submissions, comments and activity stay.", confirmLabel: "Archive",
               onConfirm: async () => { await archive({ data: { id: t.id } }); } });
             if (ok) { toast.success("Task archived"); refresh(); onClose(); }
           }} className="h-9 gap-1 rounded-md"><Archive className="size-4" />Archive</Button>
