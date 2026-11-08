@@ -334,8 +334,8 @@ function Submissions({ t, refresh }: { t: CompanyTaskDetail; refresh: () => void
               {s.review_note && <p className="mt-2 rounded-md border border-border bg-muted/40 px-2 py-1.5 text-[12px]"><span className="font-bold">Review: </span>{s.review_note}</p>}
               {t.can.review && s.status === "pending" && (
                 <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-border pt-2">
-                  <Input value={reviewNote[s.id] ?? ""} onChange={(e) => setReviewNote({ ...reviewNote, [s.id]: e.target.value })} aria-label="Review note" placeholder="Review note (optional)" className={`${FIELD} h-8 min-w-40 flex-1`} />
-                  <Button size="sm" variant="outline" disabled={rv.isPending} onClick={() => rv.mutate({ id: s.id, decision: "revision" })} className="h-8 gap-1 rounded-md"><RotateCcw className="size-3.5" />Request revision</Button>
+                  <Input value={reviewNote[s.id] ?? ""} onChange={(e) => setReviewNote({ ...reviewNote, [s.id]: e.target.value })} aria-label="Review note" placeholder="Instructions / reason (required for revision)" className={`${FIELD} h-8 min-w-40 flex-1`} />
+                  <Button size="sm" variant="outline" disabled={rv.isPending || !(reviewNote[s.id] ?? "").trim()} onClick={() => rv.mutate({ id: s.id, decision: "revision" })} className="h-8 gap-1 rounded-md"><RotateCcw className="size-3.5" />Request revision</Button>
                   <Button size="sm" disabled={rv.isPending} onClick={() => rv.mutate({ id: s.id, decision: "approved" })} className="h-8 gap-1 rounded-md"><Check className="size-3.5" />Approve</Button>
                 </div>
               )}

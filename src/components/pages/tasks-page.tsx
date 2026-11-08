@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
-import { Archive, ArchiveRestore, CalendarClock, CalendarDays, FilePen, FolderKanban, Link2, ListChecks, MessageSquare, Plus, Rocket, Search, SquareCheckBig, Trash2, X } from "lucide-react";
+import { Archive, ArchiveRestore, CalendarClock, CalendarDays, CalendarPlus, FilePen, FolderKanban, Link2, ListChecks, MessageSquare, Plus, Rocket, Search, SquareCheckBig, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useConfirm } from "@/components/ui/confirm-dialog";
@@ -20,7 +20,7 @@ import { deleteCompanyTask, listCompanyTasks, publishCompanyTask, unarchiveCompa
 import { TASK_STATUSES, nextGoLiveIn, taskBucket, type CompanyTaskStatus, type TaskBucket } from "@/lib/company-task-rules";
 import { NewTaskDrawer } from "@/components/tasks/new-task-drawer";
 import { TaskDetailDrawer } from "@/components/tasks/task-detail-drawer";
-import { AvatarStack, PriorityBadge, SegmentedProgress, StatusDot, fmtDate, fmtDue, spring } from "@/components/tasks/task-ui";
+import { AvatarStack, PersonAvatar, PriorityBadge, SegmentedProgress, StatusDot, fmtDate, fmtDue, spring } from "@/components/tasks/task-ui";
 import { cn } from "@/lib/utils";
 
 type Filter = "all" | CompanyTaskStatus | "mine";
@@ -150,19 +150,47 @@ export function TasksPage() {
   );
 }
 
+const ASG_TONE: Record<string, string> = {
+  todo: "text-muted-foreground", doing: "text-brand", submitted: "text-status-contacted", approved: "text-status-converted", revision: "text-destructive",
+};
+const ASG_LABEL: Record<string, string> = { todo: "To do", doing: "Doing", submitted: "Submitted", approved: "Approved", revision: "Revision" };
+const fmtStamp = (iso: string) => new Date(iso).toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: true });
+function dueTone(t: CompanyTaskCard) {
+  if (!t.due_on || t.status === "done") return "border-border bg-muted/40 text-foreground";
+  const due = new Date(`${t.due_on}T${t.due_time?.slice(0, 5) ?? "23:59"}:00+06:00`).getTime(), left = due - Date.now();
+  if (left < 0) return "border-destructive/40 bg-destructive/5 text-destructive";
+  if (left < 864e5) return "border-status-contacted/40 bg-status-contacted/5 text-status-contacted";
+  return "border-brand/30 bg-brand/5 text-brand";
+}
+
 function TaskCard({ t, index, onOpen }: { t: CompanyTaskCard; index: number; onOpen: () => void }) {
+  const submitted = t.assignees.filter((a) => a.status === "submitted" || a.status === "approved").length;
   return (
     <motion.button type="button" layout layoutId={t.id} onClick={onOpen}
       initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0, transition: { ...spring, delay: Math.min(index, 8) * 0.03 } }} exit={{ opacity: 0, scale: 0.96 }}
       whileHover={{ y: -2 }} whileTap={{ scale: 0.985 }}
-      className="group block w-full rounded-lg border border-border bg-card text-left shadow-sm transition-shadow hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
-      <div className="flex items-center gap-2 border-b border-border/70 px-3 py-2 text-[11.5px] font-semibold text-muted-foreground">
-        <CalendarDays className="size-3.5" />{t.due_on ? fmtDue(t.due_on, t.due_time) : fmtDate(t.created_at)}
-        <span className="ml-auto"><PriorityBadge value={t.priority} /></span>
+      className="group block w-full overflow-hidden rounded-lg border border-border bg-card text-left shadow-sm transition-shadow hover:border-foreground/20 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+      <div className="flex items-center gap-2 border-b border-border/70 px-3 py-2">
+        <PersonAvatar name={t.created_by_person?.name ?? "?"} src={t.created_by_person?.avatar_url} size={20} />
+        <div className="min-w-0 flex-1 leading-tight">
+          <div className="text-[9.5px] font-bold uppercase tracking-wider text-muted-foreground">Created by</div>
+          <div className="truncate text-[12px] font-bold text-foreground">{t.created_by_person?.name ?? "Team member"}</div>
+        </div>
+        <PriorityBadge value={t.priority} />
       </div>
       <div className="px-3 pb-2 pt-2.5">
         <div className="line-clamp-2 text-[14.5px] font-bold leading-snug text-foreground">{t.title}</div>
         {t.description && <p className="mt-1 line-clamp-2 text-[12.5px] leading-relaxed text-muted-foreground">{t.description}</p>}
+        <div className="mt-2.5 grid grid-cols-2 gap-1.5">
+          <div className="rounded-md border border-border bg-muted/30 px-2 py-1.5">
+            <div className="flex items-center gap-1 text-[9.5px] font-bold uppercase tracking-wider text-muted-foreground"><CalendarPlus className="size-3" />Created</div>
+            <div className="mt-0.5 font-mono text-[11px] font-semibold text-foreground">{fmtStamp(t.created_at)}</div>
+          </div>
+          <div className={cn("rounded-md border px-2 py-1.5", dueTone(t))}>
+            <div className="flex items-center gap-1 text-[9.5px] font-bold uppercase tracking-wider"><CalendarDays className="size-3" />Deadline</div>
+            <div className="mt-0.5 font-mono text-[11px] font-bold">{t.due_on ? fmtDue(t.due_on, t.due_time) : "No deadline"}</div>
+          </div>
+        </div>
         {(t.project_title || t.tags.length > 0) && (
           <div className="mt-2 flex flex-wrap gap-1">
             {t.project_title && <span className="inline-flex items-center gap-1 rounded border border-border px-1.5 py-0.5 text-[10.5px] font-bold text-foreground/80"><FolderKanban className="size-3" />{t.project_title}</span>}
@@ -173,6 +201,23 @@ function TaskCard({ t, index, onOpen }: { t: CompanyTaskCard; index: number; onO
           <div className="mt-2.5 rounded-md border border-border px-2 py-1.5">
             <div className="mb-1.5 flex items-center gap-1 text-[11px] font-semibold text-muted-foreground"><ListChecks className="size-3.5" />Sub task<span className="ml-auto font-mono">{String(t.subtasks_done).padStart(2, "0")}/{String(t.subtasks_total).padStart(2, "0")}</span></div>
             <SegmentedProgress done={t.subtasks_done} total={t.subtasks_total} />
+          </div>
+        )}
+        {t.assignees.length > 0 && (
+          <div className="mt-2.5 rounded-md border border-border">
+            <div className="flex items-center border-b border-border/70 px-2 py-1 text-[9.5px] font-bold uppercase tracking-wider text-muted-foreground">
+              Assignees<span className="ml-auto font-mono normal-case tracking-normal">{submitted}/{t.assignees.length} submitted</span>
+            </div>
+            <ul className="divide-y divide-border/60">
+              {t.assignees.slice(0, 4).map((a) => (
+                <li key={a.user_id} className="flex items-center gap-2 px-2 py-1">
+                  <PersonAvatar name={a.name} src={a.avatar_url} size={18} />
+                  <span className="min-w-0 flex-1 truncate text-[11.5px] font-semibold text-foreground">{a.name}</span>
+                  <span className={cn("text-[10px] font-bold uppercase", ASG_TONE[a.status ?? "todo"] ?? "text-muted-foreground")}>{ASG_LABEL[a.status ?? "todo"] ?? a.status}</span>
+                </li>
+              ))}
+              {t.assignees.length > 4 && <li className="px-2 py-1 text-[11px] font-semibold text-muted-foreground">+{t.assignees.length - 4} more</li>}
+            </ul>
           </div>
         )}
       </div>

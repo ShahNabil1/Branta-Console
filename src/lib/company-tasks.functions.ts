@@ -27,7 +27,7 @@ export type CompanyTaskCard = {
   due_on: string | null; due_time: string | null; tags: string[]; project_id: string | null; project_title: string | null;
   created_by: string; created_at: string; approved_at: string | null;
   publish_state: string; scheduled_at: string | null; archived_at: string | null;
-  assignees: TaskPerson[]; subtasks_done: number; subtasks_total: number; comments: number; assets: number;
+  assignees: (TaskPerson & { status?: string })[]; created_by_person?: TaskPerson | null; subtasks_done: number; subtasks_total: number; comments: number; assets: number;
 };
 export type CompanyTaskDetail = CompanyTaskCard & {
   created_by_person: TaskPerson | null; approved_by_person: TaskPerson | null;
@@ -108,7 +108,7 @@ export const listCompanyTasks = createServerFn({ method: "POST" })
     if (error) throw dbError(error);
     const ids = (tasks ?? []).map((t: { id: string }) => t.id);
     const [asg, subs, coms, assets, projects, members] = await Promise.all([
-      ids.length ? sb.from("company_task_assignees").select("task_id, user_id").in("task_id", ids) : { data: [] },
+      ids.length ? sb.from("company_task_assignees").select("task_id, user_id, status").in("task_id", ids) : { data: [] },
       ids.length ? sb.from("company_task_subtasks").select("task_id, done").in("task_id", ids) : { data: [] },
       ids.length ? sb.from("company_task_comments").select("task_id").in("task_id", ids) : { data: [] },
       ids.length ? sb.from("company_task_assets").select("task_id").in("task_id", ids) : { data: [] },
@@ -116,7 +116,7 @@ export const listCompanyTasks = createServerFn({ method: "POST" })
       companyMembers(co.id),
     ]);
     const people = Object.fromEntries(members.map((m) => [m.user_id, m]));
-    const extra = await peopleFor((asg.data ?? []).map((a: { user_id: string }) => a.user_id).filter((u: string) => !people[u]));
+    const extra = await peopleFor([...(asg.data ?? []).map((a: { user_id: string }) => a.user_id), ...(tasks ?? []).map((t: Sb) => t.created_by)].filter((u: string) => u && !people[u]));
     const person = (u: string): TaskPerson => people[u] ?? extra[u] ?? { user_id: u, name: "Team member", avatar_url: null };
     const count = (rows: { task_id: string }[] | null, id: string) => (rows ?? []).filter((r) => r.task_id === id).length;
     const projTitle = new Map((projects.data ?? []).map((p: { id: string; title: string }) => [p.id, p.title]));
@@ -124,7 +124,8 @@ export const listCompanyTasks = createServerFn({ method: "POST" })
       const st = (subs.data ?? []).filter((s: { task_id: string }) => s.task_id === t.id);
       return {
         ...t, project_title: t.project_id ? (projTitle.get(t.project_id) as string) ?? null : null,
-        assignees: (asg.data ?? []).filter((a: { task_id: string }) => a.task_id === t.id).map((a: { user_id: string }) => person(a.user_id)),
+        assignees: (asg.data ?? []).filter((a: { task_id: string }) => a.task_id === t.id).map((a: { user_id: string; status: string }) => ({ ...person(a.user_id), status: a.status })),
+        created_by_person: t.created_by ? person(t.created_by) : null,
         subtasks_done: st.filter((s: { done: boolean }) => s.done).length, subtasks_total: st.length,
         comments: count(coms.data, t.id), assets: count(assets.data, t.id),
       };
@@ -450,6 +451,7 @@ export const reviewCompanyTaskSubmission = createServerFn({ method: "POST" })
     const r = await sb.from("company_task_submissions").update({ status: data.decision, review_note: data.note || null }).eq("id", data.id);
     if (r.error) throw dbError(r.error);
     await sb.from("company_task_assignees").update({ status: data.decision }).eq("task_id", s.task_id).eq("user_id", s.user_id);
+    if (data.decision === "revision") await sb.from("company_tasks").update({ status: "doing" }).eq("id", s.task_id).eq("status", "in_review");
     await log(sb, context.userId, s.task_id, data.decision === "approved" ? "submission_approved" : "revision_requested", { for: s.user_id, note: data.note || null });
     return { ok: true };
   });
