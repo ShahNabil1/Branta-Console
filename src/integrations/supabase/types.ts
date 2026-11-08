@@ -3849,6 +3849,7 @@ export type Database = {
           discount_amount: number
           due_date: string | null
           ends_on: string | null
+          fund_allocation_rules: Json | null
           fund_ledger_mode: boolean
           id: string
           internal_notes: string | null
@@ -3880,6 +3881,7 @@ export type Database = {
           discount_amount?: number
           due_date?: string | null
           ends_on?: string | null
+          fund_allocation_rules?: Json | null
           fund_ledger_mode?: boolean
           id?: string
           internal_notes?: string | null
@@ -3911,6 +3913,7 @@ export type Database = {
           discount_amount?: number
           due_date?: string | null
           ends_on?: string | null
+          fund_allocation_rules?: Json | null
           fund_ledger_mode?: boolean
           id?: string
           internal_notes?: string | null

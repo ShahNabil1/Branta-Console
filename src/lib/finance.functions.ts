@@ -250,6 +250,54 @@ const EmployeePlanIn = z.object({
   task_id: z.string().uuid().nullable().optional(),
   note: z.string().trim().max(300).nullable().optional(),
 });
+const FundRuleIn = z.object({
+  key: z.string().trim().max(60).optional(),
+  fund_id: z.string().uuid().nullable().optional(),
+  label: z.string().trim().min(1).max(60),
+  mode: z.enum(["percent", "fixed"]),
+  percent: z.number().min(0).max(100),
+  fixed_amount: z.number().nonnegative(),
+});
+type FundRuleInput = z.infer<typeof FundRuleIn>;
+
+/** Validate a per-invoice fund split and resolve it for the customer's company (holding rows map to finance_funds). */
+async function resolveInvoiceFundRules(sb: any, customerId: string, rules: FundRuleInput[] | undefined) {
+  if (!rules || !rules.length) return null;
+  const names = rules.map((r) => r.label.trim().toLowerCase());
+  if (new Set(names).size !== names.length) throw new Error("Fund allocation names must be unique");
+  const { data: cu } = await sb.from("customers").select("company_id, companies(is_holding)").eq("id", customerId).maybeSingle();
+  const holding = !cu?.company_id || !!cu?.companies?.is_holding;
+  const list = holding ? rules.map((r) => ({ ...r, mode: "percent" as const, fixed_amount: 0 })) : rules;
+  const pct = Math.round(list.filter((r) => r.mode === "percent").reduce((a, r) => a + r.percent, 0) * 1000) / 1000;
+  if (pct !== 100) throw new Error(`Fund allocation percentages must total exactly 100% (now ${pct}%)`);
+  if (!holding) {
+    const used = new Set<string>();
+    return list.map((r) => {
+      const base = (r.key || r.label.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "")).slice(0, 40) || "fund";
+      let k = base, n = 2; while (used.has(k)) k = `${base.slice(0, 36)}_${n++}`; used.add(k);
+      return { key: k, label: r.label.trim(), mode: r.mode, percent: r.mode === "percent" ? r.percent : 0, fixed_amount: r.mode === "fixed" ? r.fixed_amount : 0 };
+    });
+  }
+  const { data: existing, error } = await sb.from("finance_funds").select("id, code, name");
+  if (error) throw dbError(error);
+  const byId = new Map<string, any>((existing ?? []).map((f: any) => [f.id, f]));
+  const byName = new Map<string, any>((existing ?? []).map((f: any) => [String(f.name).toLowerCase(), f]));
+  const codes = new Set<string>((existing ?? []).map((f: any) => f.code));
+  const out: { key: string; fund_id: string; label: string; mode: "percent"; percent: number; fixed_amount: 0 }[] = [];
+  for (const r of list) {
+    let f = (r.fund_id && byId.get(r.fund_id)) || byName.get(r.label.trim().toLowerCase());
+    if (!f) {
+      const base = r.label.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "").slice(0, 26) || "fund";
+      let code = base, n = 2; while (codes.has(code)) code = `${base}_${n++}`; codes.add(code);
+      const { data: ins, error: ie } = await sb.from("finance_funds").insert({ name: r.label.trim(), code, kind: "operating", is_active: false, display_order: 900 }).select("id, name").single();
+      if (ie) throw dbError(ie);
+      f = ins;
+    }
+    out.push({ key: f.id, fund_id: f.id, label: f.name, mode: "percent", percent: r.percent, fixed_amount: 0 });
+  }
+  return out;
+}
+
 const CreateInvoiceIn = z.object({
   customer_id: z.string().uuid(),
   project_id: z.string().uuid().nullable().optional(),
@@ -268,6 +316,7 @@ const CreateInvoiceIn = z.object({
   stakeholders: z.array(StakeholderIn).max(20).default([]),
   project_costs: z.array(ProjectCostIn).max(30).optional().default([]),
   employee_plans: z.array(EmployeePlanIn).max(50).optional(),
+  fund_rules: z.array(FundRuleIn).max(40).optional(),
 });
 const UpdateInvoiceIn = CreateInvoiceIn.extend({
   id: z.string().uuid(),
@@ -501,6 +550,7 @@ export const createInvoice = createServerFn({ method: "POST" })
     const costTotal = sumCosts(data.project_costs);
     if (costTotal > data.total_amount + 0.01)
       throw new Error("Total project cost cannot exceed the invoice total amount");
+    const fundRules = await resolveInvoiceFundRules(context.supabase, data.customer_id, data.fund_rules);
 
     const { data: inv, error: invErr } = await context.supabase
       .from("invoices")
@@ -519,6 +569,7 @@ export const createInvoice = createServerFn({ method: "POST" })
         project_id: data.project_id ?? null,
         created_by: context.userId,
         status: "sent" as InvoiceStatus,
+        fund_allocation_rules: fundRules,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any)
       .select("id, slug")

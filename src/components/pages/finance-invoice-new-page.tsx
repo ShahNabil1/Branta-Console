@@ -4,7 +4,7 @@ import { useActiveCompany } from "@/components/company/company-switcher";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { QtyPriceFields } from "@/components/finance/qty-price-fields";
 import { toast } from "sonner";
 import {
@@ -24,7 +24,8 @@ import { cn } from "@/lib/utils";
 import { SearchableSelect, type SearchableItem } from "@/components/finance/searchable-select";
 import { QuickCustomerDialog } from "@/components/finance/quick-customer-dialog";
 import { ProjectCostEditor, sumProjectCosts, toCostPayload, type ProjectCost } from "@/components/finance/project-cost-editor";
-import { CompanyFundPreview, useCustomerFundContext } from "@/components/finance/company-fund-preview";
+import { useCustomerFundContext } from "@/components/finance/company-fund-preview";
+import { InvoiceFundEditor, fromDefaults, fundRuleIssues, toFundRulePayload, type FundRuleDraft } from "@/components/finance/invoice-fund-editor";
 import { EmployeeFundPlanner, planAmount, toPlanPayload, EXCEEDS_MSG, type EmployeePlan } from "@/components/finance/employee-fund-planner";
 
 type Installment = { label: string; amount: number; due_date: string };
@@ -95,7 +96,10 @@ export function NewInvoicePage() {
   const costSum = useMemo(() => sumProjectCosts(projectCosts), [projectCosts]);
   const netAmount = Math.max(totalNum - costSum, 0);
   const fundCtx = useCustomerFundContext(customerId || null, sisterCompanyId);
-  const sisterCtx = fundCtx.data?.sister ? fundCtx.data : null;
+  const fundInfo = fundCtx.data && (fundCtx.data.sister || ("holding" in fundCtx.data && fundCtx.data.holding)) ? (fundCtx.data as Extract<typeof fundCtx.data, { company: unknown }>) : null;
+  const [fundRules, setFundRules] = useState<FundRuleDraft[]>([]);
+  const fundKey = fundInfo ? `${fundInfo.company.id}:${JSON.stringify(fundInfo.funds)}` : "";
+  useEffect(() => { setFundRules(fundInfo ? fromDefaults(fundInfo.funds) : []); }, [fundKey]);
   const pctSum = useMemo(() => stakeholders.reduce((a, s) => a + Number(s.percent || 0), 0), [stakeholders]);
 
   const submit = useMutation({
@@ -117,6 +121,7 @@ export function NewInvoicePage() {
         stakeholders: [],
         project_costs: toCostPayload(projectCosts),
         employee_plans: toPlanPayload(plans),
+        fund_rules: fundInfo && fundRules.length ? toFundRulePayload(fundRules) : undefined,
       }});
     },
     onSuccess: (inv) => {
@@ -138,8 +143,9 @@ export function NewInvoicePage() {
     if (installments.some((i) => !(Number(i.amount) > 0))) out.push("Every installment amount must be greater than 0");
     if (projectCosts.some((c) => !c.name.trim())) out.push("Every project cost needs a name");
     if (costSum > totalNum + 0.01) out.push("Total project cost cannot exceed the invoice total");
+    if (fundInfo) out.push(...fundRuleIssues(fundRules));
     return out;
-  }, [customerId, title, totalNum, instSum, installments, projectCosts, costSum, plans, empPool]);
+  }, [customerId, title, totalNum, instSum, installments, projectCosts, costSum, plans, empPool, fundInfo, fundRules]);
 
   const canSubmit = issues.length === 0;
 
@@ -287,6 +293,13 @@ export function NewInvoicePage() {
       <section className="rounded-md border border-border bg-card p-5">
         <ProjectCostEditor costs={projectCosts} onChange={setProjectCosts} total={totalNum} currency={currency} />
       </section>
+
+      {fundInfo && (
+        <section className="rounded-xl border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md sm:p-5">
+          <InvoiceFundEditor companyName={fundInfo.company.name} defaults={fundInfo.funds} percentOnly={!fundInfo.sister}
+            rules={fundRules} onChange={setFundRules} amount={netAmount} currency={currency} />
+        </section>
+      )}
 
 
       <section className="rounded-md border border-border bg-card p-5">

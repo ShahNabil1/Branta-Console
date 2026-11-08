@@ -101,7 +101,17 @@ export const getCustomerFundContext = createServerFn({ method: "POST" })
     }
     if (!companyId) return { sister: false as const };
     const { data: co } = await sb.from("companies").select("id, name, slug, is_holding").eq("id", companyId).maybeSingle();
-    if (!co || co.is_holding) return { sister: false as const };
+    if (!co) return { sister: false as const };
+    if (co.is_holding) {
+      const { data: allowed } = await sb.rpc("is_finance_admin", { _user_id: context.userId });
+      if (!allowed) return { sister: false as const };
+      const { data: ver } = await sb.from("fund_allocation_versions").select("name, fund_allocation_version_items(fund_id, percent, finance_funds(name, display_order))")
+        .order("effective_from", { ascending: false }).order("created_at", { ascending: false }).limit(1).maybeSingle();
+      const funds = ((ver?.fund_allocation_version_items ?? []) as any[]).filter((i) => Number(i.percent) > 0)
+        .sort((a, b) => (a.finance_funds?.display_order ?? 0) - (b.finance_funds?.display_order ?? 0))
+        .map((i) => ({ key: i.fund_id as string, fund_id: i.fund_id as string, label: (i.finance_funds?.name ?? "Fund") as string, mode: "percent" as const, percent: Number(i.percent), fixed_amount: 0 }));
+      return { sister: false as const, holding: true as const, company: { id: co.id as string, name: co.name as string, slug: co.slug as string }, version: null, funds };
+    }
     const { data: cfg, error } = await sb.from("company_fund_configs")
       .select("version, company_fund_buckets(key, label, mode, percent, fixed_amount, sort)")
       .eq("company_id", co.id).eq("is_active", true).maybeSingle();

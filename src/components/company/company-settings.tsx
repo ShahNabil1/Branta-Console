@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
-  Check, GripVertical, Hash, History, Loader2, Lock, Pencil, PieChart, Plus, RotateCcw, Trash2, X, type LucideIcon,
+  Check, GripVertical, ListPlus, Hash, History, Loader2, Lock, Pencil, PieChart, Plus, RotateCcw, Trash2, X, type LucideIcon,
 } from "lucide-react";
 import { DndContext, PointerSensor, KeyboardSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -188,6 +188,41 @@ function ModeToggle({ mode, onChange }: { mode: Bucket["mode"]; onChange: (m: Bu
   );
 }
 
+/** Paste many fund names at once (one per line or comma separated); amounts are set afterwards. */
+function BulkFundAdd({ existing, onAdd }: { existing: string[]; onAdd: (names: string[]) => void }) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  const have = new Set(existing.map((n) => n.trim().toLowerCase()).filter(Boolean));
+  const names: string[] = [];
+  for (const raw of text.split(/[\n,]+/)) {
+    const n = raw.replace(/^\s*(?:\d+[.)]|[-*•])\s*/, "").trim().slice(0, 60);
+    const k = n.toLowerCase();
+    if (n.length >= 2 && !have.has(k) && !names.some((x) => x.toLowerCase() === k)) names.push(n);
+  }
+  if (!open) return (
+    <Button size="sm" variant="outline" className="ml-2 gap-1 text-[12px] font-bold" onClick={() => setOpen(true)}>
+      <ListPlus className="size-3.5" /> Bulk add
+    </Button>
+  );
+  return (
+    <div className="space-y-2 rounded-xl border border-brand/30 bg-brand/5 p-3 animate-in fade-in slide-in-from-top-1">
+      <div className="text-[12px] font-bold">Bulk add funds</div>
+      <p className="text-[11.5px] font-semibold text-muted-foreground">One name per line (or comma separated). Set each fund's % or ৳ after adding.</p>
+      <textarea value={text} onChange={(e) => setText(e.target.value)} rows={5} autoFocus placeholder={"Marketing\nOffice Rent\nGateway Fee"}
+        className="w-full rounded-lg border border-border bg-background p-2.5 text-[13px] font-semibold outline-none transition-all focus:border-brand/60 focus:ring-2 focus:ring-brand/15" />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-[11.5px] font-bold text-muted-foreground">{names.length} new fund{names.length === 1 ? "" : "s"}</span>
+        <div className="flex gap-1.5">
+          <Button size="sm" variant="ghost" className="h-7 text-[12px] font-bold" onClick={() => { setText(""); setOpen(false); }}>Cancel</Button>
+          <Button size="sm" className="h-7 gap-1 text-[12px] font-bold" disabled={!names.length} onClick={() => { onAdd(names); setText(""); setOpen(false); }}>
+            <Plus className="size-3.5" /> Add {names.length || ""}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const fmt = (n: number) => `৳${n.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 
 type FundSource = { loading: boolean; saved: Bucket[]; versions: Ver[]; versionBuckets: (id: string) => Bucket[]; save: (b: Bucket[], note: string) => Promise<void> };
@@ -311,6 +346,7 @@ function FundPanel({ c, accent }: { c: Co; accent: string }) {
               <Button size="sm" variant="outline" className="gap-1 text-[12px] font-bold" onClick={() => ed.setForm((f) => ({ ...f, buckets: [...f.buckets, { uid: uid(), key: "", label: "", mode: "percent", percent: 0, fixed_amount: 0 }] }))}>
                 <Plus className="size-3.5" /> Add rule
               </Button>
+              <BulkFundAdd existing={ed.form.buckets.map((b) => b.label)} onAdd={(names) => ed.setForm((f) => ({ ...f, buckets: [...f.buckets, ...names.map((label) => ({ uid: uid(), key: "", label, mode: "percent" as const, percent: 0, fixed_amount: 0 }))] }))} />
               {dupes && <p className="text-[12px] font-semibold text-destructive">Two funds have the same name.</p>}
               <Input value={ed.form.note} onChange={(e) => ed.setForm((f) => ({ ...f, note: e.target.value }))} placeholder="What changed? (optional, shown in history)" className={fieldCls} maxLength={300} />
             </div>
