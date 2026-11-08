@@ -1,16 +1,15 @@
 import { useSearch as useSearchRR, useParams as useParamsRR, useNavigate as useNavigateRR } from "@tanstack/react-router";
 import { useActiveCompany } from "@/components/company/company-switcher";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useCompanyCatalog } from "@/components/leads/service-picker";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, CalendarRange, RotateCcw } from "lucide-react";
 import { getLeadDashboard, type LeadDashboardInput } from "@/lib/lead-dashboard.functions";
 import {
-  listLeadServiceOptions,
   listLeadSourceOptions,
   listLeadStatusOptions,
-  SERVICE_FALLBACK,
   SOURCE_FALLBACK,
   STATUS_FALLBACK,
 } from "@/lib/lead-options.functions";
@@ -82,7 +81,6 @@ export function LeadDashboardPage() {
   const fetchDash = useServerFn(getLeadDashboard);
   const fStatus = useServerFn(listLeadStatusOptions);
   const fSource = useServerFn(listLeadSourceOptions);
-  const fService = useServerFn(listLeadServiceOptions);
 
   const { data, isLoading, isFetching } = useQuery({
     queryKey: ["lead-dashboard", input],
@@ -91,7 +89,9 @@ export function LeadDashboardPage() {
   });
   const statuses = useQuery({ queryKey: ["lead-status-options"], queryFn: () => fStatus() }).data ?? STATUS_FALLBACK;
   const sources = useQuery({ queryKey: ["lead-source-options"], queryFn: () => fSource() }).data ?? SOURCE_FALLBACK;
-  const services = useQuery({ queryKey: ["lead-service-options"], queryFn: () => fService() }).data ?? SERVICE_FALLBACK;
+  const catalog = useCompanyCatalog();
+  // Reset the service filter when switching company: each company has its own list.
+  useEffect(() => { setService(""); }, [workspace]);
 
   const labelStatus = (k: string) => statuses.find((s) => s.key === k)?.label ?? STATUS_FALLBACK.find((s) => s.key === k)?.label ?? k;
   const labelSource = (k: string) => (k === "unknown" ? "Not set" : sources.find((s) => s.key === k)?.label ?? k);
@@ -192,7 +192,7 @@ export function LeadDashboardPage() {
           <Sel label="Employee" value={owner} onChange={setOwner} options={(data?.owners ?? []).map((o) => ({ key: o.id, label: o.name }))} />
           <Sel label="Lead Source" value={source} onChange={setSource} options={sources.map((s) => ({ key: s.key, label: s.label }))} />
           <Sel label="Status" value={status} onChange={setStatus} options={statuses.map((s) => ({ key: s.key, label: s.label }))} />
-          <Sel label="Service" value={service} onChange={setService} options={services.map((s) => ({ key: s.key, label: s.label }))} />
+          <Sel label="Service" value={service} onChange={setService} options={catalog.flatMap((g) => g.services.map((s) => ({ key: s, label: catalog.length > 1 ? `${g.category} · ${s}` : s })))} />
           <Sel label="Priority" value={priority} onChange={setPriority} options={PRIORITY_OPTIONS.map((p) => ({ key: p.key, label: p.label }))} />
         </div>
       </div>

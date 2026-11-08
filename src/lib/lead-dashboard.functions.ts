@@ -41,7 +41,7 @@ export const getLeadDashboard = createServerFn({ method: "GET" })
     const co = await resolveLeadCompany(context.supabase, context.userId, data.workspace);
     let q = context.supabase
       .from("leads")
-      .select("id,status,source,service,priority,owner_id,next_follow_up_at,created_at")
+      .select("id,status,source,service,services,priority,owner_id,next_follow_up_at,created_at")
       .eq("company_id" as never, co.id as never)
       .eq("is_draft", false)
       .limit(10000);
@@ -50,11 +50,19 @@ export const getLeadDashboard = createServerFn({ method: "GET" })
     if (data.owner) q = q.eq("owner_id", data.owner);
     if (data.source) q = q.eq("source", data.source);
     if (data.status) q = q.eq("status", data.status);
-    if (data.service) q = q.eq("service", data.service);
     if (data.priority) q = q.eq("priority", data.priority);
     const { data: rows, error } = await q;
     if (error) throw dbError(error);
-    const list = rows ?? [];
+    // Service filter matches the lead's chosen services (or its legacy single service).
+    const want = data.service?.trim().toLowerCase() ?? "";
+    const { SERVICE_FALLBACK } = await import("@/lib/lead-options.functions");
+    const legacy = (k: string | null) => (k ? SERVICE_FALLBACK.find((o) => o.key === k)?.label ?? k : "");
+    const list = (rows ?? []).filter((r) => {
+      if (!want) return true;
+      const picked = ((r as { services?: string[] | null }).services ?? []);
+      const all = picked.length ? picked : [legacy(r.service as string | null)];
+      return all.some((x) => x.trim().toLowerCase() === want);
+    });
 
     // End of today in Dhaka
     const todayBD = new Date(Date.now() + 6 * 3600_000).toISOString().slice(0, 10);
