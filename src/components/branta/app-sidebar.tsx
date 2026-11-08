@@ -42,6 +42,7 @@ import { CompanyAvatar } from "@/components/company/company-avatar";
 import { companyIdentity } from "@/lib/company-identity";
 import { resolveActivePath } from "@/lib/nav-active";
 import { stripOrg, isOrgScoped, toCompanyPath } from "@/lib/org-path";
+import { canSeeMyCompany } from "@/lib/my-company-access";
 import { BRAND_LOGO as brandLogo } from "@/lib/brand-assets";
 import { getMyPermissions } from "@/lib/permissions.functions";
 import { holdingPageAllowed } from "@/lib/role-access";
@@ -167,6 +168,7 @@ const FINANCE_NAV: FinanceNavGroup[] = [
 const ALL_PATHS = [
   ...NAV.flatMap((g) => g.items.map((i) => i.to)),
   ...FINANCE_NAV.flatMap((g) => g.items.map((i) => i.to)),
+  "/app/my-company",
 ];
 
 const COLLAPSE_KEY = "branta.sidebar.collapsed";
@@ -293,15 +295,11 @@ export function AppSidebar() {
       .filter((g) => (g.label === "Finance" ? isFinance : g.items.length > 0));
   }, [permsQ.data, activeCompany]);
 
-  // My Company: the user's own company (holding staff → Branta Tech, sister staff → that company); Executives excluded.
+  // My Company: the open workspace's company (Group Admins: every company; holding staff → Branta Tech; sister staff → that company); Executives excluded.
   const myCompany = useMemo(() => {
     const perms = permsQ.data;
     if (!perms || !activeCompany) return null;
-    const roles = (perms as { roles?: string[] }).roles ?? [];
-    const holdingStaff = Boolean(perms.isSuperAdmin || perms.isAdmin) || roles.some((r) => r !== "user");
-    const myRole = (activeCompany as { myRole?: string | null }).myRole;
-    const ok = activeCompany.is_holding ? holdingStaff : !holdingStaff && !!myRole && myRole !== "member";
-    if (!ok) return null;
+    if (!canSeeMyCompany(perms, activeCompany as { is_holding: boolean; myRole?: string | null })) return null;
     const c = activeCompany as { slug: string; name: string; logo_url?: string | null; brand_kit?: unknown };
     const icon = companyIdentity(c.slug, c as never).icon;
     const Icon = ({ className }: { className?: string }) => <CompanyAvatar name={c.name} slug={c.slug} iconUrl={icon} className={cn(className, "rounded text-[9px]")} />;

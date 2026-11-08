@@ -2,7 +2,7 @@
 // company at /app/org/<slug>/... . The URL is the source of truth for the company.
 const ORG_RE = /^\/app\/org\/([^/]+)(\/.*)?$/;
 /** Pages that exist per company. Everything else is holding-only. */
-const SCOPED = [/^\/app\/operations\/?$/, /^\/app\/analytics\/?$/, /^\/app\/projects(\/|$)/, /^\/app\/?$/, /^\/app\/leads(\/|$)/, /^\/app\/customers(\/|$)/, /^\/app\/inbox(\/|$)/, /^\/app\/finance\/invoices(\/|$)/, /^\/app\/finance\/expenses(\/|$)/, /^\/app\/finance\/recycle-bin(\/|$)/];
+const SCOPED = [/^\/app\/operations\/?$/, /^\/app\/analytics\/?$/, /^\/app\/projects(\/|$)/, /^\/app\/?$/, /^\/app\/leads(\/|$)/, /^\/app\/customers(\/|$)/, /^\/app\/inbox(\/|$)/, /^\/app\/finance\/invoices(\/|$)/, /^\/app\/finance\/expenses(\/|$)/, /^\/app\/finance\/recycle-bin(\/|$)/, /^\/app\/my-company\/?$/];
 const LAST_KEY = "branta.lastPath";
 
 export function orgFromPath(pathname: string): string | null {
