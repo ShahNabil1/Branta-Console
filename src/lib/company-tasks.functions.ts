@@ -283,6 +283,7 @@ export const approveCompanyTask = createServerFn({ method: "POST" })
     await assertManage(sb, context.userId, await taskCompany(sb, data.id));
     const { error } = await sb.from("company_tasks").update({ status: "done", approved_by: context.userId, approved_at: new Date().toISOString() }).eq("id", data.id);
     if (error) throw dbError(error);
+    await sb.from("company_task_subtasks").update({ done: true }).eq("task_id", data.id).eq("done", false);
     await log(sb, context.userId, data.id, "approved", { note: data.note || null });
     return { ok: true };
   });
@@ -394,7 +395,7 @@ export const updateCompanyTaskSubtask = createServerFn({ method: "POST" })
       return { ok: true };
     }
     const patch: Record<string, unknown> = {};
-    if (data.done !== undefined) patch.done = data.done;
+    if (data.done !== undefined) throw new Error("Subtasks complete automatically when their work is approved.");
     if (data.title !== undefined) patch.title = data.title;
     if (data.description !== undefined) patch.description = data.description || null;
     if (data.assignee_id !== undefined) patch.assignee_id = data.assignee_id;
@@ -534,7 +535,7 @@ export const reviewCompanyTaskSubmission = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ id: Id, decision: z.enum(["approved", "revision"]), note: z.string().trim().max(2000).optional().nullable() }).parse(d))
   .handler(async ({ data, context }) => {
     const sb = context.supabase as Sb;
-    const { data: s, error } = await sb.from("company_task_submissions").select("task_id, user_id").eq("id", data.id).maybeSingle();
+    const { data: s, error } = await sb.from("company_task_submissions").select("task_id, user_id, subtask_id, asset_id").eq("id", data.id).maybeSingle();
     if (error) throw dbError(error);
     if (!s) throw new Error("Submission not found.");
     await assertManage(sb, context.userId, await taskCompany(sb, s.task_id));
@@ -542,6 +543,13 @@ export const reviewCompanyTaskSubmission = createServerFn({ method: "POST" })
     if (r.error) throw dbError(r.error);
     await sb.from("company_task_assignees").update({ status: data.decision }).eq("task_id", s.task_id).eq("user_id", s.user_id);
     if (data.decision === "revision") await sb.from("company_tasks").update({ status: "doing" }).eq("id", s.task_id).eq("status", "in_review");
+    // Subtask completion follows review only: approved ticks it, a revision reopens it.
+    let subId: string | null = s.subtask_id ?? null;
+    if (!subId && s.asset_id) {
+      const { data: a } = await sb.from("company_task_assets").select("subtask_id").eq("id", s.asset_id).maybeSingle();
+      subId = a?.subtask_id ?? null;
+    }
+    if (subId) await sb.from("company_task_subtasks").update({ done: data.decision === "approved" }).eq("id", subId).eq("task_id", s.task_id);
     await log(sb, context.userId, s.task_id, data.decision === "approved" ? "submission_approved" : "revision_requested", { for: s.user_id, note: data.note || null });
     return { ok: true };
   });

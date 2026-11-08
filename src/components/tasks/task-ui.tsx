@@ -107,8 +107,7 @@ export function AssetKindToggle({ value, onChange, className }: { value: AssetKi
         const on = value === k.key;
         return (
           <button key={k.key} type="button" role="radio" aria-checked={on} onClick={() => onChange(k.key)}
-            className={cn("relative inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-bold transition-colors", on ? "text-foreground" : "text-muted-foreground hover:text-foreground")}>
-            {on && <motion.span layout className="absolute inset-0 rounded bg-card shadow-sm" transition={spring} />}
+            className={cn("relative inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-bold active:scale-95", on ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
             <k.icon className={cn("relative size-3", on && (k.key === "asset" ? "text-brand" : "text-status-contacted"))} /><span className="relative">{k.label}</span>
           </button>
         );

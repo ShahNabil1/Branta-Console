@@ -1,12 +1,12 @@
 // Task detail: the expense drawer surface with company-profile tabs. Managers
 // (C.E.O / C.O.O / HR / Group Admin) edit and review; assignees submit, comment,
-// tick subtasks and log activity; everyone else in the company reads.
+// log activity (subtasks tick on approval); everyone else in the company reads.
 import { useRef, useState, type ReactNode } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { toast } from "sonner";
-import { Activity, Archive, Eye, BadgeCheck, BookOpen, CalendarDays, Check, Crown, ExternalLink, Package, Play, UserCheck, FileText, Link2, ListChecks, MessageSquare, Plus, RotateCcw, Send, Trash2, Upload, X } from "lucide-react";
+import { Activity, Archive, Eye, BadgeCheck, BookOpen, CalendarDays, Check, Crown, ExternalLink, Package, Pencil, Play, UserCheck, FileText, Link2, ListChecks, MessageSquare, Plus, RotateCcw, Send, Trash2, Upload, X } from "lucide-react";
 import { Sheet, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,8 +25,9 @@ import { ReceiptPreview, ReceiptThumb, type ReceiptMedia } from "@/components/fi
 import { ExpenseReceiptsGallery } from "@/components/finance/expense-receipts-gallery";
 import { downloadFile } from "@/components/finance/download-file";
 import { cn } from "@/lib/utils";
+import { DiscardCancelButton } from "@/components/company/danger-confirm";
 import { TaskAssetComposer, type ComposedItem } from "./task-asset-composer";
-import { AREA, AvatarStack, FIELD, LABEL, PersonAvatar, PriorityBadge, SegmentedProgress, StatusChip, fmtDateTime, fmtDue, spring, AssetKindToggle, JourneyBar, type AssetKind } from "./task-ui";
+import { AREA, AvatarStack, FIELD, LABEL, PersonAvatar, PriorityBadge, SegmentedProgress, StatusChip, fmtDateTime, fmtDue, spring, AssetKindToggle, type AssetKind } from "./task-ui";
 
 type Tab = "overview" | "submissions" | "comments" | "activity";
 type UpdPatch = { id: string; title?: string; description?: string | null; priority?: "low" | "normal" | "high" | "urgent"; status?: "todo" | "doing" | "in_review" | "done"; due_on?: string | null; due_time?: string | null; tags?: string[]; project_id?: string | null };
@@ -109,7 +110,7 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function Ownership({ t, edit, addable, onAdd, onRemove }: { t: CompanyTaskDetail; edit: boolean; addable: { value: string; label: string; avatar: string; hint?: string | null }[]; onAdd: (id: string) => void; onRemove: (a: { user_id: string; name: string }) => void }) {
+function Ownership({ t, rows, edit, addable, onAdd, onRemove }: { t: CompanyTaskDetail; rows: { user_id: string; name: string; avatar_url: string | null; status: string }[]; edit: boolean; addable: { value: string; label: string; avatar: string; hint?: string | null }[]; onAdd: (id: string) => void; onRemove: (a: { user_id: string; name: string }) => void }) {
   const creator = t.created_by_person;
   const assignedBy = (uid: string) => {
     const ev = t.activity.find((e) => e.kind === "assignees" && Array.isArray(e.detail?.added) && (e.detail.added as string[]).includes(uid));
@@ -128,9 +129,9 @@ function Ownership({ t, edit, addable, onAdd, onRemove }: { t: CompanyTaskDetail
       <div className="px-4 py-3">
         <div className="flex items-center gap-2"><div className="flex items-center gap-1 text-[10.5px] font-extrabold uppercase tracking-wider text-foreground/70"><UserCheck className="size-3" />Assigned to</div>
           {edit && <div className="ml-auto w-44"><SearchableSelect items={addable} value="" onChange={(v) => v && onAdd(v)} placeholder="+ Add assignee" emptyText="No more members" /></div>}</div>
-        {!t.assignee_rows.length && <p className="mt-1.5 text-[12.5px] text-muted-foreground">No one yet</p>}
+        {!rows.length && <p className="mt-1.5 text-[12.5px] text-muted-foreground">No one yet</p>}
         <ul className="mt-2 grid gap-2 sm:grid-cols-2">
-          {t.assignee_rows.map((a) => {
+          {rows.map((a) => {
             const by = assignedBy(a.user_id);
             return (
               <li key={a.user_id} className={cn("flex items-center gap-2.5 rounded-lg border px-2.5 py-2", a.user_id === t.me ? "border-brand/50 bg-brand/5" : "border-border")}>
@@ -150,12 +151,23 @@ function Ownership({ t, edit, addable, onAdd, onRemove }: { t: CompanyTaskDetail
   );
 }
 
-function SubDesc({ value, onSave }: { value: string | null; onSave: (v: string | null) => void }) {
-  const [v, setV] = useState(value ?? "");
-  return <textarea value={v} onChange={(e) => setV(e.target.value)} maxLength={2000} rows={1} aria-label="Subtask description" placeholder="Add details for this subtask"
-    onBlur={() => { if (v.trim() !== (value ?? "")) onSave(v.trim() || null); }}
-    className="mt-0.5 w-full resize-y rounded border border-transparent bg-transparent px-1 py-0.5 text-[11.5px] font-medium leading-relaxed text-muted-foreground outline-none placeholder:text-muted-foreground/60 hover:border-border focus:border-brand focus:bg-card" />;
+type SubDraft = { description: string; assignee_id: string | null; remove?: boolean };
+type AssetDraft = { kind: AssetKind; subtask_id: string | null; assignee_id: string | null; remove?: boolean };
+type Draft = {
+  title: string; desc: string; due_on: string; due_time: string; status: string; priority: string; project_id: string; tags: string[];
+  assignees: string[]; subs: Record<string, SubDraft>; newSubs: { title: string; description: string }[];
+  assets: Record<string, AssetDraft>; newAssets: ComposedItem[];
+};
+
+function initDraft(t: CompanyTaskDetail): Draft {
+  return {
+    title: t.title, desc: t.description ?? "", due_on: t.due_on ?? "", due_time: t.due_time?.slice(0, 5) ?? "", status: t.status, priority: t.priority, project_id: t.project_id ?? "", tags: [...t.tags],
+    assignees: t.assignee_rows.map((a) => a.user_id),
+    subs: Object.fromEntries(t.subtasks.map((s) => [s.id, { description: s.description ?? "", assignee_id: s.assignee_id }])), newSubs: [],
+    assets: Object.fromEntries(t.asset_rows.map((a) => [a.id, { kind: a.kind, subtask_id: a.subtask_id, assignee_id: a.assignee_id }])), newAssets: [],
+  };
 }
+const draftKey = (d: Draft) => JSON.stringify({ ...d, newAssets: d.newAssets.map((x) => [x.url, x.file?.name, x.kind, x.subtask, x.assignee_id]) });
 
 function ProgressGlyph() {
   return (
@@ -167,37 +179,84 @@ function ProgressGlyph() {
   );
 }
 
+const STAGES = [
+  { key: "todo", label: "To do", tone: "bg-muted-foreground/40", text: "text-muted-foreground" },
+  { key: "doing", label: "Doing", tone: "bg-brand", text: "text-brand" },
+  { key: "submitted", label: "Submitted", tone: "bg-status-contacted", text: "text-status-contacted" },
+  { key: "approved", label: "Approved", tone: "bg-status-converted", text: "text-status-converted" },
+] as const;
+const stageOf = (s: string) => (s === "revision" ? "doing" : (STAGES.find((x) => x.key === s)?.key ?? "todo"));
+
+/** Whole-team progress: how many people sit in each stage, and when each person started, submitted and got approved. */
+function TeamProgress({ t }: { t: CompanyTaskDetail }) {
+  const rows = t.assignee_rows;
+  if (!rows.length) return null;
+  const counts = STAGES.map((s) => ({ ...s, n: rows.filter((r) => stageOf(r.status) === s.key).length }));
+  const when = (uid: string) => {
+    const started = t.activity.find((a) => a.actor_id === uid && a.kind === "my_status" && a.detail?.status === "doing")?.created_at;
+    const subs = t.submissions.filter((s) => s.user_id === uid);
+    const submitted = subs[0]?.created_at;
+    const approved = t.activity.find((a) => a.kind === "submission_approved" && a.detail?.for === uid)?.created_at;
+    return { started, submitted, approved, revision: subs.some((s) => s.status === "revision") };
+  };
+  return (
+    <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+      <div className="flex items-center gap-2"><span className="grid size-7 place-items-center rounded-md bg-brand/10 text-brand"><ProgressGlyph /></span><span className="text-[13px] font-extrabold">Team progress</span>
+        <span className="ml-auto font-mono text-[11px] font-bold text-muted-foreground">{counts[3].n}/{rows.length} approved</span></div>
+      <div className="mt-3 flex h-3 overflow-hidden rounded-full bg-muted">
+        {counts.map((c, i) => c.n > 0 && (
+          <motion.div key={c.key} className={cn("h-full", c.tone)} initial={{ width: 0 }} animate={{ width: `${(c.n / rows.length) * 100}%` }} transition={{ duration: 0.9, delay: i * 0.12, ease: [0.22, 1, 0.36, 1] }} />
+        ))}
+      </div>
+      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+        {counts.map((c) => <span key={c.key} className="inline-flex items-center gap-1.5 text-[11.5px] font-bold"><span className={cn("size-2 rounded-full", c.tone)} />{c.label}<span className="font-mono text-muted-foreground">{c.n}</span></span>)}
+      </div>
+      <ul className="mt-3 space-y-2">
+        {rows.map((r) => {
+          const w = when(r.user_id);
+          const st = stageOf(r.status);
+          const steps = [
+            { label: "Assigned", at: null as string | null | undefined, on: true },
+            { label: "Started", at: w.started, on: st !== "todo" },
+            { label: "Submitted", at: w.submitted, on: st === "submitted" || st === "approved" },
+            { label: "Approved", at: w.approved, on: st === "approved" },
+          ];
+          return (
+            <li key={r.user_id} className={cn("rounded-lg border px-2.5 py-2", r.user_id === t.me ? "border-brand/50 bg-brand/5" : "border-border")}>
+              <div className="flex items-center gap-2">
+                <PersonAvatar name={r.name} src={r.avatar_url} size={24} />
+                <span className="truncate text-[12.5px] font-extrabold">{r.name}{r.user_id === t.me && <span className="ml-1 text-[10px] font-bold text-brand">(You)</span>}</span>
+                <span className={cn("ml-auto rounded border border-current/30 px-1.5 py-0.5 text-[9.5px] font-extrabold uppercase", r.status === "revision" ? "text-destructive" : STAGES.find((x) => x.key === st)?.text)}>{r.status === "revision" ? "Revision" : STAGES.find((x) => x.key === st)?.label}</span>
+              </div>
+              <ol className="mt-2 grid grid-cols-4 gap-1">
+                {steps.map((s) => (
+                  <li key={s.label} className="min-w-0">
+                    <div className={cn("h-1 rounded-full", s.on ? (s.label === "Approved" ? "bg-status-converted" : s.label === "Submitted" ? "bg-status-contacted" : "bg-brand") : "bg-muted")} />
+                    <div className={cn("mt-1 text-[10.5px] font-bold", s.on ? "text-foreground" : "text-muted-foreground/60")}>{s.label}</div>
+                    {s.on && s.at && <div className="truncate font-mono text-[9.5px] text-muted-foreground">{fmtDateTime(s.at)}</div>}
+                  </li>
+                ))}
+              </ol>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 function Overview({ t, members, projects, refresh }: { t: CompanyTaskDetail; members: TaskMember[]; projects: { id: string; title: string }[]; refresh: () => void }) {
   const upd = useServerFn(updateCompanyTask), setAsg = useServerFn(setCompanyTaskAssignees), addSub = useServerFn(addCompanyTaskSubtask);
   const updSub = useServerFn(updateCompanyTaskSubtask), addAssets = useServerFn(addCompanyTaskAssets), updAsset = useServerFn(updateCompanyTaskAsset);
   const myStatus = useServerFn(setMyCompanyTaskStatus), submit = useServerFn(submitCompanyTaskWork);
-  const edit = t.can.edit, work = t.can.work;
-  const u = useAct((p: UpdPatch) => upd({ data: p }), refresh);
-  const asg = useAct((ids: string[]) => setAsg({ data: { id: t.id, userIds: ids } }), refresh);
-  const sub = useAct((p: { title: string; description?: string | null; assignee_id: string | null }) => addSub({ data: { taskId: t.id, ...p } }), refresh);
-  const subU = useAct((p: SubPatch) => updSub({ data: p }), refresh);
   const presignAsset = useServerFn(requestTaskAssetUpload);
-  const [assetPhase, setAssetPhase] = useState<string | null>(null);
-  const assets = useAct(async (items: ComposedItem[]) => {
-    try {
-      const files = items.filter((x) => x.file);
-      const rows = [];
-      let n = 0;
-      for (const it of items) {
-        if (it.file) {
-          const f = it.file; n++;
-          setAssetPhase(`Uploading ${n}/${files.length}…`);
-          const mime = f.type || "application/octet-stream";
-          const { url, key } = await presignAsset({ data: { taskId: t.id, name: f.name, mime, size: f.size } });
-          const res = await fetch(url, { method: "PUT", headers: { "Content-Type": mime }, body: f });
-          if (!res.ok) throw new Error(`${f.name} could not be uploaded.`);
-          rows.push({ kind: it.kind, file: { key, name: f.name, mime, size: f.size }, subtask_id: it.subtask || null, assignee_id: it.assignee_id || null });
-        } else rows.push({ kind: it.kind, url: it.url, subtask_id: it.subtask || null, assignee_id: it.assignee_id || null });
-      }
-      return await addAssets({ data: { taskId: t.id, assets: rows } });
-    } finally { setAssetPhase(null); }
-  }, refresh, "Added to the task");
-  const assetU = useAct((p: AssetPatch) => updAsset({ data: p }), refresh);
+  const work = t.can.work;
+  const [editing, setEditing] = useState(false);
+  const edit = t.can.edit && editing;
+  const [d, setD] = useState<Draft>(() => initDraft(t));
+  const dirty = editing && draftKey(d) !== draftKey(initDraft(t));
+  const startEdit = () => { setD(initDraft(t)); setEditing(true); };
+  const [phase, setPhase] = useState<string | null>(null);
   const mine = useAct((s: "todo" | "doing") => myStatus({ data: { taskId: t.id, status: s } }), refresh, "Progress updated");
   const confirm = useConfirm();
   const [assetIdx, setAssetIdx] = useState<number | null>(null);
@@ -206,8 +265,64 @@ function Overview({ t, members, projects, refresh }: { t: CompanyTaskDetail; mem
   const assetMedia = fileAssets.map((a) => ({ ...toMedia(a.file!), caption: a.title || a.file!.name }));
   const sendAsset = useAct((p: { assetId: string; link: string; note: string }) => submit({ data: { taskId: t.id, assetId: p.assetId, link: p.link || null, note: p.note || null } }), refresh, "Submitted for review");
 
-  const [title, setTitle] = useState(t.title);
-  const [desc, setDesc] = useState(t.description ?? "");
+  const save = useMutation({
+    mutationFn: async () => {
+      if (!d.title.trim()) throw new Error("Task title can't be empty.");
+      setPhase("Saving…");
+      const p: UpdPatch = { id: t.id };
+      if (d.title.trim() !== t.title) p.title = d.title.trim();
+      if (d.desc !== (t.description ?? "")) p.description = d.desc;
+      if (d.due_on !== (t.due_on ?? "")) p.due_on = d.due_on || null;
+      const time = d.due_on ? d.due_time : "";
+      if (time !== (t.due_time?.slice(0, 5) ?? "")) p.due_time = time || null;
+      if (d.status !== t.status) p.status = d.status as UpdPatch["status"];
+      if (d.priority !== t.priority) p.priority = d.priority as UpdPatch["priority"];
+      if (d.project_id !== (t.project_id ?? "")) p.project_id = d.project_id || null;
+      if (JSON.stringify(d.tags) !== JSON.stringify(t.tags)) p.tags = d.tags;
+      if (Object.keys(p).length > 1) await upd({ data: p });
+      const was = t.assignee_rows.map((a) => a.user_id);
+      if (JSON.stringify([...was].sort()) !== JSON.stringify([...d.assignees].sort())) await setAsg({ data: { id: t.id, userIds: d.assignees } });
+      for (const s of t.subtasks) {
+        const x = d.subs[s.id]; if (!x) continue;
+        if (x.remove) { await updSub({ data: { id: s.id, remove: true } }); continue; }
+        const sp: SubPatch = { id: s.id };
+        if (x.description.trim() !== (s.description ?? "")) sp.description = x.description.trim() || null;
+        if (x.assignee_id !== s.assignee_id) sp.assignee_id = x.assignee_id;
+        if (Object.keys(sp).length > 1) await updSub({ data: sp });
+      }
+      for (const n of d.newSubs) await addSub({ data: { taskId: t.id, title: n.title, description: n.description || null, assignee_id: null } });
+      for (const a of t.asset_rows) {
+        const x = d.assets[a.id]; if (!x) continue;
+        if (x.remove) { await updAsset({ data: { id: a.id, remove: true } }); continue; }
+        const ap: AssetPatch = { id: a.id };
+        if (x.kind !== a.kind) ap.kind = x.kind;
+        if (x.subtask_id !== a.subtask_id) ap.subtask_id = x.subtask_id;
+        if (x.assignee_id !== a.assignee_id) ap.assignee_id = x.assignee_id;
+        if (Object.keys(ap).length > 1) await updAsset({ data: ap });
+      }
+      if (d.newAssets.length) {
+        const files = d.newAssets.filter((x) => x.file);
+        const rows = []; let n = 0;
+        for (const it of d.newAssets) {
+          if (it.file) {
+            const f = it.file; n++;
+            setPhase(`Uploading ${n}/${files.length}…`);
+            const mime = f.type || "application/octet-stream";
+            const { url, key } = await presignAsset({ data: { taskId: t.id, name: f.name, mime, size: f.size } });
+            const res = await fetch(url, { method: "PUT", headers: { "Content-Type": mime }, body: f });
+            if (!res.ok) throw new Error(`${f.name} could not be uploaded.`);
+            rows.push({ kind: it.kind, file: { key, name: f.name, mime, size: f.size }, subtask_id: it.subtask || null, assignee_id: it.assignee_id || null });
+          } else rows.push({ kind: it.kind, url: it.url, subtask_id: it.subtask || null, assignee_id: it.assignee_id || null });
+        }
+        setPhase("Saving…");
+        await addAssets({ data: { taskId: t.id, assets: rows } });
+      }
+    },
+    onSuccess: () => { toast.success("Task saved"); setEditing(false); refresh(); },
+    onError: (e: Error) => { toast.error(e.message); refresh(); },
+    onSettled: () => setPhase(null),
+  });
+
   const [tag, setTag] = useState("");
   const [newSub, setNewSub] = useState("");
   const [newSubDesc, setNewSubDesc] = useState("");
@@ -216,47 +331,71 @@ function Overview({ t, members, projects, refresh }: { t: CompanyTaskDetail; mem
   const [assetNote, setAssetNote] = useState("");
 
   const meRow = t.assignee_rows.find((a) => a.user_id === t.me);
-  const assigneeIds = t.assignee_rows.map((a) => a.user_id);
-  const addable = members.filter((m) => !assigneeIds.includes(m.user_id)).map((m) => ({ value: m.user_id, label: m.name, avatar: m.avatar_url ?? "", hint: m.code }));
-  const team = t.assignee_rows.map((a) => ({ value: a.user_id, label: a.name, avatar: a.avatar_url ?? "" }));
-  const P = (id: string | null) => (id ? t.people[id] ?? t.assignee_rows.find((a) => a.user_id === id) : undefined);
+  const P = (id: string | null) => (id ? t.people[id] ?? t.assignee_rows.find((a) => a.user_id === id) ?? members.find((m) => m.user_id === id) : undefined);
+  const ownRows = edit
+    ? d.assignees.map((id) => { const r = t.assignee_rows.find((a) => a.user_id === id); const m = P(id); return r ?? { user_id: id, name: m?.name ?? "—", avatar_url: m?.avatar_url ?? null, status: "todo" }; })
+    : t.assignee_rows;
+  const addable = members.filter((m) => !d.assignees.includes(m.user_id)).map((m) => ({ value: m.user_id, label: m.name, avatar: m.avatar_url ?? "", hint: m.code }));
+  const team = ownRows.map((a) => ({ value: a.user_id, label: a.name, avatar: a.avatar_url ?? "" }));
+  const liveSubs = t.subtasks.filter((s) => !(edit && d.subs[s.id]?.remove));
+  const liveAssets = t.asset_rows.filter((a) => !(edit && d.assets[a.id]?.remove));
+  const assetRoom = MAX_TASK_ASSETS - liveAssets.length - d.newAssets.length;
+  const setSub = (id: string, x: Partial<SubDraft>) => setD((v) => ({ ...v, subs: { ...v.subs, [id]: { ...v.subs[id], ...x } } }));
+  const setAsset = (id: string, x: Partial<AssetDraft>) => setD((v) => ({ ...v, assets: { ...v.assets, [id]: { ...v.assets[id], ...x } } }));
 
   return (
     <div className="space-y-5">
-      {edit && (
-        <Input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} aria-label="Task title"
-          onBlur={() => { if (title.trim() && title.trim() !== t.title) u.mutate({ id: t.id, title: title.trim() }); }} className={`${FIELD} text-[14px]`} />
+      {t.can.edit && (
+        <div className={cn("sticky top-0 z-10 -mx-1 flex items-center gap-2 rounded-lg border px-3 py-2 backdrop-blur", editing ? "border-brand/40 bg-brand/5" : "border-border bg-card/90")}>
+          <span className="text-[12px] font-bold text-muted-foreground">{editing ? (dirty ? "Unsaved changes" : "Editing task") : "View only"}</span>
+          <div className="ml-auto flex items-center gap-2">
+            {editing ? (
+              <>
+                {phase && <span className="flex items-center gap-1.5 text-[11.5px] font-semibold text-muted-foreground"><TestLoader />{phase}</span>}
+                <DiscardCancelButton dirty={dirty} disabled={save.isPending} className="h-8 rounded-md text-[12px] font-bold" onCancel={() => { setD(initDraft(t)); setEditing(false); }} />
+                <Button size="sm" disabled={!dirty || save.isPending || !d.title.trim()} onClick={() => save.mutate()} className="h-8 gap-1 rounded-md text-[12px] font-bold">
+                  {save.isPending ? <TestLoader tone="white" /> : <Check className="size-3.5" />}Save changes</Button>
+              </>
+            ) : (
+              <Button size="sm" variant="outline" onClick={startEdit} className="h-8 gap-1 rounded-md text-[12px] font-bold"><Pencil className="size-3.5" />Edit task</Button>
+            )}
+          </div>
+        </div>
       )}
-      <Ownership t={t} edit={edit} addable={addable} onAdd={(v) => asg.mutate([...assigneeIds, v])}
-        onRemove={async (a) => { if (await confirm({ tone: "danger", title: `Remove ${a.name} from this task?`, subject: "Their subtasks and assets become unassigned.", confirmLabel: "Remove" })) asg.mutate(assigneeIds.filter((x) => x !== a.user_id)); }} />
+      {edit && (
+        <div><div className={LABEL}>Task title</div>
+          <Input value={d.title} onChange={(e) => setD({ ...d, title: e.target.value })} maxLength={200} aria-label="Task title" className={`${FIELD} mt-1.5 text-[14px]`} /></div>
+      )}
+      <Ownership t={t} rows={ownRows} edit={edit} addable={addable} onAdd={(v) => setD({ ...d, assignees: [...d.assignees, v] })}
+        onRemove={async (a) => { if (await confirm({ tone: "danger", title: `Remove ${a.name} from this task?`, subject: "Their subtasks and assets become unassigned when you save.", confirmLabel: "Remove" })) setD((v) => ({ ...v, assignees: v.assignees.filter((x) => x !== a.user_id) })); }} />
       <div className="divide-y divide-border/60 rounded-xl border border-border bg-card px-3.5 py-1">
         <Row label="Due date">
           {edit ? (
             <div className="flex gap-2">
-              <Input type="date" defaultValue={t.due_on ?? ""} aria-label="Due date" onChange={(e) => u.mutate({ id: t.id, due_on: e.target.value || null, ...(e.target.value ? {} : { due_time: null }) })} className={`${FIELD} h-9 w-44`} />
-              <Input type="time" defaultValue={t.due_time?.slice(0, 5) ?? ""} aria-label="Due time" disabled={!t.due_on} onBlur={(e) => { const v = e.target.value || null; if (v !== (t.due_time?.slice(0, 5) ?? null)) u.mutate({ id: t.id, due_time: v }); }} className={`${FIELD} h-9 w-32 font-mono`} />
+              <Input type="date" value={d.due_on} aria-label="Due date" onChange={(e) => setD({ ...d, due_on: e.target.value, ...(e.target.value ? {} : { due_time: "" }) })} className={`${FIELD} h-9 w-44`} />
+              <Input type="time" value={d.due_time} aria-label="Due time" disabled={!d.due_on} onChange={(e) => setD({ ...d, due_time: e.target.value })} className={`${FIELD} h-9 w-32 font-mono`} />
             </div>
           ) : <span className="inline-flex items-center gap-1.5 font-mono text-[12.5px] font-bold"><CalendarDays className="size-3.5 text-muted-foreground" />{fmtDue(t.due_on, t.due_time)}</span>}
         </Row>
         <Row label="Status">
-          {edit ? <div className="w-44"><SearchableSelect searchable={false} items={TASK_STATUSES.map((s) => ({ value: s.key, label: s.label }))} value={t.status} onChange={(v) => v && v !== t.status && u.mutate({ id: t.id, status: v as "todo" })} /></div> : <StatusChip value={t.status} />}
+          {edit ? <div className="w-44"><SearchableSelect searchable={false} items={TASK_STATUSES.map((s) => ({ value: s.key, label: s.label }))} value={d.status} onChange={(v) => v && setD({ ...d, status: v })} /></div> : <StatusChip value={t.status} />}
         </Row>
         <Row label="Priority">
-          {edit ? <div className="w-44"><SearchableSelect searchable={false} items={TASK_PRIORITIES.map((p) => ({ value: p.key, label: p.label }))} value={t.priority} onChange={(v) => v && v !== t.priority && u.mutate({ id: t.id, priority: v as "normal" })} /></div> : <PriorityBadge value={t.priority} />}
+          {edit ? <div className="w-44"><SearchableSelect searchable={false} items={TASK_PRIORITIES.map((p) => ({ value: p.key, label: p.label }))} value={d.priority} onChange={(v) => v && setD({ ...d, priority: v })} /></div> : <PriorityBadge value={t.priority} />}
         </Row>
         <Row label="Project">
-          {edit ? <div className="max-w-xs"><SearchableSelect clearable items={projects.map((p) => ({ value: p.id, label: p.title }))} value={t.project_id ?? ""} onChange={(v) => u.mutate({ id: t.id, project_id: v || null })} placeholder="— Not linked —" emptyText="No projects" /></div>
+          {edit ? <div className="max-w-xs"><SearchableSelect clearable items={projects.map((p) => ({ value: p.id, label: p.title }))} value={d.project_id} onChange={(v) => setD({ ...d, project_id: v || "" })} placeholder="— Not linked —" emptyText="No projects" /></div>
             : <span className="text-[12.5px] font-bold">{t.project_title ?? "—"}</span>}
         </Row>
         <Row label="Tags">
           <div className="flex flex-wrap items-center gap-1.5">
-            {t.tags.map((g) => (
+            {(edit ? d.tags : t.tags).map((g) => (
               <span key={g} className="inline-flex items-center gap-1 rounded border border-border bg-muted/50 px-1.5 py-0.5 text-[11.5px] font-bold">{g}
-                {edit && <button type="button" aria-label={`Remove ${g}`} onClick={() => u.mutate({ id: t.id, tags: t.tags.filter((x) => x !== g) })}><X className="size-3 text-muted-foreground" /></button>}
+                {edit && <button type="button" aria-label={`Remove ${g}`} onClick={() => setD({ ...d, tags: d.tags.filter((x) => x !== g) })}><X className="size-3 text-muted-foreground" /></button>}
               </span>
             ))}
             {edit && <input value={tag} onChange={(e) => setTag(e.target.value)} maxLength={40} aria-label="Add tag" placeholder="Add more" enterKeyHint="done"
-              onKeyDown={(e) => { if (e.key === "Enter" && tag.trim() && !e.nativeEvent.isComposing) { e.preventDefault(); e.stopPropagation(); if (!t.tags.includes(tag.trim())) u.mutate({ id: t.id, tags: [...t.tags, tag.trim()] }); setTag(""); } }}
+              onKeyDown={(e) => { if (e.key === "Enter" && tag.trim() && !e.nativeEvent.isComposing) { e.preventDefault(); e.stopPropagation(); if (!d.tags.includes(tag.trim())) setD({ ...d, tags: [...d.tags, tag.trim()] }); setTag(""); } }}
               className="w-24 bg-transparent text-[12px] font-semibold outline-none placeholder:text-muted-foreground/70" />}
             {!edit && !t.tags.length && <span className="text-[12.5px] text-muted-foreground">—</span>}
           </div>
@@ -264,10 +403,10 @@ function Overview({ t, members, projects, refresh }: { t: CompanyTaskDetail; mem
         {t.approved_by_person && <Row label="Approved by"><span className="inline-flex items-center gap-1.5 text-[12.5px] font-bold"><PersonAvatar name={t.approved_by_person.name} src={t.approved_by_person.avatar_url} size={20} />{t.approved_by_person.name} · {fmtDateTime(t.approved_at!)}</span></Row>}
       </div>
 
-      {work && meRow && (
+      {work && meRow && !editing && (
         <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
           <div className="flex items-center gap-2">
-            <span className="grid size-7 place-items-center rounded-md bg-brand/10 text-brand"><ProgressGlyph /></span><span className="text-[13px] font-extrabold">My progress</span>
+            <span className="text-[13px] font-extrabold">My progress</span>
             <div className="ml-auto inline-flex gap-1 rounded-lg border border-border bg-muted/40 p-1">
               {([["todo", "Not started", RotateCcw], ["doing", "Working on it", Play]] as const).map(([k, label, Icon]) => {
                 const on = meRow.status === k || (k === "doing" && meRow.status === "revision");
@@ -279,24 +418,22 @@ function Overview({ t, members, projects, refresh }: { t: CompanyTaskDetail; mem
                         subject: k === "doing" ? "Your status changes to Doing and the team sees you are on it." : "Your status goes back to To do.", confirmLabel: label });
                       if (ok) mine.mutate(k);
                     }}
-                    className={cn("relative inline-flex h-9 items-center gap-2 rounded-md px-3.5 text-[12.5px] font-extrabold transition-colors disabled:cursor-default", on ? (k === "doing" ? "text-primary-foreground" : "text-foreground") : "text-muted-foreground hover:bg-card/70 hover:text-foreground", locked && !on && "opacity-50")}>
-                    {on && <motion.span layoutId="my-progress-pill" className={cn("absolute inset-0 rounded-md shadow-sm", k === "doing" ? "bg-brand" : "bg-card ring-1 ring-border")} transition={spring} />}
-                    <span className="relative inline-flex items-center gap-2">{mine.isPending && mine.variables === k ? <TestLoader /> : <span className={cn("grid size-5 place-items-center rounded-full", on ? (k === "doing" ? "bg-primary-foreground/20" : "bg-muted") : "bg-muted/70")}><Icon className="size-3" /></span>}{label}</span>
+                    className={cn("relative inline-flex h-9 items-center gap-2 rounded-md px-3.5 text-[12.5px] font-extrabold disabled:cursor-default", on ? (k === "doing" ? "bg-brand text-primary-foreground shadow-sm" : "bg-card text-foreground shadow-sm ring-1 ring-border") : "text-muted-foreground hover:bg-card/70 hover:text-foreground", locked && !on && "opacity-50")}>
+                    {mine.isPending && mine.variables === k ? <TestLoader /> : <Icon className="size-3.5" />}{label}
                   </button>
                 );
               })}
             </div>
           </div>
-          <div className="mt-4"><JourneyBar status={meRow.status} /></div>
           {(meRow.status === "submitted" || meRow.status === "approved") && <p className="mt-2 text-[11.5px] font-semibold text-muted-foreground">{meRow.status === "approved" ? "Your work is approved." : "Your work is waiting for review."}</p>}
         </div>
       )}
+      {!editing && <TeamProgress t={t} />}
 
       <section>
         <div className={LABEL}>Description</div>
         {edit ? (
-          <textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={4} aria-label="Description"
-            onBlur={() => { if (desc !== (t.description ?? "")) u.mutate({ id: t.id, description: desc }); }} className={`mt-1.5 ${AREA}`} />
+          <textarea value={d.desc} onChange={(e) => setD({ ...d, desc: e.target.value })} rows={4} aria-label="Description" className={`mt-1.5 ${AREA}`} />
         ) : (
           <blockquote className="mt-2 whitespace-pre-wrap border-l-[3px] border-brand pl-4 text-[14.5px] font-bold leading-relaxed tracking-tight text-foreground">{t.description || <span className="font-semibold text-muted-foreground">No description.</span>}</blockquote>
         )}
@@ -305,33 +442,37 @@ function Overview({ t, members, projects, refresh }: { t: CompanyTaskDetail; mem
       <section>
         <div className="flex items-center gap-1.5"><ListChecks className="size-4 text-muted-foreground" /><span className={LABEL}>Subtasks</span><span className="ml-auto font-mono text-[11px] text-muted-foreground">{t.subtasks_done}/{t.subtasks_total}</span></div>
         {t.subtasks_total > 0 && <div className="mt-2"><SegmentedProgress done={t.subtasks_done} total={t.subtasks_total} /></div>}
+        {!edit && t.subtasks_total > 0 && <p className="mt-1.5 text-[11px] font-semibold text-muted-foreground">A subtask ticks itself when its submitted work is approved.</p>}
         <ul className="mt-2 space-y-1.5">
-          <AnimatePresence initial={false}>
-            {[...t.subtasks].sort((a, b) => Number(b.assignee_id === t.me) - Number(a.assignee_id === t.me)).map((s) => {
-              const who = P(s.assignee_id);
-              const isMine = s.assignee_id === t.me;
-              return (
-                <motion.li key={s.id} layout initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, height: 0 }} transition={spring}
-                  className={cn("flex items-start gap-2 rounded-lg border px-2.5 py-1.5", isMine ? "border-brand/50 bg-brand/5 shadow-sm" : "border-border bg-card")}>
-                  <motion.button type="button" whileTap={{ scale: 0.85 }} disabled={!work || subU.isPending} aria-label={s.done ? "Mark not done" : "Mark done"}
-                    onClick={() => subU.mutate({ id: s.id, done: !s.done })}
-                    className={cn("grid size-4.5 shrink-0 place-items-center rounded border transition-colors", s.done ? "border-brand bg-brand text-white" : "border-border bg-card", !work && "cursor-default")}>
-                    {s.done && <Check className="size-3" />}
-                  </motion.button>
-                  <div className="min-w-0 flex-1">
-                    <div className={cn("truncate text-[12.5px] font-semibold transition-colors", s.done && "text-muted-foreground line-through")}>{s.title}</div>
-                    {edit ? <SubDesc value={s.description} onSave={(v) => subU.mutate({ id: s.id, description: v })} />
-                      : s.description ? <p className="mt-0.5 whitespace-pre-wrap border-l-2 border-brand/50 pl-2 text-[11.5px] font-medium leading-relaxed text-muted-foreground">{s.description}</p> : null}
-                  </div>
-                  {isMine && <span className="shrink-0 rounded bg-brand px-1.5 py-0.5 text-[9.5px] font-extrabold uppercase tracking-wider text-primary-foreground">Mine</span>}
-                  {edit ? (
-                    <div className="w-36 shrink-0"><SearchableSelect clearable searchable={false} items={team} value={s.assignee_id ?? ""} onChange={(v) => subU.mutate({ id: s.id, assignee_id: v || null })} placeholder="Anyone" emptyText="No assignees" /></div>
-                  ) : who ? <PersonAvatar name={who.name} src={who.avatar_url} size={20} /> : null}
-                  {edit && <button type="button" aria-label="Remove subtask" onClick={async () => { if (await confirm({ tone: "danger", title: "Remove this subtask?", subject: s.title, confirmLabel: "Remove" })) subU.mutate({ id: s.id, remove: true }); }}><Trash2 className="size-3.5 text-muted-foreground hover:text-destructive" /></button>}
-                </motion.li>
-              );
-            })}
-          </AnimatePresence>
+          {[...liveSubs].sort((a, b) => Number(b.assignee_id === t.me) - Number(a.assignee_id === t.me)).map((s) => {
+            const x = d.subs[s.id];
+            const who = P(edit ? x?.assignee_id ?? null : s.assignee_id);
+            const isMine = s.assignee_id === t.me;
+            return (
+              <li key={s.id} className={cn("flex items-start gap-2 rounded-lg border px-2.5 py-1.5", isMine ? "border-brand/50 bg-brand/5 shadow-sm" : "border-border bg-card")}>
+                <span aria-label={s.done ? "Approved" : "Not approved yet"} className={cn("mt-0.5 grid size-4.5 shrink-0 place-items-center rounded border", s.done ? "border-status-converted bg-status-converted text-primary-foreground" : "border-border bg-card")}>
+                  {s.done && <Check className="size-3" />}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className={cn("truncate text-[12.5px] font-semibold", s.done && "text-muted-foreground line-through")}>{s.title}</div>
+                  {edit ? <textarea value={x?.description ?? ""} onChange={(e) => setSub(s.id, { description: e.target.value })} maxLength={2000} rows={2} aria-label="Subtask description" placeholder="Details for this subtask" className={`mt-1 ${AREA}`} />
+                    : s.description ? <p className="mt-0.5 whitespace-pre-wrap border-l-2 border-brand/50 pl-2 text-[11.5px] font-medium leading-relaxed text-muted-foreground">{s.description}</p> : null}
+                </div>
+                {isMine && !edit && <span className="shrink-0 rounded bg-brand px-1.5 py-0.5 text-[9.5px] font-extrabold uppercase tracking-wider text-primary-foreground">Mine</span>}
+                {edit ? (
+                  <div className="w-36 shrink-0"><SearchableSelect clearable searchable={false} items={team} value={x?.assignee_id ?? ""} onChange={(v) => setSub(s.id, { assignee_id: v || null })} placeholder="Anyone" emptyText="No assignees" /></div>
+                ) : who ? <span className="inline-flex shrink-0 items-center gap-1 text-[11.5px] font-bold"><PersonAvatar name={who.name} src={who.avatar_url} size={20} />{who.name.split(" ")[0]}</span> : null}
+                {edit && <button type="button" aria-label="Remove subtask" onClick={async () => { if (await confirm({ tone: "danger", title: "Remove this subtask?", subject: s.title, confirmLabel: "Remove" })) setSub(s.id, { remove: true }); }}><Trash2 className="size-3.5 text-muted-foreground hover:text-destructive" /></button>}
+              </li>
+            );
+          })}
+          {edit && d.newSubs.map((n, i) => (
+            <li key={`new-${i}`} className="flex items-start gap-2 rounded-lg border border-dashed border-brand/50 bg-brand/5 px-2.5 py-1.5">
+              <span className="mt-0.5 rounded bg-brand/15 px-1.5 py-0.5 text-[9.5px] font-extrabold uppercase text-brand">New</span>
+              <div className="min-w-0 flex-1"><div className="truncate text-[12.5px] font-semibold">{n.title}</div>{n.description && <p className="text-[11.5px] text-muted-foreground">{n.description}</p>}</div>
+              <button type="button" aria-label="Remove new subtask" onClick={() => setD({ ...d, newSubs: d.newSubs.filter((_, j) => j !== i) })}><X className="size-3.5 text-muted-foreground hover:text-destructive" /></button>
+            </li>
+          ))}
         </ul>
         {edit && (
           <div className="mt-2 flex gap-2">
@@ -339,22 +480,25 @@ function Overview({ t, members, projects, refresh }: { t: CompanyTaskDetail; mem
               <Input value={newSub} onChange={(e) => setNewSub(e.target.value)} maxLength={300} aria-label="New subtask" placeholder="Add subtask" className={`${FIELD} h-9`} />
               <textarea value={newSubDesc} onChange={(e) => setNewSubDesc(e.target.value)} maxLength={2000} rows={2} aria-label="Subtask description" placeholder="What exactly needs to be done (optional)" className={AREA} />
             </div>
-            <Button type="button" variant="outline" disabled={!newSub.trim() || sub.isPending} onClick={() => { sub.mutate({ title: newSub.trim(), description: newSubDesc.trim() || null, assignee_id: null }); setNewSub(""); setNewSubDesc(""); }} className="h-9 gap-1 rounded-md"><Plus className="size-4" />Add</Button>
+            <Button type="button" variant="outline" disabled={!newSub.trim()} onClick={() => { setD({ ...d, newSubs: [...d.newSubs, { title: newSub.trim(), description: newSubDesc.trim() }] }); setNewSub(""); setNewSubDesc(""); }} className="h-9 gap-1 rounded-md"><Plus className="size-4" />Add</Button>
           </div>
         )}
       </section>
 
       <section>
-        <div className="flex items-center gap-1.5"><Link2 className="size-4 text-muted-foreground" /><span className={LABEL}>Assets & references</span><span className="ml-auto font-mono text-[11px] text-muted-foreground">{t.asset_rows.length}/{MAX_TASK_ASSETS}</span></div>
+        <div className="flex items-center gap-1.5"><Link2 className="size-4 text-muted-foreground" /><span className={LABEL}>Assets & references</span><span className="ml-auto font-mono text-[11px] text-muted-foreground">{liveAssets.length + (edit ? d.newAssets.length : 0)}/{MAX_TASK_ASSETS}</span></div>
         <ul className="mt-2 space-y-1.5">
-          {[...t.asset_rows].sort((a, b) => Number(b.assignee_id === t.me) - Number(a.assignee_id === t.me)).map((a) => {
+          {[...liveAssets].sort((a, b) => Number(b.assignee_id === t.me) - Number(a.assignee_id === t.me)).map((a) => {
             const i = t.asset_rows.indexOf(a);
-            const who = P(a.assignee_id);
+            const x = d.assets[a.id];
+            const kind = edit ? x?.kind ?? a.kind : a.kind;
+            const who = P(edit ? x?.assignee_id ?? null : a.assignee_id);
             const isMine = a.assignee_id === t.me;
-            const isRef = a.kind === "reference";
+            const isRef = kind === "reference";
             const subs = t.submissions.filter((s) => s.asset_id === a.id);
             const latest = subs[0];
-            const canSend = work && (edit || !a.assignee_id || a.assignee_id === t.me);
+            const canSend = work && !editing && (t.can.edit || !a.assignee_id || a.assignee_id === t.me);
+            const subId = edit ? x?.subtask_id ?? null : a.subtask_id;
             return (
               <li key={a.id} className={cn("rounded-lg border px-2.5 py-2", isMine ? "border-brand/50 bg-brand/5 shadow-sm" : "border-border bg-card")}>
                 <div className="flex items-center gap-2">
@@ -362,24 +506,24 @@ function Overview({ t, members, projects, refresh }: { t: CompanyTaskDetail; mem
                     : <span className={cn("grid size-8 shrink-0 place-items-center rounded-md", isRef ? "bg-status-contacted/10 text-status-contacted" : "bg-brand/10 text-brand")}>{isRef ? <BookOpen className="size-4" /> : <Package className="size-4" />}</span>}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5"><span className="truncate text-[12.5px] font-bold">{a.title || `${isRef ? "Reference" : "Asset"} ${i + 1}`}</span>
-                      {isMine && <span className="shrink-0 rounded bg-brand px-1.5 py-0.5 text-[9.5px] font-extrabold uppercase tracking-wider text-primary-foreground">Mine</span>}</div>
-                    {edit ? <AssetKindToggle value={a.kind} onChange={(k) => k !== a.kind && assetU.mutate({ id: a.id, kind: k })} className="mt-1" />
+                      {isMine && !edit && <span className="shrink-0 rounded bg-brand px-1.5 py-0.5 text-[9.5px] font-extrabold uppercase tracking-wider text-primary-foreground">Mine</span>}</div>
+                    {edit ? <AssetKindToggle value={kind} onChange={(k) => setAsset(a.id, { kind: k })} className="mt-1" />
                       : <span className={cn("mt-0.5 inline-block text-[10px] font-extrabold uppercase tracking-wider", isRef ? "text-status-contacted" : "text-brand")}>{isRef ? "Reference" : "Asset"}</span>}
-                    {edit && t.subtasks.length > 0 ? <div className="mt-1 w-44"><SearchableSelect clearable searchable={false} items={t.subtasks.map((s, k) => ({ value: s.id, label: `${k + 1}. ${s.title}` }))} value={a.subtask_id ?? ""}
-                        onChange={(v) => { const st = t.subtasks.find((s) => s.id === v); assetU.mutate({ id: a.id, subtask_id: v || null, ...(st?.assignee_id ? { assignee_id: st.assignee_id } : {}) }); }} placeholder="Whole task" /></div>
-                      : a.subtask_id && <span className="ml-1.5 inline-flex items-center gap-1 rounded border border-border px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground"><ListChecks className="size-3" />{t.subtasks.findIndex((s) => s.id === a.subtask_id) + 1}. {t.subtasks.find((s) => s.id === a.subtask_id)?.title}</span>}
+                    {edit && t.subtasks.length > 0 ? <div className="mt-1 w-44"><SearchableSelect clearable searchable={false} items={liveSubs.map((s, k) => ({ value: s.id, label: `${k + 1}. ${s.title}` }))} value={subId ?? ""}
+                        onChange={(v) => { const st = t.subtasks.find((s) => s.id === v); const sa = st ? d.subs[st.id]?.assignee_id : null; setAsset(a.id, { subtask_id: v || null, ...(sa ? { assignee_id: sa } : {}) }); }} placeholder="Whole task" /></div>
+                      : subId && <span className="ml-1.5 inline-flex items-center gap-1 rounded border border-border px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground"><ListChecks className="size-3" />{t.subtasks.findIndex((s) => s.id === subId) + 1}. {t.subtasks.find((s) => s.id === subId)?.title}</span>}
                   </div>
-                  {latest && <span className={cn("rounded border px-1.5 py-0.5 text-[10px] font-bold uppercase", latest.status === "approved" ? "border-status-converted/40 text-status-converted" : latest.status === "revision" ? "border-destructive/40 text-destructive" : "border-border text-muted-foreground")}>{latest.status === "pending" ? "In review" : latest.status}</span>}
+                  {latest && !edit && <span className={cn("rounded border px-1.5 py-0.5 text-[10px] font-bold uppercase", latest.status === "approved" ? "border-status-converted/40 text-status-converted" : latest.status === "revision" ? "border-destructive/40 text-destructive" : "border-border text-muted-foreground")}>{latest.status === "pending" ? "In review" : latest.status}</span>}
                   {edit ? (
-                    <div className="w-36 shrink-0"><SearchableSelect clearable searchable={false} items={team} value={a.assignee_id ?? ""} onChange={(v) => assetU.mutate({ id: a.id, assignee_id: v || null })} placeholder="Anyone" emptyText="No assignees" /></div>
+                    <div className="w-36 shrink-0"><SearchableSelect clearable searchable={false} items={team} value={x?.assignee_id ?? ""} onChange={(v) => setAsset(a.id, { assignee_id: v || null })} placeholder="Anyone" emptyText="No assignees" /></div>
                   ) : who ? <span className="inline-flex items-center gap-1 text-[11.5px] font-bold"><PersonAvatar name={who.name} src={who.avatar_url} size={18} />{who.name.split(" ")[0]}</span> : null}
-                  {a.file ? <Button size="sm" variant="outline" className="h-7 gap-1 rounded-md px-2 text-[11.5px]" onClick={() => setAssetIdx(fileAssets.indexOf(a))}><Eye className="size-3" />View</Button>
-                    : <Button asChild size="sm" variant="outline" className="h-7 gap-1 rounded-md px-2 text-[11.5px]"><a href={a.url} target="_blank" rel="noreferrer" title={a.url}><ExternalLink className="size-3" />Open</a></Button>}
+                  {!edit && (a.file ? <Button size="sm" variant="outline" className="h-7 gap-1 rounded-md px-2 text-[11.5px]" onClick={() => setAssetIdx(fileAssets.indexOf(a))}><Eye className="size-3" />View</Button>
+                    : <Button asChild size="sm" variant="outline" className="h-7 gap-1 rounded-md px-2 text-[11.5px]"><a href={a.url} target="_blank" rel="noreferrer" title={a.url}><ExternalLink className="size-3" />Open</a></Button>)}
                   {canSend && !isRef && <Button size="sm" variant="outline" onClick={() => { setOpenAsset(openAsset === a.id ? null : a.id); setAssetLink(""); setAssetNote(""); }} className="h-7 gap-1 rounded-md px-2 text-[11.5px]"><Send className="size-3" />Submit</Button>}
-                  {edit && <button type="button" aria-label="Remove asset" onClick={async () => { if (await confirm({ tone: "danger", title: "Remove this link?", subject: a.title || a.file?.name || a.url, confirmLabel: "Remove" })) assetU.mutate({ id: a.id, remove: true }); }}><Trash2 className="size-3.5 text-muted-foreground hover:text-destructive" /></button>}
+                  {edit && <button type="button" aria-label="Remove asset" onClick={async () => { if (await confirm({ tone: "danger", title: "Remove this item?", subject: a.title || a.file?.name || a.url, confirmLabel: "Remove" })) setAsset(a.id, { remove: true }); }}><Trash2 className="size-3.5 text-muted-foreground hover:text-destructive" /></button>}
                 </div>
                 <AnimatePresence initial={false}>
-                  {openAsset === a.id && (
+                  {openAsset === a.id && !editing && (
                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={spring} className="overflow-hidden">
                       <div className="mt-2 grid gap-2 border-t border-border pt-2">
                         <Input value={assetLink} onChange={(e) => setAssetLink(e.target.value)} aria-label="Work link" placeholder="https://" className={`${FIELD} h-9 font-mono text-[12px]`} />
@@ -394,17 +538,22 @@ function Overview({ t, members, projects, refresh }: { t: CompanyTaskDetail; mem
               </li>
             );
           })}
+          {edit && d.newAssets.map((n, i) => (
+            <li key={`new-asset-${i}`} className="flex items-center gap-2 rounded-lg border border-dashed border-brand/50 bg-brand/5 px-2.5 py-2">
+              <span className="rounded bg-brand/15 px-1.5 py-0.5 text-[9.5px] font-extrabold uppercase text-brand">New</span>
+              <span className="min-w-0 flex-1 truncate text-[12px] font-bold">{n.file?.name ?? n.url}</span>
+              <AssetKindToggle value={n.kind} onChange={(k) => setD({ ...d, newAssets: d.newAssets.map((y, j) => (j === i ? { ...y, kind: k } : y)) })} />
+              <button type="button" aria-label="Remove new item" onClick={() => setD({ ...d, newAssets: d.newAssets.filter((_, j) => j !== i) })}><X className="size-3.5 text-muted-foreground hover:text-destructive" /></button>
+            </li>
+          ))}
         </ul>
-        {fileAssets.length > 1 && <Button size="sm" variant="outline" className="expense-action mt-2 h-8 gap-1 font-bold" onClick={() => setAssetGallery(true)}><Eye className="size-3.5" />View all {fileAssets.length} files</Button>}
+        {!edit && fileAssets.length > 1 && <Button size="sm" variant="outline" className="expense-action mt-2 h-8 gap-1 font-bold" onClick={() => setAssetGallery(true)}><Eye className="size-3.5" />View all {fileAssets.length} files</Button>}
         {assetGallery && <ExpenseReceiptsGallery title="Task files" label="File" voucherNo={t.title} receipts={assetMedia} onClose={() => setAssetGallery(false)} onView={() => {}} onDownloaded={() => {}}
           onDownload={async (r) => { if (!r.url) throw new Error("File is not ready"); await downloadFile(r.url, r.name); }} />}
         <ReceiptPreview label="File" receipts={assetMedia} index={assetIdx} onIndexChange={setAssetIdx} onClose={() => setAssetIdx(null)} />
-        {edit && t.asset_rows.length < MAX_TASK_ASSETS && (
-          <>
-            <TaskAssetComposer room={MAX_TASK_ASSETS - t.asset_rows.length} busy={assets.isPending} existingUrls={t.asset_rows.map((a) => a.url)}
-              subtasks={t.subtasks.map((s) => ({ value: s.id, label: s.title, assignee_id: s.assignee_id }))} onAdd={(items) => assets.mutate(items)} />
-            {assetPhase && <p className="mt-1 flex items-center gap-1.5 text-[11.5px] font-semibold text-muted-foreground"><TestLoader />{assetPhase}</p>}
-          </>
+        {edit && assetRoom > 0 && (
+          <TaskAssetComposer room={assetRoom} busy={save.isPending} existingUrls={[...t.asset_rows.map((a) => a.url), ...d.newAssets.map((a) => a.url ?? "")]}
+            subtasks={liveSubs.map((s) => ({ value: s.id, label: s.title, assignee_id: d.subs[s.id]?.assignee_id ?? null }))} onAdd={(items) => setD((v) => ({ ...v, newAssets: [...v.newAssets, ...items] }))} />
         )}
       </section>
     </div>
