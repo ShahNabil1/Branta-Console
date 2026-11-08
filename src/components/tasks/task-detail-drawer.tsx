@@ -520,7 +520,16 @@ function Overview({ t, members, projects, refresh }: { t: CompanyTaskDetail; mem
                   {!edit && (a.file ? <Button size="sm" variant="outline" className="h-7 gap-1 rounded-md px-2 text-[11.5px]" onClick={() => setAssetIdx(fileAssets.indexOf(a))}><Eye className="size-3" />View</Button>
                     : <Button asChild size="sm" variant="outline" className="h-7 gap-1 rounded-md px-2 text-[11.5px]"><a href={a.url} target="_blank" rel="noreferrer" title={a.url}><ExternalLink className="size-3" />Open</a></Button>)}
                   {canSend && !isRef && <Button size="sm" variant="outline" onClick={() => { setOpenAsset(openAsset === a.id ? null : a.id); setAssetLink(""); setAssetNote(""); }} className="h-7 gap-1 rounded-md px-2 text-[11.5px]"><Send className="size-3" />Submit</Button>}
-                  {edit && <button type="button" aria-label="Remove asset" onClick={async () => { if (await confirm({ tone: "danger", title: "Remove this item?", subject: a.title || a.file?.name || a.url, confirmLabel: "Remove" })) setAsset(a.id, { remove: true }); }}><Trash2 className="size-3.5 text-muted-foreground hover:text-destructive" /></button>}
+                  {edit && <button type="button" aria-label="Remove asset" onClick={async () => { const st = subId ? t.subtasks.find((s) => s.id === subId) : null;
+                    const label = isRef ? "reference" : "asset";
+                    if (await confirm({ tone: "danger", icon: Trash2, title: `Remove this ${label}?`, subject: a.title || a.file?.name || a.url, confirmLabel: `Remove ${label}`,
+                      points: [
+                        `Type: ${isRef ? "Reference" : "Asset"}${a.file ? ` · File (${fmtBytes(a.file.size)})` : " · Link"}`,
+                        st ? `Subtask: ${t.subtasks.indexOf(st) + 1}. ${st.title}` : "Scope: Whole task",
+                        `Assigned to: ${who?.name ?? "Anyone"}`,
+                        "It leaves the task when you save changes; Cancel brings it back.",
+                        "Subtasks, earlier submissions, comments and activity stay unchanged.",
+                      ] })) setAsset(a.id, { remove: true }); }}><Trash2 className="size-3.5 text-muted-foreground hover:text-destructive" /></button>}
                 </div>
                 <AnimatePresence initial={false}>
                   {openAsset === a.id && !editing && (

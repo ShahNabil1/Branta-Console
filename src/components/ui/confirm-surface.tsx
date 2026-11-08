@@ -132,7 +132,7 @@ export function ConfirmSurface({
   return (
     <AlertDialog open={open} onOpenChange={(o) => !o && !busy && onCancel()}>
       <AlertDialogContent
-        className={cn("max-h-[92vh] overflow-hidden overflow-y-auto p-0 sm:max-w-md", className)}
+        className={cn("block max-h-[92vh] min-w-0 overflow-hidden overflow-y-auto p-0 sm:max-w-md", className)}
       >
         <ConfirmHeader tone={tone} icon={icon} title={title} subject={subject} />
 
@@ -258,7 +258,7 @@ export function ConfirmHeader({
           t.glow,
         )}
       />
-      <div className="relative flex items-center gap-3">
+      <div className="relative flex min-w-0 items-center gap-3">
         <span
           className={cn(
             "grid size-11 shrink-0 place-items-center rounded-xl border bg-card shadow-sm animate-in zoom-in-75 duration-300",
@@ -267,12 +267,12 @@ export function ConfirmHeader({
         >
           {iconNode}
         </span>
-        <div className="min-w-0">
-          <AlertDialogTitle className="text-[15px] font-bold leading-tight">
+        <div className="min-w-0 flex-1">
+          <AlertDialogTitle className="text-[15px] font-bold leading-tight [overflow-wrap:anywhere]">
             {title}
           </AlertDialogTitle>
           {subject ? (
-            <AlertDialogDescription className="mt-0.5 flex items-center gap-1.5 truncate text-[12px] font-semibold">
+            <AlertDialogDescription className="mt-0.5 line-clamp-2 min-w-0 break-all text-[12px] font-semibold">
               {subject}
             </AlertDialogDescription>
           ) : (
