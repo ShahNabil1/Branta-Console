@@ -5,7 +5,6 @@ import { useQuery } from "@tanstack/react-query";
 import {
   LayoutDashboard,
   Users,
-  Settings,
   ShieldCheck,
   BarChart3,
   ChevronsLeft,
@@ -134,7 +133,6 @@ const FINANCE_NAV: FinanceNavGroup[] = [
       { label: "Fund Ledger", to: "/app/finance/funds", icon: PiggyBank, tone: "emerald" },
       { label: "Fund Transfers", to: "/app/finance/fund-transfers", icon: ArrowLeftRight, tone: "amber" },
       { label: "Fund Loans", to: "/app/finance/fund-loans", icon: Banknote, tone: "teal" },
-      { label: "Fund Settings", to: "/app/finance/fund-settings", icon: Settings, tone: "slate" },
     ],
   },
   {

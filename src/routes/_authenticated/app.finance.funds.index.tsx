@@ -56,7 +56,7 @@ function FundLedgerPage() {
             {d.version && <> Active version: <b className="text-foreground">{d.version.name}</b> (from {d.version.effective_from}).</>}
           </p>
         </div>
-        <Button asChild variant="outline" className="h-9 rounded-sm"><Link to="/app/finance/fund-settings">Fund settings</Link></Button>
+        <Button asChild variant="outline" className="h-9 rounded-sm"><Link to="/app/my-company">Fund settings</Link></Button>
       </div>
 
       {d.failures.length > 0 && (

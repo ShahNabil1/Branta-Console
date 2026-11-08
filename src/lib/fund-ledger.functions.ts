@@ -118,71 +118,72 @@ export const getInvoiceAllocations = createServerFn({ method: "GET" })
     return { allowed: true as const, rows };
   });
 
-export const getFundSettings = createServerFn({ method: "GET" })
+/* ---------- Branta Tech (holding) fund allocation, managed from Company Settings ---------- */
+
+export const getHoldingFundConfig = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const sb = context.supabase as any;
     const { data: allowed } = await sb.rpc("is_finance_admin", { _user_id: context.userId });
-    if (!allowed) return { allowed: false as const };
-    const [funds, versions, rules] = await Promise.all([
-      sb.from("finance_funds").select("*").order("display_order"),
-      sb.from("fund_allocation_versions").select("id,name,effective_from,created_at,fund_allocation_version_items(fund_id,percent)").order("effective_from", { ascending: false }).order("created_at", { ascending: false }),
-      sb.from("fund_deduction_rules").select("*").order("created_at"),
+    if (!allowed) return { allowed: false as const, funds: [], versions: [] };
+    const [funds, versions] = await Promise.all([
+      sb.from("finance_funds").select("id,name,is_active,display_order").order("display_order"),
+      sb.from("fund_allocation_versions").select("id,name,effective_from,notes,created_at,fund_allocation_version_items(fund_id,percent)")
+        .order("effective_from", { ascending: false }).order("created_at", { ascending: false }).limit(20),
     ]);
-    return { allowed: true as const, funds: funds.data ?? [], versions: versions.data ?? [], rules: rules.data ?? [] };
+    if (funds.error) throw dbError(funds.error);
+    if (versions.error) throw dbError(versions.error);
+    return { allowed: true as const, funds: funds.data ?? [], versions: versions.data ?? [] };
   });
 
-export const saveFund = createServerFn({ method: "POST" })
+export const saveHoldingFundConfig = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({
-    id: z.string().uuid().optional(),
-    name: z.string().min(2), code: z.string().regex(/^[a-z0-9_]{2,30}$/).optional(),
-    description: z.string().nullable().optional(), is_active: z.boolean(), display_order: z.number().int(),
+    note: z.string().max(300).optional(),
+    buckets: z.array(z.object({ fund_id: z.string().uuid().nullish(), label: z.string().trim().min(2).max(60), percent: z.number().min(0).max(100) })).min(1).max(30),
   }).parse(d))
   .handler(async ({ data, context }) => {
     await assertFinance(context);
     const sb = context.supabase as any;
-    const { id, ...rest } = data;
-    const q = id ? sb.from("finance_funds").update({ name: rest.name, description: rest.description, is_active: rest.is_active, display_order: rest.display_order }).eq("id", id)
-      : sb.from("finance_funds").insert({ ...rest, code: rest.code ?? rest.name.toLowerCase().replace(/[^a-z0-9]+/g, "_").slice(0, 30) });
-    const { error } = await q;
+    const total = Math.round(data.buckets.reduce((a, b) => a + b.percent, 0) * 1000) / 1000;
+    if (total !== 100) throw new Error(`Percentages must total exactly 100% (now ${total}%)`);
+    const names = data.buckets.map((b) => b.label.toLowerCase());
+    if (new Set(names).size !== names.length) throw new Error("Fund names must be unique");
+    const { data: existing, error: fe } = await sb.from("finance_funds").select("id,code,name,is_active,display_order");
+    if (fe) throw dbError(fe);
+    const byId = new Map<string, any>((existing ?? []).map((f: any) => [f.id, f]));
+    const codes = new Set<string>((existing ?? []).map((f: any) => f.code));
+    const items: { fund_id: string; percent: number }[] = [];
+    for (const [i, b] of data.buckets.entries()) {
+      const cur = b.fund_id ? byId.get(b.fund_id) : null;
+      if (cur) {
+        if (cur.name !== b.label || !cur.is_active || cur.display_order !== i + 1) {
+          const { error } = await sb.from("finance_funds").update({ name: b.label, is_active: true, display_order: i + 1 }).eq("id", cur.id);
+          if (error) throw dbError(error);
+        }
+        items.push({ fund_id: cur.id, percent: b.percent });
+      } else {
+        const base = b.label.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "").slice(0, 26) || "fund";
+        let code = base, n = 2; while (codes.has(code)) code = `${base}_${n++}`; codes.add(code);
+        const { data: ins, error } = await sb.from("finance_funds").insert({ name: b.label, code, kind: "operating", is_active: true, display_order: i + 1 }).select("id").single();
+        if (error) throw dbError(error);
+        items.push({ fund_id: ins.id, percent: b.percent });
+      }
+    }
+    const keep = new Set(items.map((x) => x.fund_id));
+    const drop = (existing ?? []).filter((f: any) => f.is_active && !keep.has(f.id)).map((f: any) => f.id);
+    if (drop.length) {
+      const { error } = await sb.from("finance_funds").update({ is_active: false }).in("id", drop);
+      if (error) throw dbError(error);
+    }
+    const { count } = await sb.from("fund_allocation_versions").select("id", { count: "exact", head: true });
+    const today = new Date(Date.now() + 6 * 3600_000).toISOString().slice(0, 10);
+    const { data: v, error } = await sb.from("fund_allocation_versions")
+      .insert({ name: `v${(count ?? 0) + 1}`, effective_from: today, notes: data.note?.trim() || "Updated from Company Settings", created_by: context.userId }).select("id").single();
     if (error) throw dbError(error);
-    await sb.from("fund_audit_logs").insert({ user_id: context.userId, action: id ? "fund_update" : "fund_create", record_type: "finance_fund", record_id: id ?? null, next: rest });
-    return { ok: true };
-  });
-
-export const saveAllocationVersion = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({
-    name: z.string().min(2), effective_from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-    reason: z.string().min(5),
-    items: z.array(z.object({ fund_id: z.string().uuid(), percent: z.number().min(0).max(100) })).min(1),
-  }).parse(d))
-  .handler(async ({ data, context }) => {
-    await assertFinance(context);
-    const total = Math.round(data.items.reduce((a, i) => a + i.percent, 0) * 1000) / 1000;
-    if (total !== 100) throw new Error(`Total must be exactly 100% (current ${total}%)`);
-    const sb = context.supabase as any;
-    const { data: v, error } = await sb.from("fund_allocation_versions").insert({ name: data.name, effective_from: data.effective_from, notes: data.reason, created_by: context.userId }).select("id").single();
-    if (error) throw dbError(error);
-    const { error: e2 } = await sb.from("fund_allocation_version_items").insert(data.items.map((i) => ({ ...i, version_id: v.id })));
-    if (e2) throw new Error(e2.message);
-    await sb.from("fund_audit_logs").insert({ user_id: context.userId, action: "allocation_version_create", record_type: "fund_allocation_version", record_id: v.id, next: data, reason: data.reason });
-    return { ok: true };
-  });
-
-export const saveDeductionRule = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({
-    id: z.string().uuid().optional(), name: z.string().min(2),
-    amount_type: z.enum(["percent", "fixed"]), value: z.number().nonnegative(), is_active: z.boolean(),
-  }).parse(d))
-  .handler(async ({ data, context }) => {
-    await assertFinance(context);
-    const sb = context.supabase as any;
-    const { id, ...rest } = data;
-    const { error } = id ? await sb.from("fund_deduction_rules").update(rest).eq("id", id) : await sb.from("fund_deduction_rules").insert({ ...rest, created_by: context.userId });
-    if (error) throw dbError(error);
+    const { error: e2 } = await sb.from("fund_allocation_version_items").insert(items.map((i) => ({ ...i, version_id: v.id })));
+    if (e2) throw dbError(e2);
+    await sb.from("fund_audit_logs").insert({ user_id: context.userId, action: "allocation_version_create", record_type: "fund_allocation_version", record_id: v.id, next: data, reason: data.note ?? null });
     return { ok: true };
   });
 

@@ -16,6 +16,7 @@ import { updateCompanyPrefixes } from "@/lib/companies.functions";
 import {
   getCompanyFundConfig, saveCompanyFundConfig,
 } from "@/lib/company-wallet.functions";
+import { getHoldingFundConfig, saveHoldingFundConfig } from "@/lib/fund-ledger.functions";
 import { percentTotal, splitInstallment } from "@/lib/company-fund-split";
 import { DEFAULT_PREFIX, PREFIX_KINDS, PREFIX_RE, type PrefixKind, type Prefixes } from "@/lib/brand-kit";
 import { DangerConfirm } from "./danger-confirm";
@@ -42,17 +43,8 @@ export function CompanySettings({ c, accent }: { c: Co; accent: string }) {
       </nav>
       <div key={sub} className="animate-in fade-in slide-in-from-bottom-1 duration-300">
         {sub === "prefixes" ? <PrefixPanel c={c} accent={accent} />
-          : c.is_holding ? <HoldingNote />
           : <FundPanel c={c} accent={accent} />}
       </div>
-    </div>
-  );
-}
-
-function HoldingNote() {
-  return (
-    <div className="rounded-xl border border-dashed border-border bg-card p-8 text-center text-[12.5px] font-semibold text-muted-foreground">
-      Branta Tech keeps using the group Fund Settings. These rules are only for sister companies.
     </div>
   );
 }
@@ -78,22 +70,22 @@ function Panel({ title, sub, icon: Icon, accent, canEdit = true, editing, saving
   onEdit: () => void; onCancel: () => void; onSave: () => void; children: ReactNode; footer?: ReactNode;
 }) {
   return (
-    <section className={cn("group rounded-xl border bg-card p-5 shadow-sm transition-all", editing ? "border-brand/50 shadow-md ring-2 ring-brand/10" : "border-border hover:shadow-md")}>
-      <header className="mb-4 flex items-start gap-2.5">
+    <section className={cn("group min-w-0 rounded-xl border bg-card p-4 shadow-sm transition-all sm:p-5", editing ? "border-brand/50 shadow-md ring-2 ring-brand/10" : "border-border hover:shadow-md")}>
+      <header className="mb-4 flex flex-wrap items-start gap-2.5">
         <span className="grid size-8 shrink-0 place-items-center rounded-lg transition-transform group-hover:scale-110" style={{ background: `color-mix(in oklab, ${accent} 14%, transparent)`, color: accent }}><Icon className="size-4" /></span>
         <div className="min-w-0 flex-1">
           <h2 className="text-[13px] font-bold tracking-tight">{title}</h2>
           <p className="mt-0.5 text-[12px] font-semibold text-muted-foreground">{sub}</p>
         </div>
         {!canEdit ? <Lock className="size-3.5 text-muted-foreground" /> : editing ? (
-          <div className="flex gap-1.5">
+          <div className="flex shrink-0 gap-1.5">
             <DiscardCancelButton dirty={dirty} onCancel={onCancel} disabled={saving} />
             <Button size="sm" onClick={onSave} disabled={saving || !dirty || invalid} className="h-7 gap-1 text-[12px] font-bold shadow-sm shadow-brand/30 active:scale-95">
               {saving ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />} Save
             </Button>
           </div>
         ) : (
-          <Button size="sm" variant="outline" onClick={onEdit} className="h-7 gap-1 text-[12px] font-bold transition-all hover:-translate-y-0.5 hover:border-brand/50 hover:text-brand active:scale-95"><Pencil className="size-3" /> Edit</Button>
+          <Button size="sm" variant="outline" onClick={onEdit} className="h-7 shrink-0 gap-1 text-[12px] font-bold transition-all hover:-translate-y-0.5 hover:border-brand/50 hover:text-brand active:scale-95"><Pencil className="size-3" /> Edit</Button>
         )}
       </header>
       {children}
@@ -108,7 +100,7 @@ function SortRow({ id, editing, children }: { id: string; editing: boolean; chil
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled: !editing });
   return (
     <li ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={cn("flex items-center gap-2 rounded-lg border bg-background p-2.5 transition-shadow",
+      className={cn("flex min-w-0 flex-wrap items-center gap-2 rounded-lg border bg-background p-2.5 transition-shadow sm:flex-nowrap",
         isDragging ? "z-10 border-brand/50 shadow-lg ring-2 ring-brand/15" : "border-border/70 hover:border-brand/30 hover:shadow-sm")}>
       {editing && (
         <button type="button" {...attributes} {...listeners} aria-label="Drag to reorder"
@@ -198,27 +190,26 @@ function ModeToggle({ mode, onChange }: { mode: Bucket["mode"]; onChange: (m: Bu
 
 const fmt = (n: number) => `৳${n.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 
-function FundPanel({ c, accent }: { c: Co; accent: string }) {
+type FundSource = { loading: boolean; saved: Bucket[]; versions: Ver[]; versionBuckets: (id: string) => Bucket[]; save: (b: Bucket[], note: string) => Promise<void> };
+
+function useSisterFunds(c: Co): FundSource {
   const getFn = useServerFn(getCompanyFundConfig);
   const saveFn = useServerFn(saveCompanyFundConfig);
   const qc = useQueryClient();
-  const q = useQuery({ queryKey: ["company-fund", c.id], queryFn: () => getFn({ data: { companyId: c.id } }) });
+  const q = useQuery({ queryKey: ["company-fund", c.id], queryFn: () => getFn({ data: { companyId: c.id } }), enabled: !c.is_holding });
   const toBuckets = (cfg: any): Bucket[] =>
     [...(cfg?.company_fund_buckets ?? [])].sort((a: any, b: any) => a.sort - b.sort)
       .map((b: any) => ({ uid: b.id, key: b.key, label: b.label, mode: b.mode === "fixed" ? "fixed" : "percent", percent: Number(b.percent), fixed_amount: Number(b.fixed_amount ?? 0) }));
   const saved = useMemo(() => toBuckets(q.data?.active), [q.data]);
-  const ed = useEditable<{ buckets: Bucket[]; note: string }>({ buckets: saved, note: "" });
-  const [removing, setRemoving] = useState<Bucket | null>(null);
-  const list = ed.value.buckets;
-  const total = percentTotal(list);
-  const names = list.map((b) => b.label.trim().toLowerCase());
-  const dupes = names.some((n, i) => n && names.indexOf(n) !== i);
-  const invalid = total !== 100 || dupes || list.some((b) => !b.label.trim());
-  const set = (u: string, patch: Partial<Bucket>) => ed.setForm((f) => ({ ...f, buckets: f.buckets.map((b) => (b.uid === u ? { ...b, ...patch } : b)) }));
-
-  const persist = async (buckets: Bucket[], note: string, msg: string) => {
-    ed.setSaving(true);
-    try {
+  const versions: Ver[] = (q.data?.history ?? []).map((h: any) => {
+    const bs = h.company_fund_buckets ?? [];
+    const fx = bs.filter((b: any) => b.mode === "fixed").length;
+    return { id: h.id, version: h.version, is_active: h.is_active, note: h.note, created_at: h.created_at, count: bs.length, summary: `${bs.length} funds${fx ? ` · ${fx} fixed` : ""}` };
+  });
+  return {
+    loading: q.isLoading, saved, versions,
+    versionBuckets: (id) => toBuckets((q.data?.history ?? []).find((x: any) => x.id === id)),
+    save: async (buckets, note) => {
       const used = new Set<string>();
       const payload = buckets.map((b) => {
         let k = b.key || slugKey(b.label); const base = k; let n = 2; while (used.has(k)) k = `${base.slice(0, 36)}_${n++}`; used.add(k);
@@ -226,22 +217,67 @@ function FundPanel({ c, accent }: { c: Co; accent: string }) {
       });
       await saveFn({ data: { companyId: c.id, buckets: payload, note: note.trim() || undefined } });
       await qc.invalidateQueries({ queryKey: ["company-fund", c.id] });
-      ed.done(); toast.success(msg);
-    } catch (e) { toast.error((e as Error).message); } finally { ed.setSaving(false); }
+    },
+  };
+}
+
+function useHoldingFunds(enabled: boolean): FundSource {
+  const getFn = useServerFn(getHoldingFundConfig);
+  const saveFn = useServerFn(saveHoldingFundConfig);
+  const qc = useQueryClient();
+  const q = useQuery({ queryKey: ["holding-fund"], queryFn: () => getFn(), enabled });
+  const funds = (q.data?.funds ?? []) as any[];
+  const vers = (q.data?.versions ?? []) as any[];
+  const toBuckets = (v: any, activeOnly: boolean): Bucket[] => {
+    const items = new Map<string, number>((v?.fund_allocation_version_items ?? []).map((i: any) => [i.fund_id, Number(i.percent)]));
+    return funds.filter((f) => (activeOnly ? f.is_active : items.has(f.id)))
+      .map((f) => ({ uid: f.id, key: f.id, label: f.name, mode: "percent" as const, percent: items.get(f.id) ?? 0, fixed_amount: 0 }));
+  };
+  const saved = useMemo(() => toBuckets(vers[0], true), [q.data]);
+  const versions: Ver[] = vers.map((v, i) => {
+    const n = (v.fund_allocation_version_items ?? []).filter((x: any) => Number(x.percent) > 0).length;
+    return { id: v.id, version: vers.length - i, is_active: i === 0, note: [v.name, v.notes].filter(Boolean).join(" · "), created_at: v.created_at, count: n, summary: `${n} funds · from ${v.effective_from}` };
+  });
+  return {
+    loading: q.isLoading, saved, versions,
+    versionBuckets: (id) => toBuckets(vers.find((v) => v.id === id), false).filter((b) => b.percent > 0),
+    save: async (buckets, note) => {
+      const ids = new Set(funds.map((f) => f.id));
+      await saveFn({ data: { note: note.trim() || undefined, buckets: buckets.map((b) => ({ fund_id: ids.has(b.key) ? b.key : null, label: b.label.trim(), percent: Number(b.percent) || 0 })) } });
+      await qc.invalidateQueries({ queryKey: ["holding-fund"] });
+      await qc.invalidateQueries({ queryKey: ["fund-dashboard"] });
+    },
+  };
+}
+
+function FundPanel({ c, accent }: { c: Co; accent: string }) {
+  const sister = useSisterFunds(c);
+  const holding = useHoldingFunds(c.is_holding);
+  const src = c.is_holding ? holding : sister;
+  const percentOnly = c.is_holding;
+  const saved = src.saved;
+  const ed = useEditable<{ buckets: Bucket[]; note: string }>({ buckets: saved, note: "" });
+  const [removing, setRemoving] = useState<Bucket | null>(null);
+  const list = ed.value.buckets;
+  const total = percentTotal(list);
+  const names = list.map((b) => b.label.trim().toLowerCase());
+  const dupes = names.some((n, i) => n && names.indexOf(n) !== i);
+  const invalid = total !== 100 || dupes || list.some((b) => (percentOnly ? b.label.trim().length < 2 : !b.label.trim()));
+  const set = (u: string, patch: Partial<Bucket>) => ed.setForm((f) => ({ ...f, buckets: f.buckets.map((b) => (b.uid === u ? { ...b, ...patch } : b)) }));
+
+  const persist = async (buckets: Bucket[], note: string, msg: string) => {
+    ed.setSaving(true);
+    try { await src.save(buckets, note); ed.done(); toast.success(msg); }
+    catch (e) { toast.error((e as Error).message); } finally { ed.setSaving(false); }
   };
 
-  if (q.isLoading) return <Loader2 className="mx-auto my-10 size-5 animate-spin text-muted-foreground" />;
-  const versions: Ver[] = (q.data?.history ?? []).map((h: any) => {
-    const bs = h.company_fund_buckets ?? [];
-    const fx = bs.filter((b: any) => b.mode === "fixed").length;
-    return { id: h.id, version: h.version, is_active: h.is_active, note: h.note, created_at: h.created_at, count: bs.length,
-      summary: `${bs.length} funds${fx ? ` · ${fx} fixed` : ""}` };
-  });
+  if (src.loading) return <Loader2 className="mx-auto my-10 size-5 animate-spin text-muted-foreground" />;
+  const versions = src.versions;
 
   return (
-    <div className="grid gap-4 lg:grid-cols-5">
-      <div className="space-y-4 lg:col-span-3">
-        <Panel title="Fund allocation" sub="Name each fund freely. Fixed (৳) funds come off every paid installment first; percentage funds share the rest and must total 100%. Each save becomes a new version." icon={PieChart} accent={accent}
+    <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-5">
+      <div className="min-w-0 space-y-4 lg:col-span-3">
+        <Panel title="Fund allocation" sub={percentOnly ? "Name each fund freely. Funds share every paid installment (after project costs) by percentage and must total 100%. Each save becomes a new version; past allocations never change." : "Name each fund freely. Fixed (৳) funds come off every paid installment first; percentage funds share the rest and must total 100%. Each save becomes a new version."} icon={PieChart} accent={accent}
           editing={ed.editing} saving={ed.saving} dirty={ed.dirty} invalid={invalid}
           onEdit={ed.edit} onCancel={ed.cancel} onSave={() => persist(ed.form.buckets, ed.form.note, "Fund allocation saved as a new version.")}>
           <TotalBar total={total} accent={accent} />
@@ -250,9 +286,9 @@ function FundPanel({ c, accent }: { c: Co; accent: string }) {
           ) : (
             <SortList items={list} editing={ed.editing} onReorder={(b) => ed.setForm((f) => ({ ...f, buckets: b }))} render={(b) => ed.editing ? (
               <>
-                <Input value={b.label} onChange={(e) => set(b.uid, { label: e.target.value })} placeholder="e.g. Employee Fund, Gateway fee, TDS" maxLength={60} title={b.label} className={cn(fieldCls, "min-w-[8rem] flex-1 truncate")} />
-                <ModeToggle mode={b.mode} onChange={(m) => set(b.uid, { mode: m })} />
-                <div className="relative w-28">
+                <Input value={b.label} onChange={(e) => set(b.uid, { label: e.target.value })} placeholder="e.g. Employee Fund, Gateway fee, TDS" maxLength={60} title={b.label} className={cn(fieldCls, "min-w-0 flex-1 basis-[calc(100%-2.5rem)] truncate sm:basis-auto")} />
+                {!percentOnly && <ModeToggle mode={b.mode} onChange={(m) => set(b.uid, { mode: m })} />}
+                <div className="relative min-w-0 flex-1 sm:w-28 sm:flex-none">
                   {b.mode === "fixed" && <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[12px] font-bold text-muted-foreground">৳</span>}
                   <Input type="number" min={0} max={b.mode === "percent" ? 100 : undefined} step={b.mode === "percent" ? "0.5" : "1"}
                     value={b.mode === "percent" ? b.percent : b.fixed_amount}
@@ -264,9 +300,9 @@ function FundPanel({ c, accent }: { c: Co; accent: string }) {
               </>
             ) : (
               <>
-                <span title={b.label} className="min-w-0 flex-1 truncate text-[13px] font-bold">{b.label}</span>
-                <span className="rounded-full bg-muted px-2 py-0.5 text-[10.5px] font-bold text-muted-foreground">{b.mode === "fixed" ? "Fixed" : "Percent"}</span>
-                <span className="w-24 text-right font-mono text-[13px] font-bold">{b.mode === "fixed" ? fmt(b.fixed_amount) : `${b.percent}%`}</span>
+                <span title={b.label} className="min-w-0 flex-1 basis-full text-[13px] font-bold sm:basis-0 sm:truncate">{b.label}</span>
+                <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10.5px] font-bold text-muted-foreground">{b.mode === "fixed" ? "Fixed" : "Percent"}</span>
+                <span className="ml-auto shrink-0 text-right font-mono text-[13px] font-bold sm:w-24">{b.mode === "fixed" ? fmt(b.fixed_amount) : `${b.percent}%`}</span>
               </>
             )} />
           )}
@@ -281,11 +317,11 @@ function FundPanel({ c, accent }: { c: Co; accent: string }) {
           )}
         </Panel>
         <VersionHistory versions={versions} canRestore={!ed.editing} onRestore={(id) => {
-          const h = (q.data?.history ?? []).find((x: any) => x.id === id);
-          persist(toBuckets(h).map((b) => ({ ...b, uid: uid() })), `Restored from v${h?.version}`, `Version ${h?.version} is active again (as a new version).`);
+          const h = versions.find((x) => x.id === id);
+          persist(src.versionBuckets(id).map((b) => ({ ...b, uid: uid() })), `Restored from v${h?.version}`, `Version ${h?.version} is active again (as a new version).`);
         }} />
       </div>
-      <div className="lg:col-span-2"><Preview buckets={list} accent={accent} /></div>
+      <div className="min-w-0 lg:col-span-2"><Preview buckets={list} accent={accent} /></div>
       <DangerConfirm open={!!removing} icon={Trash2} title="Remove this fund?" subject={removing?.label || "Unnamed fund"} confirmLabel="Remove"
         points={[
           removing?.mode === "fixed" ? `${fmt(removing?.fixed_amount ?? 0)} will no longer be set aside per installment.` : `${removing?.percent ?? 0}% will no longer go to this fund.`,
