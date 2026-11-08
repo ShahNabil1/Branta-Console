@@ -2,6 +2,7 @@
 // Details (structured fields) and More (existing full lead tools).
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
+import { BackToLeadsLink } from "@/components/leads/back-to-leads-link";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -94,13 +95,12 @@ export function LeadWorkspace({
       {/* Header */}
       <div className="shrink-0 border-b border-border bg-card px-3 pb-2 pt-3 sm:px-5">
         <div className="flex items-start gap-2">
-          <Link
-            to="/app/leads"
+          <BackToLeadsLink
             aria-label="Back to leads"
             className="grid size-10 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted active:scale-95"
           >
             <ArrowLeft className="size-5" />
-          </Link>
+          </BackToLeadsLink>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <h1 className="truncate text-[17px] font-bold text-foreground">{lead.name || "—"}</h1>

@@ -15,6 +15,7 @@ import {
   DRAFT_LEAD_NAME,
 } from "@/lib/leads.functions";
 import { LeadDetail } from "@/components/leads/lead-detail";
+import { useCompanyPath } from "@/components/company/use-company-path";
 import { LeadWorkspace } from "@/components/leads/lead-workspace";
 
 export const searchSchema = z.object({
@@ -32,6 +33,7 @@ export function LeadDetailPage() {
   const listUsers = useServerFn(listAssignableUsers);
   const logView = useServerFn(logLeadView);
   const qc = useQueryClient();
+  const companyPath = useCompanyPath();
 
   const leadQ = useQuery({
     queryKey: ["leads", "by-slug", slug, workspace],
@@ -99,7 +101,7 @@ export function LeadDetailPage() {
           been deleted.
         </p>
         <Link
-          to="/app/leads"
+          to={companyPath("/app/leads") as "/app/leads"}
           className="mx-auto rounded-sm border border-border px-3 py-1.5 text-[12.5px] hover:bg-muted"
         >
           Back to leads
@@ -125,7 +127,7 @@ export function LeadDetailPage() {
         lead={effectiveLead}
         users={usersQ.data ?? []}
         initialEdit
-        onDeleted={() => navigate({ to: "/app/leads" })}
+        onDeleted={() => navigate({ href: companyPath("/app/leads") })}
       />
     );
   }
@@ -134,7 +136,7 @@ export function LeadDetailPage() {
       <LeadWorkspace
         lead={leadQ.data}
         users={usersQ.data ?? []}
-        onDeleted={() => navigate({ to: "/app/leads" })}
+        onDeleted={() => navigate({ href: companyPath("/app/leads") })}
       />
     </div>
   );

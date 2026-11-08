@@ -187,9 +187,7 @@ export function LeadsPage() {
     onSuccess: (row) => {
       qc.invalidateQueries({ queryKey: ["leads"] });
       navigate({
-        to: "/app/leads/$slug",
-        params: { slug: row.slug ?? row.lead_code },
-        search: { new: 1 },
+        href: companyPath(`/app/leads/${row.slug ?? row.lead_code}?new=1`),
       });
     },
     onError: (e: unknown) =>
@@ -315,7 +313,7 @@ export function LeadsPage() {
   useEffect(() => {
     if (rawSearch.page > totalPages) {
       navigate({
-        to: "/app/leads",
+        to: companyPath("/app/leads") as "/app/leads",
         search: { page: 1, pageSize },
         replace: true,
       });
@@ -324,12 +322,12 @@ export function LeadsPage() {
 
   const setPage = (n: number) =>
     navigate({
-      to: "/app/leads",
+      to: companyPath("/app/leads") as "/app/leads",
       search: { page: Math.min(Math.max(1, n), totalPages), pageSize },
     });
   const setPageSize = (n: number) =>
     navigate({
-      to: "/app/leads",
+      to: companyPath("/app/leads") as "/app/leads",
       search: { page: 1, pageSize: n },
     });
 
@@ -514,7 +512,7 @@ export function LeadsPage() {
         onClose={() => setFormOpen(false)}
         onCreated={(row) => {
           setFormOpen(false);
-          navigate({ to: "/app/leads/$slug", params: { slug: row.slug ?? row.lead_code } });
+          navigate({ href: companyPath(`/app/leads/${row.slug ?? row.lead_code}`) });
         }}
       />
 
@@ -625,8 +623,7 @@ export function LeadsPage() {
               const isSel = selected.has(row.id);
               const goToLead = () =>
                 navigate({
-                  to: "/app/leads/$slug",
-                  params: { slug: row.slug ?? row.lead_code },
+                  href: companyPath(`/app/leads/${row.slug ?? row.lead_code}`),
                 });
               return (
                 <div

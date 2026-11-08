@@ -7,6 +7,7 @@ import { DiscardCancelButton } from "@/components/company/danger-confirm";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+import { BackToLeadsLink } from "@/components/leads/back-to-leads-link";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -955,12 +956,11 @@ export function LeadDetail({
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <Link
-            to="/app/leads"
+          <BackToLeadsLink
             className="inline-flex items-center gap-1 text-[11.5px] text-muted-foreground hover:text-foreground"
           >
             <ChevronLeft className="size-3.5" /> Back to leads
-          </Link>
+          </BackToLeadsLink>
           <div className="mt-1 flex items-center gap-3">
             <span className="rounded-sm bg-muted px-2 py-0.5 font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
               {lead.slug ?? lead.lead_code}
