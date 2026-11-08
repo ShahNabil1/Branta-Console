@@ -18,19 +18,20 @@ import { SearchableSelect } from "@/components/finance/searchable-select";
 import {
   addCompanyTaskAssets, addCompanyTaskComment, addCompanyTaskNote, addCompanyTaskSubtask, approveCompanyTask, archiveCompanyTask,
   deleteCompanyTaskComment, getCompanyTask, reviewCompanyTaskSubmission, setCompanyTaskAssignees, setMyCompanyTaskStatus,
-  requestTaskFileUpload, submitCompanyTaskWork, updateCompanyTask, updateCompanyTaskAsset, updateCompanyTaskSubtask, type CompanyTaskDetail, type TaskFile, type TaskMember,
+  requestTaskAssetUpload, requestTaskFileUpload, submitCompanyTaskWork, updateCompanyTask, updateCompanyTaskAsset, updateCompanyTaskSubtask, type CompanyTaskDetail, type TaskFile, type TaskMember,
 } from "@/lib/company-tasks.functions";
 import { MAX_SUBMISSION_FILES, MAX_SUBMISSION_FILE_BYTES, MAX_TASK_ASSETS, TASK_PRIORITIES, TASK_STATUSES, parseAssetLinks, statusLabel, submissionFileKind } from "@/lib/company-task-rules";
 import { ReceiptPreview, ReceiptThumb, type ReceiptMedia } from "@/components/finance/receipt-media";
 import { ExpenseReceiptsGallery } from "@/components/finance/expense-receipts-gallery";
 import { downloadFile } from "@/components/finance/download-file";
 import { cn } from "@/lib/utils";
+import { TaskAssetComposer, type ComposedItem } from "./task-asset-composer";
 import { AREA, AvatarStack, FIELD, LABEL, PersonAvatar, PriorityBadge, SegmentedProgress, StatusChip, fmtDateTime, fmtDue, spring, AssetKindToggle, JourneyBar, type AssetKind } from "./task-ui";
 
 type Tab = "overview" | "submissions" | "comments" | "activity";
 type UpdPatch = { id: string; title?: string; description?: string | null; priority?: "low" | "normal" | "high" | "urgent"; status?: "todo" | "doing" | "in_review" | "done"; due_on?: string | null; due_time?: string | null; tags?: string[]; project_id?: string | null };
 type SubPatch = { id: string; done?: boolean; title?: string; description?: string | null; assignee_id?: string | null; remove?: boolean };
-type AssetPatch = { id: string; assignee_id?: string | null; title?: string | null; kind?: AssetKind; remove?: boolean };
+type AssetPatch = { id: string; subtask_id?: string | null; assignee_id?: string | null; title?: string | null; kind?: AssetKind; remove?: boolean };
 
 const ACTIVITY_TEXT: Record<string, string> = {
   created: "created the task", updated: "updated the task", status: "changed the status", approved: "approved the task", archived: "archived the task", unarchived: "restored the task", published: "made the task live", scheduled: "scheduled the task", drafted: "moved the task to drafts",
@@ -175,11 +176,34 @@ function Overview({ t, members, projects, refresh }: { t: CompanyTaskDetail; mem
   const asg = useAct((ids: string[]) => setAsg({ data: { id: t.id, userIds: ids } }), refresh);
   const sub = useAct((p: { title: string; description?: string | null; assignee_id: string | null }) => addSub({ data: { taskId: t.id, ...p } }), refresh);
   const subU = useAct((p: SubPatch) => updSub({ data: p }), refresh);
-  const assets = useAct((urls: string[]) => addAssets({ data: { taskId: t.id, assets: urls.map((url) => ({ url, kind: linkKind })) } }), refresh, "Links added");
+  const presignAsset = useServerFn(requestTaskAssetUpload);
+  const [assetPhase, setAssetPhase] = useState<string | null>(null);
+  const assets = useAct(async (items: ComposedItem[]) => {
+    try {
+      const files = items.filter((x) => x.file);
+      const rows = [];
+      let n = 0;
+      for (const it of items) {
+        if (it.file) {
+          const f = it.file; n++;
+          setAssetPhase(`Uploading ${n}/${files.length}…`);
+          const mime = f.type || "application/octet-stream";
+          const { url, key } = await presignAsset({ data: { taskId: t.id, name: f.name, mime, size: f.size } });
+          const res = await fetch(url, { method: "PUT", headers: { "Content-Type": mime }, body: f });
+          if (!res.ok) throw new Error(`${f.name} could not be uploaded.`);
+          rows.push({ kind: it.kind, file: { key, name: f.name, mime, size: f.size }, subtask_id: it.subtask || null, assignee_id: it.assignee_id || null });
+        } else rows.push({ kind: it.kind, url: it.url, subtask_id: it.subtask || null, assignee_id: it.assignee_id || null });
+      }
+      return await addAssets({ data: { taskId: t.id, assets: rows } });
+    } finally { setAssetPhase(null); }
+  }, refresh, "Added to the task");
   const assetU = useAct((p: AssetPatch) => updAsset({ data: p }), refresh);
   const mine = useAct((s: "todo" | "doing") => myStatus({ data: { taskId: t.id, status: s } }), refresh, "Progress updated");
   const confirm = useConfirm();
-  const [linkKind, setLinkKind] = useState<AssetKind>("asset");
+  const [assetIdx, setAssetIdx] = useState<number | null>(null);
+  const [assetGallery, setAssetGallery] = useState(false);
+  const fileAssets = t.asset_rows.filter((a) => a.file);
+  const assetMedia = fileAssets.map((a) => ({ ...toMedia(a.file!), caption: a.title || a.file!.name }));
   const sendAsset = useAct((p: { assetId: string; link: string; note: string }) => submit({ data: { taskId: t.id, assetId: p.assetId, link: p.link || null, note: p.note || null } }), refresh, "Submitted for review");
 
   const [title, setTitle] = useState(t.title);
@@ -187,7 +211,6 @@ function Overview({ t, members, projects, refresh }: { t: CompanyTaskDetail; mem
   const [tag, setTag] = useState("");
   const [newSub, setNewSub] = useState("");
   const [newSubDesc, setNewSubDesc] = useState("");
-  const [links, setLinks] = useState("");
   const [openAsset, setOpenAsset] = useState<string | null>(null);
   const [assetLink, setAssetLink] = useState("");
   const [assetNote, setAssetNote] = useState("");
@@ -335,20 +358,25 @@ function Overview({ t, members, projects, refresh }: { t: CompanyTaskDetail; mem
             return (
               <li key={a.id} className={cn("rounded-lg border px-2.5 py-2", isMine ? "border-brand/50 bg-brand/5 shadow-sm" : "border-border bg-card")}>
                 <div className="flex items-center gap-2">
-                  <span className={cn("grid size-8 shrink-0 place-items-center rounded-md", isRef ? "bg-status-contacted/10 text-status-contacted" : "bg-brand/10 text-brand")}>{isRef ? <BookOpen className="size-4" /> : <Package className="size-4" />}</span>
+                  {a.file ? <ReceiptThumb r={toMedia(a.file)} onOpen={() => setAssetIdx(fileAssets.indexOf(a))} />
+                    : <span className={cn("grid size-8 shrink-0 place-items-center rounded-md", isRef ? "bg-status-contacted/10 text-status-contacted" : "bg-brand/10 text-brand")}>{isRef ? <BookOpen className="size-4" /> : <Package className="size-4" />}</span>}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5"><span className="truncate text-[12.5px] font-bold">{a.title || `${isRef ? "Reference" : "Asset"} ${i + 1}`}</span>
                       {isMine && <span className="shrink-0 rounded bg-brand px-1.5 py-0.5 text-[9.5px] font-extrabold uppercase tracking-wider text-primary-foreground">Mine</span>}</div>
                     {edit ? <AssetKindToggle value={a.kind} onChange={(k) => k !== a.kind && assetU.mutate({ id: a.id, kind: k })} className="mt-1" />
                       : <span className={cn("mt-0.5 inline-block text-[10px] font-extrabold uppercase tracking-wider", isRef ? "text-status-contacted" : "text-brand")}>{isRef ? "Reference" : "Asset"}</span>}
+                    {edit && t.subtasks.length > 0 ? <div className="mt-1 w-44"><SearchableSelect clearable searchable={false} items={t.subtasks.map((s, k) => ({ value: s.id, label: `${k + 1}. ${s.title}` }))} value={a.subtask_id ?? ""}
+                        onChange={(v) => { const st = t.subtasks.find((s) => s.id === v); assetU.mutate({ id: a.id, subtask_id: v || null, ...(st?.assignee_id ? { assignee_id: st.assignee_id } : {}) }); }} placeholder="Whole task" /></div>
+                      : a.subtask_id && <span className="ml-1.5 inline-flex items-center gap-1 rounded border border-border px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground"><ListChecks className="size-3" />{t.subtasks.findIndex((s) => s.id === a.subtask_id) + 1}. {t.subtasks.find((s) => s.id === a.subtask_id)?.title}</span>}
                   </div>
                   {latest && <span className={cn("rounded border px-1.5 py-0.5 text-[10px] font-bold uppercase", latest.status === "approved" ? "border-status-converted/40 text-status-converted" : latest.status === "revision" ? "border-destructive/40 text-destructive" : "border-border text-muted-foreground")}>{latest.status === "pending" ? "In review" : latest.status}</span>}
                   {edit ? (
                     <div className="w-36 shrink-0"><SearchableSelect clearable searchable={false} items={team} value={a.assignee_id ?? ""} onChange={(v) => assetU.mutate({ id: a.id, assignee_id: v || null })} placeholder="Anyone" emptyText="No assignees" /></div>
                   ) : who ? <span className="inline-flex items-center gap-1 text-[11.5px] font-bold"><PersonAvatar name={who.name} src={who.avatar_url} size={18} />{who.name.split(" ")[0]}</span> : null}
-                  <Button asChild size="sm" variant="outline" className="h-7 gap-1 rounded-md px-2 text-[11.5px]"><a href={a.url} target="_blank" rel="noreferrer" title={a.url}><ExternalLink className="size-3" />Open</a></Button>
+                  {a.file ? <Button size="sm" variant="outline" className="h-7 gap-1 rounded-md px-2 text-[11.5px]" onClick={() => setAssetIdx(fileAssets.indexOf(a))}><Eye className="size-3" />View</Button>
+                    : <Button asChild size="sm" variant="outline" className="h-7 gap-1 rounded-md px-2 text-[11.5px]"><a href={a.url} target="_blank" rel="noreferrer" title={a.url}><ExternalLink className="size-3" />Open</a></Button>}
                   {canSend && !isRef && <Button size="sm" variant="outline" onClick={() => { setOpenAsset(openAsset === a.id ? null : a.id); setAssetLink(""); setAssetNote(""); }} className="h-7 gap-1 rounded-md px-2 text-[11.5px]"><Send className="size-3" />Submit</Button>}
-                  {edit && <button type="button" aria-label="Remove asset" onClick={async () => { if (await confirm({ tone: "danger", title: "Remove this link?", subject: a.title || a.url, confirmLabel: "Remove" })) assetU.mutate({ id: a.id, remove: true }); }}><Trash2 className="size-3.5 text-muted-foreground hover:text-destructive" /></button>}
+                  {edit && <button type="button" aria-label="Remove asset" onClick={async () => { if (await confirm({ tone: "danger", title: "Remove this link?", subject: a.title || a.file?.name || a.url, confirmLabel: "Remove" })) assetU.mutate({ id: a.id, remove: true }); }}><Trash2 className="size-3.5 text-muted-foreground hover:text-destructive" /></button>}
                 </div>
                 <AnimatePresence initial={false}>
                   {openAsset === a.id && (
@@ -367,15 +395,16 @@ function Overview({ t, members, projects, refresh }: { t: CompanyTaskDetail; mem
             );
           })}
         </ul>
+        {fileAssets.length > 1 && <Button size="sm" variant="outline" className="expense-action mt-2 h-8 gap-1 font-bold" onClick={() => setAssetGallery(true)}><Eye className="size-3.5" />View all {fileAssets.length} files</Button>}
+        {assetGallery && <ExpenseReceiptsGallery title="Task files" label="File" voucherNo={t.title} receipts={assetMedia} onClose={() => setAssetGallery(false)} onView={() => {}} onDownloaded={() => {}}
+          onDownload={async (r) => { if (!r.url) throw new Error("File is not ready"); await downloadFile(r.url, r.name); }} />}
+        <ReceiptPreview label="File" receipts={assetMedia} index={assetIdx} onIndexChange={setAssetIdx} onClose={() => setAssetIdx(null)} />
         {edit && t.asset_rows.length < MAX_TASK_ASSETS && (
-          <div className="mt-2 space-y-2">
-            <textarea value={links} onChange={(e) => setLinks(e.target.value)} rows={2} aria-label="Paste links" placeholder="Paste links, one per line" className={`${AREA} font-mono text-[12px]`} />
-            <div className="flex items-center justify-between gap-2"><AssetKindToggle value={linkKind} onChange={setLinkKind} /><Button size="sm" variant="outline" disabled={assets.isPending || !links.trim()} onClick={() => {
-              const urls = parseAssetLinks(links).filter((x) => !t.asset_rows.some((a) => a.url === x)).slice(0, MAX_TASK_ASSETS - t.asset_rows.length);
-              if (!urls.length) return toast.error("Paste one or more http(s) links");
-              assets.mutate(urls, { onSuccess: () => setLinks("") });
-            }} className="h-8 gap-1 rounded-md"><Plus className="size-3.5" />Add links</Button></div>
-          </div>
+          <>
+            <TaskAssetComposer room={MAX_TASK_ASSETS - t.asset_rows.length} busy={assets.isPending} existingUrls={t.asset_rows.map((a) => a.url)}
+              subtasks={t.subtasks.map((s) => ({ value: s.id, label: s.title, assignee_id: s.assignee_id }))} onAdd={(items) => assets.mutate(items)} />
+            {assetPhase && <p className="mt-1 flex items-center gap-1.5 text-[11.5px] font-semibold text-muted-foreground"><TestLoader />{assetPhase}</p>}
+          </>
         )}
       </section>
     </div>

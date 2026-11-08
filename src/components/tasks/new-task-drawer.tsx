@@ -13,9 +13,11 @@ import { TestLoader } from "@/components/ui/test-loader";
 import { DiscardCancelButton } from "@/components/company/danger-confirm";
 import { DrawerStepper, ExpenseDrawerContent, ExpenseDrawerHeader } from "@/components/finance/expense-drawer";
 import { SearchableSelect } from "@/components/finance/searchable-select";
-import { createCompanyTask, type TaskMember } from "@/lib/company-tasks.functions";
-import { MAX_TASK_ASSETS, MAX_TASK_TAGS, TASK_PRIORITIES, TASK_STATUSES, parseAssetLinks, type CompanyTaskStatus } from "@/lib/company-task-rules";
+import { createCompanyTask, requestTaskAssetUpload, type TaskMember } from "@/lib/company-tasks.functions";
+import { MAX_TASK_ASSETS, MAX_TASK_TAGS, TASK_PRIORITIES, TASK_STATUSES, submissionFileKind, type CompanyTaskStatus } from "@/lib/company-task-rules";
 import { AREA, FIELD, LABEL, AssetKindToggle, PersonAvatar, spring } from "./task-ui";
+import { TaskAssetComposer, type ComposedItem } from "./task-asset-composer";
+import { ReceiptThumb } from "@/components/finance/receipt-media";
 
 const STEPS = [
   { label: "Basics", hint: "what, when and priority" },
@@ -25,7 +27,7 @@ const STEPS = [
 
 type Draft = {
   title: string; priority: string; status: CompanyTaskStatus; due_on: string; due_time: string; project_id: string; tags: string[];
-  description: string; assignees: string[]; subtasks: { title: string; description: string; assignee_id: string }[]; assets: { url: string; title: string; assignee_id: string; kind: "asset" | "reference" }[];
+  description: string; assignees: string[]; subtasks: { title: string; description: string; assignee_id: string }[]; assets: { id: string; url: string; file?: File; title: string; assignee_id: string; kind: "asset" | "reference"; subtask: string }[];
 };
 const empty = (status: CompanyTaskStatus): Draft => ({ title: "", priority: "normal", status, due_on: "", due_time: "", project_id: "", tags: [], description: "", assignees: [], subtasks: [], assets: [] });
 
@@ -39,11 +41,10 @@ export function NewTaskDrawer({ open, onOpenChange, workspace, companyName, memb
   const [d, setD] = useState<Draft>(() => empty(initialStatus));
   const [tag, setTag] = useState("");
   const [sub, setSub] = useState("");
-  const [links, setLinks] = useState("");
   const [mode, setMode] = useState<"live" | "scheduled" | "draft">("live");
   const [startOn, setStartOn] = useState(""); const [startAt, setStartAt] = useState("09:00");
   const [lastOpen, setLastOpen] = useState(false);
-  if (open !== lastOpen) { setLastOpen(open); if (open) { setD(empty(initialStatus)); setStep(0); setMode("live"); setStartOn(""); setTag(""); setSub(""); setLinks(""); } }
+  if (open !== lastOpen) { setLastOpen(open); if (open) { setD(empty(initialStatus)); setStep(0); setMode("live"); setStartOn(""); setTag(""); setSub(""); } }
 
   const memberById = useMemo(() => new Map(members.map((m) => [m.user_id, m])), [members]);
   const memberItems = members
@@ -68,14 +69,12 @@ export function NewTaskDrawer({ open, onOpenChange, workspace, companyName, memb
     setD({ ...d, subtasks: [...d.subtasks, { title: t, description: "", assignee_id: "" }] });
     setSub("");
   };
-  const addLinks = () => {
-    const urls = parseAssetLinks(links).filter((u) => !d.assets.some((a) => a.url === u));
-    const room = MAX_TASK_ASSETS - d.assets.length;
-    if (!urls.length) return toast.error("Paste one or more http(s) links");
-    if (urls.length > room) toast.error(`Only ${room} more link${room === 1 ? "" : "s"} fit (max ${MAX_TASK_ASSETS}).`);
-    setD({ ...d, assets: [...d.assets, ...urls.slice(0, room).map((url) => ({ url, title: "", assignee_id: "", kind: "asset" as const }))] });
-    setLinks("");
-  };
+  const addItems = (items: ComposedItem[]) => setD((cur) => ({ ...cur, assets: [...cur.assets, ...items.map((it) => ({
+    id: crypto.randomUUID(), url: it.url ?? "", file: it.file, title: it.file?.name ?? "", kind: it.kind, subtask: it.subtask,
+    assignee_id: it.assignee_id && cur.assignees.includes(it.assignee_id) ? it.assignee_id : "",
+  }))] }));
+  const presign = useServerFn(requestTaskAssetUpload);
+  const [phase, setPhase] = useState<string | null>(null);
   const removeAssignee = (u: string) => setD({
     ...d, assignees: d.assignees.filter((x) => x !== u),
     subtasks: d.subtasks.map((s) => (s.assignee_id === u ? { ...s, assignee_id: "" } : s)),
@@ -85,13 +84,28 @@ export function NewTaskDrawer({ open, onOpenChange, workspace, companyName, memb
   const startIso = startOn && startAt ? new Date(`${startOn}T${startAt}`).toISOString() : null;
   const scheduleBad = mode === "scheduled" && (!startIso || new Date(startIso).getTime() <= Date.now());
   const save = useMutation({
-    mutationFn: () => create({ data: {
+    mutationFn: async () => {
+      const files = d.assets.filter((a) => a.file);
+      const uploaded = new Map<string, { key: string; name: string; mime: string; size: number }>();
+      for (const [i, a] of files.entries()) {
+        const f = a.file!;
+        setPhase(`Uploading ${i + 1}/${files.length}…`);
+        const mime = f.type || "application/octet-stream";
+        const { url, key } = await presign({ data: { workspace, name: f.name, mime, size: f.size } });
+        const res = await fetch(url, { method: "PUT", headers: { "Content-Type": mime }, body: f });
+        if (!res.ok) throw new Error(`${f.name} could not be uploaded.`);
+        uploaded.set(a.id, { key, name: f.name, mime, size: f.size });
+      }
+      setPhase("Saving…");
+      return create({ data: {
       publish_state: mode, scheduled_at: mode === "scheduled" ? startIso : null,
       workspace, title: d.title.trim(), description: d.description || null, priority: d.priority as "normal", status: d.status,
       due_on: d.due_on || null, due_time: d.due_on && d.due_time ? d.due_time : null, tags: d.tags, project_id: d.project_id || null, assignees: d.assignees,
       subtasks: d.subtasks.map((s) => ({ title: s.title, description: s.description.trim() || null, assignee_id: s.assignee_id || null })),
-      assets: d.assets.map((a) => ({ kind: a.kind, url: a.url, title: a.title || null, assignee_id: a.assignee_id || null })),
-    } }),
+      assets: d.assets.map((a) => ({ kind: a.kind, url: a.file ? null : a.url, file: uploaded.get(a.id) ?? null, title: a.title || null, assignee_id: a.assignee_id || null, subtask_index: a.subtask !== "" && d.subtasks[Number(a.subtask)] ? Number(a.subtask) : null })),
+    } });
+    },
+    onSettled: () => setPhase(null),
     onSuccess: (r) => {
       toast.success(mode === "draft" ? "Draft saved" : mode === "scheduled" ? "Task scheduled" : "Task created");
       qc.invalidateQueries({ queryKey: ["company-tasks"] });
@@ -218,18 +232,25 @@ export function NewTaskDrawer({ open, onOpenChange, workspace, companyName, memb
                 </div>
                 <div className="rounded-xl border border-border bg-muted/30 p-3.5">
                   <div className="flex items-center gap-1.5"><Link2 className="size-4 text-muted-foreground" /><span className={LABEL}>Assets & reference links</span><span className="ml-auto font-mono text-[11px] text-muted-foreground">{d.assets.length}/{MAX_TASK_ASSETS}</span></div>
-                  <p className="mt-1 text-[11.5px] text-muted-foreground">Paste up to {MAX_TASK_ASSETS} links at once (one per line), then mark who works on each.</p>
-                  <textarea value={links} onChange={(e) => setLinks(e.target.value)} rows={3} aria-label="Paste links" className={`mt-2 ${AREA} font-mono text-[12px]`} />
-                  <div className="mt-2 flex justify-end"><Button type="button" variant="outline" onClick={addLinks} disabled={d.assets.length >= MAX_TASK_ASSETS} className="h-9 gap-1 rounded-md"><Plus className="size-4" />Add links</Button></div>
+                  <p className="mt-1 text-[11.5px] text-muted-foreground">Choose the type and subtask first, then paste links or upload files — up to {MAX_TASK_ASSETS} items.</p>
+                  <TaskAssetComposer room={MAX_TASK_ASSETS - d.assets.length} busy={save.isPending} existingUrls={d.assets.map((a) => a.url)} onAdd={addItems}
+                    subtasks={d.subtasks.map((st, i) => ({ value: String(i), label: st.title, assignee_id: st.assignee_id || null }))} />
                   <ul className="mt-2 space-y-1.5">
                     <AnimatePresence initial={false}>
                       {d.assets.map((a, i) => (
-                        <motion.li key={a.url} layout initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, height: 0 }} transition={spring}
+                        <motion.li key={a.id} layout initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, height: 0 }} transition={spring}
                           className="grid grid-cols-[1fr_auto] items-center gap-2 rounded-lg border border-border bg-card px-2.5 py-1.5 sm:grid-cols-[1fr_10rem_auto]">
-                          <div className="min-w-0">
+                          <div className="flex min-w-0 items-center gap-2">
+                          {a.file && <ReceiptThumb r={{ path: null, file: a.file, name: a.file.name, caption: "", isPdf: submissionFileKind(a.file.name, a.file.type) === "pdf", isArchive: submissionFileKind(a.file.name, a.file.type) === "zip" }} onOpen={() => {}} />}
+                          <div className="min-w-0 flex-1">
                             <input value={a.title} onChange={(e) => setD({ ...d, assets: d.assets.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)) })} maxLength={200} aria-label="Asset name" placeholder={`Asset ${i + 1}`}
                               className="w-full bg-transparent text-[12.5px] font-bold outline-none" />
-                            <AssetKindToggle value={a.kind} onChange={(k) => setD({ ...d, assets: d.assets.map((x, j) => (j === i ? { ...x, kind: k } : x)) })} className="mt-1" />
+                            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                              <AssetKindToggle value={a.kind} onChange={(k) => setD({ ...d, assets: d.assets.map((x, j) => (j === i ? { ...x, kind: k } : x)) })} />
+                              {d.subtasks.length > 0 && <div className="w-40"><SearchableSelect clearable searchable={false} items={d.subtasks.map((st, k) => ({ value: String(k), label: `${k + 1}. ${st.title}` }))} value={a.subtask}
+                                onChange={(v) => { const st = v ? d.subtasks[Number(v)] : undefined; setD({ ...d, assets: d.assets.map((x, j) => (j === i ? { ...x, subtask: v ?? "", assignee_id: st?.assignee_id || x.assignee_id } : x)) }); }} placeholder="Whole task" /></div>}
+                            </div>
+                          </div>
                           </div>
                           <div className="col-span-2 sm:col-span-1"><SearchableSelect clearable searchable={false} items={teamItems} value={a.assignee_id} onChange={(v) => setD({ ...d, assets: d.assets.map((x, j) => (j === i ? { ...x, assignee_id: v } : x)) })} placeholder="Anyone" emptyText="Add assignees first" /></div>
                           <button type="button" aria-label="Remove link" onClick={() => setD({ ...d, assets: d.assets.filter((_, j) => j !== i) })} className="row-start-1 col-start-2 sm:col-start-3"><X className="size-3.5 text-muted-foreground hover:text-foreground" /></button>
@@ -281,7 +302,7 @@ export function NewTaskDrawer({ open, onOpenChange, workspace, companyName, memb
               <Button onClick={() => goTo(step + 1)} className="h-9 gap-1 rounded-md shadow-md shadow-brand/25 transition-all active:scale-95">Continue <ChevronRight className="size-4" /></Button>
             ) : (
               <Button onClick={() => save.mutate()} disabled={save.isPending || !d.title.trim() || scheduleBad} className="h-9 min-w-28 gap-1.5 rounded-md shadow-md shadow-brand/25 transition-all active:scale-95">
-                {save.isPending ? <TestLoader tone="white" /> : <Check className="size-4" />}{save.isPending ? "Saving…" : mode === "draft" ? "Save draft" : mode === "scheduled" ? "Schedule task" : "Create task"}
+                {save.isPending ? <TestLoader tone="white" /> : <Check className="size-4" />}{save.isPending ? phase ?? "Saving…" : mode === "draft" ? "Save draft" : mode === "scheduled" ? "Schedule task" : "Create task"}
               </Button>
             )}
           </div>

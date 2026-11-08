@@ -18,7 +18,17 @@ const Priority = z.enum(["low", "normal", "high", "urgent"]);
 const PublishState = z.enum(["draft", "scheduled", "live"]);
 const Url = z.string().trim().url().max(2000).refine((u) => /^https?:\/\//i.test(u), "Use an http(s) link.");
 const AssetKind = z.enum(["asset", "reference"]);
-const AssetIn = z.object({ kind: AssetKind.default("asset"), title: z.string().trim().max(200).optional().nullable(), url: Url, assignee_id: Id.optional().nullable() });
+const AssetFileIn = z.object({ key: z.string().min(1).max(400), name: z.string().trim().min(1).max(200), mime: z.string().max(200), size: z.number().int().nonnegative() });
+const AssetIn = z.object({ kind: AssetKind.default("asset"), title: z.string().trim().max(200).optional().nullable(), url: Url.optional().nullable(), file: AssetFileIn.optional().nullable(), assignee_id: Id.optional().nullable(), subtask_id: Id.optional().nullable(), subtask_index: z.number().int().min(0).max(99).optional().nullable() })
+  .refine((a) => Boolean(a.url) !== Boolean(a.file), "Each asset needs a link or a file.");
+type AssetInT = z.infer<typeof AssetIn>;
+/** Uploaded asset files live in R2 under task-assets/<company>/<uploader>/. */
+const assetPrefix = (companyId: string, userId: string) => `task-assets/${companyId}/${userId}/`;
+function checkAssetFiles(assets: AssetInT[], companyId: string, userId: string) {
+  if (assets.some((a) => a.file && (!a.file.key.startsWith(assetPrefix(companyId, userId)) || !submissionFileKind(a.file.name, a.file.mime))))
+    throw new Error("One of the uploaded files is not valid for this company.");
+}
+const assetRow = (a: AssetInT) => ({ kind: a.kind, title: a.title?.trim() || (a.file ? a.file.name : null), url: a.file ? `r2:${a.file.key}` : a.url!, file: a.file ?? null, assignee_id: a.assignee_id || null });
 const SubtaskIn = z.object({ title: z.string().trim().min(1).max(300), description: z.string().trim().max(2000).optional().nullable(), assignee_id: Id.optional().nullable() });
 
 export type TaskFile = { key: string; name: string; mime: string; size: number; url?: string | null };
@@ -35,7 +45,7 @@ export type CompanyTaskDetail = CompanyTaskCard & {
   created_by_person: TaskPerson | null; approved_by_person: TaskPerson | null;
   assignee_rows: (TaskPerson & { status: string })[];
   subtasks: { id: string; title: string; description: string | null; assignee_id: string | null; done: boolean; done_by: string | null; done_at: string | null; position: number }[];
-  asset_rows: { id: string; kind: "asset" | "reference"; title: string | null; url: string; assignee_id: string | null; position: number }[];
+  asset_rows: { id: string; kind: "asset" | "reference"; title: string | null; url: string; assignee_id: string | null; position: number; subtask_id: string | null; file: TaskFile | null }[];
   submissions: { id: string; user_id: string; asset_id: string | null; subtask_id: string | null; files: TaskFile[]; link: string | null; note: string | null; status: string; review_note: string | null; reviewed_by: string | null; reviewed_at: string | null; created_at: string }[];
   comment_rows: { id: string; user_id: string; body: string; created_at: string }[];
   activity: { id: string; actor_id: string; kind: string; detail: Record<string, string | number | boolean | null | string[]>; created_at: string }[];
@@ -151,7 +161,7 @@ export const getCompanyTask = createServerFn({ method: "POST" })
     const [asg, subs, assets, sub, com, act, manage, proj] = await Promise.all([
       sb.from("company_task_assignees").select("user_id, status").eq("task_id", t.id),
       sb.from("company_task_subtasks").select("id, title, description, assignee_id, done, done_by, done_at, position").eq("task_id", t.id).order("position"),
-      sb.from("company_task_assets").select("id, kind, title, url, assignee_id, position").eq("task_id", t.id).order("position"),
+      sb.from("company_task_assets").select("id, kind, title, url, assignee_id, position, subtask_id, file").eq("task_id", t.id).order("position"),
       sb.from("company_task_submissions").select("*").eq("task_id", t.id).order("created_at", { ascending: false }),
       sb.from("company_task_comments").select("id, user_id, body, created_at").eq("task_id", t.id).order("created_at"),
       sb.from("company_task_activity").select("id, actor_id, kind, detail, created_at").eq("task_id", t.id).order("created_at", { ascending: false }).limit(300),
@@ -173,7 +183,7 @@ export const getCompanyTask = createServerFn({ method: "POST" })
       subtasks_done: (subs.data ?? []).filter((s: Sb) => s.done).length, subtasks_total: (subs.data ?? []).length,
       comments: (com.data ?? []).length, assets: (assets.data ?? []).length,
       created_by_person: t.created_by ? P(t.created_by) : null, approved_by_person: t.approved_by ? P(t.approved_by) : null,
-      subtasks: subs.data ?? [], asset_rows: assets.data ?? [], submissions: submissionRows, comment_rows: com.data ?? [], activity: act.data ?? [],
+      subtasks: subs.data ?? [], asset_rows: await signAssetFiles(assets.data ?? []), submissions: submissionRows, comment_rows: com.data ?? [], activity: act.data ?? [],
       people, me: context.userId, can: { edit: manage, work: manage || assignee, review: manage },
     };
   });
@@ -205,6 +215,7 @@ export const createCompanyTask = createServerFn({ method: "POST" })
     const inTeam = (u?: string | null) => !u || assignees.includes(u);
     if (!data.subtasks.every((s) => inTeam(s.assignee_id)) || !data.assets.every((a) => inTeam(a.assignee_id)))
       throw new Error("Subtasks and assets can only be marked for this task's assignees.");
+    checkAssetFiles(data.assets, co.id, context.userId);
     if (data.publish_state === "scheduled" && (!data.scheduled_at || new Date(data.scheduled_at).getTime() <= Date.now()))
       throw new Error("Pick a future start date and time to schedule this task.");
     const { data: t, error } = await sb.from("company_tasks").insert({
@@ -218,12 +229,14 @@ export const createCompanyTask = createServerFn({ method: "POST" })
         const r = await sb.from("company_task_assignees").insert(assignees.map((u) => ({ task_id: t.id, user_id: u })));
         if (r.error) throw dbError(r.error);
       }
+      let subIds: string[] = [];
       if (data.subtasks.length) {
-        const r = await sb.from("company_task_subtasks").insert(data.subtasks.map((s, i) => ({ task_id: t.id, title: s.title, description: s.description || null, assignee_id: s.assignee_id || null, position: i })));
+        const r = await sb.from("company_task_subtasks").insert(data.subtasks.map((s, i) => ({ task_id: t.id, title: s.title, description: s.description || null, assignee_id: s.assignee_id || null, position: i }))).select("id, position");
         if (r.error) throw dbError(r.error);
+        subIds = [...(r.data ?? [])].sort((a: Sb, b: Sb) => a.position - b.position).map((x: Sb) => x.id);
       }
       if (data.assets.length) {
-        const r = await sb.from("company_task_assets").insert(data.assets.map((a, i) => ({ task_id: t.id, kind: a.kind, title: a.title?.trim() || null, url: a.url, assignee_id: a.assignee_id || null, position: i, created_by: context.userId })));
+        const r = await sb.from("company_task_assets").insert(data.assets.map((a, i) => ({ task_id: t.id, ...assetRow(a), subtask_id: a.subtask_index != null ? subIds[a.subtask_index] ?? null : null, position: i, created_by: context.userId })));
         if (r.error) throw dbError(r.error);
       }
     } catch (e) {
@@ -397,10 +410,17 @@ export const addCompanyTaskAssets = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ taskId: Id, assets: z.array(AssetIn).min(1).max(MAX_TASK_ASSETS) }).parse(d))
   .handler(async ({ data, context }) => {
     const sb = context.supabase as Sb;
-    await assertManage(sb, context.userId, await taskCompany(sb, data.taskId));
+    const coId = await taskCompany(sb, data.taskId);
+    await assertManage(sb, context.userId, coId);
+    checkAssetFiles(data.assets, coId, context.userId);
+    const subIds = data.assets.map((a) => a.subtask_id).filter(Boolean) as string[];
+    if (subIds.length) {
+      const { data: ok } = await sb.from("company_task_subtasks").select("id").eq("task_id", data.taskId).in("id", subIds);
+      if ((ok ?? []).length !== new Set(subIds).size) throw new Error("Subtask not found on this task.");
+    }
     const { count } = await sb.from("company_task_assets").select("id", { count: "exact", head: true }).eq("task_id", data.taskId);
     if ((count ?? 0) + data.assets.length > MAX_TASK_ASSETS) throw new Error(`A task can hold at most ${MAX_TASK_ASSETS} assets.`);
-    const { error } = await sb.from("company_task_assets").insert(data.assets.map((a, i) => ({ task_id: data.taskId, kind: a.kind, title: a.title?.trim() || null, url: a.url, assignee_id: a.assignee_id || null, position: (count ?? 0) + i, created_by: context.userId })));
+    const { error } = await sb.from("company_task_assets").insert(data.assets.map((a, i) => ({ task_id: data.taskId, ...assetRow(a), subtask_id: a.subtask_id || null, position: (count ?? 0) + i, created_by: context.userId })));
     if (error) throw dbError(error);
     await log(sb, context.userId, data.taskId, "assets_added", { count: data.assets.length });
     return { ok: true };
@@ -408,7 +428,7 @@ export const addCompanyTaskAssets = createServerFn({ method: "POST" })
 
 export const updateCompanyTaskAsset = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ id: Id, assignee_id: Id.optional().nullable(), title: z.string().trim().max(200).optional().nullable(), kind: AssetKind.optional(), remove: z.boolean().optional() }).parse(d))
+  .inputValidator((d) => z.object({ id: Id, assignee_id: Id.optional().nullable(), title: z.string().trim().max(200).optional().nullable(), kind: AssetKind.optional(), subtask_id: Id.optional().nullable(), remove: z.boolean().optional() }).parse(d))
   .handler(async ({ data, context }) => {
     const sb = context.supabase as Sb;
     const { data: a, error } = await sb.from("company_task_assets").select("task_id, url").eq("id", data.id).maybeSingle();
@@ -424,6 +444,13 @@ export const updateCompanyTaskAsset = createServerFn({ method: "POST" })
     if (data.assignee_id !== undefined) patch.assignee_id = data.assignee_id;
     if (data.title !== undefined) patch.title = data.title || null;
     if (data.kind !== undefined) patch.kind = data.kind;
+    if (data.subtask_id !== undefined) {
+      if (data.subtask_id) {
+        const { data: st } = await sb.from("company_task_subtasks").select("id").eq("id", data.subtask_id).eq("task_id", a.task_id).maybeSingle();
+        if (!st) throw new Error("Subtask not found on this task.");
+      }
+      patch.subtask_id = data.subtask_id;
+    }
     const r = await sb.from("company_task_assets").update(patch).eq("id", data.id); if (r.error) throw dbError(r.error);
     await log(sb, context.userId, a.task_id, "asset_updated", { url: a.url, assignee_id: data.assignee_id });
     return { ok: true };
@@ -440,6 +467,34 @@ async function signSubmissionFiles(rows: Sb[]) {
     })),
   })));
 }
+
+async function signAssetFiles(rows: Sb[]) {
+  if (!rows.some((r) => r.file)) return rows;
+  const { createPresignedGetUrl } = await import("@/lib/r2.server");
+  return Promise.all(rows.map(async (r) => {
+    if (!r.file) return r;
+    let url: string | null = null;
+    try { url = await createPresignedGetUrl({ key: r.file.key, expiresInSeconds: 60 * 30 }); } catch { /* not ready */ }
+    return { ...r, file: { ...r.file, url } };
+  }));
+}
+
+/** Presigned R2 upload for a task manager's asset/reference file (before or after the task exists). */
+export const requestTaskAssetUpload = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ workspace: Workspace, taskId: Id.optional().nullable(), name: z.string().trim().min(1).max(200), mime: z.string().max(200), size: z.number().int().positive() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase as Sb;
+    const coId = data.taskId ? await taskCompany(sb, data.taskId) : (await resolveCompany(sb, context.userId, data.workspace)).id;
+    await assertManage(sb, context.userId, coId);
+    if (!submissionFileKind(data.name, data.mime)) throw new Error("Only images, PDFs and ZIP files can be uploaded.");
+    if (data.size > MAX_SUBMISSION_FILE_BYTES) throw new Error("Each file can be at most 50 MB.");
+    const { createPresignedPutUrl } = await import("@/lib/r2.server");
+    const safe = data.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-120) || "file";
+    const key = `${assetPrefix(coId, context.userId)}${Date.now()}-${crypto.randomUUID().slice(0, 8)}-${safe}`;
+    const { url } = await createPresignedPutUrl({ key, contentType: data.mime || "application/octet-stream", expiresInSeconds: 60 * 10 });
+    return { url, key };
+  });
 
 export const requestTaskFileUpload = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

@@ -1451,9 +1451,11 @@ export type Database = {
           assignee_id: string | null
           created_at: string
           created_by: string
+          file: Json | null
           id: string
           kind: string
           position: number
+          subtask_id: string | null
           task_id: string
           title: string | null
           url: string
@@ -1462,9 +1464,11 @@ export type Database = {
           assignee_id?: string | null
           created_at?: string
           created_by?: string
+          file?: Json | null
           id?: string
           kind?: string
           position?: number
+          subtask_id?: string | null
           task_id: string
           title?: string | null
           url: string
@@ -1473,14 +1477,23 @@ export type Database = {
           assignee_id?: string | null
           created_at?: string
           created_by?: string
+          file?: Json | null
           id?: string
           kind?: string
           position?: number
+          subtask_id?: string | null
           task_id?: string
           title?: string | null
           url?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "company_task_assets_subtask_id_fkey"
+            columns: ["subtask_id"]
+            isOneToOne: false
+            referencedRelation: "company_task_subtasks"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "company_task_assets_task_id_fkey"
             columns: ["task_id"]

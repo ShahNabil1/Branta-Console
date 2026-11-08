@@ -1,0 +1,2 @@
+ALTER TABLE public.company_task_assets ADD COLUMN IF NOT EXISTS subtask_id uuid REFERENCES public.company_task_subtasks(id) ON DELETE SET NULL;
+ALTER TABLE public.company_task_assets ADD COLUMN IF NOT EXISTS file jsonb;
