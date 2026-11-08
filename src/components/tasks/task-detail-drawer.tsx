@@ -1,12 +1,12 @@
 // Task detail: the expense drawer surface with company-profile tabs. Managers
 // (C.E.O / C.O.O / HR / Group Admin) edit and review; assignees submit, comment,
 // tick subtasks and log activity; everyone else in the company reads.
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { toast } from "sonner";
-import { Activity, Archive, BadgeCheck, BookOpen, CalendarDays, Check, Crown, ExternalLink, Package, Play, Sparkles, UserCheck, FileText, Link2, ListChecks, MessageSquare, Plus, RotateCcw, Send, Trash2, Upload, X } from "lucide-react";
+import { Activity, Archive, Eye, BadgeCheck, BookOpen, CalendarDays, Check, Crown, ExternalLink, Package, Play, Sparkles, UserCheck, FileText, Link2, ListChecks, MessageSquare, Plus, RotateCcw, Send, Trash2, Upload, X } from "lucide-react";
 import { Sheet, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,9 +18,12 @@ import { SearchableSelect } from "@/components/finance/searchable-select";
 import {
   addCompanyTaskAssets, addCompanyTaskComment, addCompanyTaskNote, addCompanyTaskSubtask, approveCompanyTask, archiveCompanyTask,
   deleteCompanyTaskComment, getCompanyTask, reviewCompanyTaskSubmission, setCompanyTaskAssignees, setMyCompanyTaskStatus,
-  submitCompanyTaskWork, updateCompanyTask, updateCompanyTaskAsset, updateCompanyTaskSubtask, type CompanyTaskDetail, type TaskMember,
+  requestTaskFileUpload, submitCompanyTaskWork, updateCompanyTask, updateCompanyTaskAsset, updateCompanyTaskSubtask, type CompanyTaskDetail, type TaskFile, type TaskMember,
 } from "@/lib/company-tasks.functions";
-import { MAX_TASK_ASSETS, TASK_PRIORITIES, TASK_STATUSES, parseAssetLinks, statusLabel } from "@/lib/company-task-rules";
+import { MAX_SUBMISSION_FILES, MAX_SUBMISSION_FILE_BYTES, MAX_TASK_ASSETS, TASK_PRIORITIES, TASK_STATUSES, parseAssetLinks, statusLabel, submissionFileKind } from "@/lib/company-task-rules";
+import { ReceiptPreview, ReceiptThumb, type ReceiptMedia } from "@/components/finance/receipt-media";
+import { ExpenseReceiptsGallery } from "@/components/finance/expense-receipts-gallery";
+import { downloadFile } from "@/components/finance/download-file";
 import { cn } from "@/lib/utils";
 import { AREA, AvatarStack, FIELD, LABEL, PersonAvatar, PriorityBadge, SegmentedProgress, StatusChip, fmtDateTime, fmtDue, spring, AssetKindToggle, JourneyBar, type AssetKind } from "./task-ui";
 
@@ -368,44 +371,180 @@ function Overview({ t, members, projects, refresh }: { t: CompanyTaskDetail; mem
   );
 }
 
+function toMedia(f: TaskFile): ReceiptMedia {
+  const kind = submissionFileKind(f.name, f.mime);
+  return { path: f.key, url: f.url ?? null, name: f.name, caption: fmtBytes(f.size), isPdf: kind === "pdf", isArchive: kind === "zip" };
+}
+const fmtBytes = (n: number) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
+
+/** Expense-style proof viewer: one file opens the preview, several open the gallery. */
+function SubmissionFiles({ files, title }: { files: TaskFile[]; title: string }) {
+  const media = files.map(toMedia);
+  const [index, setIndex] = useState<number | null>(null);
+  const [gallery, setGallery] = useState(false);
+  if (!media.length) return null;
+  return (
+    <div className="mt-2.5">
+      <div className="flex flex-wrap items-center gap-2">
+        {media.slice(0, 6).map((m, i) => <ReceiptThumb key={m.path ?? i} r={m} onOpen={() => setIndex(i)} />)}
+        {media.length > 6 && <button type="button" onClick={() => setGallery(true)} className="grid size-16 place-items-center rounded-lg border border-dashed border-border font-mono text-[12px] font-bold text-muted-foreground hover:border-brand/50 hover:text-brand">+{media.length - 6}</button>}
+      </div>
+      <div className="mt-2 flex gap-2">
+        <Button size="sm" variant="outline" className="expense-action h-8 gap-1 font-bold" onClick={() => (media.length > 1 ? setGallery(true) : setIndex(0))}><Eye className="size-3.5" />View {media.length > 1 ? `all ${media.length} files` : "file"}</Button>
+      </div>
+      {gallery && <ExpenseReceiptsGallery title="Submitted files" label="File" voucherNo={title} receipts={media} onClose={() => setGallery(false)} onView={() => {}} onDownloaded={() => {}}
+        onDownload={async (r) => { if (!r.url) throw new Error("File is not ready"); await downloadFile(r.url, r.name); }} />}
+      <ReceiptPreview label="File" receipts={media} index={index} onIndexChange={setIndex} onClose={() => setIndex(null)} />
+    </div>
+  );
+}
+
 function Submissions({ t, refresh }: { t: CompanyTaskDetail; refresh: () => void }) {
-  const submit = useServerFn(submitCompanyTaskWork), review = useServerFn(reviewCompanyTaskSubmission);
+  const submit = useServerFn(submitCompanyTaskWork), review = useServerFn(reviewCompanyTaskSubmission), presign = useServerFn(requestTaskFileUpload);
+  const confirm = useConfirm();
   const [link, setLink] = useState(""), [note, setNote] = useState("");
+  const [target, setTarget] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const [previewIdx, setPreviewIdx] = useState<number | null>(null);
+  const [phase, setPhase] = useState<string | null>(null);
   const [reviewNote, setReviewNote] = useState<Record<string, string>>({});
-  const send = useAct(() => submit({ data: { taskId: t.id, link: link.trim() || null, note: note.trim() || null } }), refresh, "Submitted for review");
+  const inputRef = useRef<HTMLInputElement>(null);
   const rv = useAct((p: { id: string; decision: "approved" | "revision" }) => review({ data: { ...p, note: reviewNote[p.id] || null } }), refresh);
   const asset = (id: string | null) => t.asset_rows.find((a) => a.id === id);
+  const subtask = (id: string | null) => t.subtasks.find((s) => s.id === id);
+
+  const mine = t.subtasks.filter((s) => s.assignee_id === t.me);
+  const open = t.subtasks.filter((s) => !s.assignee_id);
+  const targets = [
+    { value: "", label: "Whole task", hint: t.title },
+    ...mine.map((s) => ({ value: s.id, label: s.title, hint: s.done ? "Mine · done" : "Assigned to me" })),
+    ...open.map((s) => ({ value: s.id, label: s.title, hint: "Open subtask" })),
+  ];
+  const localMedia: ReceiptMedia[] = files.map((f) => {
+    const kind = submissionFileKind(f.name, f.type);
+    return { path: null, file: f, name: f.name, caption: fmtBytes(f.size), isPdf: kind === "pdf", isArchive: kind === "zip" };
+  });
+
+  const pick = (list: FileList | null) => {
+    const next: File[] = [];
+    for (const f of Array.from(list ?? [])) {
+      if (!submissionFileKind(f.name, f.type)) { toast.error(`${f.name}: only images, PDFs and ZIP files`); continue; }
+      if (f.size > MAX_SUBMISSION_FILE_BYTES) { toast.error(`${f.name} is larger than 50 MB`); continue; }
+      if (!files.some((x) => x.name === f.name && x.size === f.size)) next.push(f);
+    }
+    const room = MAX_SUBMISSION_FILES - files.length;
+    if (next.length > room) toast.error(`At most ${MAX_SUBMISSION_FILES} files per submission`);
+    setFiles([...files, ...next.slice(0, Math.max(0, room))]);
+    if (inputRef.current) inputRef.current.value = "";
+  };
+
+  const send = useMutation({
+    mutationFn: async () => {
+      const uploaded: TaskFile[] = [];
+      for (const [i, f] of files.entries()) {
+        setPhase(`Uploading ${i + 1}/${files.length}…`);
+        const mime = f.type || "application/octet-stream";
+        const { url, key } = await presign({ data: { taskId: t.id, name: f.name, mime, size: f.size } });
+        const res = await fetch(url, { method: "PUT", headers: { "Content-Type": mime }, body: f });
+        if (!res.ok) throw new Error(`${f.name} could not be uploaded.`);
+        uploaded.push({ key, name: f.name, mime, size: f.size });
+      }
+      setPhase("Saving…");
+      await submit({ data: { taskId: t.id, subtaskId: target || null, files: uploaded, link: link.trim() || null, note: note.trim() || null } });
+    },
+    onSuccess: () => { toast.success("Submitted for review"); setLink(""); setNote(""); setFiles([]); setTarget(""); refresh(); },
+    onError: (e: Error) => toast.error(e.message),
+    onSettled: () => setPhase(null),
+  });
+  const ready = !!(link.trim() || note.trim() || files.length);
+  const targetLabel = targets.find((x) => x.value === target)?.label ?? "Whole task";
+
   return (
     <div className="space-y-4">
       {t.can.work && (
-        <div className="rounded-xl border border-border bg-muted/30 p-3.5">
-          <div className={LABEL}>Submit work</div>
-          <Input value={link} onChange={(e) => setLink(e.target.value)} aria-label="Work link" placeholder="https://" className={`mt-1.5 ${FIELD} h-9 font-mono text-[12px]`} />
-          <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} aria-label="Note" className={`mt-2 ${AREA}`} />
-          <div className="mt-2 flex justify-end"><Button size="sm" disabled={send.isPending || (!link.trim() && !note.trim())} onClick={() => send.mutate(undefined, { onSuccess: () => { setLink(""); setNote(""); } })} className="h-8 gap-1 rounded-md">
-            {send.isPending ? <TestLoader tone="white" /> : <Send className="size-3.5" />}Submit for review</Button></div>
+        <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+          <div className="flex items-center gap-2 border-b border-border bg-muted/30 px-3.5 py-2.5"><Upload className="size-4 text-brand" /><span className="text-[13px] font-extrabold">Submit work</span></div>
+          <div className="space-y-3 p-3.5">
+            <div>
+              <div className={LABEL}>What are you submitting?</div>
+              <div className="mt-1.5"><SearchableSelect items={targets} value={target} onChange={(v) => setTarget(v ?? "")} placeholder="Whole task" emptyText="No subtasks" /></div>
+              {!mine.length && <p className="mt-1 text-[11px] text-muted-foreground">No subtasks are assigned to you, so this goes in for the whole task or an open subtask.</p>}
+            </div>
+            <div>
+              <div className="flex items-center gap-2"><span className={LABEL}>Files</span><span className="ml-auto font-mono text-[11px] text-muted-foreground">{files.length}/{MAX_SUBMISSION_FILES}</span></div>
+              <input ref={inputRef} type="file" multiple hidden accept="image/*,.pdf,application/pdf,.zip,application/zip,application/x-zip-compressed" onChange={(e) => pick(e.target.files)} />
+              <button type="button" onClick={() => inputRef.current?.click()} disabled={send.isPending || files.length >= MAX_SUBMISSION_FILES}
+                onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); pick(e.dataTransfer.files); }}
+                className="mt-1.5 flex w-full flex-col items-center gap-1 rounded-lg border border-dashed border-border bg-muted/20 px-4 py-4 text-center transition-colors hover:border-brand/50 hover:bg-brand/5 disabled:opacity-50">
+                <Upload className="size-5 text-brand" />
+                <span className="text-[12.5px] font-bold">Upload images, PDFs or ZIP files</span>
+                <span className="text-[11px] text-muted-foreground">Click or drop here · up to 50 MB each</span>
+              </button>
+              {!!files.length && (
+                <ul className="mt-2 grid gap-2 sm:grid-cols-2">
+                  <AnimatePresence initial={false}>
+                    {localMedia.map((m, i) => (
+                      <motion.li key={`${m.name}-${files[i].size}`} layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} transition={spring}
+                        className="flex items-center gap-2.5 rounded-lg border border-border bg-card p-2">
+                        <ReceiptThumb r={m} onOpen={() => setPreviewIdx(i)} />
+                        <div className="min-w-0 flex-1"><div className="truncate text-[12px] font-bold" title={m.name}>{m.name}</div><div className="font-mono text-[10.5px] text-muted-foreground">{m.caption}</div></div>
+                        <button type="button" aria-label={`Remove ${m.name}`} disabled={send.isPending} onClick={() => setFiles(files.filter((_, j) => j !== i))}><X className="size-3.5 text-muted-foreground hover:text-destructive" /></button>
+                      </motion.li>
+                    ))}
+                  </AnimatePresence>
+                </ul>
+              )}
+            </div>
+            <div>
+              <div className={LABEL}>Link (optional)</div>
+              <Input value={link} onChange={(e) => setLink(e.target.value)} aria-label="Work link" placeholder="https://" className={`mt-1.5 ${FIELD} h-9 font-mono text-[12px]`} />
+            </div>
+            <div>
+              <div className={LABEL}>Note (optional)</div>
+              <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} aria-label="Note" className={`mt-1.5 ${AREA}`} />
+            </div>
+            <div className="flex justify-end">
+              <Button size="sm" disabled={send.isPending || !ready} className="h-9 min-w-40 gap-1.5 rounded-md" onClick={async () => {
+                const ok = await confirm({ tone: "info", icon: Send, title: "Submit for review?", subject: targetLabel,
+                  points: [files.length ? `${files.length} file${files.length > 1 ? "s" : ""} will be uploaded.` : "No files attached.", link.trim() ? "Includes a link." : "", note.trim() ? "Includes a note." : ""].filter(Boolean),
+                  confirmLabel: "Submit" });
+                if (ok) send.mutate();
+              }}>
+                {send.isPending ? <><TestLoader tone="white" />{phase ?? "Saving…"}</> : <><Send className="size-3.5" />Submit for review</>}
+              </Button>
+            </div>
+          </div>
+          <ReceiptPreview label="File" receipts={localMedia} index={previewIdx} onIndexChange={setPreviewIdx} onClose={() => setPreviewIdx(null)} />
         </div>
       )}
       {!t.submissions.length && <p className="py-8 text-center text-[12.5px] text-muted-foreground">No submissions yet.</p>}
       <ul className="space-y-2">
         {t.submissions.map((s, i) => {
           const who = t.people[s.user_id];
-          const a = asset(s.asset_id);
+          const a = asset(s.asset_id), st = subtask(s.subtask_id);
           return (
             <motion.li key={s.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ ...spring, delay: i * 0.03 }} className="rounded-xl border border-border bg-card p-3">
               <div className="flex items-center gap-2">
                 <PersonAvatar name={who?.name ?? "?"} src={who?.avatar_url} size={24} />
-                <div className="min-w-0 flex-1"><div className="truncate text-[12.5px] font-bold">{who?.name ?? "Team member"}</div><div className="text-[11px] text-muted-foreground">{fmtDateTime(s.created_at)}{a ? ` · ${a.title || "Asset"}` : ""}</div></div>
+                <div className="min-w-0 flex-1"><div className="truncate text-[12.5px] font-bold">{who?.name ?? "Team member"}</div><div className="text-[11px] text-muted-foreground">{fmtDateTime(s.created_at)}</div></div>
                 <span className={cn("rounded border px-1.5 py-0.5 text-[10px] font-bold uppercase", s.status === "approved" ? "border-status-converted/40 text-status-converted" : s.status === "revision" ? "border-destructive/40 text-destructive" : "border-border text-muted-foreground")}>{s.status === "pending" ? "In review" : s.status === "revision" ? "Revision" : "Approved"}</span>
               </div>
-              {s.link && <a href={s.link} target="_blank" rel="noreferrer" className="mt-2 inline-flex max-w-full items-center gap-1 truncate font-mono text-[11.5px] text-brand hover:underline">{s.link}<ExternalLink className="size-3 shrink-0" /></a>}
+              <div className="mt-2 inline-flex max-w-full items-center gap-1.5 rounded-md bg-muted/60 px-2 py-1 text-[11.5px] font-bold">
+                <ListChecks className="size-3.5 shrink-0 text-brand" /><span className="truncate">For: {st ? st.title : a ? a.title || "Asset" : "Whole task"}</span>
+              </div>
+              <SubmissionFiles files={s.files ?? []} title={`${who?.name ?? "Submission"} · ${fmtDateTime(s.created_at)}`} />
+              {s.link && <div className="mt-2"><Button asChild size="sm" variant="outline" className="h-8 gap-1 rounded-md text-[11.5px]"><a href={s.link} target="_blank" rel="noreferrer" title={s.link}><ExternalLink className="size-3.5" />Open link</a></Button></div>}
               {s.note && <p className="mt-1.5 whitespace-pre-wrap text-[12.5px] leading-relaxed">{s.note}</p>}
               {s.review_note && <p className="mt-2 rounded-md border border-border bg-muted/40 px-2 py-1.5 text-[12px]"><span className="font-bold">Review: </span>{s.review_note}</p>}
               {t.can.review && s.status === "pending" && (
                 <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-border pt-2">
                   <Input value={reviewNote[s.id] ?? ""} onChange={(e) => setReviewNote({ ...reviewNote, [s.id]: e.target.value })} aria-label="Review note" placeholder="Instructions / reason (required for revision)" className={`${FIELD} h-8 min-w-40 flex-1`} />
-                  <Button size="sm" variant="outline" disabled={rv.isPending || !(reviewNote[s.id] ?? "").trim()} onClick={() => rv.mutate({ id: s.id, decision: "revision" })} className="h-8 gap-1 rounded-md"><RotateCcw className="size-3.5" />Request revision</Button>
-                  <Button size="sm" disabled={rv.isPending} onClick={() => rv.mutate({ id: s.id, decision: "approved" })} className="h-8 gap-1 rounded-md"><Check className="size-3.5" />Approve</Button>
+                  <Button size="sm" variant="outline" disabled={rv.isPending || !(reviewNote[s.id] ?? "").trim()} onClick={async () => {
+                    if (await confirm({ tone: "warning", icon: RotateCcw, title: `Send back to ${who?.name ?? "this person"}?`, subject: reviewNote[s.id], confirmLabel: "Request revision" })) rv.mutate({ id: s.id, decision: "revision" });
+                  }} className="h-8 gap-1 rounded-md"><RotateCcw className="size-3.5" />Request revision</Button>
+                  <Button size="sm" disabled={rv.isPending} onClick={async () => {
+                    if (await confirm({ tone: "info", icon: Check, title: `Approve ${who?.name ?? "this"} submission?`, subject: st ? st.title : "Whole task", confirmLabel: "Approve" })) rv.mutate({ id: s.id, decision: "approved" });
+                  }} className="h-8 gap-1 rounded-md"><Check className="size-3.5" />Approve</Button>
                 </div>
               )}
             </motion.li>

@@ -5,14 +5,14 @@ import { Eye, Paperclip } from "lucide-react";
 import { ExpenseDownloadButton } from "./expense-download-button";
 import { ReceiptPreview, ReceiptThumb, type ReceiptMedia } from "./receipt-media";
 
-export function ExpenseReceiptsGallery({ receipts, voucherNo, onClose, onView, onDownload, onDownloaded }: {
-  receipts: ReceiptMedia[]; voucherNo: string | null; onClose: () => void; onView: (r: ReceiptMedia) => void; onDownload: (r: ReceiptMedia) => Promise<void>; onDownloaded: (r: ReceiptMedia) => void;
+export function ExpenseReceiptsGallery({ receipts, voucherNo, onClose, onView, onDownload, onDownloaded, title = "Receipts / proof", label }: {
+  title?: string; label?: string; receipts: ReceiptMedia[]; voucherNo: string | null; onClose: () => void; onView: (r: ReceiptMedia) => void; onDownload: (r: ReceiptMedia) => Promise<void>; onDownloaded: (r: ReceiptMedia) => void;
 }) {
   const [index, setIndex] = useState<number | null>(null);
   const preview = (i: number) => { setIndex(i); const receipt = receipts[i]; if (receipt) onView(receipt); };
   return <>
     <Dialog open onOpenChange={open => { if (!open) onClose(); }}><DialogContent className="max-w-2xl gap-0 overflow-hidden p-0 sm:p-0">
-      <DialogHeader className="expense-drawer-header border-b border-border px-5 py-4 pr-12 text-left"><DialogTitle className="flex items-center gap-2 text-[15px] font-bold"><Paperclip className="size-4 text-brand" />Receipts / proof</DialogTitle><DialogDescription className="font-mono text-[11px]">{voucherNo ?? "Expense"} · {receipts.length} files</DialogDescription></DialogHeader>
+      <DialogHeader className="expense-drawer-header border-b border-border px-5 py-4 pr-12 text-left"><DialogTitle className="flex items-center gap-2 text-[15px] font-bold"><Paperclip className="size-4 text-brand" />{title}</DialogTitle><DialogDescription className="font-mono text-[11px]">{voucherNo ?? "Expense"} · {receipts.length} files</DialogDescription></DialogHeader>
       <div className="max-h-[70dvh] space-y-2 overflow-y-auto p-4">
         {receipts.map((r, i) => <article key={`${r.path}-${i}`} className="flex min-w-0 items-center gap-3 rounded-lg border border-border bg-card p-3 transition-colors hover:border-brand/30">
           <ReceiptThumb r={r} onOpen={() => preview(i)} />
@@ -22,6 +22,6 @@ export function ExpenseReceiptsGallery({ receipts, voucherNo, onClose, onView, o
         </article>)}
       </div>
     </DialogContent></Dialog>
-    <ReceiptPreview receipts={receipts} index={index} onIndexChange={preview} onClose={() => setIndex(null)} onDownload={onDownloaded} />
+    <ReceiptPreview receipts={receipts} index={index} onIndexChange={preview} onClose={() => setIndex(null)} onDownload={onDownloaded} label={label} />
   </>;
 }

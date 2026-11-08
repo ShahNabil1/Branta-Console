@@ -6,7 +6,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { dbError } from "@/lib/db-errors";
-import { MAX_TASK_ASSETS, MAX_TASK_TAGS } from "@/lib/company-task-rules";
+import { MAX_SUBMISSION_FILES, MAX_SUBMISSION_FILE_BYTES, MAX_TASK_ASSETS, MAX_TASK_TAGS, submissionFileKey, submissionFileKind } from "@/lib/company-task-rules";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Sb = any;
@@ -21,6 +21,7 @@ const AssetKind = z.enum(["asset", "reference"]);
 const AssetIn = z.object({ kind: AssetKind.default("asset"), title: z.string().trim().max(200).optional().nullable(), url: Url, assignee_id: Id.optional().nullable() });
 const SubtaskIn = z.object({ title: z.string().trim().min(1).max(300), assignee_id: Id.optional().nullable() });
 
+export type TaskFile = { key: string; name: string; mime: string; size: number; url?: string | null };
 export type TaskMember = { user_id: string; name: string; avatar_url: string | null; code: string | null };
 export type TaskPerson = { user_id: string; name: string; avatar_url: string | null };
 export type CompanyTaskCard = {
@@ -35,7 +36,7 @@ export type CompanyTaskDetail = CompanyTaskCard & {
   assignee_rows: (TaskPerson & { status: string })[];
   subtasks: { id: string; title: string; assignee_id: string | null; done: boolean; done_by: string | null; done_at: string | null; position: number }[];
   asset_rows: { id: string; kind: "asset" | "reference"; title: string | null; url: string; assignee_id: string | null; position: number }[];
-  submissions: { id: string; user_id: string; asset_id: string | null; link: string | null; note: string | null; status: string; review_note: string | null; reviewed_by: string | null; reviewed_at: string | null; created_at: string }[];
+  submissions: { id: string; user_id: string; asset_id: string | null; subtask_id: string | null; files: TaskFile[]; link: string | null; note: string | null; status: string; review_note: string | null; reviewed_by: string | null; reviewed_at: string | null; created_at: string }[];
   comment_rows: { id: string; user_id: string; body: string; created_at: string }[];
   activity: { id: string; actor_id: string; kind: string; detail: Record<string, string | number | boolean | null | string[]>; created_at: string }[];
   people: Record<string, TaskPerson>;
@@ -163,6 +164,7 @@ export const getCompanyTask = createServerFn({ method: "POST" })
       ...(assets.data ?? []).map((a: Sb) => a.assignee_id)].filter(Boolean) as string[];
     const people = await peopleFor(ids);
     const P = (u: string) => people[u] ?? { user_id: u, name: "Team member", avatar_url: null };
+    const submissionRows = await signSubmissionFiles(sub.data ?? []);
     const assignee = (asg.data ?? []).some((a: Sb) => a.user_id === context.userId);
     return {
       ...t, project_title: proj.data?.title ?? null,
@@ -171,7 +173,7 @@ export const getCompanyTask = createServerFn({ method: "POST" })
       subtasks_done: (subs.data ?? []).filter((s: Sb) => s.done).length, subtasks_total: (subs.data ?? []).length,
       comments: (com.data ?? []).length, assets: (assets.data ?? []).length,
       created_by_person: t.created_by ? P(t.created_by) : null, approved_by_person: t.approved_by ? P(t.approved_by) : null,
-      subtasks: subs.data ?? [], asset_rows: assets.data ?? [], submissions: sub.data ?? [], comment_rows: com.data ?? [], activity: act.data ?? [],
+      subtasks: subs.data ?? [], asset_rows: assets.data ?? [], submissions: submissionRows, comment_rows: com.data ?? [], activity: act.data ?? [],
       people, me: context.userId, can: { edit: manage, work: manage || assignee, review: manage },
     };
   });
@@ -427,17 +429,47 @@ export const updateCompanyTaskAsset = createServerFn({ method: "POST" })
   });
 
 // ---------- Assignee work ----------
+async function signSubmissionFiles(rows: Sb[]) {
+  if (!rows.some((r) => Array.isArray(r.files) && r.files.length)) return rows.map((r) => ({ ...r, files: r.files ?? [] }));
+  const { createPresignedGetUrl } = await import("@/lib/r2.server");
+  return Promise.all(rows.map(async (r) => ({
+    ...r,
+    files: await Promise.all(((r.files ?? []) as TaskFile[]).map(async (f) => {
+      try { return { ...f, url: await createPresignedGetUrl({ key: f.key, expiresInSeconds: 60 * 30 }) }; } catch { return { ...f, url: null }; }
+    })),
+  })));
+}
+
+export const requestTaskFileUpload = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ taskId: Id, name: z.string().trim().min(1).max(200), mime: z.string().max(200), size: z.number().int().positive() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase as Sb;
+    if (!(await rpcBool(sb, "can_work_company_task", { _task: data.taskId, _user: context.userId })))
+      throw new Error("Only this task's assignees can upload work.");
+    if (!submissionFileKind(data.name, data.mime)) throw new Error("Only images, PDFs and ZIP files can be uploaded.");
+    if (data.size > MAX_SUBMISSION_FILE_BYTES) throw new Error("Each file can be at most 50 MB.");
+    const { createPresignedPutUrl } = await import("@/lib/r2.server");
+    const key = submissionFileKey(data.taskId, context.userId, data.name);
+    const { url } = await createPresignedPutUrl({ key, contentType: data.mime || "application/octet-stream", expiresInSeconds: 60 * 10 });
+    return { url, key };
+  });
+
+const FileIn = z.object({ key: z.string().min(1).max(400), name: z.string().trim().min(1).max(200), mime: z.string().max(200), size: z.number().int().nonnegative() });
+
 export const submitCompanyTaskWork = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ taskId: Id, assetId: Id.optional().nullable(), link: Url.optional().nullable().or(z.literal("")), note: z.string().trim().max(4000).optional().nullable() }).parse(d))
+  .inputValidator((d) => z.object({ taskId: Id, assetId: Id.optional().nullable(), subtaskId: Id.optional().nullable(), files: z.array(FileIn).max(MAX_SUBMISSION_FILES).default([]), link: Url.optional().nullable().or(z.literal("")), note: z.string().trim().max(4000).optional().nullable() }).parse(d))
   .handler(async ({ data, context }) => {
     const sb = context.supabase as Sb;
     if (!(await rpcBool(sb, "can_work_company_task", { _task: data.taskId, _user: context.userId })))
       throw new Error("Only this task's assignees can submit work.");
-    const { error } = await sb.from("company_task_submissions").insert({ task_id: data.taskId, asset_id: data.assetId || null, user_id: context.userId, link: data.link || null, note: data.note || null });
+    const prefix = `tasks/${data.taskId}/${context.userId}/`;
+    if (data.files.some((f) => !f.key.startsWith(prefix) || !submissionFileKind(f.name, f.mime))) throw new Error("One of the files is not valid for this task.");
+    const { error } = await sb.from("company_task_submissions").insert({ task_id: data.taskId, asset_id: data.assetId || null, subtask_id: data.subtaskId || null, files: data.files, user_id: context.userId, link: data.link || null, note: data.note || null });
     if (error) throw dbError(error);
     await sb.from("company_task_assignees").update({ status: "submitted" }).eq("task_id", data.taskId).eq("user_id", context.userId);
-    await log(sb, context.userId, data.taskId, "submitted", { asset_id: data.assetId || null, link: data.link || null });
+    await log(sb, context.userId, data.taskId, "submitted", { asset_id: data.assetId || null, subtask_id: data.subtaskId || null, files: data.files.length, link: data.link || null });
     return { ok: true };
   });
 

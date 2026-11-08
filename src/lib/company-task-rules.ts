@@ -71,3 +71,20 @@ export function nextGoLiveIn(tasks: { publish_state: string; scheduled_at: strin
   const times = tasks.filter((t) => taskBucket(t, now) === "scheduled").map((t) => new Date(t.scheduled_at!).getTime() - now);
   return times.length ? Math.max(0, Math.min(...times)) : null;
 }
+
+/** Submission uploads: images, PDFs and ZIPs only, stored in Cloudflare R2. */
+export const MAX_SUBMISSION_FILES = 20;
+export const MAX_SUBMISSION_FILE_BYTES = 50 * 1024 * 1024;
+export type SubmissionFileKind = "image" | "pdf" | "zip";
+export function submissionFileKind(name: string, mime: string): SubmissionFileKind | null {
+  const ext = name.toLowerCase().split(".").pop() ?? "";
+  if (mime === "application/pdf" || ext === "pdf") return "pdf";
+  if (["zip"].includes(ext) || ["application/zip", "application/x-zip-compressed"].includes(mime)) return "zip";
+  if (mime.startsWith("image/") || ["png", "jpg", "jpeg", "webp", "gif", "heic", "heif", "svg", "avif"].includes(ext)) return "image";
+  return null;
+}
+/** R2 key for one person's upload on one task; the database checks this exact prefix. */
+export function submissionFileKey(taskId: string, userId: string, name: string, stamp = Date.now()): string {
+  const safe = name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-120) || "file";
+  return `tasks/${taskId}/${userId}/${stamp}-${safe}`;
+}

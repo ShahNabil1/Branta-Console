@@ -1558,6 +1558,7 @@ export type Database = {
         Row: {
           asset_id: string | null
           created_at: string
+          files: Json
           id: string
           link: string | null
           note: string | null
@@ -1565,12 +1566,14 @@ export type Database = {
           reviewed_at: string | null
           reviewed_by: string | null
           status: string
+          subtask_id: string | null
           task_id: string
           user_id: string
         }
         Insert: {
           asset_id?: string | null
           created_at?: string
+          files?: Json
           id?: string
           link?: string | null
           note?: string | null
@@ -1578,12 +1581,14 @@ export type Database = {
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: string
+          subtask_id?: string | null
           task_id: string
           user_id?: string
         }
         Update: {
           asset_id?: string | null
           created_at?: string
+          files?: Json
           id?: string
           link?: string | null
           note?: string | null
@@ -1591,6 +1596,7 @@ export type Database = {
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: string
+          subtask_id?: string | null
           task_id?: string
           user_id?: string
         }
@@ -1600,6 +1606,13 @@ export type Database = {
             columns: ["asset_id"]
             isOneToOne: false
             referencedRelation: "company_task_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_task_submissions_subtask_id_fkey"
+            columns: ["subtask_id"]
+            isOneToOne: false
+            referencedRelation: "company_task_subtasks"
             referencedColumns: ["id"]
           },
           {
