@@ -32,6 +32,8 @@ interface Props {
   searchable?: boolean;
   /** Show a "clear selection" row when a value is chosen. */
   clearable?: boolean;
+  /** Checkbox multi-pick: rows toggle via onChange and the list stays open. */
+  checked?: string[];
 }
 
 /**
@@ -62,6 +64,7 @@ export function SearchableSelect({
   disabled,
   searchable = true,
   clearable = false,
+  checked,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -148,15 +151,18 @@ export function SearchableSelect({
             <div className="px-3 py-6 text-center text-[12px] text-muted-foreground">{emptyText}</div>
           ) : (
             filtered.map((it) => {
-              const active = it.value === value;
+              const active = checked ? checked.includes(it.value) : it.value === value;
               return (
                 <button
                   key={it.value}
                   type="button"
+                  role={checked ? "menuitemcheckbox" : undefined}
+                  aria-checked={checked ? active : undefined}
                   disabled={it.disabled}
                   onClick={() => {
                     if (it.disabled) return;
                     onChange(it.value);
+                    if (checked) return;
                     setOpen(false);
                     setQ("");
                   }}
@@ -165,7 +171,11 @@ export function SearchableSelect({
                     active && "bg-brand/5",
                   )}
                 >
-                  <Check className={cn("size-3.5 shrink-0", active ? "opacity-100 text-primary" : "opacity-0")} />
+                  {checked ? (
+                    <span className={cn("grid size-4 shrink-0 place-items-center rounded border transition-colors", active ? "border-brand bg-brand text-primary-foreground" : "border-border bg-card")}>
+                      {active && <Check className="size-3" />}
+                    </span>
+                  ) : <Check className={cn("size-3.5 shrink-0", active ? "opacity-100 text-primary" : "opacity-0")} />}
                   {it.avatar !== undefined && <Avatar src={it.avatar} name={it.label} size={28} />}
                   <span className="min-w-0 flex-1">
                     <span className="block truncate">

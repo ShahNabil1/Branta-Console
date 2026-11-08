@@ -46,7 +46,7 @@ export function NewTaskDrawer({ open, onOpenChange, workspace, companyName, memb
   if (open !== lastOpen) { setLastOpen(open); if (open) { setD(empty(initialStatus)); setStep(0); setMode("live"); setStartOn(""); setTag(""); setSub(""); setLinks(""); } }
 
   const memberById = useMemo(() => new Map(members.map((m) => [m.user_id, m])), [members]);
-  const memberItems = members.filter((m) => !d.assignees.includes(m.user_id))
+  const memberItems = members
     .map((m) => ({ value: m.user_id, label: m.user_id === me ? `${m.name} (me)` : m.name, avatar: m.avatar_url ?? "", hint: m.code }));
   const teamItems = d.assignees.map((u) => ({ value: u, label: memberById.get(u)?.name ?? "Team member", avatar: memberById.get(u)?.avatar_url ?? "" }));
   const dirty = JSON.stringify(d) !== JSON.stringify(empty(initialStatus));
@@ -165,7 +165,7 @@ export function NewTaskDrawer({ open, onOpenChange, workspace, companyName, memb
               {step === 1 && (<>
                 <div>
                   <label className={LABEL}>Assignees</label>
-                  <div className="mt-1.5"><SearchableSelect items={memberItems} value="" onChange={(v) => v && setD({ ...d, assignees: [...d.assignees, v] })} placeholder="+ Add assignee" emptyText="No more members" /></div>
+                  <div className="mt-1.5"><SearchableSelect items={memberItems} value="" checked={d.assignees} onChange={(v) => { if (!v) return; if (d.assignees.includes(v)) removeAssignee(v); else setD({ ...d, assignees: [...d.assignees, v] }); }} placeholder={d.assignees.length ? `${d.assignees.length} selected · add more` : "+ Add assignees"} emptyText="No members" /></div>
                   <motion.ul layout className="mt-2 flex flex-wrap gap-1.5">
                     <AnimatePresence initial={false}>
                       {d.assignees.map((u) => {
