@@ -11,7 +11,7 @@
 
 import type { PDFDocument, PDFFont, PDFImage, PDFPage, RGB } from "pdf-lib";
 import { brandEmailList, embedBrandLogo, generatedByLine, type GeneratedBy } from "@/lib/brand/pdf-brand.server";
-import { BANGLA_QR_MERCHANT_ID, BANGLA_QR_PNG_B64 } from "@/lib/brand/bangla-qr.server";
+import { BANGLA_QR_ASPECT, BANGLA_QR_MERCHANT_ID, BANGLA_QR_PNG_B64 } from "@/lib/brand/bangla-qr.server";
 import { embeddedCompanyImage } from "@/lib/brand/company-images.server";
 
 export type { GeneratedBy };
@@ -624,7 +624,8 @@ export async function renderInvoicePdf(
     const qrImage = cur === "BDT"
       ? await pdf.embedPng(Uint8Array.from(atob(BANGLA_QR_PNG_B64), (c) => c.charCodeAt(0)))
       : null;
-    const qrW = 120;
+    const qrW = 112;
+    const qrH = qrW * BANGLA_QR_ASPECT;
     const qrGap = 18;
     const detailW = CONTENT_W - 28 - (qrImage ? qrW + qrGap : 0);
     const detailGap = 18;
@@ -651,7 +652,7 @@ export async function renderInvoicePdf(
     if (pending !== undefined) detailRows.push([{ lines: [pending], x: SIDE + 14 }]);
     const detailLead = qrImage ? 9.5 : 11.5;
     const detailH = detailRows.reduce((h, row) => h + Math.max(...row.map((cell) => cell.lines.length)) * detailLead, 0);
-    const paymentBodyH = qrImage ? Math.max(detailH + 52, qrW + 16) : detailH;
+    const paymentBodyH = qrImage ? Math.max(detailH + 52, qrH + 16) : detailH;
     const blockH = 24 + introLines.length * 10 + 4 + paymentBodyH + 8 + noteLines.length * 9 + 4;
     if (blockH + SIGNATURE_H + 14 > CONTENT_TOP - CONTENT_BOTTOM) {
       throw new Error("Payment information is too long for one page. Shorten the bank details or payment note.");
@@ -675,7 +676,7 @@ export async function renderInvoicePdf(
         draw(label, qx + (qrW - f.widthOfTextAtSize(label, size)) / 2, baseline, size, f, color);
       };
       centered("SCAN TO PAY", bodyTop, 9.5, bold, brand);
-      page.drawImage(qrImage, { x: qx, y: bodyTop - 10 - qrW, width: qrW, height: qrW });
+      page.drawImage(qrImage, { x: qx, y: bodyTop - 10 - qrH, width: qrW, height: qrH });
     }
     detailRows.forEach((row) => {
       row.forEach((cell) => cell.lines.forEach((ln, lineIndex) => {
