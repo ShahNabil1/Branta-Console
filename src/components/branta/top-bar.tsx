@@ -7,6 +7,7 @@ const CRUMB_LABELS: Record<string, string> = {
   app: "Workspace",
   leads: "Leads",
   settings: "Settings",
+  "my-company": "My Company",
 };
 
 function labelFor(seg: string) {
