@@ -1,7 +1,7 @@
 // Task detail: the expense drawer surface with company-profile tabs. Managers
 // (C.E.O / C.O.O / HR / Group Admin) edit and review; assignees submit, comment,
 // tick subtasks and log activity; everyone else in the company reads.
-import { useMemo, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
@@ -129,8 +129,6 @@ function Overview({ t, members, projects, refresh }: { t: CompanyTaskDetail; mem
   const addable = members.filter((m) => !assigneeIds.includes(m.user_id)).map((m) => ({ value: m.user_id, label: m.name, avatar: m.avatar_url ?? "", hint: m.code }));
   const team = t.assignee_rows.map((a) => ({ value: a.user_id, label: a.name, avatar: a.avatar_url ?? "" }));
   const P = (id: string | null) => (id ? t.people[id] ?? t.assignee_rows.find((a) => a.user_id === id) : undefined);
-  const me = useMemo(() => t.assignee_rows.find((a) => t.can.work && !t.can.edit ? true : false), [t]);
-  void me;
 
   return (
     <div className="space-y-5">
@@ -246,7 +244,7 @@ function Overview({ t, members, projects, refresh }: { t: CompanyTaskDetail; mem
             const who = P(a.assignee_id);
             const subs = t.submissions.filter((s) => s.asset_id === a.id);
             const latest = subs[0];
-            const canSend = work && (edit || !a.assignee_id || t.assignee_rows.some((r) => r.user_id === a.assignee_id && t.can.work));
+            const canSend = work && (edit || !a.assignee_id || a.assignee_id === t.me);
             return (
               <li key={a.id} className="rounded-lg border border-border bg-card px-2.5 py-2">
                 <div className="flex items-center gap-2">

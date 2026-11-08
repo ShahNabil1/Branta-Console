@@ -36,6 +36,7 @@ export type CompanyTaskDetail = CompanyTaskCard & {
   comment_rows: { id: string; user_id: string; body: string; created_at: string }[];
   activity: { id: string; actor_id: string; kind: string; detail: Record<string, unknown>; created_at: string }[];
   people: Record<string, TaskPerson>;
+  me: string;
   can: { edit: boolean; work: boolean; review: boolean };
 };
 
@@ -167,7 +168,7 @@ export const getCompanyTask = createServerFn({ method: "POST" })
       comments: (com.data ?? []).length, assets: (assets.data ?? []).length,
       created_by_person: t.created_by ? P(t.created_by) : null, approved_by_person: t.approved_by ? P(t.approved_by) : null,
       subtasks: subs.data ?? [], asset_rows: assets.data ?? [], submissions: sub.data ?? [], comment_rows: com.data ?? [], activity: act.data ?? [],
-      people, can: { edit: manage, work: manage || assignee, review: manage },
+      people, me: context.userId, can: { edit: manage, work: manage || assignee, review: manage },
     };
   });
 
