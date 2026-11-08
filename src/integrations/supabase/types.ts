@@ -1411,6 +1411,319 @@ export type Database = {
           },
         ]
       }
+      company_task_activity: {
+        Row: {
+          actor_id: string
+          created_at: string
+          detail: Json
+          id: string
+          kind: string
+          task_id: string
+        }
+        Insert: {
+          actor_id?: string
+          created_at?: string
+          detail?: Json
+          id?: string
+          kind: string
+          task_id: string
+        }
+        Update: {
+          actor_id?: string
+          created_at?: string
+          detail?: Json
+          id?: string
+          kind?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_task_activity_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "company_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_task_assets: {
+        Row: {
+          assignee_id: string | null
+          created_at: string
+          created_by: string
+          id: string
+          position: number
+          task_id: string
+          title: string | null
+          url: string
+        }
+        Insert: {
+          assignee_id?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          position?: number
+          task_id: string
+          title?: string | null
+          url: string
+        }
+        Update: {
+          assignee_id?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          position?: number
+          task_id?: string
+          title?: string | null
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_task_assets_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "company_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_task_assignees: {
+        Row: {
+          created_at: string
+          id: string
+          status: string
+          task_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          status?: string
+          task_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          status?: string
+          task_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_task_assignees_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "company_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_task_comments: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          task_id: string
+          user_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          task_id: string
+          user_id?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          task_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_task_comments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "company_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_task_submissions: {
+        Row: {
+          asset_id: string | null
+          created_at: string
+          id: string
+          link: string | null
+          note: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          task_id: string
+          user_id: string
+        }
+        Insert: {
+          asset_id?: string | null
+          created_at?: string
+          id?: string
+          link?: string | null
+          note?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          task_id: string
+          user_id?: string
+        }
+        Update: {
+          asset_id?: string | null
+          created_at?: string
+          id?: string
+          link?: string | null
+          note?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          task_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_task_submissions_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "company_task_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_task_submissions_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "company_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_task_subtasks: {
+        Row: {
+          assignee_id: string | null
+          created_at: string
+          done: boolean
+          done_at: string | null
+          done_by: string | null
+          id: string
+          position: number
+          task_id: string
+          title: string
+        }
+        Insert: {
+          assignee_id?: string | null
+          created_at?: string
+          done?: boolean
+          done_at?: string | null
+          done_by?: string | null
+          id?: string
+          position?: number
+          task_id: string
+          title: string
+        }
+        Update: {
+          assignee_id?: string | null
+          created_at?: string
+          done?: boolean
+          done_at?: string | null
+          done_by?: string | null
+          id?: string
+          position?: number
+          task_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_task_subtasks_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "company_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_tasks: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          archived_at: string | null
+          company_id: string
+          created_at: string
+          created_by: string
+          description: string | null
+          due_on: string | null
+          id: string
+          position: number
+          priority: string
+          project_id: string | null
+          status: string
+          tags: string[]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          archived_at?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          due_on?: string | null
+          id?: string
+          position?: number
+          priority?: string
+          project_id?: string | null
+          status?: string
+          tags?: string[]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          archived_at?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          due_on?: string | null
+          id?: string
+          position?: number
+          priority?: string
+          project_id?: string | null
+          status?: string
+          tags?: string[]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_tasks_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_tasks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "client_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_wallet_ledger: {
         Row: {
           amount: number
@@ -6044,6 +6357,14 @@ export type Database = {
         Args: { _company: string; _user: string }
         Returns: boolean
       }
+      can_manage_company_task: {
+        Args: { _task: string; _user: string }
+        Returns: boolean
+      }
+      can_manage_company_tasks: {
+        Args: { _company: string; _user: string }
+        Returns: boolean
+      }
       can_manage_project: {
         Args: { _project_id: string; _user: string }
         Returns: boolean
@@ -6053,6 +6374,14 @@ export type Database = {
         Returns: boolean
       }
       can_view_company_finance: {
+        Args: { _company: string; _user: string }
+        Returns: boolean
+      }
+      can_view_company_task: {
+        Args: { _task: string; _user: string }
+        Returns: boolean
+      }
+      can_view_company_tasks: {
         Args: { _company: string; _user: string }
         Returns: boolean
       }
@@ -6066,6 +6395,10 @@ export type Database = {
       }
       can_view_task: {
         Args: { _task_id: string; _user: string }
+        Returns: boolean
+      }
+      can_work_company_task: {
+        Args: { _task: string; _user: string }
         Returns: boolean
       }
       code_pad: { Args: { _n: number; _w: number }; Returns: string }
@@ -6100,6 +6433,7 @@ export type Database = {
         Returns: string
       }
       company_setup_missing: { Args: { _company: string }; Returns: string[] }
+      company_task_company: { Args: { _task: string }; Returns: string }
       company_wallet_credit_installment: {
         Args: { _installment: string }
         Returns: number
@@ -6247,6 +6581,10 @@ export type Database = {
       }
       is_company_member: {
         Args: { _company: string; _user: string }
+        Returns: boolean
+      }
+      is_company_task_assignee: {
+        Args: { _task: string; _user: string }
         Returns: boolean
       }
       is_finance_admin: { Args: { _user_id?: string }; Returns: boolean }

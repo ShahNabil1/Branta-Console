@@ -49,7 +49,7 @@ import { defaultFilters, type ReportFilters } from "@/lib/report-filters";
 import { Loader2, Plus, Trash2, Receipt, Eye, X, FileText, ImageOff, Stamp, Pencil, Link2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetDescription, SheetTitle } from "@/components/ui/sheet";
-import { ExpenseDrawerContent, ExpenseDrawerHeader } from "@/components/finance/expense-drawer";
+import { DrawerStepper, ExpenseDrawerContent, ExpenseDrawerHeader } from "@/components/finance/expense-drawer";
 import { TestLoader } from "@/components/ui/test-loader";
 import { Check, ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -672,27 +672,7 @@ export function ExpensesPage() {
                 <SheetDescription className="text-[12px]">{activeCompany?.name ?? "Company"} · step {step + 1} of 3 — {STEPS[step].hint}</SheetDescription>
               </div>
             </div>
-            <ol className="mt-4 grid grid-cols-3 gap-2">
-              {STEPS.map((st, i) => {
-                const done = i < step, on = i === step;
-                return (
-                  <li key={st.label}>
-                    <button type="button" onClick={() => goTo(i)}
-                      className="group w-full text-left">
-                      <span className="relative block h-1 overflow-hidden rounded-full bg-muted">
-                        <span className="absolute inset-y-0 left-0 rounded-full bg-brand transition-[width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]" style={{ width: done || on ? "100%" : "0%" }} />
-                      </span>
-                      <span className={cn("mt-2 flex items-center gap-1.5 text-[12px] font-bold transition-colors", on ? "text-foreground" : done ? "text-brand" : "text-muted-foreground group-hover:text-foreground")}>
-                        <span className={cn("grid size-5 place-items-center rounded-full text-[10.5px] transition-all duration-300", done ? "bg-brand text-white" : on ? "bg-foreground text-background scale-110" : "bg-muted text-muted-foreground")}>
-                          {done ? <Check className="size-3" /> : i + 1}
-                        </span>
-                        {st.label}
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ol>
+            <DrawerStepper steps={STEPS} step={step} onStep={goTo} />
           </ExpenseDrawerHeader>
           <div className="flex-1 overflow-y-auto px-6 py-5">
             <div key={step} className="space-y-4 animate-in fade-in slide-in-from-right-3 duration-300">

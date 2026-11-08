@@ -1,6 +1,7 @@
 import { forwardRef, useCallback, useRef, type ComponentPropsWithoutRef, type ElementRef } from "react";
 import { SheetContent, SheetHeader } from "@/components/ui/sheet";
 import { attachDrawerFields, drawerFields, focusNextField } from "@/components/finance/drawer-fields";
+import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -41,6 +42,32 @@ export const ExpenseDrawerContent = forwardRef<ElementRef<typeof SheetContent>, 
   },
 );
 ExpenseDrawerContent.displayName = "ExpenseDrawerContent";
+
+/** Step strip shared by every step-by-step drawer (Add Expense, New Task). */
+export function DrawerStepper({ steps, step, onStep }: { steps: readonly { label: string }[]; step: number; onStep: (i: number) => void }) {
+  return (
+    <ol className="mt-4 grid gap-2" style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}>
+      {steps.map((st, i) => {
+        const done = i < step, on = i === step;
+        return (
+          <li key={st.label}>
+            <button type="button" onClick={() => onStep(i)} className="group w-full text-left">
+              <span className="relative block h-1 overflow-hidden rounded-full bg-muted">
+                <span className="absolute inset-y-0 left-0 rounded-full bg-brand transition-[width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]" style={{ width: done || on ? "100%" : "0%" }} />
+              </span>
+              <span className={cn("mt-2 flex items-center gap-1.5 text-[12px] font-bold transition-colors", on ? "text-foreground" : done ? "text-brand" : "text-muted-foreground group-hover:text-foreground")}>
+                <span className={cn("grid size-5 place-items-center rounded-full text-[10.5px] transition-all duration-300", done ? "bg-brand text-white" : on ? "bg-foreground text-background scale-110" : "bg-muted text-muted-foreground")}>
+                  {done ? <Check className="size-3" /> : i + 1}
+                </span>
+                {st.label}
+              </span>
+            </button>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
 
 export function ExpenseDrawerHeader({ className, ...props }: ComponentPropsWithoutRef<typeof SheetHeader>) {
   return <SheetHeader {...props} className={cn("expense-drawer-header border-b border-border px-5 pb-4 pt-5 pr-14 text-left sm:px-6 sm:pr-14", className)} />;
