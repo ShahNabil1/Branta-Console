@@ -1628,6 +1628,7 @@ export type Database = {
         Row: {
           assignee_id: string | null
           created_at: string
+          description: string | null
           done: boolean
           done_at: string | null
           done_by: string | null
@@ -1639,6 +1640,7 @@ export type Database = {
         Insert: {
           assignee_id?: string | null
           created_at?: string
+          description?: string | null
           done?: boolean
           done_at?: string | null
           done_by?: string | null
@@ -1650,6 +1652,7 @@ export type Database = {
         Update: {
           assignee_id?: string | null
           created_at?: string
+          description?: string | null
           done?: boolean
           done_at?: string | null
           done_by?: string | null

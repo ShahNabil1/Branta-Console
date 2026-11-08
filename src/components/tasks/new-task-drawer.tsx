@@ -25,7 +25,7 @@ const STEPS = [
 
 type Draft = {
   title: string; priority: string; status: CompanyTaskStatus; due_on: string; due_time: string; project_id: string; tags: string[];
-  description: string; assignees: string[]; subtasks: { title: string; assignee_id: string }[]; assets: { url: string; title: string; assignee_id: string; kind: "asset" | "reference" }[];
+  description: string; assignees: string[]; subtasks: { title: string; description: string; assignee_id: string }[]; assets: { url: string; title: string; assignee_id: string; kind: "asset" | "reference" }[];
 };
 const empty = (status: CompanyTaskStatus): Draft => ({ title: "", priority: "normal", status, due_on: "", due_time: "", project_id: "", tags: [], description: "", assignees: [], subtasks: [], assets: [] });
 
@@ -65,7 +65,7 @@ export function NewTaskDrawer({ open, onOpenChange, workspace, companyName, memb
   const addSub = () => {
     const t = sub.trim();
     if (!t) return;
-    setD({ ...d, subtasks: [...d.subtasks, { title: t, assignee_id: "" }] });
+    setD({ ...d, subtasks: [...d.subtasks, { title: t, description: "", assignee_id: "" }] });
     setSub("");
   };
   const addLinks = () => {
@@ -89,7 +89,7 @@ export function NewTaskDrawer({ open, onOpenChange, workspace, companyName, memb
       publish_state: mode, scheduled_at: mode === "scheduled" ? startIso : null,
       workspace, title: d.title.trim(), description: d.description || null, priority: d.priority as "normal", status: d.status,
       due_on: d.due_on || null, due_time: d.due_on && d.due_time ? d.due_time : null, tags: d.tags, project_id: d.project_id || null, assignees: d.assignees,
-      subtasks: d.subtasks.map((s) => ({ title: s.title, assignee_id: s.assignee_id || null })),
+      subtasks: d.subtasks.map((s) => ({ title: s.title, description: s.description.trim() || null, assignee_id: s.assignee_id || null })),
       assets: d.assets.map((a) => ({ kind: a.kind, url: a.url, title: a.title || null, assignee_id: a.assignee_id || null })),
     } }),
     onSuccess: (r) => {
@@ -189,10 +189,15 @@ export function NewTaskDrawer({ open, onOpenChange, workspace, companyName, memb
                   <ul className="mt-2 space-y-1.5">
                     <AnimatePresence initial={false}>
                       {d.subtasks.map((s, i) => (
-                        <motion.li key={`${s.title}-${i}`} layout initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, height: 0 }} transition={spring}
-                          className="flex items-center gap-2 rounded-lg border border-border bg-card px-2.5 py-1.5">
-                          <span className="size-1.5 shrink-0 rounded-full bg-foreground/60" />
-                          <span className="min-w-0 flex-1 truncate text-[12.5px] font-semibold">{s.title}</span>
+                        <motion.li key={i} layout initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, height: 0 }} transition={spring}
+                          className="flex items-start gap-2 rounded-lg border border-border bg-card px-2.5 py-1.5">
+                          <span className="mt-2 size-1.5 shrink-0 rounded-full bg-foreground/60" />
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate text-[12.5px] font-semibold">{s.title}</div>
+                            <textarea value={s.description} maxLength={2000} rows={1} aria-label="Subtask description" placeholder="Add details for this subtask (optional)"
+                              onChange={(e) => setD({ ...d, subtasks: d.subtasks.map((x, j) => (j === i ? { ...x, description: e.target.value } : x)) })}
+                              className="mt-0.5 w-full resize-y rounded border border-transparent bg-transparent px-1 py-0.5 text-[11.5px] font-medium text-muted-foreground outline-none placeholder:text-muted-foreground/60 hover:border-border focus:border-brand focus:bg-card" />
+                          </div>
                           <div className="w-40 shrink-0"><SearchableSelect clearable searchable={false} items={teamItems} value={s.assignee_id} onChange={(v) => setD({ ...d, subtasks: d.subtasks.map((x, j) => (j === i ? { ...x, assignee_id: v } : x)) })} placeholder="Anyone" emptyText="Add assignees first" /></div>
                           <button type="button" aria-label="Remove subtask" onClick={() => setD({ ...d, subtasks: d.subtasks.filter((_, j) => j !== i) })}><X className="size-3.5 text-muted-foreground hover:text-foreground" /></button>
                         </motion.li>

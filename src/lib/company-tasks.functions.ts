@@ -19,7 +19,7 @@ const PublishState = z.enum(["draft", "scheduled", "live"]);
 const Url = z.string().trim().url().max(2000).refine((u) => /^https?:\/\//i.test(u), "Use an http(s) link.");
 const AssetKind = z.enum(["asset", "reference"]);
 const AssetIn = z.object({ kind: AssetKind.default("asset"), title: z.string().trim().max(200).optional().nullable(), url: Url, assignee_id: Id.optional().nullable() });
-const SubtaskIn = z.object({ title: z.string().trim().min(1).max(300), assignee_id: Id.optional().nullable() });
+const SubtaskIn = z.object({ title: z.string().trim().min(1).max(300), description: z.string().trim().max(2000).optional().nullable(), assignee_id: Id.optional().nullable() });
 
 export type TaskFile = { key: string; name: string; mime: string; size: number; url?: string | null };
 export type TaskMember = { user_id: string; name: string; avatar_url: string | null; code: string | null };
@@ -34,7 +34,7 @@ export type CompanyTaskCard = {
 export type CompanyTaskDetail = CompanyTaskCard & {
   created_by_person: TaskPerson | null; approved_by_person: TaskPerson | null;
   assignee_rows: (TaskPerson & { status: string })[];
-  subtasks: { id: string; title: string; assignee_id: string | null; done: boolean; done_by: string | null; done_at: string | null; position: number }[];
+  subtasks: { id: string; title: string; description: string | null; assignee_id: string | null; done: boolean; done_by: string | null; done_at: string | null; position: number }[];
   asset_rows: { id: string; kind: "asset" | "reference"; title: string | null; url: string; assignee_id: string | null; position: number }[];
   submissions: { id: string; user_id: string; asset_id: string | null; subtask_id: string | null; files: TaskFile[]; link: string | null; note: string | null; status: string; review_note: string | null; reviewed_by: string | null; reviewed_at: string | null; created_at: string }[];
   comment_rows: { id: string; user_id: string; body: string; created_at: string }[];
@@ -150,7 +150,7 @@ export const getCompanyTask = createServerFn({ method: "POST" })
     if (!t) throw new Error("Task not found.");
     const [asg, subs, assets, sub, com, act, manage, proj] = await Promise.all([
       sb.from("company_task_assignees").select("user_id, status").eq("task_id", t.id),
-      sb.from("company_task_subtasks").select("id, title, assignee_id, done, done_by, done_at, position").eq("task_id", t.id).order("position"),
+      sb.from("company_task_subtasks").select("id, title, description, assignee_id, done, done_by, done_at, position").eq("task_id", t.id).order("position"),
       sb.from("company_task_assets").select("id, kind, title, url, assignee_id, position").eq("task_id", t.id).order("position"),
       sb.from("company_task_submissions").select("*").eq("task_id", t.id).order("created_at", { ascending: false }),
       sb.from("company_task_comments").select("id, user_id, body, created_at").eq("task_id", t.id).order("created_at"),
@@ -219,7 +219,7 @@ export const createCompanyTask = createServerFn({ method: "POST" })
         if (r.error) throw dbError(r.error);
       }
       if (data.subtasks.length) {
-        const r = await sb.from("company_task_subtasks").insert(data.subtasks.map((s, i) => ({ task_id: t.id, title: s.title, assignee_id: s.assignee_id || null, position: i })));
+        const r = await sb.from("company_task_subtasks").insert(data.subtasks.map((s, i) => ({ task_id: t.id, title: s.title, description: s.description || null, assignee_id: s.assignee_id || null, position: i })));
         if (r.error) throw dbError(r.error);
       }
       if (data.assets.length) {
@@ -361,7 +361,7 @@ export const addCompanyTaskSubtask = createServerFn({ method: "POST" })
     const sb = context.supabase as Sb;
     await assertManage(sb, context.userId, await taskCompany(sb, data.taskId));
     const { count } = await sb.from("company_task_subtasks").select("id", { count: "exact", head: true }).eq("task_id", data.taskId);
-    const { error } = await sb.from("company_task_subtasks").insert({ task_id: data.taskId, title: data.title, assignee_id: data.assignee_id || null, position: count ?? 0 });
+    const { error } = await sb.from("company_task_subtasks").insert({ task_id: data.taskId, title: data.title, description: data.description || null, assignee_id: data.assignee_id || null, position: count ?? 0 });
     if (error) throw dbError(error);
     await log(sb, context.userId, data.taskId, "subtask_added", { title: data.title });
     return { ok: true };
@@ -369,7 +369,7 @@ export const addCompanyTaskSubtask = createServerFn({ method: "POST" })
 
 export const updateCompanyTaskSubtask = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ id: Id, done: z.boolean().optional(), title: z.string().trim().min(1).max(300).optional(), assignee_id: Id.optional().nullable(), remove: z.boolean().optional() }).parse(d))
+  .inputValidator((d) => z.object({ id: Id, done: z.boolean().optional(), title: z.string().trim().min(1).max(300).optional(), description: z.string().trim().max(2000).optional().nullable(), assignee_id: Id.optional().nullable(), remove: z.boolean().optional() }).parse(d))
   .handler(async ({ data, context }) => {
     const sb = context.supabase as Sb;
     const { data: s, error } = await sb.from("company_task_subtasks").select("task_id, title").eq("id", data.id).maybeSingle();
@@ -383,6 +383,7 @@ export const updateCompanyTaskSubtask = createServerFn({ method: "POST" })
     const patch: Record<string, unknown> = {};
     if (data.done !== undefined) patch.done = data.done;
     if (data.title !== undefined) patch.title = data.title;
+    if (data.description !== undefined) patch.description = data.description || null;
     if (data.assignee_id !== undefined) patch.assignee_id = data.assignee_id;
     const { data: rows, error: ue } = await sb.from("company_task_subtasks").update(patch).eq("id", data.id).select("id");
     if (ue) throw dbError(ue);

@@ -6,7 +6,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { toast } from "sonner";
-import { Activity, Archive, Eye, BadgeCheck, BookOpen, CalendarDays, Check, Crown, ExternalLink, Package, Play, Sparkles, UserCheck, FileText, Link2, ListChecks, MessageSquare, Plus, RotateCcw, Send, Trash2, Upload, X } from "lucide-react";
+import { Activity, Archive, Eye, BadgeCheck, BookOpen, CalendarDays, Check, Crown, ExternalLink, Package, Play, UserCheck, FileText, Link2, ListChecks, MessageSquare, Plus, RotateCcw, Send, Trash2, Upload, X } from "lucide-react";
 import { Sheet, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,7 +29,7 @@ import { AREA, AvatarStack, FIELD, LABEL, PersonAvatar, PriorityBadge, Segmented
 
 type Tab = "overview" | "submissions" | "comments" | "activity";
 type UpdPatch = { id: string; title?: string; description?: string | null; priority?: "low" | "normal" | "high" | "urgent"; status?: "todo" | "doing" | "in_review" | "done"; due_on?: string | null; due_time?: string | null; tags?: string[]; project_id?: string | null };
-type SubPatch = { id: string; done?: boolean; title?: string; assignee_id?: string | null; remove?: boolean };
+type SubPatch = { id: string; done?: boolean; title?: string; description?: string | null; assignee_id?: string | null; remove?: boolean };
 type AssetPatch = { id: string; assignee_id?: string | null; title?: string | null; kind?: AssetKind; remove?: boolean };
 
 const ACTIVITY_TEXT: Record<string, string> = {
@@ -108,7 +108,7 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function Ownership({ t }: { t: CompanyTaskDetail }) {
+function Ownership({ t, edit, addable, onAdd, onRemove }: { t: CompanyTaskDetail; edit: boolean; addable: { value: string; label: string; avatar: string; hint?: string | null }[]; onAdd: (id: string) => void; onRemove: (a: { user_id: string; name: string }) => void }) {
   const creator = t.created_by_person;
   const assignedBy = (uid: string) => {
     const ev = t.activity.find((e) => e.kind === "assignees" && Array.isArray(e.detail?.added) && (e.detail.added as string[]).includes(uid));
@@ -125,7 +125,8 @@ function Ownership({ t }: { t: CompanyTaskDetail }) {
         <div className="text-right"><div className="text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground">Created</div><div className="font-mono text-[12px] font-bold">{fmtDateTime(t.created_at)}</div></div>
       </div>
       <div className="px-4 py-3">
-        <div className="flex items-center gap-1 text-[10.5px] font-extrabold uppercase tracking-wider text-foreground/70"><UserCheck className="size-3" />Assigned to</div>
+        <div className="flex items-center gap-2"><div className="flex items-center gap-1 text-[10.5px] font-extrabold uppercase tracking-wider text-foreground/70"><UserCheck className="size-3" />Assigned to</div>
+          {edit && <div className="ml-auto w-44"><SearchableSelect items={addable} value="" onChange={(v) => v && onAdd(v)} placeholder="+ Add assignee" emptyText="No more members" /></div>}</div>
         {!t.assignee_rows.length && <p className="mt-1.5 text-[12.5px] text-muted-foreground">No one yet</p>}
         <ul className="mt-2 grid gap-2 sm:grid-cols-2">
           {t.assignee_rows.map((a) => {
@@ -138,12 +139,30 @@ function Ownership({ t }: { t: CompanyTaskDetail }) {
                   <div className="truncate text-[11px] font-semibold text-muted-foreground">Assigned by {by?.name ?? "—"}</div>
                 </div>
                 <span className="rounded border border-border px-1.5 py-0.5 font-mono text-[9.5px] font-bold uppercase">{statusLabel(a.status === "submitted" ? "in_review" : a.status === "approved" ? "done" : a.status) || a.status}</span>
+                {edit && <button type="button" aria-label={`Remove ${a.name}`} onClick={() => onRemove(a)} className="grid size-6 place-items-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><X className="size-3.5" /></button>}
               </li>
             );
           })}
         </ul>
       </div>
     </div>
+  );
+}
+
+function SubDesc({ value, onSave }: { value: string | null; onSave: (v: string | null) => void }) {
+  const [v, setV] = useState(value ?? "");
+  return <textarea value={v} onChange={(e) => setV(e.target.value)} maxLength={2000} rows={1} aria-label="Subtask description" placeholder="Add details for this subtask"
+    onBlur={() => { if (v.trim() !== (value ?? "")) onSave(v.trim() || null); }}
+    className="mt-0.5 w-full resize-y rounded border border-transparent bg-transparent px-1 py-0.5 text-[11.5px] font-medium leading-relaxed text-muted-foreground outline-none placeholder:text-muted-foreground/60 hover:border-border focus:border-brand focus:bg-card" />;
+}
+
+function ProgressGlyph() {
+  return (
+    <svg viewBox="0 0 20 20" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="10" cy="10" r="7.25" opacity="0.3" />
+      <path d="M10 2.75a7.25 7.25 0 0 1 7.25 7.25" />
+      <path d="M6.75 10.25 8.9 12.4l4.35-4.65" />
+    </svg>
   );
 }
 
@@ -154,7 +173,7 @@ function Overview({ t, members, projects, refresh }: { t: CompanyTaskDetail; mem
   const edit = t.can.edit, work = t.can.work;
   const u = useAct((p: UpdPatch) => upd({ data: p }), refresh);
   const asg = useAct((ids: string[]) => setAsg({ data: { id: t.id, userIds: ids } }), refresh);
-  const sub = useAct((p: { title: string; assignee_id: string | null }) => addSub({ data: { taskId: t.id, ...p } }), refresh);
+  const sub = useAct((p: { title: string; description?: string | null; assignee_id: string | null }) => addSub({ data: { taskId: t.id, ...p } }), refresh);
   const subU = useAct((p: SubPatch) => updSub({ data: p }), refresh);
   const assets = useAct((urls: string[]) => addAssets({ data: { taskId: t.id, assets: urls.map((url) => ({ url, kind: linkKind })) } }), refresh, "Links added");
   const assetU = useAct((p: AssetPatch) => updAsset({ data: p }), refresh);
@@ -167,6 +186,7 @@ function Overview({ t, members, projects, refresh }: { t: CompanyTaskDetail; mem
   const [desc, setDesc] = useState(t.description ?? "");
   const [tag, setTag] = useState("");
   const [newSub, setNewSub] = useState("");
+  const [newSubDesc, setNewSubDesc] = useState("");
   const [links, setLinks] = useState("");
   const [openAsset, setOpenAsset] = useState<string | null>(null);
   const [assetLink, setAssetLink] = useState("");
@@ -184,24 +204,9 @@ function Overview({ t, members, projects, refresh }: { t: CompanyTaskDetail; mem
         <Input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} aria-label="Task title"
           onBlur={() => { if (title.trim() && title.trim() !== t.title) u.mutate({ id: t.id, title: title.trim() }); }} className={`${FIELD} text-[14px]`} />
       )}
-      <Ownership t={t} />
+      <Ownership t={t} edit={edit} addable={addable} onAdd={(v) => asg.mutate([...assigneeIds, v])}
+        onRemove={async (a) => { if (await confirm({ tone: "danger", title: `Remove ${a.name} from this task?`, subject: "Their subtasks and assets become unassigned.", confirmLabel: "Remove" })) asg.mutate(assigneeIds.filter((x) => x !== a.user_id)); }} />
       <div className="divide-y divide-border/60 rounded-xl border border-border bg-card px-3.5 py-1">
-        <Row label="Assignees">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <AnimatePresence initial={false}>
-              {t.assignee_rows.map((a) => (
-                <motion.span key={a.user_id} layout initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.7, opacity: 0 }} transition={spring}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 py-0.5 pl-0.5 pr-2 text-[12px] font-bold">
-                  <PersonAvatar name={a.name} src={a.avatar_url} size={20} />{a.name}
-                  <span className="font-mono text-[10px] font-semibold uppercase text-muted-foreground">{a.status}</span>
-                  {edit && <button type="button" aria-label={`Remove ${a.name}`} onClick={async () => { if (await confirm({ tone: "danger", title: `Remove ${a.name} from this task?`, subject: "Their subtasks and assets become unassigned.", confirmLabel: "Remove" })) asg.mutate(assigneeIds.filter((x) => x !== a.user_id)); }}><X className="size-3 text-muted-foreground hover:text-foreground" /></button>}
-                </motion.span>
-              ))}
-            </AnimatePresence>
-            {!t.assignee_rows.length && <span className="text-[12.5px] text-muted-foreground">No one yet</span>}
-            {edit && <div className="w-44"><SearchableSelect items={addable} value="" onChange={(v) => v && asg.mutate([...assigneeIds, v])} placeholder="+ Add" emptyText="No more members" /></div>}
-          </div>
-        </Row>
         <Row label="Due date">
           {edit ? (
             <div className="flex gap-2">
@@ -239,8 +244,8 @@ function Overview({ t, members, projects, refresh }: { t: CompanyTaskDetail; mem
       {work && meRow && (
         <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
           <div className="flex items-center gap-2">
-            <Sparkles className="size-4 text-brand" /><span className="text-[13px] font-extrabold">My progress</span>
-            <div className="ml-auto inline-flex rounded-lg border border-border bg-muted/50 p-0.5">
+            <span className="grid size-7 place-items-center rounded-md bg-brand/10 text-brand"><ProgressGlyph /></span><span className="text-[13px] font-extrabold">My progress</span>
+            <div className="ml-auto inline-flex gap-1 rounded-lg border border-border bg-muted/40 p-1">
               {([["todo", "Not started", RotateCcw], ["doing", "Working on it", Play]] as const).map(([k, label, Icon]) => {
                 const on = meRow.status === k || (k === "doing" && meRow.status === "revision");
                 const locked = meRow.status === "submitted" || meRow.status === "approved";
@@ -251,9 +256,9 @@ function Overview({ t, members, projects, refresh }: { t: CompanyTaskDetail; mem
                         subject: k === "doing" ? "Your status changes to Doing and the team sees you are on it." : "Your status goes back to To do.", confirmLabel: label });
                       if (ok) mine.mutate(k);
                     }}
-                    className={cn("relative inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-[12px] font-bold transition-colors disabled:cursor-default", on ? "text-foreground" : "text-muted-foreground hover:text-foreground", locked && !on && "opacity-50")}>
-                    {on && <motion.span layoutId="my-progress-pill" className="absolute inset-0 rounded-md bg-card shadow-sm ring-1 ring-border" transition={spring} />}
-                    <span className="relative inline-flex items-center gap-1.5">{mine.isPending && mine.variables === k ? <TestLoader /> : <Icon className={cn("size-3.5", on && "text-brand")} />}{label}</span>
+                    className={cn("relative inline-flex h-9 items-center gap-2 rounded-md px-3.5 text-[12.5px] font-extrabold transition-colors disabled:cursor-default", on ? (k === "doing" ? "text-primary-foreground" : "text-foreground") : "text-muted-foreground hover:bg-card/70 hover:text-foreground", locked && !on && "opacity-50")}>
+                    {on && <motion.span layoutId="my-progress-pill" className={cn("absolute inset-0 rounded-md shadow-sm", k === "doing" ? "bg-brand" : "bg-card ring-1 ring-border")} transition={spring} />}
+                    <span className="relative inline-flex items-center gap-2">{mine.isPending && mine.variables === k ? <TestLoader /> : <span className={cn("grid size-5 place-items-center rounded-full", on ? (k === "doing" ? "bg-primary-foreground/20" : "bg-muted") : "bg-muted/70")}><Icon className="size-3" /></span>}{label}</span>
                   </button>
                 );
               })}
@@ -284,13 +289,17 @@ function Overview({ t, members, projects, refresh }: { t: CompanyTaskDetail; mem
               const isMine = s.assignee_id === t.me;
               return (
                 <motion.li key={s.id} layout initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, height: 0 }} transition={spring}
-                  className={cn("flex items-center gap-2 rounded-lg border px-2.5 py-1.5", isMine ? "border-brand/50 bg-brand/5 shadow-sm" : "border-border bg-card")}>
+                  className={cn("flex items-start gap-2 rounded-lg border px-2.5 py-1.5", isMine ? "border-brand/50 bg-brand/5 shadow-sm" : "border-border bg-card")}>
                   <motion.button type="button" whileTap={{ scale: 0.85 }} disabled={!work || subU.isPending} aria-label={s.done ? "Mark not done" : "Mark done"}
                     onClick={() => subU.mutate({ id: s.id, done: !s.done })}
                     className={cn("grid size-4.5 shrink-0 place-items-center rounded border transition-colors", s.done ? "border-brand bg-brand text-white" : "border-border bg-card", !work && "cursor-default")}>
                     {s.done && <Check className="size-3" />}
                   </motion.button>
-                  <span className={cn("min-w-0 flex-1 truncate text-[12.5px] font-semibold transition-colors", s.done && "text-muted-foreground line-through")}>{s.title}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className={cn("truncate text-[12.5px] font-semibold transition-colors", s.done && "text-muted-foreground line-through")}>{s.title}</div>
+                    {edit ? <SubDesc value={s.description} onSave={(v) => subU.mutate({ id: s.id, description: v })} />
+                      : s.description ? <p className="mt-0.5 whitespace-pre-wrap border-l-2 border-brand/50 pl-2 text-[11.5px] font-medium leading-relaxed text-muted-foreground">{s.description}</p> : null}
+                  </div>
                   {isMine && <span className="shrink-0 rounded bg-brand px-1.5 py-0.5 text-[9.5px] font-extrabold uppercase tracking-wider text-primary-foreground">Mine</span>}
                   {edit ? (
                     <div className="w-36 shrink-0"><SearchableSelect clearable searchable={false} items={team} value={s.assignee_id ?? ""} onChange={(v) => subU.mutate({ id: s.id, assignee_id: v || null })} placeholder="Anyone" emptyText="No assignees" /></div>
@@ -303,9 +312,11 @@ function Overview({ t, members, projects, refresh }: { t: CompanyTaskDetail; mem
         </ul>
         {edit && (
           <div className="mt-2 flex gap-2">
-            <Input value={newSub} onChange={(e) => setNewSub(e.target.value)} maxLength={300} aria-label="New subtask" placeholder="Add subtask" enterKeyHint="done"
-              onKeyDown={(e) => { if (e.key === "Enter" && newSub.trim() && !e.nativeEvent.isComposing) { e.preventDefault(); e.stopPropagation(); sub.mutate({ title: newSub.trim(), assignee_id: null }); setNewSub(""); } }} className={`${FIELD} h-9`} />
-            <Button type="button" variant="outline" disabled={!newSub.trim() || sub.isPending} onClick={() => { sub.mutate({ title: newSub.trim(), assignee_id: null }); setNewSub(""); }} className="h-9 gap-1 rounded-md"><Plus className="size-4" />Add</Button>
+            <div className="grid flex-1 gap-1.5">
+              <Input value={newSub} onChange={(e) => setNewSub(e.target.value)} maxLength={300} aria-label="New subtask" placeholder="Add subtask" className={`${FIELD} h-9`} />
+              <textarea value={newSubDesc} onChange={(e) => setNewSubDesc(e.target.value)} maxLength={2000} rows={2} aria-label="Subtask description" placeholder="What exactly needs to be done (optional)" className={AREA} />
+            </div>
+            <Button type="button" variant="outline" disabled={!newSub.trim() || sub.isPending} onClick={() => { sub.mutate({ title: newSub.trim(), description: newSubDesc.trim() || null, assignee_id: null }); setNewSub(""); setNewSubDesc(""); }} className="h-9 gap-1 rounded-md"><Plus className="size-4" />Add</Button>
           </div>
         )}
       </section>
