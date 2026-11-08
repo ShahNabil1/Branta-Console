@@ -17,8 +17,8 @@ import {
 import {
   listAllTransferRequests,
   decideTransferRequests,
+  canReviewTransfers,
 } from "@/lib/lead-transfers.functions";
-import { getMyPermissions } from "@/lib/permissions.functions";
 
 import { RequireSuperAdmin } from "@/components/branta/require-super-admin";
 
@@ -41,13 +41,15 @@ export function TransfersPage({ companySlug }: { companySlug?: string } = {}) {
   const qc = useQueryClient();
   const listFn = useServerFn(listAllTransferRequests);
   const decideFn = useServerFn(decideTransferRequests);
-  const permsFn = useServerFn(getMyPermissions);
+  const accessFn = useServerFn(canReviewTransfers);
 
-  const permsQ = useQuery({
-    queryKey: ["my-permissions"],
-    queryFn: () => permsFn(),
+  // Group Admins everywhere; a sister company's C.E.O/C.O.O in their own workspace.
+  const accessQ = useQuery({
+    queryKey: ["transfers", "can-review", companySlug ?? "all"],
+    queryFn: () => accessFn({ data: { companySlug } }),
     staleTime: 60_000,
   });
+  const canReview = accessQ.data === true;
   const [status, setStatus] = useState<
     "pending" | "approved" | "rejected" | "all"
   >("pending");
@@ -58,7 +60,7 @@ export function TransfersPage({ companySlug }: { companySlug?: string } = {}) {
     queryKey: ["transfers", status, companySlug ?? "all"],
     queryFn: () => listFn({ data: { status, companySlug } }),
     staleTime: 5_000,
-    enabled: !!permsQ.data?.isSuperAdmin,
+    enabled: canReview,
   });
 
   const rows = q.data ?? [];
@@ -80,6 +82,7 @@ export function TransfersPage({ companySlug }: { companySlug?: string } = {}) {
           ids: Array.from(selected),
           decision,
           note: note.trim() || undefined,
+          companySlug,
         },
       }),
     onSuccess: (_r, decision) => {
@@ -106,7 +109,7 @@ export function TransfersPage({ companySlug }: { companySlug?: string } = {}) {
       pendingRowsSelectable.some((r) => r.id === id),
     );
 
-  if (permsQ.isLoading) {
+  if (accessQ.isLoading) {
     return (
       <div className="grid h-full place-items-center p-16 text-[12.5px] text-muted-foreground">
         <Loader2 className="mb-2 size-5 animate-spin" />
@@ -115,14 +118,15 @@ export function TransfersPage({ companySlug }: { companySlug?: string } = {}) {
     );
   }
 
-  if (!permsQ.data?.isSuperAdmin) {
+  if (!canReview) {
     return (
       <div className="mx-auto grid max-w-md gap-3 p-10 text-center">
         <div className="text-[15px] font-semibold text-foreground">
           Not available
         </div>
         <p className="text-[12.5px] text-muted-foreground">
-          Only Group Admins can review lead transfer requests.
+          Only Group Admins or this company's C.E.O/C.O.O can review lead
+          transfer requests.
         </p>
         <Link
           to="/app/leads"

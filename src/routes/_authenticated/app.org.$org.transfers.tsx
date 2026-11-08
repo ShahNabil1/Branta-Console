@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { RequireSuperAdmin } from "@/components/branta/require-super-admin";
 import { TransfersPage } from "./app.transfers";
 
 export const Route = createFileRoute("/_authenticated/app/org/$org/transfers")({
@@ -19,5 +18,7 @@ export const Route = createFileRoute("/_authenticated/app/org/$org/transfers")({
 
 function OrgTransfers() {
   const { org } = Route.useParams();
-  return <RequireSuperAdmin><TransfersPage key={org} companySlug={org} /></RequireSuperAdmin>;
+  // Access is checked by TransfersPage (and again on the server) so a sister
+  // company's C.E.O/C.O.O is not bounced by the global-role-only gate.
+  return <TransfersPage key={org} companySlug={org} />;
 }

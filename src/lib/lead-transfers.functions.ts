@@ -5,6 +5,7 @@ import { dbError } from "@/lib/db-errors";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { filterCompanyTransfers } from "@/lib/transfer-scope";
 
 export interface TransferRequestRow {
   id: string;
@@ -27,15 +28,47 @@ export interface TransferRequestRow {
   updated_at: string;
 }
 
+type ReviewScope =
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  | { kind: "group"; db: any }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  | { kind: "company"; db: any; companyId: string; allowed: Set<string> };
+
+/**
+ * Who may review transfers: Group Admins (everything), or the C.E.O/C.O.O
+ * (can_manage_company) of a sister company — only for that company's leads and
+ * its own staff. Company heads read/write through the admin client after this
+ * check because lead_transfer_requests RLS is super_admin-only.
+ */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function assertSuperAdmin(supabase: any, userId: string) {
-  const { data, error } = await supabase.rpc("has_role", {
-    _user_id: userId,
-    _role: "super_admin",
-  });
+async function reviewScope(supabase: any, userId: string, companySlug?: string): Promise<ReviewScope | null> {
+  const { data: su, error } = await supabase.rpc("has_role", { _user_id: userId, _role: "super_admin" });
   if (error) throw dbError(error);
-  if (!data) throw new Error("Forbidden: super_admin required");
+  if (su) return { kind: "group", db: supabase };
+  if (!companySlug) return null;
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: co } = await supabaseAdmin.from("companies").select("id, is_holding").eq("slug", companySlug).maybeSingle();
+  const company = co as { id: string; is_holding: boolean } | null;
+  if (!company || company.is_holding) return null;
+  const { data: can } = await supabase.rpc("can_manage_company", { _company: company.id, _user: userId });
+  if (!can) return null;
+  const { visibleWorkspaceUserIds } = await import("@/lib/company-scope.server");
+  const allowed = (await visibleWorkspaceUserIds(supabase, userId, companySlug)) ?? new Set<string>();
+  return { kind: "company", db: supabaseAdmin, companyId: company.id, allowed };
 }
+
+/** Company heads only see/decide transfers of their company's leads between their own staff. */
+async function inCompanyScope<T extends { lead_id: string; to_user_id: string; from_user_id: string | null }>(scope: Extract<ReviewScope, { kind: "company" }>, rows: T[]): Promise<T[]> {
+  if (rows.length === 0) return rows;
+  const { data: leads } = await scope.db.from("leads").select("id, company_id").in("id", [...new Set(rows.map((r) => r.lead_id))]);
+  const leadCompany = new Map(((leads ?? []) as { id: string; company_id: string | null }[]).map((l) => [l.id, l.company_id]));
+  return filterCompanyTransfers(rows, leadCompany, scope.companyId, scope.allowed);
+}
+
+export const canReviewTransfers = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ companySlug: z.string().trim().min(1).max(80).optional() }).parse(d ?? {}))
+  .handler(async ({ data, context }) => !!(await reviewScope(context.supabase, context.userId, data.companySlug)));
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function nameMap(supabase: any, ids: string[]) {
@@ -226,8 +259,9 @@ export const listAllTransferRequests = createServerFn({ method: "GET" })
       .parse(d ?? {}),
   )
   .handler(async ({ data, context }): Promise<TransferRequestRow[]> => {
-    await assertSuperAdmin(context.supabase, context.userId);
-    let q = context.supabase
+    const scope = await reviewScope(context.supabase, context.userId, data.companySlug);
+    if (!scope) throw new Error("Forbidden: only Group Admins or this company's C.E.O/C.O.O can review transfers");
+    let q = scope.db
       .from("lead_transfer_requests")
       .select("*")
       .order("created_at", { ascending: false })
@@ -236,14 +270,16 @@ export const listAllTransferRequests = createServerFn({ method: "GET" })
     const { data: rows, error } = await q;
     if (error) throw dbError(error);
     let list = rows ?? [];
-    // Sister workspace: only transfers between that company's employees.
-    if (data.companySlug) {
+    if (scope.kind === "company") {
+      list = await inCompanyScope(scope, list);
+    } else if (data.companySlug) {
+      // Group Admin in a sister workspace: only transfers between that company's employees.
       const { companyMemberUserIds } = await import("@/lib/company-scope.server");
       const allowed = await companyMemberUserIds(data.companySlug);
       list = list.filter((r: { to_user_id: string; from_user_id: string | null }) =>
         allowed.has(r.to_user_id) && (!r.from_user_id || allowed.has(r.from_user_id)));
     }
-    return hydrate(context.supabase, list);
+    return hydrate(scope.db, list);
   });
 
 export const decideTransferRequests = createServerFn({ method: "POST" })
@@ -254,29 +290,37 @@ export const decideTransferRequests = createServerFn({ method: "POST" })
         ids: z.array(z.string().uuid()).min(1).max(200),
         decision: z.enum(["approved", "rejected"]),
         note: z.string().trim().max(500).optional(),
+        companySlug: z.string().trim().min(1).max(80).optional(),
       })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
-    await assertSuperAdmin(context.supabase, context.userId);
+    const scope = await reviewScope(context.supabase, context.userId, data.companySlug);
+    if (!scope) throw new Error("Forbidden: only Group Admins or this company's C.E.O/C.O.O can review transfers");
+    const db = scope.db;
 
-    const { data: rows, error: fetchErr } = await context.supabase
+    const { data: rows, error: fetchErr } = await db
       .from("lead_transfer_requests")
       .select("*")
       .in("id", data.ids)
       .eq("status", "pending");
     if (fetchErr) throw new Error(fetchErr.message);
-    const pending = (rows ?? []) as Array<{
+    let pending = (rows ?? []) as Array<{
       id: string;
       lead_id: string;
       from_user_id: string | null;
       to_user_id: string;
       requester_id: string;
     }>;
+    if (scope.kind === "company") {
+      const scoped = await inCompanyScope(scope, pending);
+      if (scoped.length !== pending.length) throw new Error("Some selected requests are outside your company.");
+      pending = scoped;
+    }
 
     if (pending.length === 0) return { ok: true as const, count: 0 };
 
-    const deciderProfile = await context.supabase
+    const deciderProfile = await db
       .from("profiles")
       .select("full_name")
       .eq("user_id", context.userId)
@@ -288,13 +332,13 @@ export const decideTransferRequests = createServerFn({ method: "POST" })
     for (const r of pending) {
       // If approving, flip lead ownership first (super admin RLS covers this).
       if (data.decision === "approved") {
-        await context.supabase
+        await db
           .from("leads")
           .update({ owner_id: r.to_user_id })
           .eq("id", r.lead_id);
       }
 
-      await context.supabase
+      await db
         .from("lead_transfer_requests")
         .update({
           status: data.decision,
@@ -306,13 +350,13 @@ export const decideTransferRequests = createServerFn({ method: "POST" })
 
       // Activity log on the lead.
       const [toP, fromP] = await Promise.all([
-        context.supabase
+        db
           .from("profiles")
           .select("full_name")
           .eq("user_id", r.to_user_id)
           .maybeSingle(),
         r.from_user_id
-          ? context.supabase
+          ? db
               .from("profiles")
               .select("full_name")
               .eq("user_id", r.from_user_id)
@@ -330,7 +374,7 @@ export const decideTransferRequests = createServerFn({ method: "POST" })
         data.decision === "approved"
           ? ` — reassigned ${fromName} → ${toName}`
           : "";
-      await context.supabase.from("lead_activities").insert({
+      await db.from("lead_activities").insert({
         lead_id: r.lead_id,
         actor_id: context.userId,
         kind: "note",
@@ -341,7 +385,7 @@ export const decideTransferRequests = createServerFn({ method: "POST" })
 
       try {
         const { notify } = await import("@/lib/notify.server");
-        const { data: leadRow } = await context.supabase
+        const { data: leadRow } = await db
           .from("leads").select("slug, lead_code, name")
           .eq("id", r.lead_id).maybeSingle();
         const slug = (leadRow as { slug?: string; lead_code?: string } | null)?.slug
