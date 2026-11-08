@@ -31,6 +31,7 @@ export interface LeadRow {
   source: string | null;
   source_other: string | null;
   service: string | null;
+  services?: string[] | null;
   service_other: string | null;
   owner_id: string | null;
   value_usd: number | null;
@@ -120,6 +121,7 @@ const CreateInput = z.object({
   source: z.string().trim().max(80).optional().nullable(),
   source_other: z.string().trim().max(200).optional().nullable(),
   service: z.string().trim().max(80).optional().nullable(),
+  services: z.array(z.string().trim().min(1).max(120)).max(40).optional(),
   service_other: z.string().trim().max(200).optional().nullable(),
   owner_id: z.string().uuid().optional().nullable(),
   value_usd: z.number().nonnegative().optional().nullable(),
@@ -639,6 +641,7 @@ export const createLead = createServerFn({ method: "POST" })
         source: data.source ?? null,
         source_other: data.source_other ?? null,
         service: data.service ?? null,
+        services: data.services ?? [],
         service_other: data.service_other ?? null,
         owner_id: data.owner_id ?? context.userId,
         value_usd: data.value_usd ?? null,
@@ -933,6 +936,7 @@ export const updateLead = createServerFn({ method: "POST" })
       source: "Source",
       source_other: "Source (other)",
       service: "Service",
+      services: "Services",
       service_other: "Service (other)",
       owner_id: "Owner",
       value_usd: "Value",

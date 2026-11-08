@@ -1,5 +1,6 @@
 // Mobile-first lead workspace: compact header, Timeline (Messenger-style),
 // Details (structured fields) and More (existing full lead tools).
+import { ServicePicker, leadServicesOf } from "@/components/leads/service-picker";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { BackToLeadsLink } from "@/components/leads/back-to-leads-link";
@@ -437,6 +438,7 @@ function DetailsPane({ lead, users }: { lead: LeadRow; users: AssignableUser[] }
       whatsapp: lead.whatsapp ?? "",
       source: lead.source ?? "",
       service: lead.service ?? "",
+      services: leadServicesOf(lead),
       requirement: lead.requirement ?? "",
       budget: lead.budget != null ? String(lead.budget) : lead.value_usd != null ? String(lead.value_usd) : "",
       currency: lead.currency ?? "BDT",
@@ -462,6 +464,7 @@ function DetailsPane({ lead, users }: { lead: LeadRow; users: AssignableUser[] }
       };
       (["name", "company", "contact_person", "phone", "whatsapp", "source", "service", "requirement", "timeline", "notes"] as const).forEach(str);
       if (patch.name === null) throw new Error("Name is required");
+      if (JSON.stringify(f.services) !== JSON.stringify(base.services)) { patch.services = f.services; patch.service = f.services[0] ?? null; }
       if (f.budget !== base.budget) {
         const n = f.budget.trim() ? Number(f.budget) : null;
         if (n != null && (isNaN(n) || n < 0)) throw new Error("Budget must be a number");
@@ -516,12 +519,8 @@ function DetailsPane({ lead, users }: { lead: LeadRow; users: AssignableUser[] }
                 {f.source && !sources.some((s) => s.key === f.source) && <option value={f.source}>{f.source}</option>}
               </select>
             </L>
-            <L label="Interested service">
-              <select className={inp} value={f.service} onChange={(e) => set("service", e.target.value)}>
-                <option value="">—</option>
-                {services.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
-                {f.service && !services.some((s) => s.key === f.service) && <option value={f.service}>{f.service}</option>}
-              </select>
+            <L label="Interested service" full>
+              <ServicePicker value={f.services} onChange={(v) => set("services", v)} />
             </L>
             <L label="Project requirement" full><textarea className={cn(inp, "min-h-[90px] py-2.5")} value={f.requirement} onChange={(e) => set("requirement", e.target.value)} /></L>
             <L label="Approximate budget">

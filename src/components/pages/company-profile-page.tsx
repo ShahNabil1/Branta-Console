@@ -47,7 +47,8 @@ import { DiscardCancelButton } from "@/components/company/danger-confirm";
 import { EmailIntegrations } from "@/components/company/email-integrations";
 import { CompanySettings } from "@/components/company/company-settings";
 import { companyIdentity } from "@/lib/company-identity";
-import { ServicesEditor, toRows } from "@/components/company/company-services-section";
+import { CatalogEditor, catalogValid } from "@/components/company/company-services-section";
+import { catalogOf, flattenCatalog, type ServiceCategory } from "@/lib/service-catalog";
 import { useMutation } from "@tanstack/react-query";
 import { requestR2Upload } from "@/lib/r2.functions";
 import { Briefcase, ImageUp } from "lucide-react";
@@ -1033,12 +1034,12 @@ function LogoUploader({ value, name, onChange }: { value: string; name: string; 
 
 function ServicesSection({ c, accent }: { c: Company; accent: string }) {
   const save = useSave(c.id);
-  const saved = ((c as { services?: string[] | null }).services ?? []).filter(Boolean);
-  const [rows, setRows] = useState(() => toRows(saved));
-  const e = useEditable({ services: saved } as Patch);
-  const values = rows.map((r) => r.value.trim());
-  const valid = values.every(Boolean) && new Set(values.map((v) => v.toLowerCase())).size === values.length;
-  const dirty = JSON.stringify(values) !== JSON.stringify(saved);
+  const saved = catalogOf(c as never);
+  const [cat, setCat] = useState<ServiceCategory[]>(saved);
+  const e = useEditable({ services: flattenCatalog(saved) } as Patch);
+  const clean = cat.map((g) => ({ category: g.category.trim(), services: g.services.map((s) => s.trim()).filter(Boolean) }));
+  const valid = catalogValid(clean);
+  const dirty = JSON.stringify(clean) !== JSON.stringify(saved);
   return (
     <Section
       title="Services"
@@ -1048,27 +1049,36 @@ function ServicesSection({ c, accent }: { c: Company; accent: string }) {
       editing={e.editing}
       saving={e.saving}
       dirty={dirty && valid}
-      onEdit={() => { setRows(toRows(saved)); e.edit(); }}
-      onCancel={() => { setRows(toRows(saved)); e.cancel(); }}
+      onEdit={() => { setCat(saved); e.edit(); }}
+      onCancel={() => { setCat(saved); e.cancel(); }}
       onSave={async () => {
         e.setSaving(true);
-        if (await save({ services: values }, "Services saved")) e.done();
+        if (await save({ service_catalog: clean, services: flattenCatalog(clean) } as Patch, "Services saved")) e.done();
         e.setSaving(false);
       }}
     >
       {e.editing ? (
         <div className="space-y-2">
-          <p className="text-[11.5px] text-muted-foreground">Drag to reorder. This order is used in the customer Service dropdown for {c.name}.</p>
-          <ServicesEditor rows={rows} onChange={setRows} />
+          <p className="text-[11.5px] text-muted-foreground">Group services by category. These appear in the lead and customer service dropdowns for {c.name} only.</p>
+          <CatalogEditor value={cat} onChange={setCat} />
         </div>
       ) : saved.length ? (
-        <ol className="grid gap-2 sm:grid-cols-2">
-          {saved.map((s, i) => (
-            <li key={s} className="flex items-center gap-2 rounded-lg border border-border/70 bg-muted/20 p-3 text-[13px] font-bold transition-colors hover:border-brand/30">
-              <span className="font-mono text-[11px] text-muted-foreground">{i + 1}</span> {s}
-            </li>
+        <div className="space-y-3">
+          {saved.map((g) => (
+            <div key={g.category}>
+              <div className="mb-1.5 flex items-center gap-2 text-[10.5px] font-extrabold uppercase tracking-wider text-muted-foreground">
+                {g.category} <span className="font-mono">{g.services.length}</span>
+              </div>
+              <ol className="grid gap-2 sm:grid-cols-2">
+                {g.services.map((s, i) => (
+                  <li key={s} className="flex items-center gap-2 rounded-lg border border-border/70 bg-muted/20 p-3 text-[13px] font-bold transition-colors hover:border-brand/30">
+                    <span className="font-mono text-[11px] text-muted-foreground">{i + 1}</span> {s}
+                  </li>
+                ))}
+              </ol>
+            </div>
           ))}
-        </ol>
+        </div>
       ) : (
         <div className="text-[13px] font-semibold text-muted-foreground">N/A — no services added yet.</div>
       )}

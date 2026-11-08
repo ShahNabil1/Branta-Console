@@ -21,6 +21,7 @@ import {
 } from "@/lib/customers.functions";
 import { CUSTOMER_SOURCES, matchRoles, bdPhoneOk } from "@/lib/customer-form";
 import { cn } from "@/lib/utils";
+import { catalogOf } from "@/lib/service-catalog";
 
 type Currency = "BDT" | "USD";
 const CURRENCIES = [
@@ -58,7 +59,7 @@ export function CustomerDrawer({
   const [askClose, setAskClose] = useState(false);
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) => setForm((f) => ({ ...f, [k]: v }));
   const dirty = JSON.stringify(form) !== JSON.stringify(empty(defaultCurrency));
-  const services = ((active as { services?: string[] | null } | null)?.services ?? []).filter(Boolean);
+  const services = catalogOf(active as never).flatMap((g) => g.services.map((s) => ({ value: s, label: s, hint: g.category })));
 
   const phoneBad = !!form.phone && !bdPhoneOk(form.phone);
   const emailBad = !!form.email.trim() && !emailOk(form.email.trim());
@@ -143,7 +144,7 @@ export function CustomerDrawer({
               </div>
               <div>
                 <label className={LABEL}>Service</label>
-                <div className="mt-1.5"><SearchableSelect clearable items={services.map((s) => ({ value: s, label: s }))} value={form.service} onChange={(v) => set("service", v)} placeholder="— Select service —" emptyText="No services yet — add them in Company Info" /></div>
+                <div className="mt-1.5"><SearchableSelect clearable items={services} value={form.service} onChange={(v) => set("service", v)} placeholder="— Select service —" emptyText="No services yet — add them in Company Info" /></div>
               </div>
             </div>
             <div className="sm:w-1/2 sm:pr-1.5">

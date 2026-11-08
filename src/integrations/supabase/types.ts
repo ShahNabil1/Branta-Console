@@ -562,6 +562,7 @@ export type Database = {
           phone: string | null
           post_office: string | null
           postcode: string | null
+          service_catalog: Json
           services: string[]
           slug: string
           status: string
@@ -599,6 +600,7 @@ export type Database = {
           phone?: string | null
           post_office?: string | null
           postcode?: string | null
+          service_catalog?: Json
           services?: string[]
           slug: string
           status?: string
@@ -636,6 +638,7 @@ export type Database = {
           phone?: string | null
           post_office?: string | null
           postcode?: string | null
+          service_catalog?: Json
           services?: string[]
           slug?: string
           status?: string
@@ -4535,6 +4538,7 @@ export type Database = {
           role: string | null
           service: string | null
           service_other: string | null
+          services: string[]
           sheet_row_id: string | null
           sheet_source: string
           sheet_sync_error: string | null
@@ -4582,6 +4586,7 @@ export type Database = {
           role?: string | null
           service?: string | null
           service_other?: string | null
+          services?: string[]
           sheet_row_id?: string | null
           sheet_source?: string
           sheet_sync_error?: string | null
@@ -4629,6 +4634,7 @@ export type Database = {
           role?: string | null
           service?: string | null
           service_other?: string | null
+          services?: string[]
           sheet_row_id?: string | null
           sheet_source?: string
           sheet_sync_error?: string | null

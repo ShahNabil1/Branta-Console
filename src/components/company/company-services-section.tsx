@@ -1,76 +1,106 @@
-import { useState, type ReactNode } from "react";
-import { DndContext, KeyboardSensor, PointerSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
-import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { ClipboardList, FolderPlus, Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { mergeCatalog, parseBulk, type ServiceCategory } from "@/lib/service-catalog";
 
-type Row = { id: string; value: string };
-let seq = 0;
-export const toRows = (xs: string[]): Row[] => xs.map((value) => ({ id: `s${++seq}`, value }));
+const norm = (s: string) => s.trim().toLowerCase();
+export const catalogValid = (c: ServiceCategory[]) =>
+  c.every((g) => g.category.trim()) && new Set(c.map((g) => norm(g.category))).size === c.length;
 
-/** Ordered, drag-to-reorder list editor for a company's services. */
-export function ServicesEditor({ rows, onChange }: { rows: Row[]; onChange: (r: Row[]) => void }) {
-  const [draft, setDraft] = useState("");
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 6 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
-  const dup = (v: string, id?: string) => rows.some((r) => r.id !== id && r.value.trim().toLowerCase() === v.trim().toLowerCase());
-  const add = () => {
-    const v = draft.trim();
-    if (!v || dup(v)) return;
-    onChange([...rows, ...toRows([v])]);
-    setDraft("");
-  };
-  const onDragEnd = (e: DragEndEvent) => {
-    if (!e.over || e.active.id === e.over.id) return;
-    const from = rows.findIndex((r) => r.id === e.active.id), to = rows.findIndex((r) => r.id === e.over!.id);
-    onChange(arrayMove(rows, from, to));
-  };
+/** Category → services editor with bulk paste. */
+export function CatalogEditor({ value, onChange }: { value: ServiceCategory[]; onChange: (c: ServiceCategory[]) => void }) {
+  const [bulk, setBulk] = useState("");
+  const [showBulk, setShowBulk] = useState(value.length === 0);
+  const parsed = parseBulk(bulk);
+  const count = parsed.reduce((n, g) => n + g.services.length, 0);
+  const upd = (i: number, g: ServiceCategory) => onChange(value.map((x, j) => (j === i ? g : x)));
+
   return (
-    <div className="space-y-2">
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-        <SortableContext items={rows.map((r) => r.id)} strategy={verticalListSortingStrategy}>
-          {rows.map((r, i) => (
-            <SortRow key={r.id} id={r.id}>
-              <span className="w-5 shrink-0 text-center font-mono text-[11px] font-bold text-muted-foreground">{i + 1}</span>
-              <Input value={r.value} maxLength={80} onChange={(e) => onChange(rows.map((x) => (x.id === r.id ? { ...x, value: e.target.value } : x)))}
-                className={cn("min-w-0 flex-1", (!r.value.trim() || dup(r.value, r.id)) && "border-destructive")} />
-              <Button type="button" size="icon" variant="ghost" aria-label={`Remove ${r.value}`} onClick={() => onChange(rows.filter((x) => x.id !== r.id))}
-                className="size-9 shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive active:scale-90">
-                <Trash2 className="size-3.5" />
-              </Button>
-            </SortRow>
-          ))}
-        </SortableContext>
-      </DndContext>
-      <div className="flex items-center gap-2">
-        <Input value={draft} maxLength={80} placeholder="e.g. Web Development" onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }} className={cn("min-w-0 flex-1", draft && dup(draft) && "border-destructive")} />
-        <Button type="button" size="sm" variant="outline" onClick={add} disabled={!draft.trim() || dup(draft)}
-          className="h-9 gap-1 border-dashed text-[12px] font-bold hover:border-brand/50 hover:text-brand active:scale-95">
-          <Plus className="size-3.5" /> Add service
+    <div className="space-y-3">
+      {value.map((g, i) => (
+        <CategoryCard key={i} g={g} dup={value.some((x, j) => j !== i && norm(x.category) === norm(g.category))}
+          onChange={(n) => upd(i, n)} onRemove={() => onChange(value.filter((_, j) => j !== i))} />
+      ))}
+
+      <div className="flex flex-wrap gap-2">
+        <Button type="button" size="sm" variant="outline" onClick={() => onChange([...value, { category: "", services: [] }])}
+          className="h-9 gap-1.5 border-dashed text-[12px] font-bold hover:border-brand/50 hover:text-brand active:scale-95">
+          <FolderPlus className="size-3.5" /> Add category
+        </Button>
+        <Button type="button" size="sm" variant="outline" onClick={() => setShowBulk((v) => !v)}
+          className={cn("h-9 gap-1.5 text-[12px] font-bold active:scale-95", showBulk && "border-brand/50 text-brand")}>
+          <ClipboardList className="size-3.5" /> Bulk add
         </Button>
       </div>
-      {draft && dup(draft) && <p className="text-[11.5px] text-destructive">This service is already in the list.</p>}
+
+      {showBulk && (
+        <div className="rounded-lg border border-border bg-muted/20 p-3 animate-in fade-in slide-in-from-top-1 duration-200">
+          <p className="text-[11.5px] text-muted-foreground">
+            Write a category ending with <b>:</b>, then one service per line. Numbers or dashes are removed automatically.
+          </p>
+          <textarea value={bulk} onChange={(e) => setBulk(e.target.value)} rows={8} spellCheck={false}
+            placeholder={"Video ads:\n1. Commercial, 30s\n2. AI Commercial, 60s\n3. AI UGC Ads\n\nWeb:\nLanding page"}
+            className="mt-2 w-full rounded-lg border border-border bg-card px-3 py-2 font-mono text-[12.5px] leading-relaxed shadow-sm outline-none transition-all focus:border-brand focus:shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-brand)_15%,transparent)]" />
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <span className="text-[11.5px] font-semibold text-muted-foreground">
+              {count ? `${parsed.length} ${parsed.length === 1 ? "category" : "categories"} · ${count} services` : "Nothing to add yet"}
+            </span>
+            <Button type="button" size="sm" disabled={!count} onClick={() => { onChange(mergeCatalog(value, parsed)); setBulk(""); setShowBulk(false); }}
+              className="h-8 gap-1 text-[12px] font-bold active:scale-95">
+              <Plus className="size-3.5" /> Add all
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function SortRow({ id, children }: { id: string; children: ReactNode }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+function CategoryCard({ g, dup, onChange, onRemove }: { g: ServiceCategory; dup: boolean; onChange: (g: ServiceCategory) => void; onRemove: () => void }) {
+  const [draft, setDraft] = useState("");
+  const exists = (v: string) => g.services.some((s) => norm(s) === norm(v));
+  const add = () => {
+    const items = draft.split(/\r?\n/).map((s) => s.replace(/^(\d+[.)]\s*|[-•*]\s*)/, "").trim()).filter(Boolean);
+    const next = [...g.services];
+    for (const s of items) if (!next.some((x) => norm(x) === norm(s))) next.push(s);
+    onChange({ ...g, services: next });
+    setDraft("");
+  };
   return (
-    <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={cn("flex items-center gap-2 rounded-lg border border-transparent bg-card", isDragging && "z-10 border-brand/40 shadow-lg ring-2 ring-brand/10")}>
-      <button type="button" aria-label="Drag to reorder" {...attributes} {...listeners}
-        className="grid size-9 shrink-0 cursor-grab touch-none place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground active:cursor-grabbing">
-        <GripVertical className="size-4" />
-      </button>
-      {children}
+    <div className="rounded-lg border border-border bg-card p-3 shadow-sm">
+      <div className="flex items-center gap-2">
+        <Input value={g.category} maxLength={80} placeholder="Category name, e.g. Video ads" onChange={(e) => onChange({ ...g, category: e.target.value })}
+          className={cn("h-9 min-w-0 flex-1 font-bold", (!g.category.trim() || dup) && "border-destructive")} />
+        <span className="shrink-0 font-mono text-[11px] font-bold text-muted-foreground">{g.services.length}</span>
+        <Button type="button" size="icon" variant="ghost" aria-label={`Remove ${g.category || "category"}`} onClick={onRemove}
+          className="size-9 shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive active:scale-90">
+          <Trash2 className="size-3.5" />
+        </Button>
+      </div>
+      {dup && <p className="mt-1 text-[11.5px] text-destructive">This category already exists.</p>}
+      {g.services.length > 0 && (
+        <div className="mt-2.5 flex flex-wrap gap-1.5">
+          {g.services.map((s) => (
+            <span key={s} className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/30 py-0.5 pl-2 pr-1 text-[12px] font-semibold">
+              {s}
+              <button type="button" aria-label={`Remove ${s}`} onClick={() => onChange({ ...g, services: g.services.filter((x) => x !== s) })}
+                className="grid size-4 place-items-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><X className="size-3" /></button>
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="mt-2.5 flex items-start gap-2">
+        <textarea value={draft} rows={1} placeholder="Add services — paste several, one per line"
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !draft.includes("\n")) { e.preventDefault(); add(); } }}
+          className={cn("min-h-9 min-w-0 flex-1 resize-y rounded-md border border-border bg-card px-3 py-2 text-[13px] outline-none focus:border-brand", draft && !draft.includes("\n") && exists(draft.trim()) && "border-destructive")} />
+        <Button type="button" size="sm" variant="outline" onClick={add} disabled={!draft.trim()}
+          className="h-9 gap-1 border-dashed text-[12px] font-bold hover:border-brand/50 hover:text-brand active:scale-95">
+          <Plus className="size-3.5" /> Add
+        </Button>
+      </div>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { useActiveCompany } from "@/components/company/company-switcher";
+import { ServicePicker } from "@/components/leads/service-picker";
 // Mobile-first "New lead" structured form. Full-screen bottom sheet on phones,
 // centered dialog on larger screens. Three short steps + sticky save bar.
 import { useEffect, useMemo, useState } from "react";
@@ -9,10 +10,8 @@ import { Check, ChevronLeft, Loader2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createLead, type LeadRow } from "@/lib/leads.functions";
 import {
-  listLeadServiceOptions,
   listLeadSourceOptions,
   listLeadStatusOptions,
-  SERVICE_FALLBACK,
   SOURCE_FALLBACK,
   STATUS_FALLBACK,
 } from "@/lib/lead-options.functions";
@@ -35,6 +34,7 @@ type Form = {
   source: string;
   source_other: string;
   service: string;
+  services: string[];
   service_other: string;
   requirement: string;
   budget: string;
@@ -58,6 +58,7 @@ const EMPTY: Form = {
   source: "",
   source_other: "",
   service: "",
+  services: [],
   service_other: "",
   requirement: "",
   budget: "",
@@ -86,10 +87,8 @@ export function LeadFormSheet({
   const createFn = useServerFn(createLead);
   const workspace = useActiveCompany().active?.slug ?? null;
   const srcFn = useServerFn(listLeadSourceOptions);
-  const svcFn = useServerFn(listLeadServiceOptions);
   const stFn = useServerFn(listLeadStatusOptions);
   const sources = useQuery({ queryKey: ["lead-source-options"], queryFn: () => srcFn(), initialData: SOURCE_FALLBACK, staleTime: 300_000 }).data;
-  const services = useQuery({ queryKey: ["lead-service-options"], queryFn: () => svcFn(), initialData: SERVICE_FALLBACK, staleTime: 300_000 }).data;
   const statuses = useQuery({ queryKey: ["lead-status-options"], queryFn: () => stFn(), initialData: STATUS_FALLBACK, staleTime: 300_000 }).data;
 
   const [f, setF] = useState<Form>(EMPTY);
@@ -116,7 +115,7 @@ export function LeadFormSheet({
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setF((p) => ({ ...p, [k]: v }));
 
   const srcNeeds = sources.find((s) => s.key === f.source)?.requires_detail;
-  const svcNeeds = services.find((s) => s.key === f.service)?.requires_detail;
+  const svcNeeds = false;
 
   const errors = useMemo(() => {
     const e: Partial<Record<keyof Form, string>> = {};
@@ -128,7 +127,7 @@ export function LeadFormSheet({
     if (f.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email.trim())) e.email = "Invalid email";
     if (!f.source) e.source = "Pick a lead source";
     if (srcNeeds && !f.source_other.trim()) e.source_other = "Tell us the source";
-    if (!f.service) e.service = "Pick a service";
+    if (!f.services.length) e.service = "Pick at least one service";
     if (svcNeeds && !f.service_other.trim()) e.service_other = "Describe the service";
     if (f.budget.trim() && (isNaN(Number(f.budget)) || Number(f.budget) < 0)) e.budget = "Numbers only";
     if (f.fuDate) {
@@ -160,7 +159,8 @@ export function LeadFormSheet({
           email: f.email.trim() || null,
           source: f.source || null,
           source_other: srcNeeds ? f.source_other.trim() : null,
-          service: f.service || null,
+          service: f.services[0] ?? null,
+          services: f.services,
           service_other: svcNeeds ? f.service_other.trim() : null,
           requirement: f.requirement.trim() || null,
           budget: f.budget.trim() ? Number(f.budget) : null,
@@ -283,7 +283,7 @@ export function LeadFormSheet({
                 </Field>
               )}
               <Field label="Interested service" required error={err("service")}>
-                <Chips options={services.map((s) => ({ key: s.key, label: s.label }))} value={f.service} onChange={(v) => set("service", v)} />
+                <ServicePicker value={f.services} onChange={(v) => set("services", v)} />
               </Field>
               {svcNeeds && (
                 <Field label="Service detail" required error={err("service_other")}>

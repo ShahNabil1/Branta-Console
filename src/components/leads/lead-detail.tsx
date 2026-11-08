@@ -1,3 +1,4 @@
+import { ServicePicker, leadServicesOf } from "@/components/leads/service-picker";
 import { UserMinus } from "lucide-react";
 import { confirmAction } from "@/components/ui/confirm-dialog";
 import { IntegrationRequired, useIntegrationGate } from "@/components/company/setup-required";
@@ -447,6 +448,7 @@ function ReadOnlyDetails({
     source: string;
     source_other: string;
     service: string;
+    services: string[];
     service_other: string;
   };
   sourceOptions: LeadSourceOption[];
@@ -464,7 +466,7 @@ function ReadOnlyDetails({
       ? `${src.label} · ${form.source_other}`
       : src.label
     : "";
-  const serviceText = svc
+  const serviceText = form.services.length ? form.services.join(", ") : svc
     ? svc.requires_detail && form.service_other
       ? `${svc.label} · ${form.service_other}`
       : svc.label
@@ -678,6 +680,7 @@ export function LeadDetail({
     source: lead.source ?? "",
     source_other: lead.source_other ?? "",
     service: lead.service ?? "",
+      services: leadServicesOf(lead),
     service_other: lead.service_other ?? "",
     owner_id: lead.owner_id ?? "",
     next_action: lead.next_action ?? "",
@@ -719,6 +722,7 @@ export function LeadDetail({
       source: lead.source ?? "",
       source_other: lead.source_other ?? "",
       service: lead.service ?? "",
+      services: leadServicesOf(lead),
       service_other: lead.service_other ?? "",
       owner_id: lead.owner_id ?? "",
       next_action: lead.next_action ?? "",
@@ -736,7 +740,7 @@ export function LeadDetail({
   const activeSource = sourceOptions.find((s) => s.key === form.source);
   const sourceNeedsDetail = activeSource?.requires_detail ?? false;
   const activeService = serviceOptions.find((s) => s.key === form.service);
-  const serviceNeedsDetail = activeService?.requires_detail ?? false;
+  const serviceNeedsDetail = !form.services.length && (activeService?.requires_detail ?? false);
 
   // ---- Inline duplicate check --------------------------------------------
   const checkDup = useServerFn(checkLeadDuplicates);
@@ -841,7 +845,8 @@ export function LeadDetail({
             source_other: sourceNeedsDetail
               ? form.source_other.trim() || null
               : null,
-            service: form.service.trim() || null,
+            service: form.services[0] ?? (form.service.trim() || null),
+            services: form.services,
             service_other: serviceNeedsDetail
               ? form.service_other.trim() || null
               : null,
@@ -894,7 +899,8 @@ export function LeadDetail({
               status: form.status,
               source: form.source.trim() || null,
               source_other: sourceNeedsDetail ? form.source_other.trim() || null : null,
-              service: form.service.trim() || null,
+              service: form.services[0] ?? (form.service.trim() || null),
+              services: form.services,
               service_other: serviceNeedsDetail ? form.service_other.trim() || null : null,
               owner_id: form.owner_id || null,
               next_action: form.next_action.trim() || null,
@@ -1091,6 +1097,7 @@ export function LeadDetail({
                       source: lead.source ?? "",
                       source_other: lead.source_other ?? "",
                       service: lead.service ?? "",
+      services: leadServicesOf(lead),
                       service_other: lead.service_other ?? "",
                       status: lead.status,
                       owner_id: lead.owner_id ?? "",
@@ -1182,32 +1189,7 @@ export function LeadDetail({
                     </>
                   }
                 >
-                  <Select
-                    value={form.service || "__unset"}
-                    onValueChange={(v) => {
-                      const next = v === "__unset" ? "" : v;
-                      setForm((prev) => ({
-                        ...prev,
-                        service: next,
-                        service_other:
-                          next && serviceOptions.find((o) => o.key === next)?.requires_detail
-                            ? prev.service_other
-                            : "",
-                      }));
-                    }}
-                  >
-                    <SelectTrigger className="h-9 rounded-sm text-[12.5px]">
-                      <SelectValue placeholder="Select service" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__unset">— None —</SelectItem>
-                      {serviceOptions.map((s) => (
-                        <SelectItem key={s.key} value={s.key}>
-                          {s.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <ServicePicker value={form.services} onChange={(v) => setForm((prev) => ({ ...prev, services: v }))} />
                 </Field>
                 {serviceNeedsDetail && (
                   <Field
