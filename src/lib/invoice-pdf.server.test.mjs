@@ -42,7 +42,7 @@ describe("invoice PDF pagination", () => {
     expect(doc.getPageCount()).toBe(1);
     const { PDFName, PDFDict } = await import("pdf-lib");
     const images = doc.getPage(0).node.Resources().lookupMaybe(PDFName.of("XObject"), PDFDict);
-    expect(images?.keys().length).toBe(3);
+    expect(images?.keys().length).toBe(4); // logo, inverse logo, Bangla QR, Standard Bank logo
     if (process.env.INVOICE_PDF_QA_DIR) await Bun.write(`${process.env.INVOICE_PDF_QA_DIR}/admakai-authentic.pdf`, bytes);
   });
   test("Admakai keeps its own identity but the payment section is always Branta Tech's", async () => {
@@ -57,7 +57,7 @@ describe("invoice PDF pagination", () => {
     const doc = await PDFDocument.load(bytes);
     expect(doc.getPageCount()).toBe(1);
     const images = doc.getPages()[0].node.Resources().lookupMaybe((await import("pdf-lib")).PDFName.of("XObject"), (await import("pdf-lib")).PDFDict);
-    expect(images?.keys().length ?? 0).toBe(1); // the Branta Tech Bangla QR
+    expect(images?.keys().length ?? 0).toBe(2); // the Branta Tech Bangla QR + Standard Bank logo
     if (process.env.INVOICE_PDF_QA_DIR) await Bun.write(`${process.env.INVOICE_PDF_QA_DIR}/admakai.pdf`, bytes);
   });
   for (const mode of ["digital", "print"]) {
