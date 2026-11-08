@@ -639,26 +639,26 @@ export async function renderInvoicePdf(
       : null;
     const bankLogo = await pdf.embedPng(Uint8Array.from(atob(STANDARD_BANK_LOGO_PNG_B64), (c) => c.charCodeAt(0)));
 
-    const PAD = 14;
+    const PAD = 12;
     const innerW = CONTENT_W - PAD * 2;
-    const introLines = wrap(intro, bold, 9, innerW - 40);
-    const introH = 16 + introLines.length * 12;
+    const introLines = wrap(intro, bold, 8.5, innerW - 40);
+    const introH = 10 + introLines.length * 10.5;
     const leftW = qrImage ? Math.round(innerW * 0.6) : innerW;
     const rightW = innerW - leftW;
     const labelW = 86;
     const valW = leftW - 24 - labelW;
     const rowLines = bankRows.map(([, v, m]) => wrap(v, m ? monoBold : bold, 8.5, valW));
-    const rowH = (n: number) => 6 + n * 10.5;
+    const rowH = (n: number) => 4.5 + n * 9.5;
     const tableH = rowLines.reduce((h, l) => h + rowH(l.length), 0);
-    const refH = 24;
-    const leftH = 12 + 18 + 6 + tableH + 10 + refH + 12;
-    const qrW = 132;
+    const refH = 20;
+    const leftH = 10 + 16 + 4 + tableH + 8 + refH + 10;
+    const qrW = 108;
     const qrH = qrW * BANGLA_QR_ASPECT;
-    const rightH = qrImage ? 12 + 14 + qrH + 8 + merchantRows.length * 14 + 12 : 0;
+    const rightH = qrImage ? 10 + 14 + qrH + 6 + merchantRows.length * 12 + 10 : 0;
     const gridH = Math.max(leftH, rightH);
-    const noticeLines = wrap(notice, font, 8.5, innerW - 120);
-    const noticeH = 14 + noticeLines.length * 11;
-    const blockH = 16 + 14 + 8 + introH + 10 + gridH + 10 + noticeH + PAD;
+    const noticeLines = wrap(notice, font, 8, innerW - 120);
+    const noticeH = 10 + noticeLines.length * 10;
+    const blockH = 12 + 11 + 7 + introH + 7 + gridH + 7 + noticeH + PAD;
     if (blockH + SIGNATURE_H + 14 > CONTENT_TOP - CONTENT_BOTTOM) {
       throw new Error("Payment information is too long for one page.");
     }
@@ -669,9 +669,9 @@ export async function renderInvoicePdf(
     const X = SIDE + PAD;
     page.drawRectangle({ x: SIDE, y: top - blockH, width: CONTENT_W, height: blockH, color: panel, borderColor: hair, borderWidth: 0.5 });
     page.drawRectangle({ x: SIDE, y: top - blockH, width: 3, height: blockH, color: brand });
-    let iy = top - 22;
+    let iy = top - 20;
     draw(label("payment", "PAYMENT INFORMATION"), X, iy, 11.5, bold, brand);
-    iy -= 12;
+    iy -= 10;
 
     // Intro: print-safe white box, dark accent and info mark.
     const introTop = iy;
@@ -680,67 +680,67 @@ export async function renderInvoicePdf(
     const cy = introTop - introH / 2;
     page.drawCircle({ x: X + 18, y: cy, size: 7, borderColor: dark, borderWidth: 1.1, color: white });
     draw("i", X + 18 - bold.widthOfTextAtSize("i", 9) / 2, cy - 3.2, 9, bold, dark);
-    introLines.forEach((ln, i) => draw(ln, X + 34, introTop - (introH - introLines.length * 12) / 2 - 9 - i * 12, 9, bold, dark));
-    iy = introTop - introH - 10;
+    introLines.forEach((ln, i) => draw(ln, X + 34, introTop - (introH - introLines.length * 10.5) / 2 - 8 - i * 10.5, 8.5, bold, dark));
+    iy = introTop - introH - 7;
 
     // Grid: bank details (left) + Bangla QR (right).
     const gTop = iy;
     page.drawRectangle({ x: X, y: gTop - gridH, width: innerW, height: gridH, color: white, borderColor: hair, borderWidth: 0.6 });
     const LX = X + 12;
-    let ly = gTop - 12;
-    const logoH = 14;
+    let ly = gTop - 10;
+    const logoH = 13;
     const logoW = logoH / STANDARD_BANK_LOGO_ASPECT;
     page.drawImage(bankLogo, { x: LX, y: ly - logoH, width: logoW, height: logoH });
     const cap = isLocal ? "BANK TRANSFER" : "INTERNATIONAL WIRE";
     draw(cap, LX + leftW - 24 - bold.widthOfTextAtSize(cap, 7), ly - 10, 7, bold, muted);
-    ly -= 18 + 4;
+    ly -= 16 + 3;
     page.drawLine({ start: { x: LX, y: ly }, end: { x: LX + leftW - 24, y: ly }, thickness: 0.6, color: hair });
     ly -= 2;
     bankRows.forEach(([k, , m], i) => {
       const lines = rowLines[i];
       const h = rowH(lines.length);
-      draw(k, LX, ly - 11, 8, bold, muted);
-      lines.forEach((ln, j) => draw(ln, LX + labelW, ly - 11 - j * 10.5, 8.5, m ? monoBold : bold, dark));
+      draw(k, LX, ly - 10, 8, bold, muted);
+      lines.forEach((ln, j) => draw(ln, LX + labelW, ly - 10 - j * 9.5, 8.5, m ? monoBold : bold, dark));
       ly -= h;
       if (i < bankRows.length - 1) page.drawLine({ start: { x: LX, y: ly }, end: { x: LX + leftW - 24, y: ly }, thickness: 0.4, color: soft });
     });
-    ly -= 10;
+    ly -= 8;
     // Payment reference: dynamic company-prefixed invoice number.
     const refW = leftW - 24;
     page.drawRectangle({ x: LX, y: ly - refH, width: refW, height: refH, color: white, borderColor: hex(rgb, "#9CA3AF"), borderWidth: 0.6 });
     draw("PAYMENT REFERENCE", LX + 9, ly - refH / 2 - 3, 8, bold, hex(rgb, "#374151"));
     const refText = `Invoice No. ${inv.slug}`;
     const badgeW = monoBold.widthOfTextAtSize(safeText(refText), 9) + 14;
-    page.drawRectangle({ x: LX + refW - 6 - badgeW, y: ly - refH + 5, width: badgeW, height: refH - 10, color: white, borderColor: dark, borderWidth: 1 });
+    page.drawRectangle({ x: LX + refW - 6 - badgeW, y: ly - refH + 4, width: badgeW, height: refH - 8, color: white, borderColor: dark, borderWidth: 1 });
     draw(refText, LX + refW - 6 - badgeW + 7, ly - refH / 2 - 3.2, 9, monoBold, dark);
 
     if (qrImage) {
       const RX = X + leftW;
       page.drawLine({ start: { x: RX, y: gTop }, end: { x: RX, y: gTop - gridH }, thickness: 0.6, color: hair });
       const cx = RX + rightW / 2;
-      let ry = gTop - 12;
+      let ry = gTop - 10;
       const st = "SCAN TO PAY";
       draw(st, cx - bold.widthOfTextAtSize(st, 10) / 2, ry - 9, 10, bold, brand);
       ry -= 16;
       page.drawImage(qrImage, { x: cx - qrW / 2, y: ry - qrH, width: qrW, height: qrH });
-      ry -= qrH + 8;
+      ry -= qrH + 6;
       const mx = RX + 12;
       const mw = rightW - 24;
       merchantRows.forEach(([k, v], i) => {
         page.drawLine({ start: { x: mx, y: ry }, end: { x: mx + mw, y: ry }, thickness: 0.4, color: i ? soft : hair });
-        draw(k, mx, ry - 10, 7.5, bold, muted);
-        draw(v, mx + mw - monoBold.widthOfTextAtSize(safeText(v), 7.5), ry - 10, 7.5, monoBold, dark);
-        ry -= 14;
+        draw(k, mx, ry - 9, 7.5, bold, muted);
+        draw(v, mx + mw - monoBold.widthOfTextAtSize(safeText(v), 7.5), ry - 9, 7.5, monoBold, dark);
+        ry -= 12;
       });
     }
-    iy = gTop - gridH - 10;
+    iy = gTop - gridH - 7;
 
     // Important notice: print-safe box with a divided title.
     page.drawRectangle({ x: X, y: iy - noticeH, width: innerW, height: noticeH, color: white, borderColor: line, borderWidth: 0.6 });
     page.drawRectangle({ x: X, y: iy - noticeH, width: 2.2, height: noticeH, color: dark });
     draw("IMPORTANT NOTICE", X + 12, iy - noticeH / 2 - 3, 8, bold, dark);
     page.drawLine({ start: { x: X + 104, y: iy - 6 }, end: { x: X + 104, y: iy - noticeH + 6 }, thickness: 0.6, color: line });
-    noticeLines.forEach((ln, i) => draw(ln, X + 114, iy - 14 - i * 11 + 1, 8.5, font, hex(rgb, "#1F2937")));
+    noticeLines.forEach((ln, i) => draw(ln, X + 114, iy - (noticeH - noticeLines.length * 10) / 2 - 7.5 - i * 10, 8, font, hex(rgb, "#1F2937")));
     y = top - blockH - 10;
   }
 
