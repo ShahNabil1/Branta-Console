@@ -6,7 +6,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { toast } from "sonner";
-import { Activity, Archive, BadgeCheck, CalendarDays, Check, ExternalLink, FileText, Link2, ListChecks, MessageSquare, Plus, RotateCcw, Send, Trash2, Upload, X } from "lucide-react";
+import { Activity, Archive, BadgeCheck, BookOpen, CalendarDays, Check, Crown, ExternalLink, Package, Play, Sparkles, UserCheck, FileText, Link2, ListChecks, MessageSquare, Plus, RotateCcw, Send, Trash2, Upload, X } from "lucide-react";
 import { Sheet, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,12 +22,12 @@ import {
 } from "@/lib/company-tasks.functions";
 import { MAX_TASK_ASSETS, TASK_PRIORITIES, TASK_STATUSES, parseAssetLinks, statusLabel } from "@/lib/company-task-rules";
 import { cn } from "@/lib/utils";
-import { AREA, AvatarStack, FIELD, LABEL, PersonAvatar, PriorityBadge, SegmentedProgress, StatusChip, fmtDateTime, fmtDue, spring } from "./task-ui";
+import { AREA, AvatarStack, FIELD, LABEL, PersonAvatar, PriorityBadge, SegmentedProgress, StatusChip, fmtDateTime, fmtDue, spring, AssetKindToggle, JourneyBar, type AssetKind } from "./task-ui";
 
 type Tab = "overview" | "submissions" | "comments" | "activity";
 type UpdPatch = { id: string; title?: string; description?: string | null; priority?: "low" | "normal" | "high" | "urgent"; status?: "todo" | "doing" | "in_review" | "done"; due_on?: string | null; due_time?: string | null; tags?: string[]; project_id?: string | null };
 type SubPatch = { id: string; done?: boolean; title?: string; assignee_id?: string | null; remove?: boolean };
-type AssetPatch = { id: string; assignee_id?: string | null; title?: string | null; remove?: boolean };
+type AssetPatch = { id: string; assignee_id?: string | null; title?: string | null; kind?: AssetKind; remove?: boolean };
 
 const ACTIVITY_TEXT: Record<string, string> = {
   created: "created the task", updated: "updated the task", status: "changed the status", approved: "approved the task", archived: "archived the task", unarchived: "restored the task", published: "made the task live", scheduled: "scheduled the task", drafted: "moved the task to drafts",
@@ -67,7 +67,7 @@ function Body({ taskId, onClose, members, projects }: { taskId: string; onClose:
           {t.approved_at && <span className="inline-flex items-center gap-1 rounded border border-status-converted/40 px-1.5 py-0.5 text-[10.5px] font-bold text-status-converted"><BadgeCheck className="size-3" />Approved</span>}
         </div>
         <SheetTitle className="mt-2 text-[20px] font-extrabold leading-tight tracking-tight">{t.title}</SheetTitle>
-        <SheetDescription className="text-[12px]">Created by {t.created_by_person?.name ?? "—"} · {fmtDateTime(t.created_at)}</SheetDescription>
+        <SheetDescription className="sr-only">Task details</SheetDescription>
       </ExpenseDrawerHeader>
       <div className="border-b border-border px-4">
         <UnderlineTabs<Tab> value={tab} onChange={setTab} ariaLabel="Task sections" items={[
@@ -105,6 +105,45 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
+function Ownership({ t }: { t: CompanyTaskDetail }) {
+  const creator = t.created_by_person;
+  const assignedBy = (uid: string) => {
+    const ev = t.activity.find((e) => e.kind === "assignees" && Array.isArray(e.detail?.added) && (e.detail.added as string[]).includes(uid));
+    return ev ? t.people[ev.actor_id] ?? creator : creator;
+  };
+  return (
+    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+      <div className="flex items-center gap-3 border-b border-border bg-muted/30 px-4 py-3">
+        <PersonAvatar name={creator?.name ?? "—"} src={creator?.avatar_url} size={40} className="ring-2 ring-brand/40" />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1 text-[10.5px] font-extrabold uppercase tracking-wider text-brand"><Crown className="size-3" />Task owner · Created by</div>
+          <div className="truncate text-[15px] font-extrabold">{creator?.name ?? "—"}</div>
+        </div>
+        <div className="text-right"><div className="text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground">Created</div><div className="font-mono text-[12px] font-bold">{fmtDateTime(t.created_at)}</div></div>
+      </div>
+      <div className="px-4 py-3">
+        <div className="flex items-center gap-1 text-[10.5px] font-extrabold uppercase tracking-wider text-foreground/70"><UserCheck className="size-3" />Assigned to</div>
+        {!t.assignee_rows.length && <p className="mt-1.5 text-[12.5px] text-muted-foreground">No one yet</p>}
+        <ul className="mt-2 grid gap-2 sm:grid-cols-2">
+          {t.assignee_rows.map((a) => {
+            const by = assignedBy(a.user_id);
+            return (
+              <li key={a.user_id} className={cn("flex items-center gap-2.5 rounded-lg border px-2.5 py-2", a.user_id === t.me ? "border-brand/50 bg-brand/5" : "border-border")}>
+                <PersonAvatar name={a.name} src={a.avatar_url} size={32} />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-[13px] font-extrabold">{a.name}{a.user_id === t.me && <span className="ml-1 text-[10px] font-bold text-brand">(You)</span>}</div>
+                  <div className="truncate text-[11px] font-semibold text-muted-foreground">Assigned by {by?.name ?? "—"}</div>
+                </div>
+                <span className="rounded border border-border px-1.5 py-0.5 font-mono text-[9.5px] font-bold uppercase">{statusLabel(a.status === "submitted" ? "in_review" : a.status === "approved" ? "done" : a.status) || a.status}</span>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
 function Overview({ t, members, projects, refresh }: { t: CompanyTaskDetail; members: TaskMember[]; projects: { id: string; title: string }[]; refresh: () => void }) {
   const upd = useServerFn(updateCompanyTask), setAsg = useServerFn(setCompanyTaskAssignees), addSub = useServerFn(addCompanyTaskSubtask);
   const updSub = useServerFn(updateCompanyTaskSubtask), addAssets = useServerFn(addCompanyTaskAssets), updAsset = useServerFn(updateCompanyTaskAsset);
@@ -114,9 +153,11 @@ function Overview({ t, members, projects, refresh }: { t: CompanyTaskDetail; mem
   const asg = useAct((ids: string[]) => setAsg({ data: { id: t.id, userIds: ids } }), refresh);
   const sub = useAct((p: { title: string; assignee_id: string | null }) => addSub({ data: { taskId: t.id, ...p } }), refresh);
   const subU = useAct((p: SubPatch) => updSub({ data: p }), refresh);
-  const assets = useAct((urls: string[]) => addAssets({ data: { taskId: t.id, assets: urls.map((url) => ({ url })) } }), refresh, "Links added");
+  const assets = useAct((urls: string[]) => addAssets({ data: { taskId: t.id, assets: urls.map((url) => ({ url, kind: linkKind })) } }), refresh, "Links added");
   const assetU = useAct((p: AssetPatch) => updAsset({ data: p }), refresh);
-  const mine = useAct((s: "todo" | "doing") => myStatus({ data: { taskId: t.id, status: s } }), refresh);
+  const mine = useAct((s: "todo" | "doing") => myStatus({ data: { taskId: t.id, status: s } }), refresh, "Progress updated");
+  const confirm = useConfirm();
+  const [linkKind, setLinkKind] = useState<AssetKind>("asset");
   const sendAsset = useAct((p: { assetId: string; link: string; note: string }) => submit({ data: { taskId: t.id, assetId: p.assetId, link: p.link || null, note: p.note || null } }), refresh, "Submitted for review");
 
   const [title, setTitle] = useState(t.title);
@@ -128,6 +169,7 @@ function Overview({ t, members, projects, refresh }: { t: CompanyTaskDetail; mem
   const [assetLink, setAssetLink] = useState("");
   const [assetNote, setAssetNote] = useState("");
 
+  const meRow = t.assignee_rows.find((a) => a.user_id === t.me);
   const assigneeIds = t.assignee_rows.map((a) => a.user_id);
   const addable = members.filter((m) => !assigneeIds.includes(m.user_id)).map((m) => ({ value: m.user_id, label: m.name, avatar: m.avatar_url ?? "", hint: m.code }));
   const team = t.assignee_rows.map((a) => ({ value: a.user_id, label: a.name, avatar: a.avatar_url ?? "" }));
@@ -139,6 +181,7 @@ function Overview({ t, members, projects, refresh }: { t: CompanyTaskDetail; mem
         <Input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} aria-label="Task title"
           onBlur={() => { if (title.trim() && title.trim() !== t.title) u.mutate({ id: t.id, title: title.trim() }); }} className={`${FIELD} text-[14px]`} />
       )}
+      <Ownership t={t} />
       <div className="divide-y divide-border/60 rounded-xl border border-border bg-card px-3.5 py-1">
         <Row label="Assignees">
           <div className="flex flex-wrap items-center gap-1.5">
@@ -148,7 +191,7 @@ function Overview({ t, members, projects, refresh }: { t: CompanyTaskDetail; mem
                   className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 py-0.5 pl-0.5 pr-2 text-[12px] font-bold">
                   <PersonAvatar name={a.name} src={a.avatar_url} size={20} />{a.name}
                   <span className="font-mono text-[10px] font-semibold uppercase text-muted-foreground">{a.status}</span>
-                  {edit && <button type="button" aria-label={`Remove ${a.name}`} onClick={() => asg.mutate(assigneeIds.filter((x) => x !== a.user_id))}><X className="size-3 text-muted-foreground hover:text-foreground" /></button>}
+                  {edit && <button type="button" aria-label={`Remove ${a.name}`} onClick={async () => { if (await confirm({ tone: "danger", title: `Remove ${a.name} from this task?`, subject: "Their subtasks and assets become unassigned.", confirmLabel: "Remove" })) asg.mutate(assigneeIds.filter((x) => x !== a.user_id)); }}><X className="size-3 text-muted-foreground hover:text-foreground" /></button>}
                 </motion.span>
               ))}
             </AnimatePresence>
@@ -190,13 +233,31 @@ function Overview({ t, members, projects, refresh }: { t: CompanyTaskDetail; mem
         {t.approved_by_person && <Row label="Approved by"><span className="inline-flex items-center gap-1.5 text-[12.5px] font-bold"><PersonAvatar name={t.approved_by_person.name} src={t.approved_by_person.avatar_url} size={20} />{t.approved_by_person.name} · {fmtDateTime(t.approved_at!)}</span></Row>}
       </div>
 
-      {work && !edit && (
-        <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/30 p-3">
-          <span className="text-[12.5px] font-bold">My progress</span>
-          <div className="ml-auto flex gap-1.5">
-            <Button size="sm" variant="outline" disabled={mine.isPending} onClick={() => mine.mutate("todo")} className="h-8 rounded-md">Not started</Button>
-            <Button size="sm" disabled={mine.isPending} onClick={() => mine.mutate("doing")} className="h-8 rounded-md">Working on it</Button>
+      {work && meRow && (
+        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+          <div className="flex items-center gap-2">
+            <Sparkles className="size-4 text-brand" /><span className="text-[13px] font-extrabold">My progress</span>
+            <div className="ml-auto inline-flex rounded-lg border border-border bg-muted/50 p-0.5">
+              {([["todo", "Not started", RotateCcw], ["doing", "Working on it", Play]] as const).map(([k, label, Icon]) => {
+                const on = meRow.status === k || (k === "doing" && meRow.status === "revision");
+                const locked = meRow.status === "submitted" || meRow.status === "approved";
+                return (
+                  <button key={k} type="button" disabled={mine.isPending || on || locked} aria-pressed={on}
+                    onClick={async () => {
+                      const ok = await confirm({ tone: k === "doing" ? "info" : "warning", icon: Icon, title: k === "doing" ? "Start working on this task?" : "Mark as not started?",
+                        subject: k === "doing" ? "Your status changes to Doing and the team sees you are on it." : "Your status goes back to To do.", confirmLabel: label });
+                      if (ok) mine.mutate(k);
+                    }}
+                    className={cn("relative inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-[12px] font-bold transition-colors disabled:cursor-default", on ? "text-foreground" : "text-muted-foreground hover:text-foreground", locked && !on && "opacity-50")}>
+                    {on && <motion.span layoutId="my-progress-pill" className="absolute inset-0 rounded-md bg-card shadow-sm ring-1 ring-border" transition={spring} />}
+                    <span className="relative inline-flex items-center gap-1.5">{mine.isPending && mine.variables === k ? <TestLoader /> : <Icon className={cn("size-3.5", on && "text-brand")} />}{label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
+          <div className="mt-4"><JourneyBar status={meRow.status} /></div>
+          {(meRow.status === "submitted" || meRow.status === "approved") && <p className="mt-2 text-[11.5px] font-semibold text-muted-foreground">{meRow.status === "approved" ? "Your work is approved." : "Your work is waiting for review."}</p>}
         </div>
       )}
 
@@ -206,7 +267,7 @@ function Overview({ t, members, projects, refresh }: { t: CompanyTaskDetail; mem
           <textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={4} aria-label="Description"
             onBlur={() => { if (desc !== (t.description ?? "")) u.mutate({ id: t.id, description: desc }); }} className={`mt-1.5 ${AREA}`} />
         ) : (
-          <p className="mt-1.5 whitespace-pre-wrap rounded-lg border border-border bg-muted/30 px-3 py-2 text-[13px] leading-relaxed">{t.description || "—"}</p>
+          <blockquote className="mt-2 whitespace-pre-wrap border-l-[3px] border-brand pl-4 text-[14.5px] font-bold leading-relaxed tracking-tight text-foreground">{t.description || <span className="font-semibold text-muted-foreground">No description.</span>}</blockquote>
         )}
       </section>
 
@@ -215,21 +276,23 @@ function Overview({ t, members, projects, refresh }: { t: CompanyTaskDetail; mem
         {t.subtasks_total > 0 && <div className="mt-2"><SegmentedProgress done={t.subtasks_done} total={t.subtasks_total} /></div>}
         <ul className="mt-2 space-y-1.5">
           <AnimatePresence initial={false}>
-            {t.subtasks.map((s) => {
+            {[...t.subtasks].sort((a, b) => Number(b.assignee_id === t.me) - Number(a.assignee_id === t.me)).map((s) => {
               const who = P(s.assignee_id);
+              const isMine = s.assignee_id === t.me;
               return (
                 <motion.li key={s.id} layout initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, height: 0 }} transition={spring}
-                  className="flex items-center gap-2 rounded-lg border border-border bg-card px-2.5 py-1.5">
+                  className={cn("flex items-center gap-2 rounded-lg border px-2.5 py-1.5", isMine ? "border-brand/50 bg-brand/5 shadow-sm" : "border-border bg-card")}>
                   <motion.button type="button" whileTap={{ scale: 0.85 }} disabled={!work || subU.isPending} aria-label={s.done ? "Mark not done" : "Mark done"}
                     onClick={() => subU.mutate({ id: s.id, done: !s.done })}
                     className={cn("grid size-4.5 shrink-0 place-items-center rounded border transition-colors", s.done ? "border-brand bg-brand text-white" : "border-border bg-card", !work && "cursor-default")}>
                     {s.done && <Check className="size-3" />}
                   </motion.button>
                   <span className={cn("min-w-0 flex-1 truncate text-[12.5px] font-semibold transition-colors", s.done && "text-muted-foreground line-through")}>{s.title}</span>
+                  {isMine && <span className="shrink-0 rounded bg-brand px-1.5 py-0.5 text-[9.5px] font-extrabold uppercase tracking-wider text-primary-foreground">Mine</span>}
                   {edit ? (
                     <div className="w-36 shrink-0"><SearchableSelect clearable searchable={false} items={team} value={s.assignee_id ?? ""} onChange={(v) => subU.mutate({ id: s.id, assignee_id: v || null })} placeholder="Anyone" emptyText="No assignees" /></div>
                   ) : who ? <PersonAvatar name={who.name} src={who.avatar_url} size={20} /> : null}
-                  {edit && <button type="button" aria-label="Remove subtask" onClick={() => subU.mutate({ id: s.id, remove: true })}><Trash2 className="size-3.5 text-muted-foreground hover:text-destructive" /></button>}
+                  {edit && <button type="button" aria-label="Remove subtask" onClick={async () => { if (await confirm({ tone: "danger", title: "Remove this subtask?", subject: s.title, confirmLabel: "Remove" })) subU.mutate({ id: s.id, remove: true }); }}><Trash2 className="size-3.5 text-muted-foreground hover:text-destructive" /></button>}
                 </motion.li>
               );
             })}
@@ -247,25 +310,31 @@ function Overview({ t, members, projects, refresh }: { t: CompanyTaskDetail; mem
       <section>
         <div className="flex items-center gap-1.5"><Link2 className="size-4 text-muted-foreground" /><span className={LABEL}>Assets & references</span><span className="ml-auto font-mono text-[11px] text-muted-foreground">{t.asset_rows.length}/{MAX_TASK_ASSETS}</span></div>
         <ul className="mt-2 space-y-1.5">
-          {t.asset_rows.map((a, i) => {
+          {[...t.asset_rows].sort((a, b) => Number(b.assignee_id === t.me) - Number(a.assignee_id === t.me)).map((a) => {
+            const i = t.asset_rows.indexOf(a);
             const who = P(a.assignee_id);
+            const isMine = a.assignee_id === t.me;
+            const isRef = a.kind === "reference";
             const subs = t.submissions.filter((s) => s.asset_id === a.id);
             const latest = subs[0];
             const canSend = work && (edit || !a.assignee_id || a.assignee_id === t.me);
             return (
-              <li key={a.id} className="rounded-lg border border-border bg-card px-2.5 py-2">
+              <li key={a.id} className={cn("rounded-lg border px-2.5 py-2", isMine ? "border-brand/50 bg-brand/5 shadow-sm" : "border-border bg-card")}>
                 <div className="flex items-center gap-2">
-                  <span className="grid size-7 shrink-0 place-items-center rounded-md bg-muted font-mono text-[10.5px] font-bold text-muted-foreground">{i + 1}</span>
+                  <span className={cn("grid size-8 shrink-0 place-items-center rounded-md", isRef ? "bg-status-contacted/10 text-status-contacted" : "bg-brand/10 text-brand")}>{isRef ? <BookOpen className="size-4" /> : <Package className="size-4" />}</span>
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-[12.5px] font-bold">{a.title || `Asset ${i + 1}`}</div>
-                    <a href={a.url} target="_blank" rel="noreferrer" className="inline-flex max-w-full items-center gap-1 truncate font-mono text-[11px] text-muted-foreground hover:text-brand">{a.url}<ExternalLink className="size-3 shrink-0" /></a>
+                    <div className="flex items-center gap-1.5"><span className="truncate text-[12.5px] font-bold">{a.title || `${isRef ? "Reference" : "Asset"} ${i + 1}`}</span>
+                      {isMine && <span className="shrink-0 rounded bg-brand px-1.5 py-0.5 text-[9.5px] font-extrabold uppercase tracking-wider text-primary-foreground">Mine</span>}</div>
+                    {edit ? <AssetKindToggle value={a.kind} onChange={(k) => k !== a.kind && assetU.mutate({ id: a.id, kind: k })} className="mt-1" />
+                      : <span className={cn("mt-0.5 inline-block text-[10px] font-extrabold uppercase tracking-wider", isRef ? "text-status-contacted" : "text-brand")}>{isRef ? "Reference" : "Asset"}</span>}
                   </div>
                   {latest && <span className={cn("rounded border px-1.5 py-0.5 text-[10px] font-bold uppercase", latest.status === "approved" ? "border-status-converted/40 text-status-converted" : latest.status === "revision" ? "border-destructive/40 text-destructive" : "border-border text-muted-foreground")}>{latest.status === "pending" ? "In review" : latest.status}</span>}
                   {edit ? (
                     <div className="w-36 shrink-0"><SearchableSelect clearable searchable={false} items={team} value={a.assignee_id ?? ""} onChange={(v) => assetU.mutate({ id: a.id, assignee_id: v || null })} placeholder="Anyone" emptyText="No assignees" /></div>
                   ) : who ? <span className="inline-flex items-center gap-1 text-[11.5px] font-bold"><PersonAvatar name={who.name} src={who.avatar_url} size={18} />{who.name.split(" ")[0]}</span> : null}
-                  {canSend && <Button size="sm" variant="outline" onClick={() => { setOpenAsset(openAsset === a.id ? null : a.id); setAssetLink(""); setAssetNote(""); }} className="h-7 gap-1 rounded-md px-2 text-[11.5px]"><Send className="size-3" />Submit</Button>}
-                  {edit && <button type="button" aria-label="Remove asset" onClick={() => assetU.mutate({ id: a.id, remove: true })}><Trash2 className="size-3.5 text-muted-foreground hover:text-destructive" /></button>}
+                  <Button asChild size="sm" variant="outline" className="h-7 gap-1 rounded-md px-2 text-[11.5px]"><a href={a.url} target="_blank" rel="noreferrer" title={a.url}><ExternalLink className="size-3" />Open</a></Button>
+                  {canSend && !isRef && <Button size="sm" variant="outline" onClick={() => { setOpenAsset(openAsset === a.id ? null : a.id); setAssetLink(""); setAssetNote(""); }} className="h-7 gap-1 rounded-md px-2 text-[11.5px]"><Send className="size-3" />Submit</Button>}
+                  {edit && <button type="button" aria-label="Remove asset" onClick={async () => { if (await confirm({ tone: "danger", title: "Remove this link?", subject: a.title || a.url, confirmLabel: "Remove" })) assetU.mutate({ id: a.id, remove: true }); }}><Trash2 className="size-3.5 text-muted-foreground hover:text-destructive" /></button>}
                 </div>
                 <AnimatePresence initial={false}>
                   {openAsset === a.id && (
@@ -287,7 +356,7 @@ function Overview({ t, members, projects, refresh }: { t: CompanyTaskDetail; mem
         {edit && t.asset_rows.length < MAX_TASK_ASSETS && (
           <div className="mt-2 space-y-2">
             <textarea value={links} onChange={(e) => setLinks(e.target.value)} rows={2} aria-label="Paste links" placeholder="Paste links, one per line" className={`${AREA} font-mono text-[12px]`} />
-            <div className="flex justify-end"><Button size="sm" variant="outline" disabled={assets.isPending || !links.trim()} onClick={() => {
+            <div className="flex items-center justify-between gap-2"><AssetKindToggle value={linkKind} onChange={setLinkKind} /><Button size="sm" variant="outline" disabled={assets.isPending || !links.trim()} onClick={() => {
               const urls = parseAssetLinks(links).filter((x) => !t.asset_rows.some((a) => a.url === x)).slice(0, MAX_TASK_ASSETS - t.asset_rows.length);
               if (!urls.length) return toast.error("Paste one or more http(s) links");
               assets.mutate(urls, { onSuccess: () => setLinks("") });

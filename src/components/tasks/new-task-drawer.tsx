@@ -15,7 +15,7 @@ import { DrawerStepper, ExpenseDrawerContent, ExpenseDrawerHeader } from "@/comp
 import { SearchableSelect } from "@/components/finance/searchable-select";
 import { createCompanyTask, type TaskMember } from "@/lib/company-tasks.functions";
 import { MAX_TASK_ASSETS, MAX_TASK_TAGS, TASK_PRIORITIES, TASK_STATUSES, parseAssetLinks, type CompanyTaskStatus } from "@/lib/company-task-rules";
-import { AREA, FIELD, LABEL, PersonAvatar, spring } from "./task-ui";
+import { AREA, FIELD, LABEL, AssetKindToggle, PersonAvatar, spring } from "./task-ui";
 
 const STEPS = [
   { label: "Basics", hint: "what, when and priority" },
@@ -25,7 +25,7 @@ const STEPS = [
 
 type Draft = {
   title: string; priority: string; status: CompanyTaskStatus; due_on: string; due_time: string; project_id: string; tags: string[];
-  description: string; assignees: string[]; subtasks: { title: string; assignee_id: string }[]; assets: { url: string; title: string; assignee_id: string }[];
+  description: string; assignees: string[]; subtasks: { title: string; assignee_id: string }[]; assets: { url: string; title: string; assignee_id: string; kind: "asset" | "reference" }[];
 };
 const empty = (status: CompanyTaskStatus): Draft => ({ title: "", priority: "normal", status, due_on: "", due_time: "", project_id: "", tags: [], description: "", assignees: [], subtasks: [], assets: [] });
 
@@ -73,7 +73,7 @@ export function NewTaskDrawer({ open, onOpenChange, workspace, companyName, memb
     const room = MAX_TASK_ASSETS - d.assets.length;
     if (!urls.length) return toast.error("Paste one or more http(s) links");
     if (urls.length > room) toast.error(`Only ${room} more link${room === 1 ? "" : "s"} fit (max ${MAX_TASK_ASSETS}).`);
-    setD({ ...d, assets: [...d.assets, ...urls.slice(0, room).map((url) => ({ url, title: "", assignee_id: "" }))] });
+    setD({ ...d, assets: [...d.assets, ...urls.slice(0, room).map((url) => ({ url, title: "", assignee_id: "", kind: "asset" as const }))] });
     setLinks("");
   };
   const removeAssignee = (u: string) => setD({
@@ -90,7 +90,7 @@ export function NewTaskDrawer({ open, onOpenChange, workspace, companyName, memb
       workspace, title: d.title.trim(), description: d.description || null, priority: d.priority as "normal", status: d.status,
       due_on: d.due_on || null, due_time: d.due_on && d.due_time ? d.due_time : null, tags: d.tags, project_id: d.project_id || null, assignees: d.assignees,
       subtasks: d.subtasks.map((s) => ({ title: s.title, assignee_id: s.assignee_id || null })),
-      assets: d.assets.map((a) => ({ url: a.url, title: a.title || null, assignee_id: a.assignee_id || null })),
+      assets: d.assets.map((a) => ({ kind: a.kind, url: a.url, title: a.title || null, assignee_id: a.assignee_id || null })),
     } }),
     onSuccess: (r) => {
       toast.success(mode === "draft" ? "Draft saved" : mode === "scheduled" ? "Task scheduled" : "Task created");
@@ -224,7 +224,7 @@ export function NewTaskDrawer({ open, onOpenChange, workspace, companyName, memb
                           <div className="min-w-0">
                             <input value={a.title} onChange={(e) => setD({ ...d, assets: d.assets.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)) })} maxLength={200} aria-label="Asset name" placeholder={`Asset ${i + 1}`}
                               className="w-full bg-transparent text-[12.5px] font-bold outline-none" />
-                            <a href={a.url} target="_blank" rel="noreferrer" className="block truncate font-mono text-[11px] text-muted-foreground hover:text-brand">{a.url}</a>
+                            <AssetKindToggle value={a.kind} onChange={(k) => setD({ ...d, assets: d.assets.map((x, j) => (j === i ? { ...x, kind: k } : x)) })} className="mt-1" />
                           </div>
                           <div className="col-span-2 sm:col-span-1"><SearchableSelect clearable searchable={false} items={teamItems} value={a.assignee_id} onChange={(v) => setD({ ...d, assets: d.assets.map((x, j) => (j === i ? { ...x, assignee_id: v } : x)) })} placeholder="Anyone" emptyText="Add assignees first" /></div>
                           <button type="button" aria-label="Remove link" onClick={() => setD({ ...d, assets: d.assets.filter((_, j) => j !== i) })} className="row-start-1 col-start-2 sm:col-start-3"><X className="size-3.5 text-muted-foreground hover:text-foreground" /></button>

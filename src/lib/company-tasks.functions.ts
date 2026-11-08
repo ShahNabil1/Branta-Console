@@ -17,7 +17,8 @@ const Status = z.enum(["todo", "doing", "in_review", "done"]);
 const Priority = z.enum(["low", "normal", "high", "urgent"]);
 const PublishState = z.enum(["draft", "scheduled", "live"]);
 const Url = z.string().trim().url().max(2000).refine((u) => /^https?:\/\//i.test(u), "Use an http(s) link.");
-const AssetIn = z.object({ title: z.string().trim().max(200).optional().nullable(), url: Url, assignee_id: Id.optional().nullable() });
+const AssetKind = z.enum(["asset", "reference"]);
+const AssetIn = z.object({ kind: AssetKind.default("asset"), title: z.string().trim().max(200).optional().nullable(), url: Url, assignee_id: Id.optional().nullable() });
 const SubtaskIn = z.object({ title: z.string().trim().min(1).max(300), assignee_id: Id.optional().nullable() });
 
 export type TaskMember = { user_id: string; name: string; avatar_url: string | null; code: string | null };
@@ -33,7 +34,7 @@ export type CompanyTaskDetail = CompanyTaskCard & {
   created_by_person: TaskPerson | null; approved_by_person: TaskPerson | null;
   assignee_rows: (TaskPerson & { status: string })[];
   subtasks: { id: string; title: string; assignee_id: string | null; done: boolean; done_by: string | null; done_at: string | null; position: number }[];
-  asset_rows: { id: string; title: string | null; url: string; assignee_id: string | null; position: number }[];
+  asset_rows: { id: string; kind: "asset" | "reference"; title: string | null; url: string; assignee_id: string | null; position: number }[];
   submissions: { id: string; user_id: string; asset_id: string | null; link: string | null; note: string | null; status: string; review_note: string | null; reviewed_by: string | null; reviewed_at: string | null; created_at: string }[];
   comment_rows: { id: string; user_id: string; body: string; created_at: string }[];
   activity: { id: string; actor_id: string; kind: string; detail: Record<string, string | number | boolean | null | string[]>; created_at: string }[];
@@ -149,7 +150,7 @@ export const getCompanyTask = createServerFn({ method: "POST" })
     const [asg, subs, assets, sub, com, act, manage, proj] = await Promise.all([
       sb.from("company_task_assignees").select("user_id, status").eq("task_id", t.id),
       sb.from("company_task_subtasks").select("id, title, assignee_id, done, done_by, done_at, position").eq("task_id", t.id).order("position"),
-      sb.from("company_task_assets").select("id, title, url, assignee_id, position").eq("task_id", t.id).order("position"),
+      sb.from("company_task_assets").select("id, kind, title, url, assignee_id, position").eq("task_id", t.id).order("position"),
       sb.from("company_task_submissions").select("*").eq("task_id", t.id).order("created_at", { ascending: false }),
       sb.from("company_task_comments").select("id, user_id, body, created_at").eq("task_id", t.id).order("created_at"),
       sb.from("company_task_activity").select("id, actor_id, kind, detail, created_at").eq("task_id", t.id).order("created_at", { ascending: false }).limit(300),
@@ -220,7 +221,7 @@ export const createCompanyTask = createServerFn({ method: "POST" })
         if (r.error) throw dbError(r.error);
       }
       if (data.assets.length) {
-        const r = await sb.from("company_task_assets").insert(data.assets.map((a, i) => ({ task_id: t.id, title: a.title?.trim() || null, url: a.url, assignee_id: a.assignee_id || null, position: i, created_by: context.userId })));
+        const r = await sb.from("company_task_assets").insert(data.assets.map((a, i) => ({ task_id: t.id, kind: a.kind, title: a.title?.trim() || null, url: a.url, assignee_id: a.assignee_id || null, position: i, created_by: context.userId })));
         if (r.error) throw dbError(r.error);
       }
     } catch (e) {
@@ -396,7 +397,7 @@ export const addCompanyTaskAssets = createServerFn({ method: "POST" })
     await assertManage(sb, context.userId, await taskCompany(sb, data.taskId));
     const { count } = await sb.from("company_task_assets").select("id", { count: "exact", head: true }).eq("task_id", data.taskId);
     if ((count ?? 0) + data.assets.length > MAX_TASK_ASSETS) throw new Error(`A task can hold at most ${MAX_TASK_ASSETS} assets.`);
-    const { error } = await sb.from("company_task_assets").insert(data.assets.map((a, i) => ({ task_id: data.taskId, title: a.title?.trim() || null, url: a.url, assignee_id: a.assignee_id || null, position: (count ?? 0) + i, created_by: context.userId })));
+    const { error } = await sb.from("company_task_assets").insert(data.assets.map((a, i) => ({ task_id: data.taskId, kind: a.kind, title: a.title?.trim() || null, url: a.url, assignee_id: a.assignee_id || null, position: (count ?? 0) + i, created_by: context.userId })));
     if (error) throw dbError(error);
     await log(sb, context.userId, data.taskId, "assets_added", { count: data.assets.length });
     return { ok: true };
@@ -404,7 +405,7 @@ export const addCompanyTaskAssets = createServerFn({ method: "POST" })
 
 export const updateCompanyTaskAsset = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ id: Id, assignee_id: Id.optional().nullable(), title: z.string().trim().max(200).optional().nullable(), remove: z.boolean().optional() }).parse(d))
+  .inputValidator((d) => z.object({ id: Id, assignee_id: Id.optional().nullable(), title: z.string().trim().max(200).optional().nullable(), kind: AssetKind.optional(), remove: z.boolean().optional() }).parse(d))
   .handler(async ({ data, context }) => {
     const sb = context.supabase as Sb;
     const { data: a, error } = await sb.from("company_task_assets").select("task_id, url").eq("id", data.id).maybeSingle();
@@ -419,6 +420,7 @@ export const updateCompanyTaskAsset = createServerFn({ method: "POST" })
     const patch: Record<string, unknown> = {};
     if (data.assignee_id !== undefined) patch.assignee_id = data.assignee_id;
     if (data.title !== undefined) patch.title = data.title || null;
+    if (data.kind !== undefined) patch.kind = data.kind;
     const r = await sb.from("company_task_assets").update(patch).eq("id", data.id); if (r.error) throw dbError(r.error);
     await log(sb, context.userId, a.task_id, "asset_updated", { url: a.url, assignee_id: data.assignee_id });
     return { ok: true };

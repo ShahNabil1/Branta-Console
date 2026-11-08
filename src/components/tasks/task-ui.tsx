@@ -1,7 +1,7 @@
 // Small shared pieces for Company Tasks (board cards + drawers).
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Flag } from "lucide-react";
+import { BookOpen, Flag, Package } from "lucide-react";
 import { priorityLabel, statusLabel } from "@/lib/company-task-rules";
 import { cn } from "@/lib/utils";
 
@@ -92,3 +92,52 @@ export const fmtDue = (d: string | null | undefined, t?: string | null) => {
   const hh = ((h + 11) % 12) + 1;
   return `${fmtDate(d)} · ${String(hh).padStart(2, "0")}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
 };
+
+export type AssetKind = "asset" | "reference";
+export const ASSET_KINDS: { key: AssetKind; label: string; icon: typeof Package }[] = [
+  { key: "asset", label: "Asset", icon: Package },
+  { key: "reference", label: "Reference", icon: BookOpen },
+];
+
+/** Two-option pill switch marking a link as a work asset or a reference. */
+export function AssetKindToggle({ value, onChange, className }: { value: AssetKind; onChange: (k: AssetKind) => void; className?: string }) {
+  return (
+    <div role="radiogroup" aria-label="Link type" className={cn("inline-flex rounded-md border border-border bg-muted/50 p-0.5", className)}>
+      {ASSET_KINDS.map((k) => {
+        const on = value === k.key;
+        return (
+          <button key={k.key} type="button" role="radio" aria-checked={on} onClick={() => onChange(k.key)}
+            className={cn("relative inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-bold transition-colors", on ? "text-foreground" : "text-muted-foreground hover:text-foreground")}>
+            {on && <motion.span layout className="absolute inset-0 rounded bg-card shadow-sm" transition={spring} />}
+            <k.icon className={cn("relative size-3", on && (k.key === "asset" ? "text-brand" : "text-status-contacted"))} /><span className="relative">{k.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+const STEP_KEYS = ["todo", "doing", "submitted", "approved"] as const;
+const STEP_LABEL: Record<string, string> = { todo: "To do", doing: "Doing", submitted: "Submitted", approved: "Approved", revision: "Revision" };
+
+/** Long animated progress bar for one assignee's journey: To do → Doing → Submitted → Approved. */
+export function JourneyBar({ status }: { status: string }) {
+  const idx = status === "revision" ? 1 : Math.max(0, STEP_KEYS.indexOf(status as (typeof STEP_KEYS)[number]));
+  const pct = [6, 38, 72, 100][idx];
+  const tone = status === "revision" ? "bg-destructive" : status === "approved" ? "bg-status-converted" : status === "submitted" ? "bg-status-contacted" : "bg-brand";
+  return (
+    <div>
+      <div className="relative h-2.5 overflow-hidden rounded-full bg-muted">
+        <motion.div className={cn("absolute inset-y-0 left-0 rounded-full", tone)} initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1] }} />
+        <motion.div className="absolute inset-y-0 w-16 bg-gradient-to-r from-transparent via-card/50 to-transparent" initial={{ left: "-15%" }} animate={{ left: `${pct}%` }} transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1] }} />
+      </div>
+      <div className="mt-1.5 grid grid-cols-4 text-[10.5px] font-bold uppercase tracking-wide">
+        {STEP_KEYS.map((k, i) => (
+          <span key={k} className={cn(i === 0 ? "text-left" : i === 3 ? "text-right" : "text-center", i <= idx ? "text-foreground" : "text-muted-foreground/60")}>
+            {status === "revision" && k === "doing" ? STEP_LABEL.revision : STEP_LABEL[k]}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}

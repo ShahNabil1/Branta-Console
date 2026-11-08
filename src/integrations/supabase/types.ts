@@ -1452,6 +1452,7 @@ export type Database = {
           created_at: string
           created_by: string
           id: string
+          kind: string
           position: number
           task_id: string
           title: string | null
@@ -1462,6 +1463,7 @@ export type Database = {
           created_at?: string
           created_by?: string
           id?: string
+          kind?: string
           position?: number
           task_id: string
           title?: string | null
@@ -1472,6 +1474,7 @@ export type Database = {
           created_at?: string
           created_by?: string
           id?: string
+          kind?: string
           position?: number
           task_id?: string
           title?: string | null
