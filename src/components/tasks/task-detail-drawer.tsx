@@ -22,10 +22,10 @@ import {
 } from "@/lib/company-tasks.functions";
 import { MAX_TASK_ASSETS, TASK_PRIORITIES, TASK_STATUSES, parseAssetLinks, statusLabel } from "@/lib/company-task-rules";
 import { cn } from "@/lib/utils";
-import { AREA, AvatarStack, FIELD, LABEL, PersonAvatar, PriorityBadge, SegmentedProgress, StatusChip, fmtDate, fmtDateTime, spring } from "./task-ui";
+import { AREA, AvatarStack, FIELD, LABEL, PersonAvatar, PriorityBadge, SegmentedProgress, StatusChip, fmtDateTime, fmtDue, spring } from "./task-ui";
 
 type Tab = "overview" | "submissions" | "comments" | "activity";
-type UpdPatch = { id: string; title?: string; description?: string | null; priority?: "low" | "normal" | "high" | "urgent"; status?: "todo" | "doing" | "in_review" | "done"; due_on?: string | null; tags?: string[]; project_id?: string | null };
+type UpdPatch = { id: string; title?: string; description?: string | null; priority?: "low" | "normal" | "high" | "urgent"; status?: "todo" | "doing" | "in_review" | "done"; due_on?: string | null; due_time?: string | null; tags?: string[]; project_id?: string | null };
 type SubPatch = { id: string; done?: boolean; title?: string; assignee_id?: string | null; remove?: boolean };
 type AssetPatch = { id: string; assignee_id?: string | null; title?: string | null; remove?: boolean };
 
@@ -157,8 +157,12 @@ function Overview({ t, members, projects, refresh }: { t: CompanyTaskDetail; mem
           </div>
         </Row>
         <Row label="Due date">
-          {edit ? <Input type="date" defaultValue={t.due_on ?? ""} onChange={(e) => u.mutate({ id: t.id, due_on: e.target.value || null })} className={`${FIELD} h-9 w-44`} />
-            : <span className="inline-flex items-center gap-1.5 font-mono text-[12.5px] font-bold"><CalendarDays className="size-3.5 text-muted-foreground" />{fmtDate(t.due_on)}</span>}
+          {edit ? (
+            <div className="flex gap-2">
+              <Input type="date" defaultValue={t.due_on ?? ""} aria-label="Due date" onChange={(e) => u.mutate({ id: t.id, due_on: e.target.value || null, ...(e.target.value ? {} : { due_time: null }) })} className={`${FIELD} h-9 w-44`} />
+              <Input type="time" defaultValue={t.due_time?.slice(0, 5) ?? ""} aria-label="Due time" disabled={!t.due_on} onBlur={(e) => { const v = e.target.value || null; if (v !== (t.due_time?.slice(0, 5) ?? null)) u.mutate({ id: t.id, due_time: v }); }} className={`${FIELD} h-9 w-32 font-mono`} />
+            </div>
+          ) : <span className="inline-flex items-center gap-1.5 font-mono text-[12.5px] font-bold"><CalendarDays className="size-3.5 text-muted-foreground" />{fmtDue(t.due_on, t.due_time)}</span>}
         </Row>
         <Row label="Status">
           {edit ? <div className="w-44"><SearchableSelect searchable={false} items={TASK_STATUSES.map((s) => ({ value: s.key, label: s.label }))} value={t.status} onChange={(v) => v && v !== t.status && u.mutate({ id: t.id, status: v as "todo" })} /></div> : <StatusChip value={t.status} />}

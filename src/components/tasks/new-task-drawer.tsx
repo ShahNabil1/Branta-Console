@@ -24,10 +24,10 @@ const STEPS = [
 ] as const;
 
 type Draft = {
-  title: string; priority: string; status: CompanyTaskStatus; due_on: string; project_id: string; tags: string[];
+  title: string; priority: string; status: CompanyTaskStatus; due_on: string; due_time: string; project_id: string; tags: string[];
   description: string; assignees: string[]; subtasks: { title: string; assignee_id: string }[]; assets: { url: string; title: string; assignee_id: string }[];
 };
-const empty = (status: CompanyTaskStatus): Draft => ({ title: "", priority: "normal", status, due_on: "", project_id: "", tags: [], description: "", assignees: [], subtasks: [], assets: [] });
+const empty = (status: CompanyTaskStatus): Draft => ({ title: "", priority: "normal", status, due_on: "", due_time: "", project_id: "", tags: [], description: "", assignees: [], subtasks: [], assets: [] });
 
 export function NewTaskDrawer({ open, onOpenChange, workspace, companyName, members, projects, me, initialStatus = "todo", onCreated }: {
   open: boolean; onOpenChange: (v: boolean) => void; workspace: string | null; companyName: string;
@@ -83,7 +83,7 @@ export function NewTaskDrawer({ open, onOpenChange, workspace, companyName, memb
   const save = useMutation({
     mutationFn: () => create({ data: {
       workspace, title: d.title.trim(), description: d.description || null, priority: d.priority as "normal", status: d.status,
-      due_on: d.due_on || null, tags: d.tags, project_id: d.project_id || null, assignees: d.assignees,
+      due_on: d.due_on || null, due_time: d.due_on && d.due_time ? d.due_time : null, tags: d.tags, project_id: d.project_id || null, assignees: d.assignees,
       subtasks: d.subtasks.map((s) => ({ title: s.title, assignee_id: s.assignee_id || null })),
       assets: d.assets.map((a) => ({ url: a.url, title: a.title || null, assignee_id: a.assignee_id || null })),
     } }),
@@ -129,8 +129,11 @@ export function NewTaskDrawer({ open, onOpenChange, workspace, companyName, memb
                 </div>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
-                    <label className={LABEL}>Due date</label>
-                    <Input type="date" value={d.due_on} onChange={(e) => setD({ ...d, due_on: e.target.value })} className={`mt-1.5 ${FIELD}`} />
+                    <label className={LABEL}>Due date & time</label>
+                    <div className="mt-1.5 grid grid-cols-[1fr_7.5rem] gap-2">
+                      <Input type="date" value={d.due_on} onChange={(e) => setD({ ...d, due_on: e.target.value, due_time: e.target.value ? d.due_time : "" })} className={FIELD} aria-label="Due date" />
+                      <Input type="time" value={d.due_time} disabled={!d.due_on} onChange={(e) => setD({ ...d, due_time: e.target.value })} className={`${FIELD} font-mono`} aria-label="Due time" />
+                    </div>
                   </div>
                   <div>
                     <label className={LABEL}>Project (optional)</label>

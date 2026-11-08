@@ -1662,6 +1662,7 @@ export type Database = {
           created_by: string
           description: string | null
           due_on: string | null
+          due_time: string | null
           id: string
           position: number
           priority: string
@@ -1680,6 +1681,7 @@ export type Database = {
           created_by?: string
           description?: string | null
           due_on?: string | null
+          due_time?: string | null
           id?: string
           position?: number
           priority?: string
@@ -1698,6 +1700,7 @@ export type Database = {
           created_by?: string
           description?: string | null
           due_on?: string | null
+          due_time?: string | null
           id?: string
           position?: number
           priority?: string

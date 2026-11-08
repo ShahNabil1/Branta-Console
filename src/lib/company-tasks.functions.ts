@@ -23,7 +23,7 @@ export type TaskMember = { user_id: string; name: string; avatar_url: string | n
 export type TaskPerson = { user_id: string; name: string; avatar_url: string | null };
 export type CompanyTaskCard = {
   id: string; title: string; description: string | null; priority: string; status: string;
-  due_on: string | null; tags: string[]; project_id: string | null; project_title: string | null;
+  due_on: string | null; due_time: string | null; tags: string[]; project_id: string | null; project_title: string | null;
   created_by: string; created_at: string; approved_at: string | null;
   assignees: TaskPerson[]; subtasks_done: number; subtasks_total: number; comments: number; assets: number;
 };
@@ -101,7 +101,7 @@ export const listCompanyTasks = createServerFn({ method: "POST" })
     ]);
     if (!canView) throw new Error("You don't have access to this company's tasks.");
     const { data: tasks, error } = await sb.from("company_tasks")
-      .select("id, title, description, priority, status, due_on, tags, project_id, created_by, created_at, approved_at, position")
+      .select("id, title, description, priority, status, due_on, due_time, tags, project_id, created_by, created_at, approved_at, position")
       .eq("company_id", co.id).is("archived_at", null).order("position", { ascending: false }).limit(1000);
     if (error) throw dbError(error);
     const ids = (tasks ?? []).map((t: { id: string }) => t.id);
@@ -182,6 +182,7 @@ export const createCompanyTask = createServerFn({ method: "POST" })
     priority: Priority.default("normal"),
     status: Status.default("todo"),
     due_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+    due_time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/).optional().nullable(),
     tags: z.array(z.string().trim().min(1).max(40)).max(MAX_TASK_TAGS).default([]),
     project_id: Id.optional().nullable(),
     assignees: z.array(Id).max(50).default([]),
@@ -198,7 +199,7 @@ export const createCompanyTask = createServerFn({ method: "POST" })
       throw new Error("Subtasks and assets can only be marked for this task's assignees.");
     const { data: t, error } = await sb.from("company_tasks").insert({
       company_id: co.id, title: data.title, description: data.description?.trim() || null, priority: data.priority,
-      status: data.status, due_on: data.due_on || null, tags: [...new Set(data.tags)], project_id: data.project_id || null, created_by: context.userId,
+      status: data.status, due_on: data.due_on || null, due_time: data.due_on ? data.due_time || null : null, tags: [...new Set(data.tags)], project_id: data.project_id || null, created_by: context.userId,
     }).select("id").single();
     if (error) throw dbError(error);
     try {
@@ -232,6 +233,7 @@ export const updateCompanyTask = createServerFn({ method: "POST" })
     priority: Priority.optional(),
     status: Status.optional(),
     due_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+    due_time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/).optional().nullable(),
     tags: z.array(z.string().trim().min(1).max(40)).max(MAX_TASK_TAGS).optional(),
     project_id: Id.optional().nullable(),
   }).parse(d))

@@ -83,3 +83,12 @@ export const fmtDate = (d: string | null | undefined) =>
   d ? new Date(d.length === 10 ? `${d}T00:00:00` : d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 export const fmtDateTime = (d: string) =>
   new Date(d).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Dhaka" });
+
+/** "Due 09 Nov 2026 · 05:30 PM" style label; time optional (HH:MM[:SS]). */
+export const fmtDue = (d: string | null | undefined, t?: string | null) => {
+  if (!d) return "—";
+  if (!t) return fmtDate(d);
+  const [h, m] = t.split(":").map(Number);
+  const hh = ((h + 11) % 12) + 1;
+  return `${fmtDate(d)} · ${String(hh).padStart(2, "0")}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
+};

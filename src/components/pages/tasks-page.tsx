@@ -17,7 +17,7 @@ import { listCompanyTasks, type CompanyTaskCard } from "@/lib/company-tasks.func
 import { TASK_STATUSES, type CompanyTaskStatus } from "@/lib/company-task-rules";
 import { NewTaskDrawer } from "@/components/tasks/new-task-drawer";
 import { TaskDetailDrawer } from "@/components/tasks/task-detail-drawer";
-import { AvatarStack, PriorityBadge, SegmentedProgress, StatusDot, fmtDate, spring } from "@/components/tasks/task-ui";
+import { AvatarStack, PriorityBadge, SegmentedProgress, StatusDot, fmtDate, fmtDue, spring } from "@/components/tasks/task-ui";
 import { cn } from "@/lib/utils";
 
 type Filter = "all" | CompanyTaskStatus | "mine";
@@ -130,7 +130,7 @@ function TaskCard({ t, index, onOpen }: { t: CompanyTaskCard; index: number; onO
       whileHover={{ y: -2 }} whileTap={{ scale: 0.985 }}
       className="group block w-full rounded-lg border border-border bg-card text-left shadow-sm transition-shadow hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
       <div className="flex items-center gap-2 border-b border-border/70 px-3 py-2 text-[11.5px] font-semibold text-muted-foreground">
-        <CalendarDays className="size-3.5" />{t.due_on ? fmtDate(t.due_on) : fmtDate(t.created_at)}
+        <CalendarDays className="size-3.5" />{t.due_on ? fmtDue(t.due_on, t.due_time) : fmtDate(t.created_at)}
         <span className="ml-auto"><PriorityBadge value={t.priority} /></span>
       </div>
       <div className="px-3 pb-2 pt-2.5">
