@@ -28,6 +28,7 @@ import {
   FileStack,
   HandCoins,
   FolderKanban,
+  SquareCheckBig,
   PieChart,
   Gauge,
   Contact,
@@ -78,6 +79,7 @@ const NAV: NavGroup[] = [
       { label: "Overview", to: "/app", icon: LayoutDashboard, tone: "brand" },
       { label: "Today's Operations", to: "/app/operations", icon: RadioTower, tone: "rose" },
       { label: "Projects", to: "/app/projects", icon: FolderKanban, tone: "violet" },
+      { label: "Tasks", to: "/app/tasks", icon: SquareCheckBig, tone: "emerald" },
       { label: "Analytics", to: "/app/analytics", icon: PieChart, tone: "sky" },
     ],
   },
@@ -257,7 +259,7 @@ export function AppSidebar() {
     const isFinance = Boolean(perms.isFinance ?? isAdmin) || ceo || companyFinance;
     // In a sister workspace, Branta Finance staff (not admin/CEO) only see Customers + Finance.
     if (sister && !isAdmin && !ceo && (perms.isFinance || companyFinance)) {
-      return NAV.map((g) => g.label === "Finance" ? g : { ...g, items: g.items.filter((it) => it.to === "/app/customers") })
+      return NAV.map((g) => g.label === "Finance" ? g : { ...g, items: g.items.filter((it) => it.to === "/app/customers" || it.to === "/app/tasks") })
         // Finance has no static items (its links render per company), so keep it explicitly.
         .filter((g) => g.label === "Finance" || g.items.length > 0);
     }

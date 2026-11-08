@@ -7,7 +7,7 @@ import { companyIdentity } from "@/lib/company-identity";
 import { stripOrg } from "@/lib/org-path";
 
 // Group-wide pages stay reachable from every company workspace.
-const SHARED = ["/app/companies", "/app/employees", "/app/profile", "/app/settings", "/app/inbox", "/app/customers", "/app/finance/invoices", "/app/finance/expenses", "/app/finance/wallet", "/app/operations", "/app/projects", "/app/analytics", "/app/my-company"];
+const SHARED = ["/app/companies", "/app/employees", "/app/profile", "/app/settings", "/app/inbox", "/app/customers", "/app/finance/invoices", "/app/finance/expenses", "/app/finance/wallet", "/app/operations", "/app/projects", "/app/tasks", "/app/analytics", "/app/my-company"];
 
 /**
  * Existing modules hold Branta Tech (holding) data only, so a sister company's
