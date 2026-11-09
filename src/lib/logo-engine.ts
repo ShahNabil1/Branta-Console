@@ -249,20 +249,51 @@ export function findMark(d: Px, w: number, h: number, box: Box, min = 30): Box |
     return Mx < 0 ? null : { x: mx, y: my, w: Mx - mx + 1, h: My - my + 1 };
   };
   // The first gap must clearly dominate the letter spacing to count as the mark/name split.
-  const split = (prof: number[], extent: number): [number, number] | null => {
+  const split = (prof: number[], minGap: number, solo: number): [number, number] | null => {
     const r = runs(prof, 1);
     if (r.length < 2) return null;
     const gaps = r.slice(1).map((x, i) => x[0] - r[i][1] - 1);
     const rest = Math.max(0, ...gaps.slice(1));
-    if (gaps[0] < Math.max(4, extent * 0.08)) return null;
-    if (rest ? gaps[0] < rest * 1.8 : gaps[0] < extent * 0.25) return null;
+    if (gaps[0] < Math.max(4, minGap)) return null;
+    if (rest ? gaps[0] < rest * 1.8 : gaps[0] < solo) return null;
     return r[0];
   };
-  const c = split(col, box.h);
+  const c = split(col, box.h * 0.08, box.h * 0.25);
   if (c) return tighten(box.x + c[0], box.x + c[1], box.y, box.y + box.h - 1);
-  const v = split(row, box.w);
+  // Stacked logo (symbol above the name): a clear horizontal band of empty rows.
+  const v = split(row, box.h * 0.04, box.h * 0.04);
   if (v) return tighten(box.x, box.x + box.w - 1, box.y + v[0], box.y + v[1]);
   return null;
+}
+
+/** For a stacked logo (mark on top), returns the mark and the wordmark boxes; null otherwise. */
+export function stackedParts(d: Px, w: number, h: number, box: Box, min = 30): { mark: Box; text: Box } | null {
+  const mark = findMark(d, w, h, box, min);
+  if (!mark || mark.y + mark.h >= box.y + box.h - 1 || mark.w >= box.w * 0.98 && mark.h < box.h * 0.5) {
+    // Only a vertical split (mark spans the top band) counts as stacked.
+  }
+  if (!mark || mark.y !== box.y || mark.y + mark.h > box.y + box.h * 0.9) return null;
+  let mx = Infinity, my = Infinity, Mx = -1, My = -1;
+  for (let y = mark.y + mark.h; y < box.y + box.h; y++) for (let x = box.x; x < box.x + box.w; x++) if (d[(y * w + x) * 4 + 3] > min) {
+    if (x < mx) mx = x; if (x > Mx) Mx = x; if (y < my) my = y; if (y > My) My = y;
+  }
+  if (Mx < 0) return null;
+  const text = { x: mx, y: my, w: Mx - mx + 1, h: My - my + 1 };
+  // A side-by-side logo's mark also starts at box.y — require the name to sit fully below it.
+  if (text.y < mark.y + mark.h) return null;
+  return { mark, text };
+}
+
+/** Re-arranges a stacked logo to the system layout: mark left, wordmark right, vertically centred. */
+function restack(src: HTMLCanvasElement, p: { mark: Box; text: Box }): HTMLCanvasElement {
+  const gap = Math.round(p.mark.h * 0.25);
+  const W = p.mark.w + gap + p.text.w, H = Math.max(p.mark.h, p.text.h);
+  const c = document.createElement("canvas");
+  c.width = W; c.height = H;
+  const x = c.getContext("2d", { willReadFrequently: true })!;
+  x.drawImage(src, p.mark.x, p.mark.y, p.mark.w, p.mark.h, 0, Math.round((H - p.mark.h) / 2), p.mark.w, p.mark.h);
+  x.drawImage(src, p.text.x, p.text.y, p.text.w, p.text.h, p.mark.w + gap, Math.round((H - p.text.h) / 2), p.text.w, p.text.h);
+  return c;
 }
 
 export type IconResult = { blob: Blob; color: string | null; extracted: boolean; inverted: boolean };
