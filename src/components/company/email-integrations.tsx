@@ -3,6 +3,7 @@ import { TestLoader } from "@/components/ui/test-loader";
 import { WebhookFixButton } from "@/components/company/webhook-fix-button";
 import { fixBlocker } from "@/lib/fix-order";
 import { ProviderRepairDialog } from "@/components/company/provider-repair-dialog";
+import { DnsNameStatus, useDnsNameCheck } from "@/components/company/dns-name-check";
 import { repairProviderApi, repairProviderDomain } from "@/lib/company-provider-repair.functions";
 import { startResendConnect } from "@/lib/company-resend.functions";
 import { connectResendInPopup } from "@/lib/resend-connect-popup";
@@ -366,10 +367,13 @@ function ProviderPanel({
       setFixingKind(null);
     }
   };
+  const trackNeedsInput = p === "resend" && !!checks?.some((c) => c.kind === "tracking" && !c.ok && c.needsInput);
+  const trackName = useDnsNameCheck(slug, domain, trackNeedsInput ? sub : "");
   const fixTracking = async (needsInput?: boolean) => {
     if (fixingRef.current || busy) return;
     const v = sub.trim().toLowerCase();
     if (needsInput && !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(v)) { toast.error("Use letters, numbers and dashes only."); return; }
+    if (needsInput && !trackName.ready) return;
     fixingRef.current = true;
     setBusy("fix");
     setFixingKind("tracking");
@@ -596,7 +600,7 @@ function ProviderPanel({
                     const blocker = fixBlocker(c.kind, checks);
                     return (
                       <span title={blocker ?? undefined} className="ml-auto">
-                        <WebhookFixButton fixing={fixingKind === c.kind} disabled={locked || !!busy || !!blocker} onClick={() => {
+                        <WebhookFixButton fixing={fixingKind === c.kind} disabled={locked || !!busy || !!blocker || (c.kind === "tracking" && !!c.needsInput && !trackName.ready)} onClick={() => {
                           if (c.kind === "webhook") void fixWebhook();
                           else if (c.kind === "tracking") void fixTracking(c.needsInput);
                           else openRepair(c.kind as "api" | "domain");
@@ -613,6 +617,9 @@ function ProviderPanel({
                     <input value={sub} onChange={(e) => setSub(e.target.value)} aria-label="Tracking subdomain" className="h-full w-20 min-w-0 flex-1 bg-transparent px-2 text-[12px] font-semibold outline-none" />
                     <span className="truncate pr-2 font-mono text-[11px] text-muted-foreground">.{domain}</span>
                   </div>
+                )}
+                {c.kind === "tracking" && !c.ok && c.needsInput && (
+                  <DnsNameStatus className="relative mt-2" slug={slug} check={trackName.check} disabled={!!busy} onOverridden={() => fixTracking(true)} />
                 )}
               </div>
             );
