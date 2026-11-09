@@ -62,7 +62,7 @@ export function CompanySwitcher({ collapsed, canManage, holdingLogoUrl }: { coll
         >
           <span className={cn("min-w-0 flex-1", collapsed && "md:hidden")}>
             {logo ? (
-              <span className="block w-fit max-w-full rounded-sm bg-[var(--company-artwork-paper)] p-1"><img src={logo} alt={active.name} className="h-6 w-auto max-w-full object-contain" /></span>
+              <span className="block w-fit max-w-full rounded-sm bg-[var(--company-artwork-paper)] p-1"><img src={logo} alt={active.name} className="h-8 w-auto max-w-[170px] object-contain" /></span>
             ) : (
               <span className="flex items-center gap-2">
                 <CompanyAvatar name={active.name} slug={active.slug} className="size-6" />

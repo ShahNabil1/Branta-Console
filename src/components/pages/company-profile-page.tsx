@@ -127,7 +127,7 @@ export function CompanyProfile({ slug, mine = false }: { slug: string; mine?: bo
                     <img
                       src={identity.logo}
                       alt={c.name}
-                      className="h-8 w-auto max-w-full object-contain"
+                      className="h-11 w-auto max-w-[280px] object-contain"
                     />
                   </span>
                 ) : (
@@ -447,14 +447,15 @@ function InfoTab({ c, accent }: { c: Company; accent: string }) {
 
 function IdentitySection({ c, accent }: { c: Company; accent: string }) {
   const save = useSave(c.id);
+  const ident = companyIdentity(c.slug, c);
   const e = useEditable({
     name: c.name,
     tagline: c.tagline ?? "",
     company_type: c.company_type ?? "",
     industry: c.industry ?? "",
     founded_year: c.founded_year ?? null,
-    logo_url: c.logo_url ?? "",
-    brand_kit: { mark: c.brand_kit?.mark ?? null },
+    logo_url: ident.logo ?? "",
+    brand_kit: { mark: ident.icon ?? null, logo_inverse: ident.inverse ?? null },
   } as Patch);
   const f = e.form as Record<string, string | number | null>;
   const valid = String(f.name ?? "").trim().length >= 2;
@@ -538,8 +539,8 @@ function IdentitySection({ c, accent }: { c: Company; accent: string }) {
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
-          <View label="Company logo" value={c.logo_url ? <span className="inline-block rounded-sm bg-[var(--company-artwork-paper)] px-2 py-1"><img src={c.logo_url} alt={c.name} className="h-8 w-auto max-w-full object-contain" /></span> : null} />
-          <View label="Company icon" value={c.brand_kit?.mark ? <img src={c.brand_kit.mark} alt={`${c.name} icon`} className="size-10 rounded-md bg-[var(--company-artwork-paper)] object-contain ring-1 ring-border" /> : null} />
+          <View label="Company logo" value={ident.logo ? <span className="inline-block rounded-sm bg-[var(--company-artwork-paper)] px-2 py-1"><img src={ident.logo} alt={c.name} className="h-10 w-auto max-w-full object-contain" /></span> : null} />
+          <View label="Company icon" value={ident.icon ? <img src={ident.icon} alt={`${c.name} icon`} className="size-10 rounded-md bg-[var(--company-artwork-paper)] object-contain ring-1 ring-border" /> : null} />
           <View label="Company name" value={c.name} />
           <View label="Tagline" value={c.tagline} />
           <View label="Company type" value={c.company_type} />
