@@ -83,7 +83,7 @@ export function dematteDark(d: Px, bg: [number, number, number], ink: [number, n
     const k = dist(d, i, bg);
     const a = Math.min(1, Math.max(0, (k - 30) / 120));
     const mx = Math.max(d[i], d[i + 1], d[i + 2]), mn = Math.min(d[i], d[i + 1], d[i + 2]);
-    if (mx - mn < 40) { d[i] = ink[0]; d[i + 1] = ink[1]; d[i + 2] = ink[2]; }
+    if (mx - mn < 40 || (mn > 140 && (mx - mn) / mx < 0.35)) { d[i] = ink[0]; d[i + 1] = ink[1]; d[i + 2] = ink[2]; }
     else if (a > 0) {
       const f = 1 / Math.max(a, 0.3);
       for (let c = 0; c < 3; c++) d[i + c] = Math.max(0, Math.min(255, Math.round(bg[c] + (d[i + c] - bg[c]) * f)));
@@ -106,8 +106,7 @@ export function extractPalette(d: Px, max = 5): PaletteColor[] {
     if (d[i + 3] < 160) continue;
     const r = d[i], g = d[i + 1], b = d[i + 2];
     const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
-    if (mn > 235) continue; // white paper/highlights are not brand colours
-    const neutral = mx < 40 || mx - mn < 40;
+    const neutral = mx < 40 || mx - mn < 40 || (mn > 200 && (mx - mn) / mx < 0.2);
     const key = ((r >> 5) << 6) | ((g >> 5) << 3) | (b >> 5) | (neutral ? 512 : 0);
     const e = bins.get(key) ?? { n: 0, r: 0, g: 0, b: 0, neutral };
     e.n++; e.r += r; e.g += g; e.b += b; bins.set(key, e); total++;
@@ -218,6 +217,59 @@ export const FOOTER_H = 200;
 export type LogoStage = "read" | "background" | "crop" | "color" | "upload";
 export type LogoResult = { blob: Blob; color: string | null; palette: PaletteColor[]; removedBackground: boolean; inverted: boolean; restacked: boolean };
 
+/**
+ * Working scale: small/compressed sources are upscaled to ~2400px with high-quality smoothing
+ * (after a tiny de-block blur for JPEGs) so all masking happens at high resolution and the final
+ * PNG is a clean downscale instead of a blocky upscale.
+ */
+export function workScale(iw: number, ih: number) {
+  const m = Math.max(iw, ih);
+  return m >= 2400 ? 2400 / m : Math.min(4, 2400 / m);
+}
+
+function drawSource(img: HTMLImageElement, file: Blob, iw: number, ih: number) {
+  const s = workScale(iw, ih);
+  const w = Math.max(1, Math.round(iw * s)), h = Math.max(1, Math.round(ih * s));
+  const src = document.createElement("canvas");
+  src.width = w; src.height = h;
+  const ctx = src.getContext("2d", { willReadFrequently: true });
+  if (!ctx) throw new Error("Your browser blocked image processing.");
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  const lossy = /jpe?g|webp/i.test(file.type || "");
+  if (lossy && s > 1) ctx.filter = `blur(${Math.min(2.5, s * 0.45).toFixed(2)}px)`;
+  ctx.drawImage(img, 0, 0, w, h);
+  ctx.filter = "none";
+  return { src, ctx, w, h };
+}
+
+/**
+ * Footer logo: dark details enclosed by a light/coloured shape (e.g. a face inside a badge)
+ * become transparent cut-outs instead of turning white, so the design survives on dark footers (in place).
+ */
+export function punchEnclosedDark(d: Px, w: number, h: number) {
+  const n = w * h, light = new Uint8Array(n), out = new Uint8Array(n), q = new Int32Array(n);
+  for (let p = 0; p < n; p++) {
+    const i = p * 4;
+    if (d[i + 3] < 128) continue;
+    const r = d[i], g = d[i + 1], b = d[i + 2];
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+    if (0.299 * r + 0.587 * g + 0.114 * b >= 110 || (mx > 90 && mx - mn > 60)) light[p] = 1;
+  }
+  let head = 0, tail = 0;
+  const push = (p: number) => { if (!out[p] && !light[p]) { out[p] = 1; q[tail++] = p; } };
+  for (let x = 0; x < w; x++) { push(x); push((h - 1) * w + x); }
+  for (let y = 0; y < h; y++) { push(y * w); push(y * w + w - 1); }
+  while (head < tail) {
+    const p = q[head++], x = p % w;
+    if (x > 0) push(p - 1); if (x < w - 1) push(p + 1);
+    if (p >= w) push(p - w); if (p + w < n) push(p + w);
+  }
+  let punched = 0;
+  for (let p = 0; p < n; p++) if (!light[p] && !out[p] && d[p * 4 + 3]) { d[p * 4 + 3] = 0; punched++; }
+  return punched;
+}
+
 const tick = () => new Promise<void>((r) => setTimeout(r, 0));
 
 async function decode(file: File): Promise<HTMLImageElement> {
@@ -241,20 +293,18 @@ export async function processLogo(file: File | Blob, onStage: (s: LogoStage, p: 
   const img = await decode(file as File); check();
   // SVGs without intrinsic size decode as 0×0 → give them a sensible raster size.
   const iw = img.naturalWidth || 1200, ih = img.naturalHeight || 300;
-  const scale = Math.min(1, 2400 / Math.max(iw, ih)) * (Math.max(iw, ih) < 600 ? 600 / Math.max(iw, ih) : 1);
-  const w = Math.max(1, Math.round(iw * scale)), h = Math.max(1, Math.round(ih * scale));
-  const src = document.createElement("canvas");
-  src.width = w; src.height = h;
-  const ctx = src.getContext("2d", { willReadFrequently: true });
-  if (!ctx) throw new Error("Your browser blocked image processing.");
-  ctx.drawImage(img, 0, 0, w, h);
+  const { src, ctx, w, h } = drawSource(img, file, iw, ih);
   onStage("read", 1); await tick(); check();
 
   const data = ctx.getImageData(0, 0, w, h);
+  const orig = new Uint8ClampedArray(data.data);
   onStage("background", 0.3); await tick();
   let bg = detectBackground(data.data, w, h);
   if (bg) removeBackground(data.data, bg);
   else if ((bg = floodBackground(data.data, w, h)) && lum3(bg) < 70 && !opts.white) dematteDark(data.data, bg);
+  if (opts.white) punchEnclosedDark(data.data, w, h);
+  // Palette reads the real colours (white text on a dark background stays white), visible pixels only.
+  for (let i = 3; i < orig.length; i += 4) orig[i] = data.data[i];
   const inverted = isLightMonochrome(data.data);
   if (inverted && !opts.white) recolorToInk(data.data);
   ctx.putImageData(data, 0, 0);
@@ -276,7 +326,7 @@ export async function processLogo(file: File | Blob, onStage: (s: LogoStage, p: 
 
   onStage("color", 0.4); await tick();
   const px = o.getImageData(0, 0, LW, LH).data;
-  const palette = opts.white ? [] : extractPalette(px);
+  const palette = opts.white ? [] : extractPalette(orig);
   const color = opts.white ? null : palette[0]?.hex ?? dominantColor(px);
   const blob = await new Promise<Blob | null>((r) => out.toBlob(r, "image/png"));
   if (!blob) throw new Error("Could not create the PNG.");
@@ -342,10 +392,17 @@ export function findMark(d: Px, w: number, h: number, box: Box, min = 30): Box |
     const r = runs(prof, 1);
     if (r.length < 2) return null;
     const gaps = r.slice(1).map((x, i) => x[0] - r[i][1] - 1);
-    const rest = Math.max(0, ...gaps.slice(1));
-    if (gaps[0] < Math.max(4, minGap)) return null;
-    if (rest ? gaps[0] < rest * 1.8 : gaps[0] < solo) return null;
-    return r[0];
+    // Marks made of separate pieces (rays, dots) have small inner gaps: cluster everything
+    // before the single dominant gap as the mark.
+    let k = 0;
+    for (let i = 1; i < gaps.length; i++) if (gaps[i] > gaps[k]) k = i;
+    const rest = Math.max(0, ...gaps.filter((_, i) => i !== k));
+    if (gaps[k] < Math.max(4, minGap)) return null;
+    if (rest ? gaps[k] < rest * 1.8 : gaps[k] < solo) return null;
+    const mark: [number, number] = [r[0][0], r[k][1]];
+    // The mark must be the smaller, leading part — not the first word of a two-word name.
+    if (mark[1] - mark[0] + 1 > prof.length * 0.5) return null;
+    return mark;
   };
   const c = split(col, box.h * 0.08, box.h * 0.25);
   if (c) return tighten(box.x + c[0], box.x + c[1], box.y, box.y + box.h - 1);
@@ -390,13 +447,7 @@ export async function processIcon(file: Blob, extract: boolean, onStage: (s: Log
   onStage("read", 0.2);
   const img = await decode(file as File); check();
   const iw = img.naturalWidth || 512, ih = img.naturalHeight || 512;
-  const scale = Math.min(1, 2400 / Math.max(iw, ih)) * (Math.max(iw, ih) < 600 ? 600 / Math.max(iw, ih) : 1);
-  const w = Math.max(1, Math.round(iw * scale)), h = Math.max(1, Math.round(ih * scale));
-  const src = document.createElement("canvas");
-  src.width = w; src.height = h;
-  const ctx = src.getContext("2d", { willReadFrequently: true });
-  if (!ctx) throw new Error("Your browser blocked image processing.");
-  ctx.drawImage(img, 0, 0, w, h);
+  const { src, ctx, w, h } = drawSource(img, file, iw, ih);
   onStage("read", 1); await tick(); check();
 
   const data = ctx.getImageData(0, 0, w, h);

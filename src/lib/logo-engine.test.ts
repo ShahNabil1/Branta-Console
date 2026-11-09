@@ -103,3 +103,31 @@ describe("brand palette", () => {
     expect(d[3]).toBe(0);
   });
 });
+
+describe("logo engine fixes", () => {
+  const paint = (d: Uint8ClampedArray, w: number, x0: number, y0: number, bw: number, bh: number, c: number[]) => {
+    for (let y = y0; y < y0 + bh; y++) for (let x = x0; x < x0 + bw; x++) d.set(c, (y * w + x) * 4);
+  };
+  it("finds a mark made of separate pieces before the wordmark", async () => {
+    const { findMark } = await import("./logo-engine");
+    const w = 300, h = 60, d = new Uint8ClampedArray(w * h * 4), ink = [20, 20, 20, 255];
+    paint(d, w, 10, 10, 12, 40, ink); paint(d, w, 26, 10, 12, 40, ink); paint(d, w, 42, 10, 12, 40, ink); // rays, 4px gaps
+    for (let i = 0; i < 6; i++) paint(d, w, 90 + i * 30, 10, 26, 40, ink); // letters, 4px gaps; 36px split
+    expect(findMark(d, w, h, { x: 10, y: 10, w: 256, h: 40 })).toEqual({ x: 10, y: 10, w: 44, h: 40 });
+  });
+  it("cuts dark details inside a badge out of the white footer logo, keeps outside ink", async () => {
+    const { punchEnclosedDark } = await import("./logo-engine");
+    const w = 60, h = 30, d = new Uint8ClampedArray(w * h * 4);
+    paint(d, w, 2, 2, 24, 24, [200, 240, 40, 255]); // lime badge
+    paint(d, w, 10, 10, 6, 6, [10, 10, 10, 255]); // face inside
+    paint(d, w, 34, 8, 20, 14, [10, 10, 10, 255]); // black wordmark
+    punchEnclosedDark(d, w, h);
+    expect(d[(12 * w + 12) * 4 + 3]).toBe(0);
+    expect(d[(10 * w + 40) * 4 + 3]).toBe(255);
+  });
+  it("keeps white as a palette colour after the brand colour", async () => {
+    const { extractPalette } = await import("./logo-engine");
+    const d = img(20, 20, [255, 255, 255, 255], { x: 0, y: 0, w: 8, h: 8, c: [146, 105, 244, 255] });
+    expect(extractPalette(d).map((p) => p.hex)).toEqual(["#9269F4", "#FFFFFF"]);
+  });
+});
