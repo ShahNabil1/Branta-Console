@@ -1,4 +1,5 @@
 import { ProjectRolesEditor } from "@/components/projects/project-sections";
+import { ContractSettingsEditor } from "@/components/projects/project-contracts";
 import { useNavigate } from "@tanstack/react-router";
 import { Link } from "@tanstack/react-router";
 import { UnderlineTabs } from "@/components/ui/underline-tabs";
@@ -191,7 +192,7 @@ export function CompanyProfile({ slug, mine = false }: { slug: string; mine?: bo
         ) : tab === "integrations" ? (
           <EmailIntegrations slug={c.slug} accent={accent} />
         ) : tab === "settings" ? (
-          <div className="space-y-5"><ProjectRolesEditor companyId={c.id} /><CompanySettings c={c} accent={accent} /></div>
+          <div className="space-y-5"><ProjectRolesEditor companyId={c.id} /><ContractSettingsEditor companyId={c.id} /><CompanySettings c={c} accent={accent} /></div>
         ) : (
           <ComingSoon tab={TABS.find((t) => t.id === tab) ?? TABS[0]} accent={accent} />
         )}

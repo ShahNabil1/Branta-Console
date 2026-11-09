@@ -731,6 +731,53 @@ export type Database = {
           },
         ]
       }
+      company_contract_settings: {
+        Row: {
+          ceo_name: string | null
+          ceo_signature_png: string | null
+          ceo_title: string | null
+          company_id: string
+          created_at: string
+          enabled: boolean
+          expiry_days: number
+          template_body: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          ceo_name?: string | null
+          ceo_signature_png?: string | null
+          ceo_title?: string | null
+          company_id: string
+          created_at?: string
+          enabled?: boolean
+          expiry_days?: number
+          template_body?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          ceo_name?: string | null
+          ceo_signature_png?: string | null
+          ceo_title?: string | null
+          company_id?: string
+          created_at?: string
+          enabled?: boolean
+          expiry_days?: number
+          template_body?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_contract_settings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_deduction_configs: {
         Row: {
           company_id: string
@@ -1917,6 +1964,47 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      contract_otp_challenges: {
+        Row: {
+          attempts: number
+          code_hash: string
+          created_at: string
+          expires_at: string
+          id: string
+          session_hash: string | null
+          verified_at: string | null
+          version_id: string
+        }
+        Insert: {
+          attempts?: number
+          code_hash: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          session_hash?: string | null
+          verified_at?: string | null
+          version_id: string
+        }
+        Update: {
+          attempts?: number
+          code_hash?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          session_hash?: string | null
+          verified_at?: string | null
+          version_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_otp_challenges_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "project_contract_versions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       customer_role_options: {
         Row: {
@@ -5555,6 +5643,138 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      project_contract_versions: {
+        Row: {
+          contract_id: string
+          expires_at: string
+          id: string
+          pdf_sha256: string | null
+          published_at: string
+          published_by: string
+          revoked_at: string | null
+          signature_png: string | null
+          signed_at: string | null
+          signer_email: string
+          signer_ip: string | null
+          signer_name: string | null
+          signer_title: string | null
+          signer_ua: string | null
+          snapshot: Json
+          token_hash: string
+          version: number
+        }
+        Insert: {
+          contract_id: string
+          expires_at: string
+          id?: string
+          pdf_sha256?: string | null
+          published_at?: string
+          published_by: string
+          revoked_at?: string | null
+          signature_png?: string | null
+          signed_at?: string | null
+          signer_email: string
+          signer_ip?: string | null
+          signer_name?: string | null
+          signer_title?: string | null
+          signer_ua?: string | null
+          snapshot: Json
+          token_hash: string
+          version: number
+        }
+        Update: {
+          contract_id?: string
+          expires_at?: string
+          id?: string
+          pdf_sha256?: string | null
+          published_at?: string
+          published_by?: string
+          revoked_at?: string | null
+          signature_png?: string | null
+          signed_at?: string | null
+          signer_email?: string
+          signer_ip?: string | null
+          signer_name?: string | null
+          signer_title?: string | null
+          signer_ua?: string | null
+          snapshot?: Json
+          token_hash?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_contract_versions_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "project_contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_contracts: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          created_by: string | null
+          current_version: number
+          form: Json
+          id: string
+          invoice_id: string | null
+          project_id: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          current_version?: number
+          form?: Json
+          id?: string
+          invoice_id?: string | null
+          project_id: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          current_version?: number
+          form?: Json
+          id?: string
+          invoice_id?: string | null
+          project_id?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_contracts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_contracts_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_contracts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "client_projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       project_members: {
         Row: {

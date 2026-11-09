@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
 import { Route as DownloadsTrackerExtensionRouteImport } from './routes/downloads.tracker-extension'
+import { Route as SignTokenRouteImport } from './routes/sign.$token'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app.index'
 import { Route as AuthenticatedAppAnalyticsRouteImport } from './routes/_authenticated/app.analytics'
@@ -71,6 +72,7 @@ import { Route as AuthenticatedAppProjectsIndexRouteImport } from './routes/_aut
 import { Route as AuthenticatedAppProjectsIdRouteImport } from './routes/_authenticated/app.projects.$id'
 import { Route as ApiPublicBrevoWebhookRouteImport } from './routes/api/public/brevo.webhook'
 import { Route as ApiPublicCloudflareCallbackRouteImport } from './routes/api/public/cloudflare.callback'
+import { Route as ApiPublicContractsTokenRouteImport } from './routes/api/public/contracts.$token'
 import { Route as ApiPublicExpensesVoucherDotpdfRouteImport } from './routes/api/public/expenses.$voucher[.]pdf'
 import { Route as ApiPublicGoogleOauthCallbackRouteImport } from './routes/api/public/google-oauth.callback'
 import { Route as ApiPublicHooksInvoiceRemindersRouteImport } from './routes/api/public/hooks/invoice-reminders'
@@ -135,6 +137,11 @@ const DownloadsTrackerExtensionRoute =
     path: '/downloads/tracker-extension',
     getParentRoute: () => rootRouteImport,
   } as any)
+const SignTokenRoute = SignTokenRouteImport.update({
+  id: '/sign/$token',
+  path: '/sign/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
   id: '/.lovable/oauth/consent',
   path: '/.lovable/oauth/consent',
@@ -464,6 +471,11 @@ const ApiPublicCloudflareCallbackRoute =
     path: '/api/public/cloudflare/callback',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicContractsTokenRoute = ApiPublicContractsTokenRouteImport.update({
+  id: '/api/public/contracts/$token',
+  path: '/api/public/contracts/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicExpensesVoucherDotpdfRoute =
   ApiPublicExpensesVoucherDotpdfRouteImport.update({
     id: '/api/public/expenses/$voucher.pdf',
@@ -696,6 +708,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/app': typeof AuthenticatedAppRouteWithChildren
   '/downloads/tracker-extension': typeof DownloadsTrackerExtensionRoute
+  '/sign/$token': typeof SignTokenRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/app/analytics': typeof AuthenticatedAppAnalyticsRoute
   '/app/companies': typeof AuthenticatedAppCompaniesRouteWithChildren
@@ -746,6 +759,7 @@ export interface FileRoutesByFullPath {
   '/app/projects/$id': typeof AuthenticatedAppProjectsIdRoute
   '/api/public/brevo/webhook': typeof ApiPublicBrevoWebhookRoute
   '/api/public/cloudflare/callback': typeof ApiPublicCloudflareCallbackRoute
+  '/api/public/contracts/$token': typeof ApiPublicContractsTokenRoute
   '/api/public/expenses/$voucher.pdf': typeof ApiPublicExpensesVoucherDotpdfRoute
   '/api/public/google-oauth/callback': typeof ApiPublicGoogleOauthCallbackRoute
   '/api/public/hooks/invoice-reminders': typeof ApiPublicHooksInvoiceRemindersRoute
@@ -796,6 +810,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/downloads/tracker-extension': typeof DownloadsTrackerExtensionRoute
+  '/sign/$token': typeof SignTokenRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/app/analytics': typeof AuthenticatedAppAnalyticsRoute
   '/app/inbox': typeof AuthenticatedAppInboxRoute
@@ -840,6 +855,7 @@ export interface FileRoutesByTo {
   '/app/projects/$id': typeof AuthenticatedAppProjectsIdRoute
   '/api/public/brevo/webhook': typeof ApiPublicBrevoWebhookRoute
   '/api/public/cloudflare/callback': typeof ApiPublicCloudflareCallbackRoute
+  '/api/public/contracts/$token': typeof ApiPublicContractsTokenRoute
   '/api/public/expenses/$voucher.pdf': typeof ApiPublicExpensesVoucherDotpdfRoute
   '/api/public/google-oauth/callback': typeof ApiPublicGoogleOauthCallbackRoute
   '/api/public/hooks/invoice-reminders': typeof ApiPublicHooksInvoiceRemindersRoute
@@ -893,6 +909,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_authenticated/app': typeof AuthenticatedAppRouteWithChildren
   '/downloads/tracker-extension': typeof DownloadsTrackerExtensionRoute
+  '/sign/$token': typeof SignTokenRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/_authenticated/app/analytics': typeof AuthenticatedAppAnalyticsRoute
   '/_authenticated/app/companies': typeof AuthenticatedAppCompaniesRouteWithChildren
@@ -943,6 +960,7 @@ export interface FileRoutesById {
   '/_authenticated/app/projects/$id': typeof AuthenticatedAppProjectsIdRoute
   '/api/public/brevo/webhook': typeof ApiPublicBrevoWebhookRoute
   '/api/public/cloudflare/callback': typeof ApiPublicCloudflareCallbackRoute
+  '/api/public/contracts/$token': typeof ApiPublicContractsTokenRoute
   '/api/public/expenses/$voucher.pdf': typeof ApiPublicExpensesVoucherDotpdfRoute
   '/api/public/google-oauth/callback': typeof ApiPublicGoogleOauthCallbackRoute
   '/api/public/hooks/invoice-reminders': typeof ApiPublicHooksInvoiceRemindersRoute
@@ -996,6 +1014,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/app'
     | '/downloads/tracker-extension'
+    | '/sign/$token'
     | '/.lovable/oauth/consent'
     | '/app/analytics'
     | '/app/companies'
@@ -1046,6 +1065,7 @@ export interface FileRouteTypes {
     | '/app/projects/$id'
     | '/api/public/brevo/webhook'
     | '/api/public/cloudflare/callback'
+    | '/api/public/contracts/$token'
     | '/api/public/expenses/$voucher.pdf'
     | '/api/public/google-oauth/callback'
     | '/api/public/hooks/invoice-reminders'
@@ -1096,6 +1116,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/downloads/tracker-extension'
+    | '/sign/$token'
     | '/.lovable/oauth/consent'
     | '/app/analytics'
     | '/app/inbox'
@@ -1140,6 +1161,7 @@ export interface FileRouteTypes {
     | '/app/projects/$id'
     | '/api/public/brevo/webhook'
     | '/api/public/cloudflare/callback'
+    | '/api/public/contracts/$token'
     | '/api/public/expenses/$voucher.pdf'
     | '/api/public/google-oauth/callback'
     | '/api/public/hooks/invoice-reminders'
@@ -1192,6 +1214,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/_authenticated/app'
     | '/downloads/tracker-extension'
+    | '/sign/$token'
     | '/.lovable/oauth/consent'
     | '/_authenticated/app/analytics'
     | '/_authenticated/app/companies'
@@ -1242,6 +1265,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/projects/$id'
     | '/api/public/brevo/webhook'
     | '/api/public/cloudflare/callback'
+    | '/api/public/contracts/$token'
     | '/api/public/expenses/$voucher.pdf'
     | '/api/public/google-oauth/callback'
     | '/api/public/hooks/invoice-reminders'
@@ -1294,10 +1318,12 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   LoginRoute: typeof LoginRoute
   DownloadsTrackerExtensionRoute: typeof DownloadsTrackerExtensionRoute
+  SignTokenRoute: typeof SignTokenRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   ApiPublicR2HealthRoute: typeof ApiPublicR2HealthRoute
   ApiPublicBrevoWebhookRoute: typeof ApiPublicBrevoWebhookRoute
   ApiPublicCloudflareCallbackRoute: typeof ApiPublicCloudflareCallbackRoute
+  ApiPublicContractsTokenRoute: typeof ApiPublicContractsTokenRoute
   ApiPublicExpensesVoucherDotpdfRoute: typeof ApiPublicExpensesVoucherDotpdfRoute
   ApiPublicGoogleOauthCallbackRoute: typeof ApiPublicGoogleOauthCallbackRoute
   ApiPublicHooksInvoiceRemindersRoute: typeof ApiPublicHooksInvoiceRemindersRoute
@@ -1345,6 +1371,13 @@ declare module '@tanstack/react-router' {
       path: '/downloads/tracker-extension'
       fullPath: '/downloads/tracker-extension'
       preLoaderRoute: typeof DownloadsTrackerExtensionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sign/$token': {
+      id: '/sign/$token'
+      path: '/sign/$token'
+      fullPath: '/sign/$token'
+      preLoaderRoute: typeof SignTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/.lovable/oauth/consent': {
@@ -1744,6 +1777,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/cloudflare/callback'
       fullPath: '/api/public/cloudflare/callback'
       preLoaderRoute: typeof ApiPublicCloudflareCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/contracts/$token': {
+      id: '/api/public/contracts/$token'
+      path: '/api/public/contracts/$token'
+      fullPath: '/api/public/contracts/$token'
+      preLoaderRoute: typeof ApiPublicContractsTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/expenses/$voucher.pdf': {
@@ -2304,10 +2344,12 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   LoginRoute: LoginRoute,
   DownloadsTrackerExtensionRoute: DownloadsTrackerExtensionRoute,
+  SignTokenRoute: SignTokenRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   ApiPublicR2HealthRoute: ApiPublicR2HealthRoute,
   ApiPublicBrevoWebhookRoute: ApiPublicBrevoWebhookRoute,
   ApiPublicCloudflareCallbackRoute: ApiPublicCloudflareCallbackRoute,
+  ApiPublicContractsTokenRoute: ApiPublicContractsTokenRoute,
   ApiPublicExpensesVoucherDotpdfRoute: ApiPublicExpensesVoucherDotpdfRoute,
   ApiPublicGoogleOauthCallbackRoute: ApiPublicGoogleOauthCallbackRoute,
   ApiPublicHooksInvoiceRemindersRoute: ApiPublicHooksInvoiceRemindersRoute,

@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { ArrowLeft, ExternalLink, FolderKanban, Loader2, Pencil, UserPlus } from "lucide-react";
 import { ProjectActivity, Card, MoneySection, WorkUpdates } from "@/components/projects/project-sections";
+import { ProjectContracts } from "@/components/projects/project-contracts";
 import { listProjectRoleOptions, type RoleOption } from "@/lib/project-details.functions";
 import { SoftPill } from "@/components/tasks/task-ui";
 import { toast } from "sonner";
@@ -37,7 +38,7 @@ export const Route = createFileRoute("/_authenticated/app/projects/$id")({
 
 export function ProjectPage() {
   const { id, org } = useParams({ strict: false }) as { id: string; org?: string };
-  const [tab, setTab] = useState<"overview" | "updates" | "tasks" | "money" | "activity">("overview");
+  const [tab, setTab] = useState<"overview" | "updates" | "tasks" | "money" | "contracts" | "activity">("overview");
   const get = useServerFn(getHubProject);
   const q = useQuery({ queryKey: ["hub-project", id], queryFn: () => get({ data: { id } }) });
   const [edit, setEdit] = useState(false);
@@ -46,7 +47,7 @@ export function ProjectPage() {
   const p = q.data;
   const fields = p.service_track ? TRACK_FIELDS[p.service_track] : [];
   const done = p.status === "completed";
-  const tabs = [["overview", "Overview"], ["updates", "Work updates"], ["tasks", "Tasks"], ["money", "Invoices & payments"], ["activity", "Activity"]] as const;
+  const tabs = [["overview", "Overview"], ["updates", "Work updates"], ["tasks", "Tasks"], ["money", "Invoices & payments"], ["contracts", "Contracts"], ["activity", "Activity"]] as const;
   return (
     <div className="mx-auto w-full max-w-7xl space-y-5 p-4 md:p-6">
       <div className="flex items-center gap-1.5 text-[12.5px] text-muted-foreground">
@@ -97,6 +98,7 @@ export function ProjectPage() {
           {tab === "updates" && <WorkUpdates projectId={p.id} />}
           {tab === "tasks" && <ProjectTasks projectId={p.id} canManage={p.canManage} />}
           {tab === "money" && <MoneySection projectId={p.id} org={org} />}
+          {tab === "contracts" && <ProjectContracts projectId={p.id} />}
           {tab === "activity" && <Card title="Activity"><ProjectActivity projectId={p.id} items={p.activity} /></Card>}
         </div>
         <div className="space-y-5">
