@@ -3,6 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { RecordIn, dnsPayload } from "@/lib/cloudflare-dns";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any;
@@ -112,5 +113,68 @@ export const enableCloudflareRouting = createServerFn({ method: "POST" })
       .catch(() => cf.companyCfApi(co.id, `/zones/${zone.id}/email/routing/enable`, { method: "POST", body: "{}" }));
     const er = (await cf.companyCfApi<Any>(co.id, `/zones/${zone.id}/email/routing`)).result;
     if (!er?.enabled) throw new Error(`Cloudflare has not turned on Email Routing for ${data.zone} yet. Try again shortly.`);
+    return { ok: true };
+  });
+
+// ---------- DNS management (zones + records) ----------
+export type DnsRecord = {
+  id: string; type: string; name: string; content: string; proxied: boolean; proxiable: boolean;
+  ttl: number; priority: number | null; comment: string | null; data: Record<string, unknown> | null;
+};
+const ZoneIn = Slug.extend({ zone: z.string().trim().regex(/^[a-f0-9]{32}$/i) });
+const mapRec = (r: Any): DnsRecord => ({
+  id: r.id, type: r.type, name: r.name, content: String(r.content ?? ""), proxied: !!r.proxied, proxiable: !!r.proxiable,
+  ttl: Number(r.ttl ?? 1), priority: r.priority ?? null, comment: r.comment ?? null, data: r.data ?? null,
+});
+
+export const listCloudflareZones = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => Slug.parse(i))
+  .handler(async ({ data, context }) => {
+    const { co } = await gate(context, data.slug);
+    const cf = await import("@/lib/company-cloudflare.server");
+    const out: { id: string; name: string; status: string }[] = [];
+    for (let page = 1; page <= 10; page++) {
+      const { result, info } = await cf.companyCfApi<Any[]>(co.id, `/zones?per_page=50&page=${page}`);
+      out.push(...(result ?? []).map((z: Any) => ({ id: String(z.id), name: String(z.name), status: String(z.status ?? "") })));
+      if (!info || page >= (info.total_pages ?? 1)) break;
+    }
+    return out;
+  });
+
+export const listDnsRecords = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => ZoneIn.parse(i))
+  .handler(async ({ data, context }) => {
+    const { co } = await gate(context, data.slug);
+    const cf = await import("@/lib/company-cloudflare.server");
+    const out: DnsRecord[] = [];
+    for (let page = 1; page <= 50; page++) {
+      const { result, info } = await cf.companyCfApi<Any[]>(co.id, `/zones/${data.zone}/dns_records?per_page=500&page=${page}`);
+      out.push(...(result ?? []).map(mapRec));
+      if (!info || page >= (info.total_pages ?? 1)) break;
+    }
+    return out;
+  });
+
+export const saveDnsRecord = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => ZoneIn.extend({ id: z.string().regex(/^[a-f0-9]{32}$/i).optional(), record: RecordIn }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { co } = await gate(context, data.slug);
+    const cf = await import("@/lib/company-cloudflare.server");
+    const body = JSON.stringify(dnsPayload(data.record));
+    const path = `/zones/${data.zone}/dns_records${data.id ? `/${data.id}` : ""}`;
+    const { result } = await cf.companyCfApi<Any>(co.id, path, { method: data.id ? "PUT" : "POST", body });
+    return mapRec(result);
+  });
+
+export const deleteDnsRecord = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => ZoneIn.extend({ id: z.string().regex(/^[a-f0-9]{32}$/i) }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { co } = await gate(context, data.slug);
+    const cf = await import("@/lib/company-cloudflare.server");
+    await cf.companyCfApi(co.id, `/zones/${data.zone}/dns_records/${data.id}`, { method: "DELETE" });
     return { ok: true };
   });
