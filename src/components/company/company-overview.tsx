@@ -21,7 +21,7 @@ export function CompanyOverview({ slug, name }: { slug: string; name: string }) 
   const identity = companyIdentity(slug, companies.data?.find(c => c.slug === slug));
   const fn = useServerFn(getCompanyOverview);
   const q = useQuery({ queryKey: ["company-overview", slug], queryFn: () => fn({ data: { company: slug } }), staleTime: 30_000 });
-  const accent = companyAccent(slug);
+  const accent = companyAccent(slug, (companies.data?.find(c => c.slug === slug)?.brand_kit as { primary?: string } | null | undefined)?.primary);
   const d = q.data;
   const isHolding = companies.data?.find(c => c.slug === slug)?.is_holding ?? false;
   const inboxPath = toCompanyPath("/app/inbox", slug, isHolding);

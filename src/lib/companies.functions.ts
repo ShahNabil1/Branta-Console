@@ -151,7 +151,7 @@ export const PatchCompanySchema = z.object({
     website_url: nul(300).refine((v) => !v || /^[a-z0-9-]+(\.[a-z0-9-]+)+(\/\S*)?$/i.test(v), "Enter a domain like example.com"),
     logo_url: nul(500).refine((v) => !v || /^https:\/\//.test(v), "Logo must be an https URL"),
     brand_kit: z.object({
-      primary: z.string().regex(/^#[0-9A-F]{6}$/i).optional(),
+      primary: z.string().regex(/^#[0-9A-F]{6}$/i).or(z.literal("")).optional(),
       mark: z.string().max(500).refine((v) => !v || /^https:\/\//.test(v), "Icon must be an https URL").nullable().optional(),
       logo_inverse: z.string().max(500).refine((v) => !v || /^https:\/\//.test(v), "Footer logo must be an https URL").nullable().optional(),
     }).strip().optional(),

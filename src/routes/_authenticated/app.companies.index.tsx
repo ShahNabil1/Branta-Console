@@ -55,7 +55,7 @@ function CompaniesPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {q.isLoading && Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-48 rounded-lg" />)}
         {list.map((c, i) => {
-          const accent = companyAccent(c.slug);
+          const accent = companyAccent(c.slug, (c.brand_kit as { primary?: string } | null)?.primary);
           return (
             <Link
               key={c.id}

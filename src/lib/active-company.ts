@@ -39,7 +39,9 @@ const ACCENTS = [
   "var(--color-status-contacted)",
   "var(--color-channel-email)",
 ];
-export function companyAccent(slug: string) {
+export function companyAccent(slug: string, primary?: string | null) {
+  // A saved brand colour (extracted from the logo, editable) always wins.
+  if (primary && /^#[0-9A-F]{6}$/i.test(primary)) return primary;
   if (slug === "admakai") return "var(--company-admakai-accent)";
   let h = 0;
   for (const c of slug) h = (h * 31 + c.charCodeAt(0)) >>> 0;

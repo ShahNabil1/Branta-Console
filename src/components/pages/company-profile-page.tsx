@@ -94,7 +94,7 @@ export function CompanyProfile({ slug, mine = false }: { slug: string; mine?: bo
     return (
       <div className="p-8 text-[13px] font-semibold text-muted-foreground">Company not found.</div>
     );
-  const accent = companyAccent(c.slug);
+  const accent = companyAccent(c.slug, (c.brand_kit as { primary?: string } | null)?.primary);
   const identity = companyIdentity(c.slug, c);
 
   return (
@@ -445,6 +445,10 @@ function InfoTab({ c, accent }: { c: Company; accent: string }) {
   );
 }
 
+function savedPrimary(c: Company) {
+  return String((c.brand_kit as { primary?: string } | null)?.primary ?? "");
+}
+
 function IdentitySection({ c, accent }: { c: Company; accent: string }) {
   const save = useSave(c.id);
   const ident = companyIdentity(c.slug, c);
@@ -455,8 +459,10 @@ function IdentitySection({ c, accent }: { c: Company; accent: string }) {
     industry: c.industry ?? "",
     founded_year: c.founded_year ?? null,
     logo_url: ident.logo ?? "",
-    brand_kit: { mark: ident.icon ?? null, logo_inverse: ident.inverse ?? null },
+    brand_kit: { mark: ident.icon ?? null, logo_inverse: ident.inverse ?? null, primary: savedPrimary(c) },
   } as Patch);
+  const primary = String((e.form.brand_kit as { primary?: string } | undefined)?.primary ?? "");
+  const primaryOk = !primary || /^#[0-9A-F]{6}$/i.test(primary);
   const f = e.form as Record<string, string | number | null>;
   const valid = String(f.name ?? "").trim().length >= 2;
   return (
@@ -467,7 +473,7 @@ function IdentitySection({ c, accent }: { c: Company; accent: string }) {
       canEdit={c.canManage}
       editing={e.editing}
       saving={e.saving}
-      dirty={e.dirty && valid}
+      dirty={e.dirty && valid && primaryOk}
       onEdit={e.edit}
       onCancel={e.cancel}
       onSave={async () => {
@@ -488,6 +494,16 @@ function IdentitySection({ c, accent }: { c: Company; accent: string }) {
           <FieldL label="Invoice footer logo (solid white)" className="sm:col-span-2">
             <IconUploader kind="footer" value={String((e.form.brand_kit as { logo_inverse?: string | null } | undefined)?.logo_inverse ?? "")} logo={String(f.logo_url ?? "")} name={c.name}
               onChange={(v) => e.set("brand_kit", { ...(e.form.brand_kit ?? {}), logo_inverse: v || null })} />
+          </FieldL>
+          <FieldL label="Brand colour (extracted from logo)" className="sm:col-span-2">
+            <div className="flex items-center gap-2">
+              <input type="color" aria-label="Pick brand colour" value={primaryOk && primary ? primary : "#E56A17"}
+                onChange={(v) => e.set("brand_kit", { ...(e.form.brand_kit ?? {}), primary: v.target.value.toUpperCase() })}
+                className="h-9 w-12 cursor-pointer rounded-sm border border-input bg-background p-0.5" />
+              <Input value={primary} maxLength={7} placeholder="#E56A17" className={cn("w-32 font-mono uppercase", !primaryOk && "border-destructive")}
+                onChange={(v) => { let x = v.target.value.trim().toUpperCase(); if (x && !x.startsWith("#")) x = `#${x}`; e.set("brand_kit", { ...(e.form.brand_kit ?? {}), primary: x }); }} />
+              <span className="text-[11.5px] font-semibold text-muted-foreground">{primaryOk ? "Used for this profile, company cards and invoices." : "Enter a 6-digit hex like #E56A17"}</span>
+            </div>
           </FieldL>
           <FieldL label="Company name *">
             <Input
@@ -541,6 +557,7 @@ function IdentitySection({ c, accent }: { c: Company; accent: string }) {
         <div className="grid gap-3 sm:grid-cols-2">
           <View label="Company logo" value={ident.logo ? <span className="inline-block rounded-sm bg-[var(--company-artwork-paper)] px-2 py-1"><img src={ident.logo} alt={c.name} className="h-10 w-auto max-w-full object-contain" /></span> : null} />
           <View label="Company icon" value={ident.icon ? <img src={ident.icon} alt={`${c.name} icon`} className="size-10 rounded-md bg-[var(--company-artwork-paper)] object-contain ring-1 ring-border" /> : null} />
+          <View label="Brand colour" value={savedPrimary(c) ? <span className="inline-flex items-center gap-2 font-mono"><span className="size-5 rounded-sm ring-1 ring-border" style={{ background: savedPrimary(c) }} />{savedPrimary(c)}</span> : null} />
           <View label="Company name" value={c.name} />
           <View label="Tagline" value={c.tagline} />
           <View label="Company type" value={c.company_type} />
