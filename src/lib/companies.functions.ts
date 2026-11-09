@@ -138,7 +138,8 @@ export const createCompany = createServerFn({ method: "POST" })
   });
 
 // ---------- Company Info: per-section patch (admin or company super admin) ----------
-const nul = (max: number) => z.string().trim().max(max).nullable().optional().transform((v) => (v ? v : null));
+// Absent keys stay undefined so a section save never blanks fields from other sections.
+const nul = (max: number) => z.string().trim().max(max).nullable().optional().transform((v) => (v === undefined ? undefined : v ? v : null));
 export const PatchCompanySchema = z.object({
   id: z.string().uuid(),
   patch: z.object({
