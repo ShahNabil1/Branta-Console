@@ -29,3 +29,19 @@ export const requestR2Upload = createServerFn({ method: "POST" })
       expiresInSeconds: 60 * 5,
     });
   });
+
+/** Reads a branding image that already lives on our R2 public base (avoids browser CORS tainting). */
+export const fetchBrandingImage = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) => z.object({ url: z.string().url().max(500) }).parse(data))
+  .handler(async ({ data }) => {
+    const base = (process.env.R2_PUBLIC_BASE_URL ?? "").replace(/\/$/, "");
+    if (!base || !data.url.startsWith(`${base}/branding/`)) throw new Error("Only saved company logos can be reused.");
+    const res = await fetch(data.url);
+    if (!res.ok) throw new Error(`Could not read the saved logo (${res.status}).`);
+    const buf = new Uint8Array(await res.arrayBuffer());
+    if (buf.byteLength > 5 * 1024 * 1024) throw new Error("Saved logo is too large.");
+    let bin = "";
+    for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000));
+    return { base64: btoa(bin), type: res.headers.get("content-type") || "image/png" };
+  });

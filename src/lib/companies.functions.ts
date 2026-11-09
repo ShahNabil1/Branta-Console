@@ -150,7 +150,10 @@ export const PatchCompanySchema = z.object({
     phone: nul(11).refine((v) => !v || /^01[3-9]\d{8}$/.test(v), "Enter a valid 11-digit BD number"),
     website_url: nul(300).refine((v) => !v || /^[a-z0-9-]+(\.[a-z0-9-]+)+(\/\S*)?$/i.test(v), "Enter a domain like example.com"),
     logo_url: nul(500).refine((v) => !v || /^https:\/\//.test(v), "Logo must be an https URL"),
-    brand_kit: z.object({ primary: z.string().regex(/^#[0-9A-F]{6}$/i) }).passthrough().optional(),
+    brand_kit: z.object({
+      primary: z.string().regex(/^#[0-9A-F]{6}$/i).optional(),
+      mark: z.string().max(500).refine((v) => !v || /^https:\/\//.test(v), "Icon must be an https URL").nullable().optional(),
+    }).strip().optional(),
     services: z.array(z.string().trim().min(1).max(120)).max(500).optional(),
     service_catalog: z.array(z.object({
       category: z.string().trim().min(1).max(80),
@@ -183,7 +186,12 @@ export const updateCompanyInfo = createServerFn({ method: "POST" })
     if (data.patch.brand_kit) {
       // Merge so other brand assets (icon, inverse logo) are never overwritten.
       const { data: cur } = await (supabaseAdmin as unknown as Sb).from("companies").select("brand_kit").eq("id", data.id).maybeSingle();
-      patch.brand_kit = { ...((cur as { brand_kit?: object } | null)?.brand_kit ?? {}), primary: data.patch.brand_kit.primary.toUpperCase() };
+      const bk = data.patch.brand_kit;
+      patch.brand_kit = {
+        ...((cur as { brand_kit?: object } | null)?.brand_kit ?? {}),
+        ...(bk.primary ? { primary: bk.primary.toUpperCase() } : {}),
+        ...(bk.mark !== undefined ? { mark: bk.mark || null } : {}),
+      };
     }
     const { error } = await (supabaseAdmin as unknown as Sb).from("companies")
       .update({ ...patch, updated_by: context.userId }).eq("id", data.id);

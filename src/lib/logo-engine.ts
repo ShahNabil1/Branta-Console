@@ -175,3 +175,111 @@ export function putWithProgress(url: string, blob: Blob, onProgress: (p: number)
     xhr.send(blob);
   });
 }
+
+// ---------- Phase 2: square icon (512×512) ----------
+export const ICON_SIZE = 512;
+/** Safe padding per side so rounded-md / rounded-full crops never cut the mark. */
+export const ICON_PAD = 0.16;
+
+type Box = { x: number; y: number; w: number; h: number };
+
+/** Splits a 1-D occupancy profile into runs, merging gaps smaller than `minGap`. */
+export function runs(profile: number[], minGap: number): [number, number][] {
+  const out: [number, number][] = [];
+  let s = -1, lastOn = -1;
+  for (let i = 0; i < profile.length; i++) {
+    if (profile[i] > 0) {
+      if (s < 0) s = i;
+      else if (i - lastOn - 1 >= minGap) { out.push([s, lastOn]); s = i; }
+      lastOn = i;
+    }
+  }
+  if (s >= 0) out.push([s, lastOn]);
+  return out;
+}
+
+/**
+ * Finds the symbol part of a combination logo (mark beside or above the wordmark).
+ * Returns null when no clear separation exists.
+ */
+export function findMark(d: Px, w: number, h: number, box: Box, min = 30): Box | null {
+  const col = new Array(box.w).fill(0), row = new Array(box.h).fill(0);
+  for (let y = box.y; y < box.y + box.h; y++) for (let x = box.x; x < box.x + box.w; x++) {
+    if (d[(y * w + x) * 4 + 3] > min) { col[x - box.x]++; row[y - box.y]++; }
+  }
+  const tighten = (x0: number, x1: number, y0: number, y1: number): Box | null => {
+    let mx = Infinity, my = Infinity, Mx = -1, My = -1;
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (d[(y * w + x) * 4 + 3] > min) {
+      if (x < mx) mx = x; if (x > Mx) Mx = x; if (y < my) my = y; if (y > My) My = y;
+    }
+    return Mx < 0 ? null : { x: mx, y: my, w: Mx - mx + 1, h: My - my + 1 };
+  };
+  // The first gap must clearly dominate the letter spacing to count as the mark/name split.
+  const split = (prof: number[], extent: number): [number, number] | null => {
+    const r = runs(prof, 1);
+    if (r.length < 2) return null;
+    const gaps = r.slice(1).map((x, i) => x[0] - r[i][1] - 1);
+    const rest = Math.max(0, ...gaps.slice(1));
+    if (gaps[0] < Math.max(4, extent * 0.08)) return null;
+    if (rest ? gaps[0] < rest * 1.8 : gaps[0] < extent * 0.25) return null;
+    return r[0];
+  };
+  const c = split(col, box.h);
+  if (c) return tighten(box.x + c[0], box.x + c[1], box.y, box.y + box.h - 1);
+  const v = split(row, box.w);
+  if (v) return tighten(box.x, box.x + box.w - 1, box.y + v[0], box.y + v[1]);
+  return null;
+}
+
+export type IconResult = { blob: Blob; color: string | null; extracted: boolean; inverted: boolean };
+
+/** Builds the 512×512 transparent PNG icon. `extract` cuts the mark out of a full logo. */
+export async function processIcon(file: Blob, extract: boolean, onStage: (s: LogoStage, p: number) => void, signal?: AbortSignal): Promise<IconResult> {
+  const check = () => { if (signal?.aborted) throw new DOMException("Cancelled", "AbortError"); };
+  onStage("read", 0.2);
+  const img = await decode(file as File); check();
+  const iw = img.naturalWidth || 512, ih = img.naturalHeight || 512;
+  const scale = Math.min(1, 2400 / Math.max(iw, ih)) * (Math.max(iw, ih) < 600 ? 600 / Math.max(iw, ih) : 1);
+  const w = Math.max(1, Math.round(iw * scale)), h = Math.max(1, Math.round(ih * scale));
+  const src = document.createElement("canvas");
+  src.width = w; src.height = h;
+  const ctx = src.getContext("2d", { willReadFrequently: true });
+  if (!ctx) throw new Error("Your browser blocked image processing.");
+  ctx.drawImage(img, 0, 0, w, h);
+  onStage("read", 1); await tick(); check();
+
+  const data = ctx.getImageData(0, 0, w, h);
+  onStage("background", 0.3); await tick();
+  const bg = detectBackground(data.data, w, h);
+  if (bg) removeBackground(data.data, bg);
+  const inverted = isLightMonochrome(data.data);
+  if (inverted) recolorToInk(data.data);
+  ctx.putImageData(data, 0, 0);
+  onStage("background", 1); await tick(); check();
+
+  onStage("crop", 0.3); await tick();
+  const all = visibleBounds(data.data, w, h);
+  if (!all) throw new Error("The image looks empty after removing the background.");
+  let box: Box = all;
+  if (extract) {
+    const mark = findMark(data.data, w, h, all);
+    if (!mark) throw new Error("Couldn't find a separate symbol in this logo — upload an icon file instead.");
+    box = mark;
+  }
+  const out = document.createElement("canvas");
+  out.width = ICON_SIZE; out.height = ICON_SIZE;
+  const o = out.getContext("2d");
+  if (!o) throw new Error("Your browser blocked image processing.");
+  o.imageSmoothingQuality = "high";
+  const inner = ICON_SIZE * (1 - ICON_PAD * 2);
+  const fit = fitInside(box.w, box.h, inner, inner);
+  o.drawImage(src, box.x, box.y, box.w, box.h, Math.round((ICON_SIZE - fit.w) / 2), Math.round((ICON_SIZE - fit.h) / 2), fit.w, fit.h);
+  onStage("crop", 1); await tick(); check();
+
+  onStage("color", 0.4); await tick();
+  const color = dominantColor(o.getImageData(0, 0, ICON_SIZE, ICON_SIZE).data);
+  const blob = await new Promise<Blob | null>((r) => out.toBlob(r, "image/png"));
+  if (!blob) throw new Error("Could not create the PNG.");
+  onStage("color", 1); check();
+  return { blob, color, extracted: extract, inverted };
+}

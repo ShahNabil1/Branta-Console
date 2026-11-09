@@ -50,9 +50,10 @@ import { companyIdentity } from "@/lib/company-identity";
 import { CatalogEditor, catalogValid } from "@/components/company/company-services-section";
 import { catalogOf, flattenCatalog, type ServiceCategory } from "@/lib/service-catalog";
 import { useMutation } from "@tanstack/react-query";
-import { requestR2Upload } from "@/lib/r2.functions";
+import { fetchBrandingImage, requestR2Upload } from "@/lib/r2.functions";
 import { Briefcase, Eye, ImageUp, RotateCcw } from "lucide-react";
-import { processLogo, putWithProgress, type LogoStage } from "@/lib/logo-engine";
+import { processIcon, processLogo, putWithProgress, type LogoStage } from "@/lib/logo-engine";
+import { Scissors } from "lucide-react";
 import { ReceiptPreview } from "@/components/finance/receipt-media";
 
 type Company = NonNullable<Awaited<ReturnType<typeof getCompany>>>;
@@ -453,6 +454,7 @@ function IdentitySection({ c, accent }: { c: Company; accent: string }) {
     industry: c.industry ?? "",
     founded_year: c.founded_year ?? null,
     logo_url: c.logo_url ?? "",
+    brand_kit: { mark: c.brand_kit?.mark ?? null },
   } as Patch);
   const f = e.form as Record<string, string | number | null>;
   const valid = String(f.name ?? "").trim().length >= 2;
@@ -476,7 +478,11 @@ function IdentitySection({ c, accent }: { c: Company; accent: string }) {
       {e.editing ? (
         <div className="grid gap-4 sm:grid-cols-2">
           <FieldL label="Company logo" className="sm:col-span-2">
-            <LogoUploader value={String(f.logo_url ?? "")} name={c.name} onChange={(v, color) => { e.set("logo_url", v); if (color) e.set("brand_kit", { ...(c.brand_kit ?? {}), primary: color }); }} />
+            <LogoUploader value={String(f.logo_url ?? "")} name={c.name} onChange={(v, color) => { e.set("logo_url", v); if (color) e.set("brand_kit", { ...(e.form.brand_kit ?? {}), primary: color }); }} />
+          </FieldL>
+          <FieldL label="Company icon (square)" className="sm:col-span-2">
+            <IconUploader value={String((e.form.brand_kit as { mark?: string | null } | undefined)?.mark ?? "")} logo={String(f.logo_url ?? "")} name={c.name}
+              onChange={(v) => e.set("brand_kit", { ...(e.form.brand_kit ?? {}), mark: v || null })} />
           </FieldL>
           <FieldL label="Company name *">
             <Input
@@ -529,6 +535,7 @@ function IdentitySection({ c, accent }: { c: Company; accent: string }) {
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
           <View label="Company logo" value={c.logo_url ? <span className="inline-block rounded-sm bg-[var(--company-artwork-paper)] px-2 py-1"><img src={c.logo_url} alt={c.name} className="h-8 w-auto max-w-full object-contain" /></span> : null} />
+          <View label="Company icon" value={c.brand_kit?.mark ? <img src={c.brand_kit.mark} alt={`${c.name} icon`} className="size-10 rounded-md bg-[var(--company-artwork-paper)] object-contain ring-1 ring-border" /> : null} />
           <View label="Company name" value={c.name} />
           <View label="Tagline" value={c.tagline} />
           <View label="Company type" value={c.company_type} />
@@ -1088,6 +1095,114 @@ function LogoUploader({ value, name, onChange }: { value: string; name: string; 
       )}
       <p className="basis-full text-[11px] text-muted-foreground">Any image format · up to 5 MB · auto-cropped, background made transparent, saved as 1200×300 PNG.</p>
       <ReceiptPreview label="Logo" receipts={value ? [{ path: null, url: value, name: `${name} logo.png`, caption: "1200×300 PNG · transparent", isPdf: false }] : []}
+        index={preview && value ? 0 : null} onIndexChange={() => {}} onClose={() => setPreview(false)} />
+    </div>
+  );
+}
+
+const ICON_STEPS: { stage: LogoStage; from: number; to: number; label: string }[] = [
+  { stage: "read", from: 0, to: 15, label: "Reading image" },
+  { stage: "background", from: 15, to: 40, label: "Making background transparent" },
+  { stage: "crop", from: 40, to: 60, label: "Fitting 512×512 (1:1) with safe padding" },
+  { stage: "color", from: 60, to: 75, label: "Detecting brand colour · PNG" },
+  { stage: "upload", from: 75, to: 100, label: "Uploading to Cloudflare R2" },
+];
+
+/** Square 512×512 icon: upload a fresh file, or cut the symbol out of the current logo. */
+function IconUploader({ value, logo, name, onChange }: { value: string; logo: string; name: string; onChange: (v: string) => void }) {
+  const presign = useServerFn(requestR2Upload);
+  const readLogo = useServerFn(fetchBrandingImage);
+  const [run, setRun] = useState<{ pct: number; label: string; error?: string; done?: boolean } | null>(null);
+  const [preview, setPreview] = useState(false);
+  const abort = useRef<AbortController | null>(null);
+  const last = useRef<{ file?: File; extract: boolean } | null>(null);
+  const busy = !!run && !run.error && !run.done;
+
+  const start = async (src: { file?: File; extract: boolean }) => {
+    last.current = src;
+    const f = src.file;
+    if (f && !isImageFile(f)) { setRun({ pct: 0, label: "", error: "Use an image file (JPG, PNG, WEBP, SVG, GIF)." }); return; }
+    if (f && f.size > 5 * 1024 * 1024) { setRun({ pct: 0, label: "", error: "Icon must be 5 MB or smaller." }); return; }
+    const ctrl = new AbortController(); abort.current = ctrl;
+    const report = (stage: LogoStage, p: number) => {
+      const s = ICON_STEPS.find((x) => x.stage === stage)!;
+      setRun({ pct: Math.round(s.from + (s.to - s.from) * p), label: stage === "crop" && src.extract ? "Removing wordmark · keeping the symbol" : s.label });
+    };
+    try {
+      let blob: Blob;
+      if (f) blob = f;
+      else {
+        setRun({ pct: 2, label: "Copying the current logo" });
+        const r = await readLogo({ data: { url: logo } });
+        const bin = atob(r.base64); const u = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+        blob = new Blob([u], { type: r.type });
+      }
+      const out = await processIcon(blob, src.extract, report, ctrl.signal);
+      report("upload", 0);
+      const base = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "company";
+      const { url, publicUrl } = await presign({ data: { filename: `${base}-icon.png`, contentType: "image/png", scope: "branding" } });
+      if (!publicUrl) throw new Error("Storage public address is not configured.");
+      await putWithProgress(url, out.blob, (p) => report("upload", p), ctrl.signal);
+      setRun({ pct: 100, label: out.extracted ? "Done — symbol cut from the logo" : out.inverted ? "Done — white icon converted to dark" : "Done", done: true });
+      onChange(publicUrl);
+      toast.success("Icon ready — press Save to keep it");
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") { setRun(null); return; }
+      setRun((r) => ({ pct: r?.pct ?? 0, label: r?.label ?? "", error: err instanceof Error ? err.message : "Upload failed" }));
+    }
+  };
+
+  const canExtract = /^https:\/\//.test(logo);
+  return (
+    <div className="flex flex-wrap items-center gap-3 rounded-lg border border-dashed border-border p-3">
+      <div className="group/icon relative grid size-14 shrink-0 place-items-center overflow-hidden rounded-md bg-[var(--company-artwork-paper)] ring-1 ring-border">
+        {busy ? <Loader2 className="size-4 animate-spin text-muted-foreground" />
+          : value ? <img src={value} alt={`${name} icon`} className="size-12 object-contain" />
+          : <ImageUp className="size-5 text-muted-foreground" />}
+        {value && !busy && (
+          <button type="button" aria-label="Preview icon" onClick={() => setPreview(true)}
+            className="absolute inset-0 grid place-items-center bg-foreground/45 opacity-0 transition-opacity focus-visible:opacity-100 group-hover/icon:opacity-100">
+            <Eye className="size-5 text-background" />
+          </button>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <label className={cn("inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-border bg-card px-3 text-[12px] font-bold transition-all hover:border-brand/50 hover:text-brand active:scale-95", busy && "pointer-events-none opacity-60")}>
+          <ImageUp className="size-3.5" /> {value ? "Upload new icon" : "Upload icon"}
+          <input type="file" accept={IMAGE_ACCEPT} className="sr-only" disabled={busy}
+            onChange={(ev) => { const file = ev.target.files?.[0]; ev.target.value = ""; if (file) void start({ file, extract: false }); }} />
+        </label>
+        <Button type="button" size="sm" variant="outline" disabled={busy || !canExtract} title={canExtract ? undefined : "Upload and save a logo first"}
+          onClick={() => void start({ extract: true })} className="h-8 gap-1.5 text-[12px] font-bold hover:border-brand/50 hover:text-brand active:scale-95">
+          <Scissors className="size-3.5" /> Make from logo
+        </Button>
+        {value && !busy && (
+          <Button type="button" size="sm" variant="ghost" onClick={() => { onChange(""); setRun(null); }} className="h-8 gap-1 text-[12px] font-bold text-muted-foreground hover:text-destructive">
+            <Trash2 className="size-3.5" /> Remove
+          </Button>
+        )}
+      </div>
+      {run && (
+        <div className="basis-full space-y-1.5" role="status" aria-live="polite">
+          <div className="flex items-center justify-between gap-2 text-[11.5px] font-semibold">
+            <span className={cn("min-w-0 truncate", run.error ? "text-destructive" : run.done ? "text-status-converted" : "text-foreground")}>{run.error ? run.error : run.label}</span>
+            <span className="font-mono text-[11px] text-muted-foreground">{run.pct}%</span>
+          </div>
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+            <div className={cn("h-full rounded-full transition-[width] duration-200", run.error ? "bg-destructive" : run.done ? "bg-status-converted" : "bg-brand")} style={{ width: `${run.pct}%` }} />
+          </div>
+          {busy && <Button type="button" size="sm" variant="ghost" className="h-7 text-[11.5px] font-bold" onClick={() => abort.current?.abort()}>Cancel</Button>}
+          {run.error && (
+            <div className="flex gap-2">
+              <Button type="button" size="sm" variant="outline" className="h-7 gap-1 text-[11.5px] font-bold" onClick={() => last.current && void start(last.current)}><RotateCcw className="size-3.5" /> Retry</Button>
+              <Button type="button" size="sm" variant="ghost" className="h-7 text-[11.5px] font-bold" onClick={() => setRun(null)}>Cancel</Button>
+            </div>
+          )}
+        </div>
+      )}
+      <p className="basis-full text-[11px] text-muted-foreground">Symbol only, no text · saved as 512×512 transparent PNG with 16% safe padding. “Make from logo” uses the saved logo above.</p>
+      <ReceiptPreview label="Icon" receipts={value ? [{ path: null, url: value, name: `${name} icon.png`, caption: "512×512 PNG · transparent", isPdf: false }] : []}
         index={preview && value ? 0 : null} onIndexChange={() => {}} onClose={() => setPreview(false)} />
     </div>
   );
