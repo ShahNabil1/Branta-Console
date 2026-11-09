@@ -59,7 +59,6 @@ export const testCloudflareConnection = createServerFn({ method: "POST" })
     const checks: { id: string; label: string; ok: boolean; detail: string; zone?: string; off?: boolean }[] = [];
     let token: string | null = null;
     try {
-      cf.clearCache(co.id);
       token = await cf.companyCloudflareToken(co.id);
       checks.push({ id: "token", label: "Cloudflare access", ok: !!token, detail: token ? "Access refreshed." : "No Cloudflare account connected." });
     } catch (e) {

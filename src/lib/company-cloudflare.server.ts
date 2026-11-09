@@ -150,15 +150,34 @@ export async function companyCfApi<T = Any>(companyId: string, path: string, ini
 }
 
 /** Access token for the company's Cloudflare account, or null when none is connected. Rotated refresh tokens are re-sealed. */
+const inflight = new Map<string, Promise<string | null>>();
+
 export async function companyCloudflareToken(companyId: string): Promise<string | null> {
   const hit = cache.get(companyId);
   if (hit && hit.exp > Date.now() + 60_000) return hit.token;
+  // One refresh per company at a time: parallel callers share the same rotation.
+  const running = inflight.get(companyId);
+  if (running) return running;
+  const p = refreshToken(companyId).finally(() => inflight.delete(companyId));
+  inflight.set(companyId, p);
+  return p;
+}
+
+async function refreshToken(companyId: string, attempt = 0): Promise<string | null> {
   const acc = await getAccount(companyId);
   if (!acc?.is_active || !acc.refresh_token_enc) return null;
   const refresh = await open(acc.refresh_token_enc);
   if (!refresh) return null;
   const { ok, status, j } = await tokenCall({ grant_type: "refresh_token", refresh_token: refresh });
   const db = await admin();
+  if ((!ok || !j.access_token) && j.error === "invalid_grant" && attempt < 2) {
+    // Another server instance may have just rotated the refresh token; re-read it and retry.
+    await new Promise((r) => setTimeout(r, 400 + attempt * 600));
+    const again = await getAccount(companyId);
+    if (again?.refresh_token_enc && again.refresh_token_enc !== acc.refresh_token_enc) {
+      return refreshToken(companyId, attempt + 1);
+    }
+  }
   if (!ok || !j.access_token) {
     const reason = j.error === "invalid_grant"
       ? "Cloudflare access was revoked or expired. Reconnect Cloudflare."
@@ -170,6 +189,9 @@ export async function companyCloudflareToken(companyId: string): Promise<string 
     await db.from("company_cloudflare_accounts").update({ refresh_token_enc: await seal(j.refresh_token) }).eq("company_id", companyId);
   }
   cache.set(companyId, { token: j.access_token, exp: Date.now() + Number(j.expires_in ?? 3600) * 1000 });
+  if (acc.last_error) {
+    await db.from("company_cloudflare_accounts").update({ last_error: null }).eq("company_id", companyId);
+  }
   return j.access_token as string;
 }
 
