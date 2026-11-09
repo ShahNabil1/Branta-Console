@@ -28,7 +28,7 @@ import { cn } from "@/lib/utils";
 import { DiscardCancelButton } from "@/components/company/danger-confirm";
 import { TaskActivityLog } from "./task-activity";
 import { TaskAssetComposer, type ComposedItem } from "./task-asset-composer";
-import { AREA, AvatarStack, FIELD, LABEL, PersonAvatar, PriorityBadge, SegmentedProgress, StatusChip, fmtDateTime, fmtDue, spring, AssetKindToggle, type AssetKind } from "./task-ui";
+import { SoftPill, STATUS_TONE, AREA, AvatarStack, FIELD, LABEL, PersonAvatar, PriorityBadge, SegmentedProgress, StatusChip, fmtDateTime, fmtDue, spring, AssetKindToggle, type AssetKind } from "./task-ui";
 
 type Tab = "overview" | "submissions" | "comments" | "activity";
 type UpdPatch = { id: string; title?: string; description?: string | null; priority?: "low" | "normal" | "high" | "urgent"; status?: "todo" | "doing" | "in_review" | "done"; due_on?: string | null; due_time?: string | null; tags?: string[]; project_id?: string | null };
@@ -41,7 +41,7 @@ export function TaskDetailDrawer({ taskId, onClose, members, projects }: {
 }) {
   return (
     <Sheet open={!!taskId} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <ExpenseDrawerContent className="sm:max-w-2xl">
+      <ExpenseDrawerContent className="sm:inset-y-3 sm:right-3 sm:h-auto sm:max-w-[680px] sm:rounded-2xl sm:border sm:border-border sm:shadow-[0_24px_60px_-20px_rgb(0_0_0/0.25)]">
         {taskId ? <Body taskId={taskId} onClose={onClose} members={members} projects={projects} /> : null}
       </ExpenseDrawerContent>
     </Sheet>
@@ -60,15 +60,15 @@ function Body({ taskId, onClose, members, projects }: { taskId: string; onClose:
   const t = q.data;
   return (
     <>
-      <ExpenseDrawerHeader>
+      <ExpenseDrawerHeader className="border-b-0 pb-2 pt-6">
         <div className="flex items-center gap-2 text-[11.5px] font-semibold text-muted-foreground">
           <StatusChip value={t.status} /><PriorityBadge value={t.priority} />
-          {t.approved_at && <span className="inline-flex items-center gap-1 rounded border border-status-converted/40 px-1.5 py-0.5 text-[10.5px] font-bold text-status-converted"><BadgeCheck className="size-3" />Approved</span>}
+          {t.approved_at && <SoftPill tone="green"><BadgeCheck className="size-3" />Approved</SoftPill>}
         </div>
-        <SheetTitle className="mt-2 text-[20px] font-extrabold leading-tight tracking-tight">{t.title}</SheetTitle>
+        <SheetTitle className="mt-3 text-[26px] font-semibold leading-tight tracking-tight">{t.title}</SheetTitle>
         <SheetDescription className="sr-only">Task details</SheetDescription>
       </ExpenseDrawerHeader>
-      <div className="border-b border-border px-4">
+      <div className="mt-2 border-b border-border px-4 sm:px-6">
         <UnderlineTabs<Tab> value={tab} onChange={setTab} ariaLabel="Task sections" items={[
           { id: "overview", label: "Overview", icon: FileText },
           { id: "submissions", label: "Submissions", icon: Upload, count: t.submissions.length },
@@ -97,8 +97,8 @@ function useAct<T>(fn: (v: T) => Promise<unknown>, refresh: () => void, ok?: str
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="grid grid-cols-[7.5rem_1fr] items-center gap-3 py-1.5">
-      <span className="text-[12.5px] font-semibold text-muted-foreground">{label}</span>
+    <div className="grid grid-cols-[8.5rem_1fr] items-center gap-3 py-2 sm:grid-cols-[10rem_1fr]">
+      <span className="text-[13px] font-normal text-muted-foreground">{label}</span>
       <div className="min-w-0">{children}</div>
     </div>
   );
@@ -220,7 +220,7 @@ function TeamProgress({ t }: { t: CompanyTaskDetail }) {
               <div className="flex items-center gap-2">
                 <PersonAvatar name={r.name} src={r.avatar_url} size={24} />
                 <span className="truncate text-[12.5px] font-extrabold">{r.name}{r.user_id === t.me && <span className="ml-1 text-[10px] font-bold text-brand">(You)</span>}</span>
-                <span className={cn("ml-auto rounded border border-current/30 px-1.5 py-0.5 text-[9.5px] font-extrabold uppercase", r.status === "revision" ? "text-destructive" : STAGES.find((x) => x.key === st)?.text)}>{r.status === "revision" ? "Revision" : STAGES.find((x) => x.key === st)?.label}</span>
+                <SoftPill className="ml-auto" dot tone={r.status === "revision" ? "red" : STATUS_TONE[st] ?? "grey"}>{r.status === "revision" ? "Revision" : STAGES.find((x) => x.key === st)?.label}</SoftPill>
               </div>
               <ol className="mt-2 grid grid-cols-4 gap-1">
                 {steps.map((s) => (
@@ -507,7 +507,7 @@ function Overview({ t, members, projects, refresh }: { t: CompanyTaskDetail; mem
                         onChange={(v) => { const st = t.subtasks.find((s) => s.id === v); const sa = st ? d.subs[st.id]?.assignee_id : null; setAsset(a.id, { subtask_id: v || null, ...(sa ? { assignee_id: sa } : {}) }); }} placeholder="Whole task" /></div>
                       : subId && <span className="ml-1.5 inline-flex items-center gap-1 rounded border border-border px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground"><ListChecks className="size-3" />{t.subtasks.findIndex((s) => s.id === subId) + 1}. {t.subtasks.find((s) => s.id === subId)?.title}</span>}
                   </div>
-                  {latest && !edit && <span className={cn("rounded border px-1.5 py-0.5 text-[10px] font-bold uppercase", latest.status === "approved" ? "border-status-converted/40 text-status-converted" : latest.status === "revision" ? "border-destructive/40 text-destructive" : "border-border text-muted-foreground")}>{latest.status === "pending" ? "In review" : latest.status}</span>}
+                  {latest && !edit && <SoftPill dot tone={latest.status === "approved" ? "green" : latest.status === "revision" ? "red" : "amber"}>{latest.status === "pending" ? "In review" : latest.status === "revision" ? "Revision requested" : "Approved"}</SoftPill>}
                   {edit ? (
                     <div className="w-36 shrink-0"><SearchableSelect clearable searchable={false} items={team} value={x?.assignee_id ?? ""} onChange={(v) => setAsset(a.id, { assignee_id: v || null })} placeholder="Anyone" emptyText="No assignees" /></div>
                   ) : who ? <span className="inline-flex items-center gap-1 text-[11.5px] font-bold"><PersonAvatar name={who.name} src={who.avatar_url} size={18} />{who.name.split(" ")[0]}</span> : null}
@@ -834,7 +834,7 @@ function Footer({ t, refresh, onClose }: { t: CompanyTaskDetail; refresh: () => 
               confirmLabel: "Mark complete",
             });
             if (ok) ap.mutate(undefined);
-          }} disabled={ap.isPending} className="h-9 gap-1.5 rounded-md shadow-md shadow-brand/25 transition-all active:scale-95">
+          }} disabled={ap.isPending} className="h-9 gap-1.5 rounded-md transition-all active:scale-95">
             {ap.isPending ? <TestLoader tone="white" /> : <BadgeCheck className="size-4" />}Mark complete
           </Button>
         )}

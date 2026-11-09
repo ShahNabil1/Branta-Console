@@ -1,29 +1,23 @@
-// New Task: the same step-by-step drawer as Add Expense (ExpenseDrawerContent,
-// DrawerStepper, SearchableSelect, DiscardCancelButton) for company tasks.
+// New Task: single-page property-list drawer (Notion-style rows) for company tasks.
 import { useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { toast } from "sonner";
-import { Check, ChevronLeft, ChevronRight, Link2, ListChecks, Plus, SquareCheckBig, X } from "lucide-react";
+import { CalendarDays, Check, FileText, Flag, FolderKanban, Link2, ListChecks, Loader, Plus, SquareCheckBig, Tag, Users, X } from "lucide-react";
 import { Sheet, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TestLoader } from "@/components/ui/test-loader";
 import { DiscardCancelButton } from "@/components/company/danger-confirm";
-import { DrawerStepper, ExpenseDrawerContent, ExpenseDrawerHeader } from "@/components/finance/expense-drawer";
+import { ExpenseDrawerContent, ExpenseDrawerHeader } from "@/components/finance/expense-drawer";
 import { SearchableSelect } from "@/components/finance/searchable-select";
 import { createCompanyTask, requestTaskAssetUpload, type TaskMember } from "@/lib/company-tasks.functions";
 import { MAX_TASK_ASSETS, MAX_TASK_TAGS, TASK_PRIORITIES, TASK_STATUSES, submissionFileKind, type CompanyTaskStatus } from "@/lib/company-task-rules";
-import { AREA, FIELD, LABEL, AssetKindToggle, PersonAvatar, spring } from "./task-ui";
+import { AREA, FIELD, LABEL, AssetKindToggle, PersonAvatar, PropRow, PRIORITY_SOFT, STATUS_TONE, SoftPill, spring } from "./task-ui";
 import { TaskAssetComposer, type ComposedItem } from "./task-asset-composer";
 import { ReceiptThumb } from "@/components/finance/receipt-media";
 
-const STEPS = [
-  { label: "Basics", hint: "what, when and priority" },
-  { label: "Team", hint: "assignees and subtasks" },
-  { label: "Assets", hint: "description, links and review" },
-] as const;
 
 type Draft = {
   title: string; priority: string; status: CompanyTaskStatus; due_on: string; due_time: string; project_id: string; tags: string[];
@@ -37,14 +31,13 @@ export function NewTaskDrawer({ open, onOpenChange, workspace, companyName, memb
 }) {
   const qc = useQueryClient();
   const create = useServerFn(createCompanyTask);
-  const [step, setStep] = useState(0);
   const [d, setD] = useState<Draft>(() => empty(initialStatus));
   const [tag, setTag] = useState("");
   const [sub, setSub] = useState("");
   const [mode, setMode] = useState<"live" | "scheduled" | "draft">("live");
   const [startOn, setStartOn] = useState(""); const [startAt, setStartAt] = useState("09:00");
   const [lastOpen, setLastOpen] = useState(false);
-  if (open !== lastOpen) { setLastOpen(open); if (open) { setD(empty(initialStatus)); setStep(0); setMode("live"); setStartOn(""); setTag(""); setSub(""); } }
+  if (open !== lastOpen) { setLastOpen(open); if (open) { setD(empty(initialStatus)); setMode("live"); setStartOn(""); setTag(""); setSub(""); } }
 
   const memberById = useMemo(() => new Map(members.map((m) => [m.user_id, m])), [members]);
   const memberItems = members
@@ -52,10 +45,6 @@ export function NewTaskDrawer({ open, onOpenChange, workspace, companyName, memb
   const teamItems = d.assignees.map((u) => ({ value: u, label: memberById.get(u)?.name ?? "Team member", avatar: memberById.get(u)?.avatar_url ?? "" }));
   const dirty = JSON.stringify(d) !== JSON.stringify(empty(initialStatus));
 
-  const goTo = (i: number) => {
-    if (i > 0 && !d.title.trim()) { setStep(0); toast.error("Give the task a title first"); return; }
-    setStep(i);
-  };
   const addTag = () => {
     const t = tag.trim();
     if (!t) return;
@@ -117,76 +106,75 @@ export function NewTaskDrawer({ open, onOpenChange, workspace, companyName, memb
 
   return (
     <Sheet open={open} onOpenChange={(v) => { if (!v && !save.isPending) onOpenChange(false); }}>
-      <ExpenseDrawerContent>
-        <ExpenseDrawerHeader>
-          <div className="flex items-center gap-3">
-            <span className="grid size-10 place-items-center rounded-xl bg-brand/10 text-brand ring-1 ring-inset ring-brand/20"><SquareCheckBig className="size-5" /></span>
-            <div className="min-w-0">
-              <SheetTitle className="text-[16px] font-bold">New task</SheetTitle>
-              <SheetDescription className="text-[12px]">{companyName} · step {step + 1} of 3 — {STEPS[step].hint}</SheetDescription>
-            </div>
+      <ExpenseDrawerContent className="sm:inset-y-3 sm:right-3 sm:h-auto sm:max-w-[680px] sm:rounded-2xl sm:border sm:border-border sm:shadow-[0_24px_60px_-20px_rgb(0_0_0/0.25)]">
+        <ExpenseDrawerHeader className="border-b-0 pb-1 pt-4">
+          <div className="flex items-center gap-2 text-[12.5px] text-muted-foreground">
+            <SquareCheckBig className="size-4" strokeWidth={1.75} />
+            <span>{companyName}</span><span>/</span><span>Tasks</span><span>/</span><span className="text-foreground">New task</span>
           </div>
-          <DrawerStepper steps={STEPS} step={step} onStep={goTo} />
+          <SheetTitle className="sr-only">New task</SheetTitle>
+          <SheetDescription className="sr-only">Create a task for {companyName}</SheetDescription>
+          <input data-drawer-autofocus value={d.title} maxLength={200} onChange={(e) => setD({ ...d, title: e.target.value })} placeholder="Untitled task" aria-label="Title"
+            className="mt-4 w-full bg-transparent text-[26px] font-semibold leading-tight tracking-tight outline-none placeholder:text-muted-foreground/50" />
         </ExpenseDrawerHeader>
         <div className="flex-1 overflow-y-auto px-6 py-5">
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div key={step} initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }} className="space-y-4">
-              {step === 0 && (<>
-                <div>
-                  <label className={LABEL}>Title</label>
-                  <Input data-drawer-autofocus value={d.title} maxLength={200} onChange={(e) => setD({ ...d, title: e.target.value })} className={`mt-1.5 ${FIELD} text-[14px]`} />
-                </div>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <div>
-                    <label className={LABEL}>Priority</label>
-                    <div className="mt-1.5"><SearchableSelect searchable={false} items={TASK_PRIORITIES.map((p) => ({ value: p.key, label: p.label }))} value={d.priority} onChange={(v) => v && setD({ ...d, priority: v })} /></div>
+          <div className="space-y-5">
+              <div className="divide-y-0">
+                <PropRow icon={Loader} label="Status">
+                  <div className="flex flex-wrap gap-1.5">
+                    {TASK_STATUSES.filter((s) => s.key !== "done").map((s) => (
+                      <button key={s.key} type="button" onClick={() => setD({ ...d, status: s.key as CompanyTaskStatus })}
+                        className={`rounded-md transition-opacity ${d.status === s.key ? "ring-1 ring-foreground/25" : "opacity-60 hover:opacity-100"}`}>
+                        <SoftPill dot tone={STATUS_TONE[s.key] ?? "grey"}>{s.label}</SoftPill>
+                      </button>
+                    ))}
                   </div>
-                  <div>
-                    <label className={LABEL}>Status</label>
-                    <div className="mt-1.5"><SearchableSelect searchable={false} items={TASK_STATUSES.filter((s) => s.key !== "done").map((s) => ({ value: s.key, label: s.label }))} value={d.status} onChange={(v) => v && setD({ ...d, status: v as CompanyTaskStatus })} /></div>
+                </PropRow>
+                <PropRow icon={Flag} label="Priority">
+                  <div className="flex flex-wrap gap-1.5">
+                    {TASK_PRIORITIES.map((p) => (
+                      <button key={p.key} type="button" onClick={() => setD({ ...d, priority: p.key })}
+                        className={`rounded-md transition-opacity ${d.priority === p.key ? "ring-1 ring-foreground/25" : "opacity-60 hover:opacity-100"}`}>
+                        <SoftPill tone={PRIORITY_SOFT[p.key] ?? "grey"}>{p.label}</SoftPill>
+                      </button>
+                    ))}
                   </div>
-                </div>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <div>
-                    <label className={LABEL}>Due date & time</label>
-                    <div className="mt-1.5 grid grid-cols-[1fr_7.5rem] gap-2">
-                      <Input type="date" value={d.due_on} onChange={(e) => setD({ ...d, due_on: e.target.value, due_time: e.target.value ? d.due_time : "" })} className={FIELD} aria-label="Due date" />
-                      <Input type="time" value={d.due_time} disabled={!d.due_on} onChange={(e) => setD({ ...d, due_time: e.target.value })} className={`${FIELD} font-mono`} aria-label="Due time" />
-                    </div>
+                </PropRow>
+                <PropRow icon={CalendarDays} label="Due date">
+                  <div className="grid max-w-80 grid-cols-[1fr_7rem] gap-2">
+                    <Input type="date" value={d.due_on} onChange={(e) => setD({ ...d, due_on: e.target.value, due_time: e.target.value ? d.due_time : "" })} className={FIELD} aria-label="Due date" />
+                    <Input type="time" value={d.due_time} disabled={!d.due_on} onChange={(e) => setD({ ...d, due_time: e.target.value })} className={`${FIELD} font-mono`} aria-label="Due time" />
                   </div>
-                  <div>
-                    <label className={LABEL}>Project (optional)</label>
-                    <div className="mt-1.5"><SearchableSelect clearable items={projects.map((p) => ({ value: p.id, label: p.title }))} value={d.project_id} onChange={(v) => setD({ ...d, project_id: v })} placeholder="— Not linked to a project —" emptyText="No projects in this company" /></div>
-                  </div>
-                </div>
-                <div>
-                  <label className={LABEL}>Tags</label>
-                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5 rounded-lg border border-border bg-card p-1.5 shadow-sm">
+                </PropRow>
+                <PropRow icon={FolderKanban} label="Project">
+                  <div className="max-w-80"><SearchableSelect clearable items={projects.map((p) => ({ value: p.id, label: p.title }))} value={d.project_id} onChange={(v) => setD({ ...d, project_id: v })} placeholder="Not linked" emptyText="No projects in this company" /></div>
+                </PropRow>
+                <PropRow icon={Tag} label="Tags">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <AnimatePresence initial={false}>
                       {d.tags.map((t) => (
                         <motion.span key={t} layout initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.7, opacity: 0 }} transition={spring}
-                          className="inline-flex items-center gap-1 rounded border border-border bg-muted/50 px-1.5 py-0.5 text-[11.5px] font-bold">
+                          className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-[12px] font-medium text-foreground/75">
                           {t}<button type="button" aria-label={`Remove ${t}`} onClick={() => setD({ ...d, tags: d.tags.filter((x) => x !== t) })}><X className="size-3 text-muted-foreground hover:text-foreground" /></button>
                         </motion.span>
                       ))}
                     </AnimatePresence>
                     <input value={tag} onChange={(e) => setTag(e.target.value)} maxLength={40} enterKeyHint="done"
                       onKeyDown={(e) => { if ((e.key === "Enter" || e.key === ",") && !e.nativeEvent.isComposing) { e.preventDefault(); e.stopPropagation(); addTag(); } }}
-                      onBlur={addTag} aria-label="Add tag" className="min-w-24 flex-1 bg-transparent px-1 py-1 text-[12.5px] font-semibold outline-none" />
+                      onBlur={addTag} aria-label="Add tag" placeholder="+ Add tag" className="min-w-24 flex-1 bg-transparent px-1 py-1 text-[12.5px] outline-none placeholder:text-muted-foreground" />
                   </div>
-                </div>
-              </>)}
-              {step === 1 && (<>
-                <div>
-                  <label className={LABEL}>Assignees</label>
-                  <div className="mt-1.5"><SearchableSelect items={memberItems} value="" checked={d.assignees} onChange={(v) => { if (!v) return; if (d.assignees.includes(v)) removeAssignee(v); else setD({ ...d, assignees: [...d.assignees, v] }); }} placeholder={d.assignees.length ? `${d.assignees.length} selected · add more` : "+ Add assignees"} emptyText="No members" /></div>
+                </PropRow>
+              </div>
+              <div className="space-y-5">
+                <PropRow icon={Users} label="Assignees" top>
+                  <div className="max-w-64"><SearchableSelect items={memberItems} value="" checked={d.assignees} onChange={(v) => { if (!v) return; if (d.assignees.includes(v)) removeAssignee(v); else setD({ ...d, assignees: [...d.assignees, v] }); }} placeholder={d.assignees.length ? `+ Add more (${d.assignees.length})` : "+ Invite / add"} emptyText="No members" /></div>
                   <motion.ul layout className="mt-2 flex flex-wrap gap-1.5">
                     <AnimatePresence initial={false}>
                       {d.assignees.map((u) => {
                         const m = memberById.get(u);
                         return (
                           <motion.li key={u} layout initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.7, opacity: 0 }} transition={spring}
-                            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card py-0.5 pl-0.5 pr-2 text-[12px] font-bold shadow-sm">
+                            className="inline-flex items-center gap-1.5 rounded-full bg-muted py-0.5 pl-0.5 pr-2 text-[12.5px] font-medium">
                             <PersonAvatar name={m?.name ?? "?"} src={m?.avatar_url} size={20} />{m?.name ?? "Team member"}{u === me && <span className="text-muted-foreground">(me)</span>}
                             <button type="button" aria-label="Remove assignee" onClick={() => removeAssignee(u)}><X className="size-3 text-muted-foreground hover:text-foreground" /></button>
                           </motion.li>
@@ -195,10 +183,10 @@ export function NewTaskDrawer({ open, onOpenChange, workspace, companyName, memb
                     </AnimatePresence>
                   </motion.ul>
                   {!d.assignees.includes(me) && memberById.has(me) && (
-                    <button type="button" onClick={() => setD({ ...d, assignees: [...d.assignees, me] })} className="mt-2 text-[12px] font-bold text-brand hover:underline">Assign to me</button>
+                    <button type="button" onClick={() => setD({ ...d, assignees: [...d.assignees, me] })} className="mt-2 text-[12.5px] font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">Assign to me</button>
                   )}
-                </div>
-                <div className="rounded-xl border border-border bg-muted/30 p-3.5">
+                </PropRow>
+                <div className="rounded-xl border border-border bg-card p-4">
                   <div className="flex items-center gap-1.5"><ListChecks className="size-4 text-muted-foreground" /><span className={LABEL}>Subtasks</span><span className="ml-auto font-mono text-[11px] text-muted-foreground">{d.subtasks.length}</span></div>
                   <ul className="mt-2 space-y-1.5">
                     <AnimatePresence initial={false}>
@@ -224,13 +212,13 @@ export function NewTaskDrawer({ open, onOpenChange, workspace, companyName, memb
                     <Button type="button" variant="outline" onClick={addSub} className="h-10 gap-1 rounded-lg"><Plus className="size-4" />Add</Button>
                   </div>
                 </div>
-              </>)}
-              {step === 2 && (<>
+              </div>
+              <div className="space-y-5">
                 <div>
-                  <label className={LABEL}>Description</label>
-                  <textarea value={d.description} onChange={(e) => setD({ ...d, description: e.target.value })} rows={4} className={`mt-1.5 ${AREA}`} />
+                  <div className="mb-2 flex items-center gap-2 text-[13px] text-muted-foreground"><FileText className="size-4" strokeWidth={1.75} />Description</div>
+                  <textarea placeholder="Add a short description…" value={d.description} onChange={(e) => setD({ ...d, description: e.target.value })} rows={4} className={AREA} />
                 </div>
-                <div className="rounded-xl border border-border bg-muted/30 p-3.5">
+                <div className="rounded-xl border border-border bg-card p-4">
                   <div className="flex items-center gap-1.5"><Link2 className="size-4 text-muted-foreground" /><span className={LABEL}>Assets & reference links</span><span className="ml-auto font-mono text-[11px] text-muted-foreground">{d.assets.length}/{MAX_TASK_ASSETS}</span></div>
                   <p className="mt-1 text-[11.5px] text-muted-foreground">Choose the type and subtask first, then paste links or upload files — up to {MAX_TASK_ASSETS} items.</p>
                   <TaskAssetComposer room={MAX_TASK_ASSETS - d.assets.length} busy={save.isPending} existingUrls={d.assets.map((a) => a.url)} onAdd={addItems}
@@ -290,21 +278,15 @@ export function NewTaskDrawer({ open, onOpenChange, workspace, companyName, memb
                   <div><div className="text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground">Subtasks</div><div className="mt-0.5 font-mono text-[15px] font-bold">{d.subtasks.length}</div></div>
                   <div><div className="text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground">Assets</div><div className="mt-0.5 font-mono text-[15px] font-bold">{d.assets.length}</div></div>
                 </div>
-              </>)}
-            </motion.div>
-          </AnimatePresence>
+              </div>
+          </div>
         </div>
         <div className="flex items-center justify-between gap-2 border-t border-border bg-card px-6 py-3.5">
           <DiscardCancelButton dirty={dirty} onCancel={() => onOpenChange(false)} className="h-9 rounded-md" disabled={save.isPending} />
           <div className="flex items-center gap-2">
-            {step > 0 && <Button variant="outline" onClick={() => setStep(step - 1)} disabled={save.isPending} className="h-9 gap-1 rounded-md"><ChevronLeft className="size-4" /> Back</Button>}
-            {step < 2 ? (
-              <Button onClick={() => goTo(step + 1)} className="h-9 gap-1 rounded-md shadow-md shadow-brand/25 transition-all active:scale-95">Continue <ChevronRight className="size-4" /></Button>
-            ) : (
-              <Button onClick={() => save.mutate()} disabled={save.isPending || !d.title.trim() || scheduleBad} className="h-9 min-w-28 gap-1.5 rounded-md shadow-md shadow-brand/25 transition-all active:scale-95">
+              <Button onClick={() => save.mutate()} disabled={save.isPending || !d.title.trim() || scheduleBad} className="h-9 min-w-28 gap-1.5 rounded-lg">
                 {save.isPending ? <TestLoader tone="white" /> : <Check className="size-4" />}{save.isPending ? phase ?? "Saving…" : mode === "draft" ? "Save draft" : mode === "scheduled" ? "Schedule task" : "Create task"}
               </Button>
-            )}
           </div>
         </div>
       </ExpenseDrawerContent>

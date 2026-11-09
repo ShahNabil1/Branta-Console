@@ -1,13 +1,42 @@
 // Small shared pieces for Company Tasks (board cards + drawers).
 import { useState } from "react";
+import type React from "react";
 import { motion } from "framer-motion";
 import { BookOpen, Flag, Package } from "lucide-react";
 import { priorityLabel, statusLabel } from "@/lib/company-task-rules";
 import { cn } from "@/lib/utils";
 
-export const FIELD = "h-10 rounded-lg text-[13px] font-semibold shadow-sm transition-all hover:border-foreground/25 focus:border-brand focus:shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-brand)_15%,transparent)] focus-visible:ring-0 focus-visible:border-brand focus-visible:shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-brand)_15%,transparent)]";
-export const AREA = "w-full rounded-lg border border-border bg-card px-3 py-2 text-[13px] leading-snug shadow-sm outline-none transition-all hover:border-foreground/25 focus:border-brand focus:shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-brand)_15%,transparent)]";
-export const LABEL = "text-[10.5px] font-extrabold uppercase tracking-wider text-foreground/70";
+export const FIELD = "h-9 rounded-lg border-border bg-card text-[13px] font-medium shadow-none transition-colors hover:border-foreground/20 focus:border-foreground/40 focus-visible:ring-0 focus-visible:border-foreground/40";
+export const AREA = "w-full rounded-xl border border-transparent bg-muted px-3.5 py-3 text-[13px] leading-relaxed text-foreground/80 outline-none transition-colors placeholder:text-muted-foreground/70 hover:border-border focus:border-foreground/30 focus:bg-card";
+export const LABEL = "text-[12.5px] font-medium text-muted-foreground";
+
+/** Notion-style property row: grey icon + label on the left, value on the right. */
+export function PropRow({ icon: Icon, label, children, top }: { icon: typeof Flag; label: string; children: React.ReactNode; top?: boolean }) {
+  return (
+    <div className={cn("grid grid-cols-[8.5rem_1fr] gap-3 py-1.5 sm:grid-cols-[10rem_1fr]", top ? "items-start" : "items-center")}>
+      <div className={cn("flex items-center gap-2 text-[13px] text-muted-foreground", top && "pt-2")}><Icon className="size-4 shrink-0" strokeWidth={1.75} />{label}</div>
+      <div className="min-w-0">{children}</div>
+    </div>
+  );
+}
+
+/** Soft tinted pill (reference-style status/priority chip). */
+export const SOFT: Record<string, string> = {
+  grey: "bg-muted text-foreground/70",
+  blue: "bg-[color-mix(in_oklab,#4f46e5_10%,transparent)] text-[#4338ca]",
+  amber: "bg-[color-mix(in_oklab,#f59e0b_16%,transparent)] text-[#b45309]",
+  green: "bg-[color-mix(in_oklab,#10b981_14%,transparent)] text-[#047857]",
+  red: "bg-[color-mix(in_oklab,#ef4444_12%,transparent)] text-[#b91c1c]",
+};
+export function SoftPill({ tone = "grey", dot, children, className }: { tone?: keyof typeof SOFT; dot?: boolean; children: React.ReactNode; className?: string }) {
+  return (
+    <span className={cn("inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[12px] font-medium", SOFT[tone], className)}>
+      {dot && <span className="size-1.5 rounded-full bg-current" />}{children}
+    </span>
+  );
+}
+export const STATUS_TONE: Record<string, keyof typeof SOFT> = { todo: "grey", doing: "blue", in_review: "amber", done: "green", approved: "green", revision: "red", submitted: "amber" };
+export const PRIORITY_SOFT: Record<string, keyof typeof SOFT> = { low: "blue", normal: "grey", high: "amber", urgent: "red" };
 
 export const spring = { type: "spring", stiffness: 420, damping: 34, mass: 0.7 } as const;
 
@@ -37,30 +66,16 @@ export function AvatarStack({ people, max = 4, size = 22 }: { people: { user_id:
   );
 }
 
-const PRIORITY_TONE: Record<string, string> = {
-  low: "border-border text-muted-foreground",
-  normal: "border-border text-foreground/80",
-  high: "border-status-contacted/40 text-status-contacted",
-  urgent: "border-destructive/40 text-destructive",
-};
 export function PriorityBadge({ value }: { value: string }) {
-  return (
-    <span className={cn("inline-flex items-center gap-1 rounded border bg-card px-1.5 py-0.5 text-[10.5px] font-bold", PRIORITY_TONE[value] ?? PRIORITY_TONE.normal)}>
-      <Flag className="size-3" />{priorityLabel(value)}
-    </span>
-  );
+  return <SoftPill tone={PRIORITY_SOFT[value] ?? "grey"}><Flag className="size-3" />{priorityLabel(value)}</SoftPill>;
 }
 
-const STATUS_DOT: Record<string, string> = { todo: "bg-muted-foreground/60", doing: "bg-brand", in_review: "bg-status-contacted", done: "bg-status-converted" };
+const STATUS_DOT: Record<string, string> = { todo: "bg-muted-foreground/60", doing: "bg-[#4f46e5]", in_review: "bg-status-contacted", done: "bg-status-converted" };
 export function StatusDot({ value, className }: { value: string; className?: string }) {
   return <span className={cn("inline-block size-2 rounded-full", STATUS_DOT[value] ?? STATUS_DOT.todo, className)} />;
 }
 export function StatusChip({ value }: { value: string }) {
-  return (
-    <span className="inline-flex items-center gap-1.5 rounded border border-border bg-card px-1.5 py-0.5 text-[10.5px] font-bold uppercase tracking-wide text-foreground/80">
-      <StatusDot value={value} />{statusLabel(value)}
-    </span>
-  );
+  return <SoftPill tone={STATUS_TONE[value] ?? "grey"} dot>{statusLabel(value)}</SoftPill>;
 }
 
 /** Segmented subtask progress; each finished segment springs in. */
