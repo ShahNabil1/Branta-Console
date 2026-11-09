@@ -119,12 +119,12 @@ export const enableCloudflareRouting = createServerFn({ method: "POST" })
 // ---------- DNS management (zones + records) ----------
 export type DnsRecord = {
   id: string; type: string; name: string; content: string; proxied: boolean; proxiable: boolean;
-  ttl: number; priority: number | null; comment: string | null; data: Record<string, unknown> | null;
+  ttl: number; priority: number | null; comment: string | null; data: string | null;
 };
 const ZoneIn = Slug.extend({ zone: z.string().trim().regex(/^[a-f0-9]{32}$/i) });
 const mapRec = (r: Any): DnsRecord => ({
   id: r.id, type: r.type, name: r.name, content: String(r.content ?? ""), proxied: !!r.proxied, proxiable: !!r.proxiable,
-  ttl: Number(r.ttl ?? 1), priority: r.priority ?? null, comment: r.comment ?? null, data: r.data ?? null,
+  ttl: Number(r.ttl ?? 1), priority: r.priority ?? null, comment: r.comment ?? null, data: r.data ? JSON.stringify(r.data, null, 2) : null,
 });
 
 export const listCloudflareZones = createServerFn({ method: "POST" })

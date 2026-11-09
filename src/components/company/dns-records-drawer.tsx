@@ -25,7 +25,7 @@ const ttlLabel = (t: number) => TTLS.find(([v]) => v === t)?.[1] ?? `${t}s`;
 type Form = { type: string; name: string; content: string; ttl: number; proxied: boolean; priority: string; comment: string; data: string };
 const toForm = (r?: DnsRecord): Form => ({
   type: r?.type ?? "A", name: r?.name ?? "", content: r?.content ?? "", ttl: r?.ttl ?? 1, proxied: r?.proxied ?? false,
-  priority: r?.priority != null ? String(r.priority) : "", comment: r?.comment ?? "", data: r?.data ? JSON.stringify(r.data, null, 2) : "",
+  priority: r?.priority != null ? String(r.priority) : "", comment: r?.comment ?? "", data: r?.data ?? "",
 });
 const same = (a: Form, b: Form) => JSON.stringify(a) === JSON.stringify(b);
 

@@ -5,7 +5,7 @@ import { TestLoader } from "@/components/ui/test-loader";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { CheckCircle2, Globe, Loader2, Mail, Unplug, XCircle, ShieldCheck, type LucideIcon } from "lucide-react";
+import { CheckCircle2, Globe, Loader2, Mail, Unplug, XCircle, ShieldCheck, MoreHorizontal, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   disconnectCloudflare,
@@ -16,6 +16,7 @@ import {
 } from "@/lib/company-cloudflare.functions";
 import { connectCloudflareInPopup } from "@/lib/cloudflare-connect-popup";
 import { cn } from "@/lib/utils";
+import { DnsRecordsDrawer } from "@/components/company/dns-records-drawer";
 import { INTEGRATIONS_CLOUDFLARE_ICON as cfIcon } from "@/lib/brand-assets";
 import { INTEGRATIONS_CLOUDFLARE_WORDMARK as cfWordmark } from "@/lib/brand-assets";
 
@@ -49,6 +50,7 @@ export function CloudflareAccountCard({ slug }: { slug: string }) {
   const [busy, setBusy] = useState<"connect" | "test" | "disc" | null>(null);
   const [checks, setChecks] = useState<Check[] | null>(null);
   const [confirm, setConfirm] = useState(false);
+  const [dnsOpen, setDnsOpen] = useState(false);
   const popupAbort = useRef<AbortController | null>(null);
   const autoRan = useRef(false);
   useEffect(() => () => popupAbort.current?.abort(), [slug]);
@@ -109,6 +111,7 @@ export function CloudflareAccountCard({ slug }: { slug: string }) {
           <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="outline" onClick={runTest} disabled={!!busy}><TestLoader active={busy === "test"} /> Test</Button>
             <DisconnectButton onClick={() => setConfirm(true)} disabled={!!busy} />
+            <Button size="sm" variant="outline" className="px-2" aria-label="Manage DNS records" title="Manage DNS records" onClick={() => setDnsOpen(true)}><MoreHorizontal className="size-4" /></Button>
           </div>
         ) : (
           <button
@@ -133,6 +136,8 @@ export function CloudflareAccountCard({ slug }: { slug: string }) {
           {a.last_error && <span className="rounded-full bg-destructive/10 px-2.5 py-1 text-[11px] font-bold text-destructive">{a.last_error}</span>}
         </div>
       )}
+
+      {a && <DnsRecordsDrawer slug={slug} open={dnsOpen} onOpenChange={setDnsOpen} />}
 
       <ConfirmSurface
         open={confirm}
