@@ -37,7 +37,7 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: "completed", label: "Completed" },
 ];
 export const trackLabel = (k: string | null) => SERVICE_TRACKS.find((t) => t.key === k)?.label ?? "—";
-export const roleShort = (k: string) => PROJECT_ROLES.find((r) => r.key === k)?.label.split(" /")[0] ?? k;
+export const roleShort = (k: string) => PROJECT_ROLES.find((r) => r.key === k)?.label ?? k.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 export const STATUS_LABEL: Record<string, string> = { planned: "Planned", active: "Active", on_hold: "On hold", completed: "Completed", cancelled: "Cancelled" };
 
 export function ProjectsHub() {

@@ -1352,6 +1352,44 @@ export type Database = {
           },
         ]
       }
+      company_project_roles: {
+        Row: {
+          active: boolean
+          company_id: string
+          created_at: string
+          id: string
+          key: string
+          label: string
+          position: number
+        }
+        Insert: {
+          active?: boolean
+          company_id: string
+          created_at?: string
+          id?: string
+          key: string
+          label: string
+          position?: number
+        }
+        Update: {
+          active?: boolean
+          company_id?: string
+          created_at?: string
+          id?: string
+          key?: string
+          label?: string
+          position?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_project_roles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_resend_accounts: {
         Row: {
           company_id: string
@@ -5552,6 +5590,79 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "project_members_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "client_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_update_comments: {
+        Row: {
+          body: string
+          created_at: string
+          created_by: string
+          id: string
+          update_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          created_by: string
+          id?: string
+          update_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          update_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_update_comments_update_id_fkey"
+            columns: ["update_id"]
+            isOneToOne: false
+            referencedRelation: "project_work_updates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_work_updates: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          link: string | null
+          note: string | null
+          project_id: string
+          title: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          link?: string | null
+          note?: string | null
+          project_id: string
+          title: string
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          link?: string | null
+          note?: string | null
+          project_id?: string
+          title?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_work_updates_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "client_projects"

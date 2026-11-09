@@ -3,7 +3,10 @@ import { createFileRoute, Link, useParams } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { ArrowLeft, ExternalLink, Loader2, Pencil, UserPlus } from "lucide-react";
+import { ArrowLeft, ExternalLink, FolderKanban, Loader2, Pencil, UserPlus } from "lucide-react";
+import { ProjectActivity, Card, MoneySection, WorkUpdates } from "@/components/projects/project-sections";
+import { listProjectRoleOptions, type RoleOption } from "@/lib/project-details.functions";
+import { SoftPill } from "@/components/tasks/task-ui";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +19,7 @@ import { listAssignableUsers } from "@/lib/leads.functions";
 import { createClientTask, listProjectTasks, stepLabel, type ClientTask } from "@/lib/client-tasks.functions";
 import { TaskDetailSheet } from "@/components/clients/client-tasks";
 import { Textarea } from "@/components/ui/textarea";
-import { STATUS_LABEL, trackLabel } from "./app.projects.index";
+import { STATUS_LABEL, roleShort, trackLabel } from "./app.projects.index";
 
 export const Route = createFileRoute("/_authenticated/app/projects/$id")({
   head: () => ({
@@ -33,7 +36,8 @@ export const Route = createFileRoute("/_authenticated/app/projects/$id")({
 });
 
 export function ProjectPage() {
-  const { id } = useParams({ strict: false }) as { id: string };
+  const { id, org } = useParams({ strict: false }) as { id: string; org?: string };
+  const [tab, setTab] = useState<"overview" | "updates" | "tasks" | "money" | "activity">("overview");
   const get = useServerFn(getHubProject);
   const q = useQuery({ queryKey: ["hub-project", id], queryFn: () => get({ data: { id } }) });
   const [edit, setEdit] = useState(false);
@@ -41,48 +45,69 @@ export function ProjectPage() {
   if (q.error || !q.data) return <div className="p-8 text-sm text-destructive">{(q.error as Error)?.message ?? "Project not found"}</div>;
   const p = q.data;
   const fields = p.service_track ? TRACK_FIELDS[p.service_track] : [];
+  const done = p.status === "completed";
+  const tabs = [["overview", "Overview"], ["updates", "Work updates"], ["tasks", "Tasks"], ["money", "Invoices & payments"], ["activity", "Activity"]] as const;
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-4 p-4 md:p-6">
-      <Link to="/app/projects" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"><ArrowLeft className="h-3.5 w-3.5" />Projects</Link>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="break-words text-lg font-semibold text-foreground">{p.title}</h1>
-          <p className="text-xs text-muted-foreground">
-            {p.category === "internal" ? "Internal / Official" : p.customer_code
-              ? <Link to="/app/customers/$code" params={{ code: p.customer_code }} className="hover:text-primary">{p.client_name}</Link>
-              : p.client_name}
-            {" · "}{trackLabel(p.service_track)} · {p.project_type === "monthly" ? "Monthly retainer" : "One-time"} · {STATUS_LABEL[p.status] ?? p.status}
-          </p>
+    <div className="mx-auto w-full max-w-7xl space-y-5 p-4 md:p-6">
+      <div className="flex items-center gap-1.5 text-[12.5px] text-muted-foreground">
+        <Link to="/app/projects" className="inline-flex items-center gap-1 hover:text-foreground"><ArrowLeft className="h-3.5 w-3.5" />Projects</Link><span>/</span><span className="truncate text-foreground">{p.title}</span>
+      </div>
+      <section className="rounded-2xl border border-border bg-[linear-gradient(135deg,color-mix(in_oklab,var(--brand-600)_9%,var(--panel)),var(--panel)_60%)] p-5 md:p-6">
+        <div className="flex flex-wrap items-start gap-4">
+          <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-card text-brand shadow-sm ring-1 ring-border"><FolderKanban className="size-6" /></span>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2 text-[12px]">
+              <SoftPill dot tone={done ? "green" : p.status === "on_hold" ? "amber" : p.status === "cancelled" ? "red" : "blue"}>{STATUS_LABEL[p.status] ?? p.status}</SoftPill>
+              {p.due_on && <span className="text-muted-foreground">Deadline {p.due_on}</span>}
+              {p.starts_on && <span className="text-muted-foreground">· Started {p.starts_on}</span>}
+            </div>
+            <h1 className="mt-1.5 break-words text-[26px] font-semibold leading-tight tracking-tight">{p.title}</h1>
+            <p className="mt-1 text-[13px] text-muted-foreground">
+              {p.category === "internal" ? "Internal / Official" : p.customer_code
+                ? <Link to="/app/customers/$code" params={{ code: p.customer_code }} className="hover:text-foreground">{p.client_name}</Link>
+                : p.client_name}
+              {" · "}{trackLabel(p.service_track)} · {p.project_type === "monthly" ? "Monthly retainer" : "One-time"}
+            </p>
+          </div>
+          {p.canManage && <Button size="sm" variant="outline" onClick={() => setEdit(true)}><Pencil className="h-3.5 w-3.5" />Edit details</Button>}
         </div>
-        {p.canManage && <Button size="sm" variant="outline" onClick={() => setEdit(true)}><Pencil className="mr-1 h-3.5 w-3.5" />Edit details</Button>}
+      </section>
+
+      <div className="flex gap-1 overflow-x-auto border-b border-border">
+        {tabs.map(([k, l]) => (
+          <button key={k} type="button" onClick={() => setTab(k)} className={`-mb-px whitespace-nowrap border-b-2 px-3 py-2 text-[13.5px] transition-colors ${tab === k ? "border-brand font-medium text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}>{l}</button>
+        ))}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="space-y-4 lg:col-span-2">
-          <Panel title="Scope & documents">
-            <Row label="Scope of Work" value={p.sow_doc_url} link />
-            <Row label="Client requirements" value={p.requirements_doc_url} link />
-            <Row label="Start" value={p.starts_on} /><Row label="Deadline" value={p.due_on} />
-            {p.project_type === "monthly" && <><Row label="Billing day" value={p.billing_day?.toString() ?? null} /><Row label="Monthly deliverables" value={p.monthly_deliverables} /></>}
-            {p.notes && <p className="whitespace-pre-wrap pt-2 text-xs text-muted-foreground">{p.notes}</p>}
-          </Panel>
-          <Panel title={`${trackLabel(p.service_track)} workspace`}>
-            {fields.length === 0 ? <p className="text-xs text-muted-foreground">Choose a service track to add its links.</p>
-              : fields.map((f) => <Row key={f.key} label={f.label} value={p.track_meta[f.key] ?? null} link={f.kind === "url"} />)}
-          </Panel>
-          <ProjectTasks projectId={p.id} canManage={p.canManage} />
-          <HandoverPanel projectId={p.id} canManage={p.canManage} />
+      <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
+        <div className="min-w-0 space-y-5">
+          {tab === "overview" && (<>
+            <Card title="About this project">
+              <Row label="Scope of Work" value={p.sow_doc_url} link />
+              <Row label="Client requirements" value={p.requirements_doc_url} link />
+              {p.project_type === "monthly" && <><Row label="Billing day" value={p.billing_day?.toString() ?? null} /><Row label="Monthly deliverables" value={p.monthly_deliverables} /></>}
+              {p.notes && <p className="whitespace-pre-wrap pt-2 text-[13px] text-foreground/80">{p.notes}</p>}
+            </Card>
+            <Card title={`${trackLabel(p.service_track)} workspace`}>
+              {fields.length === 0 ? <p className="text-[13px] text-muted-foreground">Choose a service track to add its links.</p>
+                : fields.map((f) => <Row key={f.key} label={f.label} value={p.track_meta[f.key] ?? null} link={f.kind === "url"} />)}
+            </Card>
+            <HandoverPanel projectId={p.id} canManage={p.canManage} />
+          </>)}
+          {tab === "updates" && <WorkUpdates projectId={p.id} />}
+          {tab === "tasks" && <ProjectTasks projectId={p.id} canManage={p.canManage} />}
+          {tab === "money" && <MoneySection projectId={p.id} org={org} />}
+          {tab === "activity" && <Card title="Activity"><ProjectActivity projectId={p.id} items={p.activity} /></Card>}
         </div>
-        <div className="space-y-4">
+        <div className="space-y-5">
           <TeamPanel projectId={p.id} />
-          <Panel title="Activity">
-            {p.activity.length === 0 ? <p className="text-xs text-muted-foreground">No activity.</p> : p.activity.map((a) => (
-              <div key={a.id} className="border-b border-border py-1.5 text-xs last:border-0">
-                <div className="text-foreground">{a.body}</div>
-                <div className="font-mono text-[10px] text-muted-foreground">{a.actor_name ?? "System"} · {new Date(a.created_at).toLocaleString()}</div>
-              </div>
-            ))}
-          </Panel>
+          <Card title="Project info">
+            <Row label="Client" value={p.category === "internal" ? "Internal" : p.client_name} />
+            <Row label="Service" value={trackLabel(p.service_track)} />
+            <Row label="Type" value={p.project_type === "monthly" ? "Monthly retainer" : "One-time"} />
+            <Row label="Started" value={p.starts_on} />
+            <Row label="Deadline" value={p.due_on} />
+          </Card>
         </div>
       </div>
       {edit && <EditDialog p={p} onClose={() => setEdit(false)} />}
@@ -91,12 +116,12 @@ export function ProjectPage() {
 }
 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
-  return <section className="rounded border border-border bg-card p-4"><h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</h2>{children}</section>;
+  return <Card title={title}>{children}</Card>;
 }
 function Row({ label, value, link }: { label: string; value: string | null; link?: boolean }) {
   return (
-    <div className="flex items-start justify-between gap-3 py-1 text-sm">
-      <span className="shrink-0 text-xs text-muted-foreground">{label}</span>
+    <div className="flex items-start justify-between gap-3 py-1.5 text-[13px]">
+      <span className="shrink-0 text-muted-foreground">{label}</span>
       {!value ? <span className="text-xs text-muted-foreground">—</span> : link
         ? <a href={value} target="_blank" rel="noreferrer" className="inline-flex min-w-0 items-center gap-1 break-all text-right text-xs text-primary hover:underline">Open<ExternalLink className="h-3 w-3" /></a>
         : <span className="min-w-0 break-words text-right text-xs">{value}</span>}
@@ -107,6 +132,9 @@ function Row({ label, value, link }: { label: string; value: string | null; link
 function TeamPanel({ projectId }: { projectId: string }) {
   const list = useServerFn(listProjectMembers);
   const q = useQuery({ queryKey: ["project-members", projectId], queryFn: () => list({ data: { projectId } }) });
+  const rolesFn = useServerFn(listProjectRoleOptions);
+  const ro = useQuery({ queryKey: ["project-role-options", projectId], queryFn: () => rolesFn({ data: { projectId } }) });
+  const label = (k: string) => ro.data?.find((r) => r.key === k)?.label ?? PROJECT_ROLES.find((x) => x.key === k)?.label ?? roleShort(k);
   const [editing, setEditing] = useState<{ userId: string; roles: ProjectRole[] } | null>(null);
   const active = (q.data?.members ?? []).filter((m) => m.active);
   return (
@@ -120,7 +148,7 @@ function TeamPanel({ projectId }: { projectId: string }) {
               : <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-[11px] font-medium">{(m.name ?? "?").slice(0, 1)}</div>}
             <div className="min-w-0">
               <div className="break-words text-sm">{m.name ?? "Member"}</div>
-              <div className="text-[11px] text-muted-foreground">{m.roles.map((r) => PROJECT_ROLES.find((x) => x.key === r)?.label ?? r).join(" · ")}</div>
+              <div className="text-[11px] text-muted-foreground">{m.roles.map(label).join(" · ")}</div>
             </div>
           </button>
         ))}
@@ -129,12 +157,12 @@ function TeamPanel({ projectId }: { projectId: string }) {
           <UserPlus className="mr-1 h-3.5 w-3.5" />Add member
         </Button>
       )}
-      {editing && <MemberDialog projectId={projectId} init={editing} existing={active.map((m) => m.user_id)} onClose={() => setEditing(null)} />}
+      {editing && <MemberDialog projectId={projectId} options={ro.data ?? PROJECT_ROLES.map((r) => ({ key: r.key, label: r.label, system: true }))} init={editing} existing={active.map((m) => m.user_id)} onClose={() => setEditing(null)} />}
     </Panel>
   );
 }
 
-function MemberDialog({ projectId, init, existing, onClose }: { projectId: string; init: { userId: string; roles: ProjectRole[] }; existing: string[]; onClose: () => void }) {
+function MemberDialog({ projectId, options, init, existing, onClose }: { projectId: string; options: RoleOption[]; init: { userId: string; roles: ProjectRole[] }; existing: string[]; onClose: () => void }) {
   const usersFn = useServerFn(listAssignableUsers);
   const setFn = useServerFn(setProjectMember);
   const users = useQuery({ queryKey: ["assignable-users"], queryFn: () => usersFn() });
@@ -165,11 +193,11 @@ function MemberDialog({ projectId, init, existing, onClose }: { projectId: strin
               {(users.data ?? []).filter((u) => !isNew || !existing.includes(u.user_id)).map((u) => <option key={u.user_id} value={u.user_id}>{u.full_name ?? "Unnamed"}</option>)}
             </select></div>
           <div className="grid gap-2"><Label>Roles (one or more)</Label>
-            {PROJECT_ROLES.map((r) => (
+            <div className="grid max-h-72 grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2">{options.map((r) => (
               <label key={r.key} className="flex items-center gap-2 text-sm">
                 <Checkbox checked={roles.includes(r.key)} onCheckedChange={() => toggle(r.key)} />{r.label}
               </label>
-            ))}
+            ))}</div>
           </div>
           <p className="text-[11px] text-muted-foreground">They will get a Telegram alert with their roles.</p>
         </div>
