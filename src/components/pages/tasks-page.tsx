@@ -4,8 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
-import { Archive, ArchiveRestore, CalendarClock, CalendarDays, CalendarPlus, FilePen, FolderKanban, Link2, ListChecks, MessageSquare, Plus, Rocket, Search, SquareCheckBig, Trash2, X } from "lucide-react";
+import { ChevronDown, MoreHorizontal, Pencil, AlignLeft, Users, Flag, Tag, Archive, ArchiveRestore, CalendarClock, CalendarDays, CalendarPlus, FilePen, FolderKanban, Link2, ListChecks, MessageSquare, Plus, Rocket, Search, SquareCheckBig, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { PageHero } from "@/components/branta/page-hero";
@@ -16,11 +17,11 @@ import { UnderlineTabs } from "@/components/ui/underline-tabs";
 import { SearchableSelect } from "@/components/finance/searchable-select";
 import { useActiveCompany } from "@/components/company/company-switcher";
 import { supabase } from "@/integrations/supabase/client";
-import { deleteCompanyTask, listCompanyTasks, publishCompanyTask, unarchiveCompanyTask, type CompanyTaskCard } from "@/lib/company-tasks.functions";
+import { archiveCompanyTask, deleteCompanyTask, listCompanyTasks, publishCompanyTask, unarchiveCompanyTask, type CompanyTaskCard } from "@/lib/company-tasks.functions";
 import { TASK_STATUSES, nextGoLiveIn, taskBucket, type CompanyTaskStatus, type TaskBucket } from "@/lib/company-task-rules";
 import { NewTaskDrawer } from "@/components/tasks/new-task-drawer";
 import { TaskDetailDrawer } from "@/components/tasks/task-detail-drawer";
-import { AvatarStack, PersonAvatar, PriorityBadge, SegmentedProgress, StatusDot, fmtDate, fmtDue, spring } from "@/components/tasks/task-ui";
+import { AvatarStack, PersonAvatar, PriorityBadge, SegmentedProgress, SoftPill, StatusDot, fmtDate, fmtDue, spring } from "@/components/tasks/task-ui";
 import { cn } from "@/lib/utils";
 
 type Filter = "all" | CompanyTaskStatus | "mine";
@@ -77,7 +78,7 @@ export function TasksPage() {
       <PageHero icon={SquareCheckBig} eyebrow={ac?.name ?? "Workspace"} title="Tasks"
         subtitle={q.isLoading ? "Day-to-day work of the company" : `Day-to-day work of the company · ${tasks.length} ${tasks.length === 1 ? "task" : "tasks"}`}
         actions={canManage ? (
-          <Button onClick={() => setCreating("todo")} className="gap-1.5 shadow-md shadow-brand/25 transition-all hover:-translate-y-0.5 hover:shadow-lg active:scale-95">
+          <Button onClick={() => setCreating("todo")} variant="dark" className="gap-1.5 rounded-lg">
             <Plus className="size-4" /> New task
           </Button>
         ) : undefined} />
@@ -112,33 +113,12 @@ export function TasksPage() {
 
       {q.error && <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-[13px] font-semibold text-destructive">{(q.error as Error).message}</div>}
 
-      <LayoutGroup>
-        <div className={cn("grid gap-4", columns.length > 1 ? "md:grid-cols-2 xl:grid-cols-4" : "grid-cols-1")}>
-          {columns.map((col) => {
-            const items = visible.filter((t) => t.status === col.key);
-            return (
-              <section key={col.key} className="flex min-w-0 flex-col rounded-lg border border-border bg-muted/40">
-                <header className="flex items-center gap-2 border-b border-border px-3 py-2.5">
-                  <StatusDot value={col.key} />
-                  <h2 className="text-[13.5px] font-bold">{col.label}</h2>
-                  <motion.span key={items.length} initial={{ scale: 0.6 }} animate={{ scale: 1 }} transition={spring}
-                    className="grid min-w-5 place-items-center rounded-full bg-foreground px-1.5 font-mono text-[10.5px] font-bold text-background">{items.length}</motion.span>
-                  {canManage && col.key !== "done" && (
-                    <button type="button" aria-label={`New ${col.label} task`} onClick={() => setCreating(col.key)} className="ml-auto grid size-7 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-card hover:text-foreground"><Plus className="size-4" /></button>
-                  )}
-                </header>
-                <div className="flex-1 space-y-2.5 p-2.5">
-                  {q.isLoading && Array.from({ length: 2 }).map((_, i) => <Skeleton key={i} className="h-36 rounded-lg" />)}
-                  <AnimatePresence initial={false}>
-                    {items.map((t, i) => <TaskCard key={t.id} t={t} index={i} onOpen={() => setOpenId(t.id)} />)}
-                  </AnimatePresence>
-                  {!q.isLoading && !items.length && <p className="py-6 text-center text-[12px] font-semibold text-muted-foreground">No tasks</p>}
-                </div>
-              </section>
-            );
-          })}
-        </div>
-      </LayoutGroup>
+      <div className="space-y-5">
+        {columns.map((col) => (
+          <TaskGroup key={col.key} status={col.key} label={col.label} items={visible.filter((t) => t.status === col.key)} loading={q.isLoading}
+            canManage={canManage} onOpen={setOpenId} onCreate={col.key !== "done" && canManage ? () => setCreating(col.key) : undefined} />
+        ))}
+      </div>
       </>)}
 
       {q.data && (
@@ -337,5 +317,83 @@ function ScheduleDialog({ task, onClose, onSave }: { task: CompanyTaskCard | nul
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+
+const GROUP_BAR: Record<string, string> = { todo: "bg-muted-foreground/40", doing: "bg-[#4f46e5]", in_review: "bg-status-contacted", done: "bg-status-converted" };
+const COLS = "grid-cols-[minmax(12rem,1.3fr)_minmax(10rem,1.4fr)_10rem_8rem_7rem_6.5rem_2.5rem]";
+
+/** One status group in the List view: collapsible header, column titles and rows. */
+function TaskGroup({ status, label, items, loading, canManage, onOpen, onCreate }: {
+  status: string; label: string; items: CompanyTaskCard[]; loading: boolean; canManage: boolean; onOpen: (id: string) => void; onCreate?: () => void;
+}) {
+  const [open, setOpen] = useState(true);
+  return (
+    <section className="overflow-hidden rounded-xl border border-border bg-card">
+      <header className="flex items-center gap-2.5 bg-muted/60 px-3 py-2">
+        <button type="button" aria-label={open ? "Collapse" : "Expand"} onClick={() => setOpen(!open)} className="grid size-6 place-items-center rounded text-muted-foreground hover:bg-card">
+          <ChevronDown className={cn("size-4 transition-transform", !open && "-rotate-90")} />
+        </button>
+        <span className={cn("h-4 w-1 rounded-full", GROUP_BAR[status] ?? GROUP_BAR.todo)} />
+        <h2 className="text-[14px] font-semibold">{label}</h2>
+        <span className="rounded bg-card px-1.5 font-mono text-[11px] text-muted-foreground">{items.length}</span>
+        {onCreate && <button type="button" aria-label={`New ${label} task`} onClick={onCreate} className="ml-auto grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-card hover:text-foreground"><Plus className="size-4" /></button>}
+      </header>
+      {open && (
+        <div className="overflow-x-auto">
+          <div className="min-w-[860px]">
+            <div className={cn("grid items-center border-b border-border px-3 py-2 text-[12.5px] text-muted-foreground", COLS)}>
+              <span className="flex items-center gap-1.5"><SquareCheckBig className="size-3.5" />Task name</span>
+              <span className="flex items-center gap-1.5"><AlignLeft className="size-3.5" />Description</span>
+              <span className="flex items-center gap-1.5"><CalendarDays className="size-3.5" />Deadline</span>
+              <span className="flex items-center gap-1.5"><Tag className="size-3.5" />Type</span>
+              <span className="flex items-center gap-1.5"><Users className="size-3.5" />People</span>
+              <span className="flex items-center gap-1.5"><Flag className="size-3.5" />Priority</span>
+              <span />
+            </div>
+            {loading && Array.from({ length: 2 }).map((_, i) => <Skeleton key={i} className="m-3 h-8 rounded-md" />)}
+            {!loading && !items.length && <p className="px-4 py-5 text-[12.5px] text-muted-foreground">No tasks</p>}
+            {items.map((t) => <TaskRow key={t.id} t={t} canManage={canManage} onOpen={() => onOpen(t.id)} />)}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function TaskRow({ t, canManage, onOpen }: { t: CompanyTaskCard; canManage: boolean; onOpen: () => void }) {
+  const qc = useQueryClient();
+  const confirm = useConfirm();
+  const archive = useServerFn(archiveCompanyTask);
+  const type = t.project_title ?? t.tags[0];
+  const overdue = t.due_on && t.status !== "done" && new Date(`${t.due_on}T${t.due_time?.slice(0, 5) ?? "23:59"}:00+06:00`).getTime() < Date.now();
+  const remove = async () => {
+    const ok = await confirm({ tone: "danger", title: `Delete "${t.title}"?`, confirmLabel: "Delete",
+      description: "The task leaves the board and the deletion is recorded in the activity log. Its history is kept and it can be restored from Archived.",
+      onConfirm: async () => { await archive({ data: { id: t.id } }); } });
+    if (ok) { toast.success("Task deleted"); qc.invalidateQueries({ queryKey: ["company-tasks"] }); }
+  };
+  return (
+    <div role="button" tabIndex={0} onClick={onOpen} onKeyDown={(e) => { if (e.key === "Enter") onOpen(); }}
+      className={cn("grid cursor-pointer items-center border-b border-border px-3 py-2.5 text-[13px] transition-colors last:border-b-0 hover:bg-muted/40", COLS)}>
+      <span className="truncate pr-3 font-medium text-foreground">{t.title}</span>
+      <span className="line-clamp-2 pr-3 text-muted-foreground">{t.description || "-"}</span>
+      <span className={cn("pr-2 text-[12.5px]", overdue ? "text-destructive" : "text-foreground/80")}>{t.due_on ? fmtDue(t.due_on, t.due_time) : "-"}</span>
+      <span className="min-w-0 pr-2">{type ? <SoftPill tone="blue" className="max-w-full truncate">{t.project_title ? <FolderKanban className="size-3 shrink-0" /> : null}<span className="truncate">{type}</span></SoftPill> : <span className="text-muted-foreground">-</span>}</span>
+      <span>{t.assignees.length ? <AvatarStack people={t.assignees} size={22} /> : <span className="text-muted-foreground">-</span>}</span>
+      <span><PriorityBadge value={t.priority} /></span>
+      <span className="flex justify-end" onClick={(e) => e.stopPropagation()}>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button type="button" aria-label="Task actions" className="grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"><MoreHorizontal className="size-4" /></button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-40">
+            <DropdownMenuItem onSelect={onOpen}><Pencil className="size-3.5" />{canManage ? "Edit" : "Open"}</DropdownMenuItem>
+            {canManage && <><DropdownMenuSeparator /><DropdownMenuItem onSelect={remove} className="text-destructive focus:text-destructive"><Trash2 className="size-3.5" />Delete</DropdownMenuItem></>}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </span>
+    </div>
   );
 }

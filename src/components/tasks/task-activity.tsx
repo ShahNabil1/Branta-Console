@@ -13,7 +13,7 @@ type D = Record<string, any>;
 const PAGE = 20;
 
 const TEXT: Record<string, string> = {
-  created: "created the task", updated: "edited the task", status: "changed the task status", approved: "completed the task", archived: "archived the task", unarchived: "restored the task", published: "made the task live", scheduled: "scheduled the task", drafted: "moved the task to drafts",
+  created: "created the task", updated: "edited the task", status: "changed the task status", approved: "completed the task", archived: "deleted the task (moved to Archived)", unarchived: "restored the task", published: "made the task live", scheduled: "scheduled the task", drafted: "moved the task to drafts",
   assignees: "changed the assignees", subtask_added: "added a subtask", subtask_removed: "removed a subtask", subtask_done: "completed a subtask",
   subtask_reopened: "reopened a subtask", subtask_edited: "edited a subtask", assets_added: "added assets", asset_removed: "removed an asset",
   asset_updated: "updated an asset", submitted: "submitted work", submission_approved: "approved a submission", revision_requested: "requested a revision",
