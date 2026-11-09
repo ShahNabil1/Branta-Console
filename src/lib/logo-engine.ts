@@ -50,7 +50,9 @@ export function removeBackground(d: Px, bg: [number, number, number], hard = 28,
 export function floodBackground(d: Px, w: number, h: number, step = 10): [number, number, number] | null {
   const n = w * h, seen = new Uint8Array(n), q = new Int32Array(n);
   let head = 0, tail = 0;
-  const push = (p: number) => { if (!seen[p] && d[p * 4 + 3] >= 16) { seen[p] = 1; q[tail++] = p; } };
+  // Bright pixels are logo, never background: the fill can't creep up a soft (blurred/JPEG) edge into a letter.
+  const wall = (j: number) => 0.299 * d[j] + 0.587 * d[j + 1] + 0.114 * d[j + 2] >= 140;
+  const push = (p: number) => { if (!seen[p] && d[p * 4 + 3] >= 16 && !wall(p * 4)) { seen[p] = 1; q[tail++] = p; } };
   for (let x = 0; x < w; x++) { push(x); push((h - 1) * w + x); }
   for (let y = 0; y < h; y++) { push(y * w); push(y * w + w - 1); }
   const lim = step * 3;
@@ -60,7 +62,7 @@ export function floodBackground(d: Px, w: number, h: number, step = 10): [number
     for (const m of nb) {
       if (m < 0 || m >= n || seen[m]) continue;
       const j = m * 4;
-      if (d[j + 3] >= 16 && Math.abs(d[j] - d[i]) + Math.abs(d[j + 1] - d[i + 1]) + Math.abs(d[j + 2] - d[i + 2]) < lim) { seen[m] = 1; q[tail++] = m; }
+      if (d[j + 3] >= 16 && !wall(j) && Math.abs(d[j] - d[i]) + Math.abs(d[j + 1] - d[i + 1]) + Math.abs(d[j + 2] - d[i + 2]) < lim) { seen[m] = 1; q[tail++] = m; }
     }
   }
   // Too little (no real background) or almost everything (no logo) → not a background.
@@ -77,19 +79,34 @@ const lum3 = (c: [number, number, number]) => 0.299 * c[0] + 0.587 * c[1] + 0.11
  * After cutting a dark background: fades the dark JPEG halo by distance from the background,
  * un-blends coloured pixels and turns white/grey parts into dark ink so the logo reads on light pages (in place).
  */
-export function dematteDark(d: Px, bg: [number, number, number], ink: [number, number, number] = [17, 24, 39]) {
+export function dematteDark(d: Px, bg: [number, number, number], ink: [number, number, number] | null = [17, 24, 39]) {
   for (let i = 0; i < d.length; i += 4) {
     if (!d[i + 3]) continue;
     const k = dist(d, i, bg);
     const a = Math.min(1, Math.max(0, (k - 30) / 120));
     const mx = Math.max(d[i], d[i + 1], d[i + 2]), mn = Math.min(d[i], d[i + 1], d[i + 2]);
-    if (mx - mn < 40 || (mn > 140 && (mx - mn) / mx < 0.35)) { d[i] = ink[0]; d[i + 1] = ink[1]; d[i + 2] = ink[2]; }
+    if (!ink) { /* keep colours (white footer) */ }
+    else if (mx - mn < 40 || (mn > 140 && (mx - mn) / mx < 0.35)) { d[i] = ink[0]; d[i + 1] = ink[1]; d[i + 2] = ink[2]; }
     else if (a > 0) {
       const f = 1 / Math.max(a, 0.3);
       for (let c = 0; c < 3; c++) d[i + c] = Math.max(0, Math.min(255, Math.round(bg[c] + (d[i + c] - bg[c]) * f)));
     }
     d[i + 3] = Math.round(d[i + 3] * a);
   }
+}
+
+/**
+ * One background step for every uploader. Dark backgrounds (flat or gradient) are un-matted by
+ * distance from the background, so letter bodies stay fully solid and only the halo fades;
+ * white/grey parts become dark ink unless `recolor` is off (white footer keeps its light pixels).
+ */
+export function cleanBackground(d: Px, w: number, h: number, recolor: boolean): [number, number, number] | null {
+  const flat = detectBackground(d, w, h);
+  if (flat && lum3(flat) >= 70) { removeBackground(d, flat); return flat; }
+  const bg = flat ?? floodBackground(d, w, h);
+  if (!bg) return null;
+  if (lum3(bg) < 70) dematteDark(d, bg, recolor ? [17, 24, 39] : null);
+  return bg;
 }
 
 export type PaletteColor = { hex: string; share: number; role: "primary" | "secondary" | "accent" };
@@ -299,9 +316,7 @@ export async function processLogo(file: File | Blob, onStage: (s: LogoStage, p: 
   const data = ctx.getImageData(0, 0, w, h);
   const orig = new Uint8ClampedArray(data.data);
   onStage("background", 0.3); await tick();
-  let bg = detectBackground(data.data, w, h);
-  if (bg) removeBackground(data.data, bg);
-  else if ((bg = floodBackground(data.data, w, h)) && lum3(bg) < 70 && !opts.white) dematteDark(data.data, bg);
+  const bg = cleanBackground(data.data, w, h, !opts.white);
   if (opts.white) punchEnclosedDark(data.data, w, h);
   // Palette reads the real colours (white text on a dark background stays white), visible pixels only.
   for (let i = 3; i < orig.length; i += 4) orig[i] = data.data[i];
@@ -452,9 +467,7 @@ export async function processIcon(file: Blob, extract: boolean, onStage: (s: Log
 
   const data = ctx.getImageData(0, 0, w, h);
   onStage("background", 0.3); await tick();
-  let bg = detectBackground(data.data, w, h);
-  if (bg) removeBackground(data.data, bg);
-  else if ((bg = floodBackground(data.data, w, h)) && lum3(bg) < 70) dematteDark(data.data, bg);
+  const bg = cleanBackground(data.data, w, h, true);
   const inverted = isLightMonochrome(data.data);
   if (inverted) recolorToInk(data.data);
   ctx.putImageData(data, 0, 0);

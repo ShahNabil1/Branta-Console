@@ -131,3 +131,19 @@ describe("logo engine fixes", () => {
     expect(extractPalette(d).map((p) => p.hex)).toEqual(["#9269F4", "#FFFFFF"]);
   });
 });
+
+describe("dark background keeps letters solid", () => {
+  it("does not hollow a white letter with a soft edge on a dark background", async () => {
+    const { cleanBackground } = await import("./logo-engine");
+    const w = 60, h = 40, d = new Uint8ClampedArray(w * h * 4);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      // soft ramp 20→240 over 12px around a white block (like a blurred JPEG edge)
+      const e = Math.min(x - 14, 46 - x, y - 8, 32 - y);
+      const v = Math.max(20, Math.min(240, 130 + e * 18));
+      d.set([v, v, v + 8 > 255 ? 255 : v + 8, 255], (y * w + x) * 4);
+    }
+    cleanBackground(d, w, h, true);
+    expect(d[(20 * w + 30) * 4 + 3]).toBe(255);
+    expect(d[3]).toBe(0);
+  });
+});
