@@ -17,7 +17,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { ConfirmProvider } from "@/components/ui/confirm-dialog";
 import { DevToolsShield } from "@/components/branta/devtools-shield";
 import { markBooted } from "@/lib/boot-splash";
-import { COMPANIES_BRANTA_ICON as brantaIcon } from "@/lib/brand-assets";
+import { BRAND_LOGO as brandLogo } from "@/lib/brand-assets";
 import { useRouterState } from "@tanstack/react-router";
 
 function NotFoundComponent() {
@@ -138,15 +138,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   errorComponent: lazy(() => Promise.resolve({ default: ErrorComponent })),
 });
 
-const BOOT_CSS = `html,body{background:#F9FAFB}
-#boot-splash{position:fixed;inset:0;z-index:2147482999;display:grid;place-items:center;background-color:#F9FAFB;background-image:radial-gradient(60% 50% at 12% 10%,rgba(229,106,23,.16),transparent 70%),radial-gradient(55% 45% at 90% 15%,rgba(6,182,212,.14),transparent 70%),radial-gradient(60% 50% at 85% 90%,rgba(99,102,241,.14),transparent 70%),radial-gradient(50% 45% at 10% 88%,rgba(16,185,129,.12),transparent 70%),linear-gradient(160deg,#FFFFFF 0%,#F9FAFB 55%,#FFF7F0 100%)}
-#boot-splash .bs-node{position:relative;width:calc(clamp(220px,min(46vw,60vh),520px)*.16);aspect-ratio:1;display:grid;place-items:center}
-#boot-splash .bs-ring{position:absolute;inset:-18%;border-radius:50%;border:2px solid rgba(229,106,23,.5);animation:bs-ring 2s ease-out infinite}
-#boot-splash .bs-core{position:relative;width:100%;height:100%;border-radius:50%;background:#E56A17;box-shadow:0 0 0 5px #fff,0 10px 30px rgba(229,106,23,.35);display:grid;place-items:center;animation:bs-core 2s cubic-bezier(.3,1.4,.5,1) infinite}
-#boot-splash img{width:100%;height:100%;object-fit:cover;border-radius:50%}
-@keyframes bs-core{0%{transform:scale(.6);opacity:0}20%,80%{transform:scale(1);opacity:1}100%{transform:scale(.96);opacity:1}}
-@keyframes bs-ring{0%,25%{transform:scale(.5);opacity:0}45%{transform:scale(1);opacity:1}60%{transform:scale(.94);opacity:.8}75%{transform:scale(1);opacity:1}100%{transform:scale(2.6);opacity:0}}
-@media (prefers-reduced-motion:reduce){#boot-splash *{animation:none!important}}
+const BOOT_CSS = `html,body{background:#FFFFFF}
+#boot-splash{position:fixed;inset:0;z-index:2147482999;display:grid;place-items:center;background:#FFFFFF}
+#boot-splash .bs-wrap{display:flex;flex-direction:column;align-items:center;gap:22px;animation:bs-in .5s ease-out both}
+#boot-splash img{width:clamp(160px,38vw,240px);height:auto;display:block}
+#boot-splash .bs-bar{position:relative;width:120px;height:2px;border-radius:2px;background:#F1F1F3;overflow:hidden}
+#boot-splash .bs-bar::after{content:"";position:absolute;inset:0;width:40%;border-radius:2px;background:#E56A17;animation:bs-slide 1.2s ease-in-out infinite}
+@keyframes bs-in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@keyframes bs-slide{0%{transform:translateX(-100%)}100%{transform:translateX(250%)}}
+@media (prefers-reduced-motion:reduce){#boot-splash *,#boot-splash *::after{animation:none!important}}
 #boot-splash{transition:opacity .22s ease}
 html[data-booting] #boot-splash{opacity:0;pointer-events:none}
 html[data-booted] #boot-splash{display:none}`;
@@ -162,9 +162,9 @@ function RootShell({ children }: { children: ReactNode }) {
       </head>
       <body translate="no" className="notranslate">
         <div id="boot-splash" aria-hidden="true">
-          <div className="bs-node">
-            <div className="bs-ring" />
-            <div className="bs-core"><img src={brantaIcon.url} alt="" /></div>
+          <div className="bs-wrap">
+            <img src={brandLogo.url} alt="" />
+            <div className="bs-bar" />
           </div>
         </div>
         {children}
