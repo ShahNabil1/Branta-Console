@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { UnderlineTabs } from "@/components/ui/underline-tabs";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -51,7 +51,9 @@ import { CatalogEditor, catalogValid } from "@/components/company/company-servic
 import { catalogOf, flattenCatalog, type ServiceCategory } from "@/lib/service-catalog";
 import { useMutation } from "@tanstack/react-query";
 import { requestR2Upload } from "@/lib/r2.functions";
-import { Briefcase, ImageUp } from "lucide-react";
+import { Briefcase, Eye, ImageUp, RotateCcw } from "lucide-react";
+import { processLogo, putWithProgress, type LogoStage } from "@/lib/logo-engine";
+import { ReceiptPreview } from "@/components/finance/receipt-media";
 
 type Company = NonNullable<Awaited<ReturnType<typeof getCompany>>>;
 type Patch = Record<string, unknown>;
@@ -474,7 +476,7 @@ function IdentitySection({ c, accent }: { c: Company; accent: string }) {
       {e.editing ? (
         <div className="grid gap-4 sm:grid-cols-2">
           <FieldL label="Company logo" className="sm:col-span-2">
-            <LogoUploader value={String(f.logo_url ?? "")} name={c.name} onChange={(v) => e.set("logo_url", v)} />
+            <LogoUploader value={String(f.logo_url ?? "")} name={c.name} onChange={(v, color) => { e.set("logo_url", v); if (color) e.set("brand_kit", { ...(c.brand_kit ?? {}), primary: color }); }} />
           </FieldL>
           <FieldL label="Company name *">
             <Input
@@ -988,46 +990,105 @@ const previewExt = (u: string) => {
   return ext || "IMAGE";
 };
 
-/** Uploads the company logo straight to the R2 bucket and returns its public URL. */
-function LogoUploader({ value, name, onChange }: { value: string; name: string; onChange: (v: string) => void }) {
+const LOGO_STEPS: { stage: LogoStage; from: number; to: number; label: string }[] = [
+  { stage: "read", from: 0, to: 15, label: "Reading image" },
+  { stage: "background", from: 15, to: 40, label: "Making background transparent" },
+  { stage: "crop", from: 40, to: 60, label: "Cropping & fitting 1200×300 (4:1)" },
+  { stage: "color", from: 60, to: 75, label: "Detecting brand colour · PNG" },
+  { stage: "upload", from: 75, to: 100, label: "Uploading to Cloudflare R2" },
+];
+
+/** Processes any image into the standard 1200×300 transparent PNG logo, then uploads it to R2 with live progress. */
+function LogoUploader({ value, name, onChange }: { value: string; name: string; onChange: (v: string, color?: string | null) => void }) {
   const presign = useServerFn(requestR2Upload);
   const [broken, setBroken] = useState(false);
+  const [run, setRun] = useState<{ pct: number; label: string; error?: string; done?: boolean; color?: string | null } | null>(null);
+  const [preview, setPreview] = useState(false);
+  const abort = useRef<AbortController | null>(null);
+  const lastFile = useRef<File | null>(null);
   useEffect(() => setBroken(false), [value]);
-  const up = useMutation({
-    mutationFn: async (file: File) => {
-      if (!isImageFile(file)) throw new Error("Use an image file (JPG, PNG, WEBP, SVG, GIF, HEIC…). Video, PDF, ZIP and APK are not logos.");
-      if (file.size > 5 * 1024 * 1024) throw new Error("Logo must be 5 MB or smaller.");
-      const { url, publicUrl } = await presign({ data: { filename: file.name, contentType: file.type, scope: "branding" } });
-      const put = await fetch(url, { method: "PUT", headers: { "content-type": file.type }, body: file });
-      if (!put.ok) throw new Error(`Upload failed (${put.status})`);
+  const busy = !!run && !run.error && !run.done;
+
+  const start = async (file: File) => {
+    lastFile.current = file;
+    if (!isImageFile(file)) { setRun({ pct: 0, label: "", error: "Use an image file (JPG, PNG, WEBP, SVG, GIF). Video, PDF, ZIP and APK are not logos." }); return; }
+    if (file.size > 5 * 1024 * 1024) { setRun({ pct: 0, label: "", error: "Logo must be 5 MB or smaller." }); return; }
+    const ctrl = new AbortController(); abort.current = ctrl;
+    const report = (stage: LogoStage, p: number) => {
+      const s = LOGO_STEPS.find((x) => x.stage === stage)!;
+      setRun({ pct: Math.round(s.from + (s.to - s.from) * p), label: s.label });
+    };
+    try {
+      const out = await processLogo(file, report, ctrl.signal);
+      report("upload", 0);
+      const base = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "company";
+      const { url, publicUrl } = await presign({ data: { filename: `${base}-logo.png`, contentType: "image/png", scope: "branding" } });
       if (!publicUrl) throw new Error("Storage public address is not configured.");
-      return publicUrl;
-    },
-    onSuccess: (u) => { onChange(u); toast.success("Logo uploaded — press Save to keep it"); },
-    onError: (err) => toast.error(err instanceof Error ? err.message : "Upload failed"),
-  });
+      await putWithProgress(url, out.blob, (p) => report("upload", p), ctrl.signal);
+      setRun({ pct: 100, label: out.removedBackground ? "Done — background removed" : "Done", done: true, color: out.color });
+      onChange(publicUrl, out.color);
+      toast.success("Logo ready — press Save to keep it");
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") { setRun(null); return; }
+      setRun((r) => ({ pct: r?.pct ?? 0, label: r?.label ?? "", error: err instanceof Error ? err.message : "Upload failed" }));
+    }
+  };
+
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-lg border border-dashed border-border p-3">
-      <div className="grid h-14 w-32 shrink-0 place-items-center overflow-hidden rounded-md bg-[var(--company-artwork-paper)] ring-1 ring-border">
-        {up.isPending ? <Loader2 className="size-4 animate-spin text-muted-foreground" />
+      <div className="group/logo relative grid h-14 w-32 shrink-0 place-items-center overflow-hidden rounded-md bg-[var(--company-artwork-paper)] ring-1 ring-border">
+        {busy ? <Loader2 className="size-4 animate-spin text-muted-foreground" />
           : value ? (broken
             ? <span className="max-w-[7rem] truncate rounded bg-muted px-2 py-1 text-[10px] font-bold text-muted-foreground">{previewExt(value)}</span>
             : <img src={value} alt={name} className="max-h-12 w-auto max-w-[7.5rem] object-contain" onError={() => setBroken(true)} />)
           : <ImageUp className="size-5 text-muted-foreground" />}
+        {value && !busy && !broken && (
+          <button type="button" aria-label="Preview logo" onClick={() => setPreview(true)}
+            className="absolute inset-0 grid place-items-center bg-foreground/45 opacity-0 transition-opacity focus-visible:opacity-100 group-hover/logo:opacity-100">
+            <Eye className="size-5 text-background" />
+          </button>
+        )}
       </div>
       <div className="flex flex-wrap gap-2">
-        <label className={cn("inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-border bg-card px-3 text-[12px] font-bold transition-all hover:border-brand/50 hover:text-brand active:scale-95", up.isPending && "pointer-events-none opacity-60")}>
-          <ImageUp className="size-3.5" /> {up.isPending ? "Uploading…" : value ? "Replace logo" : "Upload logo"}
-          <input type="file" accept={IMAGE_ACCEPT} className="sr-only" disabled={up.isPending}
-            onChange={(ev) => { const file = ev.target.files?.[0]; ev.target.value = ""; if (file) up.mutate(file); }} />
+        <label className={cn("inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-border bg-card px-3 text-[12px] font-bold transition-all hover:border-brand/50 hover:text-brand active:scale-95", busy && "pointer-events-none opacity-60")}>
+          <ImageUp className="size-3.5" /> {busy ? "Processing…" : value ? "Replace logo" : "Upload logo"}
+          <input type="file" accept={IMAGE_ACCEPT} className="sr-only" disabled={busy}
+            onChange={(ev) => { const file = ev.target.files?.[0]; ev.target.value = ""; if (file) void start(file); }} />
         </label>
-        {value && !up.isPending && (
-          <Button type="button" size="sm" variant="ghost" onClick={() => onChange("")} className="h-8 gap-1 text-[12px] font-bold text-muted-foreground hover:text-destructive">
+        {value && !busy && (
+          <Button type="button" size="sm" variant="ghost" onClick={() => { onChange(""); setRun(null); }} className="h-8 gap-1 text-[12px] font-bold text-muted-foreground hover:text-destructive">
             <Trash2 className="size-3.5" /> Remove
           </Button>
         )}
       </div>
-      <p className="basis-full text-[11px] text-muted-foreground">All image formats — JPG, PNG, WEBP, SVG, GIF, HEIC… · up to 5 MB · transparent background works best.</p>
+      {run && (
+        <div className="basis-full space-y-1.5" role="status" aria-live="polite">
+          <div className="flex items-center justify-between gap-2 text-[11.5px] font-semibold">
+            <span className={cn("min-w-0 truncate", run.error ? "text-destructive" : run.done ? "text-status-converted" : "text-foreground")}>
+              {run.error ? run.error : run.label}
+            </span>
+            <span className="font-mono text-[11px] text-muted-foreground">{run.pct}%</span>
+          </div>
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+            <div className={cn("h-full rounded-full transition-[width] duration-200", run.error ? "bg-destructive" : run.done ? "bg-status-converted" : "bg-brand")} style={{ width: `${run.pct}%` }} />
+          </div>
+          {run.done && run.color && (
+            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <span className="size-3 rounded-sm ring-1 ring-border" style={{ background: run.color }} /> Brand colour <span className="font-mono font-bold text-foreground">{run.color}</span>
+            </div>
+          )}
+          {busy && <Button type="button" size="sm" variant="ghost" className="h-7 text-[11.5px] font-bold" onClick={() => abort.current?.abort()}>Cancel</Button>}
+          {run.error && (
+            <div className="flex gap-2">
+              <Button type="button" size="sm" variant="outline" className="h-7 gap-1 text-[11.5px] font-bold" disabled={!lastFile.current} onClick={() => lastFile.current && void start(lastFile.current)}><RotateCcw className="size-3.5" /> Retry</Button>
+              <Button type="button" size="sm" variant="ghost" className="h-7 text-[11.5px] font-bold" onClick={() => setRun(null)}>Cancel</Button>
+            </div>
+          )}
+        </div>
+      )}
+      <p className="basis-full text-[11px] text-muted-foreground">Any image format · up to 5 MB · auto-cropped, background made transparent, saved as 1200×300 PNG.</p>
+      <ReceiptPreview label="Logo" receipts={value ? [{ path: null, url: value, name: `${name} logo.png`, caption: "1200×300 PNG · transparent", isPdf: false }] : []}
+        index={preview && value ? 0 : null} onIndexChange={() => {}} onClose={() => setPreview(false)} />
     </div>
   );
 }
