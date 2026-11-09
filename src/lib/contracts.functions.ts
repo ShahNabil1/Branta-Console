@@ -45,7 +45,7 @@ export const getContractWorkspace = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const ad = supabaseAdmin as Sb;
     const [{ data: co }, { data: settings }, { data: invs }, { data: contracts, error }] = await Promise.all([
-      ad.from("companies").select("id,name,email,phone,website_url,address").eq("id", p.company_id).maybeSingle(),
+      ad.from("companies").select("id,name,email,phone,website_url,address,logo_url").eq("id", p.company_id).maybeSingle(),
       ad.from("company_contract_settings").select("enabled,template_body,ceo_name,ceo_title,ceo_signature_png,expiry_days").eq("company_id", p.company_id).maybeSingle(),
       ad.from("invoices").select("id,slug,total_amount,currency,status,due_date").eq("project_id", data.projectId).is("archived_at", null).order("created_at"),
       sb.from("project_contracts").select("id,title,status,invoice_id,form,current_version,created_at,updated_at,project_contract_versions(id,version,published_at,published_by,expires_at,revoked_at,signer_email,signer_name,signer_title,signed_at)").eq("project_id", data.projectId).order("created_at", { ascending: false }),
@@ -150,7 +150,7 @@ export const publishContract = createServerFn({ method: "POST" })
     const now = new Date();
     const snapshot = {
       title: c.title, version,
-      company: { id: co?.id ?? null, name: co?.name ?? "", address: co?.address ?? null, email: co?.email ?? null, phone: co?.phone ?? null, website: co?.website_url ?? null },
+      company: { id: co?.id ?? null, name: co?.name ?? "", address: co?.address ?? null, email: co?.email ?? null, phone: co?.phone ?? null, website: co?.website_url ?? null, logo_url: co?.logo_url ?? null },
       client: { name: ctx.client_name, company: ctx.client_company, email, phone: ctx.client_phone },
       project: { id: p.id, name: p.title },
       body: fillTemplate(st.template_body, ctx, form), invoice,
