@@ -622,7 +622,7 @@ function ProviderPanel({
 
       {p === "resend" && connected && <FinanceSender slug={slug} v={v!} />}
 
-      {repairDialog && <ProviderRepairDialog kind={repairDialog} provider={p} domain={domain} busy={!!busy} error={repairError} onClose={() => setRepairDialog(null)} onApi={(mode, key) => void fixApi(mode, key)} onDomain={value => void fixDomain(value)} />}
+      {repairDialog && <ProviderRepairDialog slug={slug} kind={repairDialog} provider={p} domain={domain} busy={!!busy} error={repairError} onClose={() => setRepairDialog(null)} onApi={(mode, key) => void fixApi(mode, key)} onDomain={value => void fixDomain(value)} />}
 
     </div>
   );

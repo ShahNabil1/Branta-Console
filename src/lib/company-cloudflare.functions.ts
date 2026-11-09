@@ -178,3 +178,46 @@ export const deleteDnsRecord = createServerFn({ method: "POST" })
     await cf.companyCfApi(co.id, `/zones/${data.zone}/dns_records/${data.id}`, { method: "DELETE" });
     return { ok: true };
   });
+
+// ---------- name-conflict check (tracking subdomain etc.) ----------
+const HostIn = Slug.extend({ host: z.string().trim().toLowerCase().regex(/^(?=.{1,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/) });
+async function zoneFor(companyId: string, host: string) {
+  const cf = await import("@/lib/company-cloudflare.server");
+  const parts = host.split(".");
+  for (let i = 1; i < parts.length - 1; i++) {
+    const { result } = await cf.companyCfApi<Any[]>(companyId, `/zones?name=${encodeURIComponent(parts.slice(i).join("."))}`);
+    if (result?.[0]) return { cf, zone: result[0] as Any };
+  }
+  return { cf, zone: null };
+}
+
+/** Read-only: every record already using this exact name in the company's Cloudflare zone. */
+export const inspectDnsName = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => HostIn.parse(i))
+  .handler(async ({ data, context }) => {
+    const { co } = await gate(context, data.slug);
+    const { cf, zone } = await zoneFor(co.id, data.host);
+    if (!zone) return { zone: null as string | null, records: [] as DnsRecord[] };
+    const { result } = await cf.companyCfApi<Any[]>(co.id, `/zones/${zone.id}/dns_records?name=${encodeURIComponent(data.host)}&per_page=100`);
+    return { zone: String(zone.name), records: (result ?? []).map(mapRec) };
+  });
+
+/** Override: removes the listed records, only if they still sit at this exact name. */
+export const clearDnsName = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => HostIn.extend({ ids: z.array(z.string().regex(/^[a-f0-9]{32}$/i)).min(1).max(50) }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { co } = await gate(context, data.slug);
+    const { cf, zone } = await zoneFor(co.id, data.host);
+    if (!zone) throw new Error("This domain isn't in the connected Cloudflare account.");
+    const { result } = await cf.companyCfApi<Any[]>(co.id, `/zones/${zone.id}/dns_records?name=${encodeURIComponent(data.host)}&per_page=100`);
+    const here = new Set((result ?? []).map((r: Any) => String(r.id)));
+    let removed = 0;
+    for (const id of data.ids) {
+      if (!here.has(id)) continue;
+      await cf.companyCfApi(co.id, `/zones/${zone.id}/dns_records/${id}`, { method: "DELETE" });
+      removed++;
+    }
+    return { removed };
+  });

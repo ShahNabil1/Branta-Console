@@ -10,6 +10,7 @@ import { TestLoader } from "@/components/ui/test-loader";
 import { disconnectResendOAuth, getResendOAuth, runResendSetup, startResendConnect, type SetupStage, type SetupStep } from "@/lib/company-resend.functions";
 import { connectResendInPopup } from "@/lib/resend-connect-popup";
 import { cn } from "@/lib/utils";
+import { DnsNameStatus, useDnsNameCheck } from "@/components/company/dns-name-check";
 import { EMAIL_RESEND as resendLogo } from "@/lib/brand-assets";
 import { EMAIL_RESEND_WORDMARK_BLACK as resendWordmarkBlack } from "@/lib/brand-assets";
 
@@ -62,6 +63,7 @@ export function ResendOAuthCard({ slug, companyName, onReady }: { slug: string; 
   const [needSub, setNeedSub] = useState(false);
   const [sub, setSub] = useState("links");
   const [failedAt, setFailedAt] = useState<SetupStage | null>(null);
+  const nameCheck = useDnsNameCheck(slug, inbox?.domain ?? "", needSub ? sub : "");
   const runAll = async (_quick?: boolean, trackingSubdomain?: string, from?: SetupStage) => {
     const start = from ? Math.max(0, STAGES.findIndex((x) => x.id === from)) : 0;
     setBusy("setup"); setNeedSub(false); setFailedAt(null);
@@ -148,14 +150,15 @@ export function ResendOAuthCard({ slug, companyName, onReady }: { slug: string; 
           {needSub && !busy && (
             <form
               className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/40 bg-card p-3"
-              onSubmit={(e) => { e.preventDefault(); const v = sub.trim().toLowerCase(); if (/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(v)) void runAll(false, v); else toast.error("Use letters, numbers and dashes only."); }}
+              onSubmit={(e) => { e.preventDefault(); const v = sub.trim().toLowerCase(); if (!nameCheck.ready) return; if (/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(v)) void runAll(false, v); else toast.error("Use letters, numbers and dashes only."); }}
             >
               <div className="min-w-0 basis-full text-[12px] font-bold">Tracking subdomain <span className="font-semibold text-muted-foreground">— needed for open & click events</span></div>
               <div className="flex h-9 items-center overflow-hidden rounded-md border border-border bg-background focus-within:border-primary">
                 <input value={sub} onChange={(e) => setSub(e.target.value)} className="h-full w-28 bg-transparent px-2.5 text-[13px] font-semibold outline-none" aria-label="Tracking subdomain" />
                 <span className="pr-2.5 font-mono text-[12px] text-muted-foreground">.{inbox.domain}</span>
               </div>
-              <Button type="submit" size="sm"><Radar className="size-3.5" /> Set up tracking</Button>
+              <Button type="submit" size="sm" disabled={!nameCheck.ready}>{nameCheck.check.state === "checking" ? <Loader2 className="size-3.5 animate-spin" /> : <Radar className="size-3.5" />} Set up tracking</Button>
+              <DnsNameStatus className="basis-full" slug={slug} check={nameCheck.check} onOverridden={() => runAll(false, sub.trim().toLowerCase())} />
             </form>
           )}
           <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
