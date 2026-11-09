@@ -13,11 +13,12 @@
 
 @theme inline {
   /* Radius — sharp, not pill */
-  --radius: 4px;
-  --radius-sm: 2px;
-  --radius-md: 4px;
-  --radius-lg: 6px;
-  --radius-xl: 8px;
+  --radius: 10px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
 
   /* Semantic (shadcn) — remapped to Branta palette */
   --color-background: var(--app-bg);
@@ -73,7 +74,7 @@
   --color-channel-foreground: #ffffff;
 
   /* Fonts */
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-sans: "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
 
   /* Chart palette */
@@ -88,12 +89,12 @@
   --company-admakai-accent: #111111;
   --company-artwork-paper: #ffffff;
   /* Neutrals */
-  --app-bg: #f9fafb;
+  --app-bg: #f4f4f5;
   --panel: #ffffff;
-  --border: #e5e7eb;
+  --border: #ececee;
   --hairline: #eef0f2;
-  --text: #111827;
-  --text-muted: #6b7280;
+  --text: #18181b;
+  --text-muted: #71717a;
   --text-subtle: #9ca3af;
   --zinc-50: #fafafa;
   --zinc-100: #f4f4f5;
@@ -144,9 +145,9 @@
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
-    font-size: 13px;
-    line-height: 1.5;
-    letter-spacing: -0.005em;
+    font-size: 13.5px;
+    line-height: 1.55;
+    letter-spacing: -0.01em;
   }
 
   /* Tabular numerals for data-dense surfaces */
@@ -162,8 +163,8 @@
   /* Crisp focus rings — brand orange */
   :focus-visible {
     outline: 2px solid var(--brand-600);
-    outline-offset: 1px;
-    border-radius: 3px;
+    outline-offset: 2px;
+    border-radius: 8px;
   }
 
   input,

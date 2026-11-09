@@ -332,10 +332,10 @@ export function AppSidebar() {
 
   const itemClass = (active: boolean) =>
     cn(
-      "group/item relative flex items-center gap-2.5 rounded-lg px-1.5 py-1 text-[13px] font-medium transition-all duration-150 ",
+      "group/item relative flex items-center gap-2.5 rounded-xl px-2 py-1.5 text-[13.5px] font-medium transition-all duration-150 ",
       active
-        ? "bg-muted text-foreground"
-        : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+        ? "bg-card text-foreground shadow-[var(--shadow-panel)]"
+        : "text-muted-foreground hover:bg-card/70 hover:text-foreground",
       !expanded && "md:justify-center md:px-0",
     );
 
@@ -374,7 +374,7 @@ export function AppSidebar() {
           onMouseEnter={onEnter}
           onMouseLeave={onLeave}
           className={cn(
-            "hairline-r fixed inset-y-0 left-0 z-40 flex flex-col bg-card transition-[width,box-shadow] duration-200 ease-out",
+            "fixed inset-y-0 left-0 z-40 flex flex-col bg-background transition-[width,box-shadow] duration-200 ease-out",
             expanded ? "w-64" : "w-16",
             peek && "shadow-2xl shadow-foreground/10",
           )}

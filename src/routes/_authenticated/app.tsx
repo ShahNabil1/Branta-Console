@@ -100,7 +100,7 @@ function AppShell() {
       <ImpersonationBanner />
       <div className="flex min-h-0 w-full flex-1 overflow-hidden">
         <AppSidebar />
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex min-w-0 flex-1 flex-col md:my-2 md:mr-2 md:overflow-hidden md:rounded-[20px] md:border md:border-border md:bg-card">
           <TopBar />
           <main className="w-full min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
             <OrgBridge />
