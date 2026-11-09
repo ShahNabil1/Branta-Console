@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Check, ChevronDown, Cloud, CloudOff, Copy, Globe, Loader2, Pencil, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
+import { Check, ChevronDown, Cloud, CloudOff, Copy, Globe, Loader2, Lock, Pencil, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
 import { Sheet, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { ExpenseDrawerContent, ExpenseDrawerHeader } from "@/components/finance/expense-drawer";
 import { SearchableSelect } from "@/components/finance/searchable-select";
@@ -228,8 +228,15 @@ function RecordCard({ r, i, onEdit, onDelete }: { r: DnsRecord; i: number; onEdi
               : <Pill><CloudOff className="size-3" /> DNS only</Pill>}
             <Pill>TTL {ttlLabel(r.ttl)}</Pill>
             {r.priority != null && <Pill>Priority {r.priority}</Pill>}
+            {r.locked && <Pill><Lock className="size-3" /> Managed by {r.managedBy}</Pill>}
           </div>
         </div>
+        {r.locked ? (
+          <span title={`Managed by ${r.managedBy} — edit it in Cloudflare`}
+            className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-border bg-muted/50 px-2 text-[11.5px] font-bold text-muted-foreground">
+            <Lock className="size-3" /> <span className="hidden min-[400px]:inline">Locked</span>
+          </span>
+        ) : (
         <div className="flex shrink-0 gap-1.5">
           <Button size="sm" variant="outline" onClick={onEdit} aria-label={`Edit ${r.name}`}
             className="h-7 gap-1 px-2 text-[12px] font-bold transition-all hover:-translate-y-0.5 hover:border-brand/50 hover:text-brand active:scale-95 sm:px-2.5">
@@ -240,6 +247,7 @@ function RecordCard({ r, i, onEdit, onDelete }: { r: DnsRecord; i: number; onEdi
             <Trash2 className="size-3" /> <span className="hidden min-[400px]:inline">Delete</span>
           </Button>
         </div>
+        )}
       </header>
 
       <div className="mt-3 min-w-0 rounded-lg border border-border/70 bg-muted/20 p-3 transition-colors hover:border-brand/30">

@@ -119,12 +119,27 @@ export const enableCloudflareRouting = createServerFn({ method: "POST" })
 export type DnsRecord = {
   id: string; type: string; name: string; content: string; proxied: boolean; proxiable: boolean;
   ttl: number; priority: number | null; comment: string | null; data: string | null;
+  /** Cloudflare-managed (meta.read_only): Email Routing, R2, etc. — never editable. */
+  locked: boolean; managedBy: string | null;
+};
+const managedBy = (m: Any): string | null => {
+  if (!m || !m.read_only) return null;
+  if (m.email_routing) return "Email Routing";
+  if (m.r2_bucket) return `R2 · ${m.r2_bucket}`;
+  if (m.worker || m.workers || m.origin_worker_id) return "Workers";
+  if (m.pages || m.pages_project) return "Pages";
+  return "Cloudflare";
 };
 const ZoneIn = Slug.extend({ zone: z.string().trim().regex(/^[a-f0-9]{32}$/i) });
 const mapRec = (r: Any): DnsRecord => ({
   id: r.id, type: r.type, name: r.name, content: String(r.content ?? ""), proxied: !!r.proxied, proxiable: !!r.proxiable,
   ttl: Number(r.ttl ?? 1), priority: r.priority ?? null, comment: r.comment ?? null, data: r.data ? JSON.stringify(r.data, null, 2) : null,
+  locked: !!r.meta?.read_only, managedBy: managedBy(r.meta),
 });
+async function assertEditable(cf: Any, companyId: string, zone: string, id: string) {
+  const { result } = await cf.companyCfApi(companyId, `/zones/${zone}/dns_records/${id}`);
+  if (result?.meta?.read_only) throw new Error(`This record is managed by ${managedBy(result.meta)} and can't be changed here.`);
+}
 
 export const listCloudflareZones = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -162,6 +177,7 @@ export const saveDnsRecord = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { co } = await gate(context, data.slug);
     const cf = await import("@/lib/company-cloudflare.server");
+    if (data.id) await assertEditable(cf, co.id, data.zone, data.id);
     const body = JSON.stringify(dnsPayload(data.record));
     const path = `/zones/${data.zone}/dns_records${data.id ? `/${data.id}` : ""}`;
     const { result } = await cf.companyCfApi<Any>(co.id, path, { method: data.id ? "PUT" : "POST", body });
@@ -174,6 +190,7 @@ export const deleteDnsRecord = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { co } = await gate(context, data.slug);
     const cf = await import("@/lib/company-cloudflare.server");
+    await assertEditable(cf, co.id, data.zone, data.id);
     await cf.companyCfApi(co.id, `/zones/${data.zone}/dns_records/${data.id}`, { method: "DELETE" });
     return { ok: true };
   });
