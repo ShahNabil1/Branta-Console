@@ -133,7 +133,7 @@ export const FOOTER_W = 800;
 export const FOOTER_H = 200;
 
 export type LogoStage = "read" | "background" | "crop" | "color" | "upload";
-export type LogoResult = { blob: Blob; color: string | null; removedBackground: boolean; inverted: boolean };
+export type LogoResult = { blob: Blob; color: string | null; removedBackground: boolean; inverted: boolean; restacked: boolean };
 
 const tick = () => new Promise<void>((r) => setTimeout(r, 0));
 
@@ -177,14 +177,17 @@ export async function processLogo(file: File | Blob, onStage: (s: LogoStage, p: 
   onStage("background", 1); await tick(); check();
 
   onStage("crop", 0.3); await tick();
-  const box = visibleBounds(data.data, w, h);
+  let box = visibleBounds(data.data, w, h);
   if (!box) throw new Error("The logo looks empty after removing the background.");
+  let srcC = src;
+  const parts = stackedParts(data.data, w, h, box);
+  if (parts) { srcC = restack(src, parts); box = { x: 0, y: 0, w: srcC.width, h: srcC.height }; }
   const out = document.createElement("canvas");
   out.width = LW; out.height = LH;
   const o = out.getContext("2d", { willReadFrequently: true });
   if (!o) throw new Error("Your browser blocked image processing.");
   const fit = fitInside(box.w, box.h, LW * (1 - LOGO_PAD * 2), LH * (1 - LOGO_PAD * 2));
-  drawCrisp(o, src, box, Math.round((LW - fit.w) / 2), Math.round((LH - fit.h) / 2), fit.w, fit.h, LW, LH, opts.white);
+  drawCrisp(o, srcC, box, Math.round((LW - fit.w) / 2), Math.round((LH - fit.h) / 2), fit.w, fit.h, LW, LH, opts.white);
   onStage("crop", 1); await tick(); check();
 
   onStage("color", 0.4); await tick();
@@ -192,7 +195,7 @@ export async function processLogo(file: File | Blob, onStage: (s: LogoStage, p: 
   const blob = await new Promise<Blob | null>((r) => out.toBlob(r, "image/png"));
   if (!blob) throw new Error("Could not create the PNG.");
   onStage("color", 1); check();
-  return { blob, color, removedBackground: !!bg, inverted };
+  return { blob, color, removedBackground: !!bg, inverted, restacked: !!parts };
 }
 
 /** PUT with real upload progress (fetch has none). */
@@ -269,9 +272,6 @@ export function findMark(d: Px, w: number, h: number, box: Box, min = 30): Box |
 /** For a stacked logo (mark on top), returns the mark and the wordmark boxes; null otherwise. */
 export function stackedParts(d: Px, w: number, h: number, box: Box, min = 30): { mark: Box; text: Box } | null {
   const mark = findMark(d, w, h, box, min);
-  if (!mark || mark.y + mark.h >= box.y + box.h - 1 || mark.w >= box.w * 0.98 && mark.h < box.h * 0.5) {
-    // Only a vertical split (mark spans the top band) counts as stacked.
-  }
   if (!mark || mark.y !== box.y || mark.y + mark.h > box.y + box.h * 0.9) return null;
   let mx = Infinity, my = Infinity, Mx = -1, My = -1;
   for (let y = mark.y + mark.h; y < box.y + box.h; y++) for (let x = box.x; x < box.x + box.w; x++) if (d[(y * w + x) * 4 + 3] > min) {
