@@ -20,7 +20,7 @@ import {
   deleteCompanyTaskComment, getCompanyTask, reviewCompanyTaskSubmission, setCompanyTaskAssignees, setMyCompanyTaskStatus,
   requestTaskAssetUpload, requestTaskFileUpload, submitCompanyTaskWork, updateCompanyTask, updateCompanyTaskAsset, updateCompanyTaskSubtask, type CompanyTaskDetail, type TaskFile, type TaskMember,
 } from "@/lib/company-tasks.functions";
-import { MAX_SUBMISSION_FILES, MAX_SUBMISSION_FILE_BYTES, MAX_TASK_ASSETS, TASK_PRIORITIES, TASK_STATUSES, parseAssetLinks, statusLabel, submissionFileKind } from "@/lib/company-task-rules";
+import { MAX_SUBMISSION_FILES, MAX_SUBMISSION_FILE_BYTES, MAX_TASK_ASSETS, TASK_PRIORITIES, TASK_STATUSES, WORK_LINK_HINT, normalizeWorkLink, parseAssetLinks, statusLabel, submissionFileKind } from "@/lib/company-task-rules";
 import { ReceiptPreview, ReceiptThumb, type ReceiptMedia } from "@/components/finance/receipt-media";
 import { ExpenseReceiptsGallery } from "@/components/finance/expense-receipts-gallery";
 import { downloadFile } from "@/components/finance/download-file";
@@ -532,7 +532,11 @@ function Overview({ t, members, projects, refresh }: { t: CompanyTaskDetail; mem
                         <Input value={assetLink} onChange={(e) => setAssetLink(e.target.value)} aria-label="Work link" placeholder="https://" className={`${FIELD} h-9 font-mono text-[12px]`} />
                         <textarea value={assetNote} onChange={(e) => setAssetNote(e.target.value)} rows={2} aria-label="Note" className={AREA} />
                         <div className="flex justify-end"><Button size="sm" disabled={sendAsset.isPending || (!assetLink.trim() && !assetNote.trim())}
-                          onClick={() => sendAsset.mutate({ assetId: a.id, link: assetLink.trim(), note: assetNote.trim() }, { onSuccess: () => setOpenAsset(null) })} className="h-8 gap-1 rounded-md">
+                          onClick={() => {
+                            const l = normalizeWorkLink(assetLink);
+                            if (l === null) { toast.error(WORK_LINK_HINT); return; }
+                            sendAsset.mutate({ assetId: a.id, link: l, note: assetNote.trim() }, { onSuccess: () => setOpenAsset(null) });
+                          }} className="h-8 gap-1 rounded-md">
                           {sendAsset.isPending ? <TestLoader tone="white" /> : <Send className="size-3.5" />}Submit</Button></div>
                       </div>
                     </motion.div>
@@ -642,13 +646,14 @@ function Submissions({ t, refresh }: { t: CompanyTaskDetail; refresh: () => void
         uploaded.push({ key, name: f.name, mime, size: f.size });
       }
       setPhase("Saving…");
-      await submit({ data: { taskId: t.id, subtaskId: target || null, files: uploaded, link: link.trim() || null, note: note.trim() || null } });
+      await submit({ data: { taskId: t.id, subtaskId: target || null, files: uploaded, link: normalizeWorkLink(link) || null, note: note.trim() || null } });
     },
     onSuccess: () => { toast.success("Submitted for review"); setLink(""); setNote(""); setFiles([]); setTarget(""); refresh(); },
     onError: (e: Error) => toast.error(e.message),
     onSettled: () => setPhase(null),
   });
   const ready = !!(link.trim() || note.trim() || files.length);
+  const linkBad = normalizeWorkLink(link) === null;
   const targetLabel = targets.find((x) => x.value === target)?.label ?? "Whole task";
 
   return (
@@ -689,14 +694,15 @@ function Submissions({ t, refresh }: { t: CompanyTaskDetail; refresh: () => void
             </div>
             <div>
               <div className={LABEL}>Link (optional)</div>
-              <Input value={link} onChange={(e) => setLink(e.target.value)} aria-label="Work link" placeholder="https://" className={`mt-1.5 ${FIELD} h-9 font-mono text-[12px]`} />
+              <Input value={link} onChange={(e) => setLink(e.target.value)} aria-label="Work link" aria-invalid={linkBad || undefined} placeholder="https://" className={cn(`mt-1.5 ${FIELD} h-9 font-mono text-[12px]`, linkBad && "border-destructive focus-visible:ring-destructive/30")} />
+              {linkBad && <p className="mt-1 text-[11px] font-semibold text-destructive">{WORK_LINK_HINT}</p>}
             </div>
             <div>
               <div className={LABEL}>Note (optional)</div>
               <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} aria-label="Note" className={`mt-1.5 ${AREA}`} />
             </div>
             <div className="flex justify-end">
-              <Button size="sm" disabled={send.isPending || !ready} className="h-9 min-w-40 gap-1.5 rounded-md" onClick={async () => {
+              <Button size="sm" disabled={send.isPending || !ready || linkBad} className="h-9 min-w-40 gap-1.5 rounded-md" onClick={async () => {
                 const ok = await confirm({ tone: "info", icon: Send, title: "Submit for review?", subject: targetLabel,
                   points: [files.length ? `${files.length} file${files.length > 1 ? "s" : ""} will be uploaded.` : "No files attached.", link.trim() ? "Includes a link." : "", note.trim() ? "Includes a note." : ""].filter(Boolean),
                   confirmLabel: "Submit" });

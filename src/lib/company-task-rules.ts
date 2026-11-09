@@ -88,3 +88,30 @@ export function submissionFileKey(taskId: string, userId: string, name: string, 
   const safe = name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-120) || "file";
   return `tasks/${taskId}/${userId}/${stamp}-${safe}`;
 }
+
+export const WORK_LINK_HINT = "Enter a full web link, like https://drive.google.com/…";
+/**
+ * Work/asset links: "" stays empty, a bare domain gets https://, anything that is not a
+ * real http(s) web address (e.g. "#") returns null so the form can say so.
+ */
+export function normalizeWorkLink(raw: string): string | null {
+  let v = raw.trim();
+  if (!v) return "";
+  if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(v)) v = `https://${v}`;
+  try {
+    const u = new URL(v);
+    if (u.protocol !== "http:" && u.protocol !== "https:") return null;
+    if (!u.hostname.includes(".") && u.hostname !== "localhost") return null;
+    return v;
+  } catch {
+    return null;
+  }
+}
+
+/** Mirrors trigger sync_company_task_status: the board column follows assignee progress (Done is never moved). */
+export function boardStatusFromAssignees(current: CompanyTaskStatus, assignees: string[]): CompanyTaskStatus {
+  if (current === "done" || !assignees.length) return current;
+  if (assignees.every((s) => s === "submitted" || s === "approved")) return "in_review";
+  if (assignees.some((s) => s !== "todo")) return "doing";
+  return "todo";
+}

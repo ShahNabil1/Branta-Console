@@ -6,7 +6,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { dbError } from "@/lib/db-errors";
-import { MAX_SUBMISSION_FILES, MAX_SUBMISSION_FILE_BYTES, MAX_TASK_ASSETS, MAX_TASK_TAGS, submissionFileKey, submissionFileKind } from "@/lib/company-task-rules";
+import { MAX_SUBMISSION_FILES, MAX_SUBMISSION_FILE_BYTES, MAX_TASK_ASSETS, MAX_TASK_TAGS, normalizeWorkLink, submissionFileKey, submissionFileKind, WORK_LINK_HINT } from "@/lib/company-task-rules";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Sb = any;
@@ -16,7 +16,14 @@ const Id = z.string().uuid();
 const Status = z.enum(["todo", "doing", "in_review", "done"]);
 const Priority = z.enum(["low", "normal", "high", "urgent"]);
 const PublishState = z.enum(["draft", "scheduled", "live"]);
-const Url = z.string().trim().url().max(2000).refine((u) => /^https?:\/\//i.test(u), "Use an http(s) link.");
+const Url = z.preprocess((v) => (typeof v === "string" ? (normalizeWorkLink(v) ?? v) : v),
+  z.string().max(2000, "That link is too long.").refine((u) => normalizeWorkLink(u) === u && u !== "", WORK_LINK_HINT));
+/** Parse input and surface the first readable message instead of raw validation JSON. */
+function zp<T extends z.ZodType>(schema: T, d: unknown): z.output<T> {
+  const r = schema.safeParse(d);
+  if (!r.success) throw new Error(r.error.issues[0]?.message || "Some details are not valid.");
+  return r.data;
+}
 const AssetKind = z.enum(["asset", "reference"]);
 const AssetFileIn = z.object({ key: z.string().min(1).max(400), name: z.string().trim().min(1).max(200), mime: z.string().max(200), size: z.number().int().nonnegative() });
 const AssetIn = z.object({ kind: AssetKind.default("asset"), title: z.string().trim().max(200).optional().nullable(), url: Url.optional().nullable(), file: AssetFileIn.optional().nullable(), assignee_id: Id.optional().nullable(), subtask_id: Id.optional().nullable(), subtask_index: z.number().int().min(0).max(99).optional().nullable() })
@@ -105,7 +112,7 @@ async function peopleFor(ids: string[]): Promise<Record<string, TaskPerson>> {
 // ---------- Board ----------
 export const listCompanyTasks = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ workspace: Workspace }).parse(d))
+  .inputValidator((d) => zp(z.object({ workspace: Workspace }), d))
   .handler(async ({ data, context }) => {
     const sb = context.supabase as Sb;
     const co = await resolveCompany(sb, context.userId, data.workspace);
@@ -152,7 +159,7 @@ export const listCompanyTasks = createServerFn({ method: "POST" })
 // ---------- Detail ----------
 export const getCompanyTask = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ id: Id }).parse(d))
+  .inputValidator((d) => zp(z.object({ id: Id }), d))
   .handler(async ({ data, context }): Promise<CompanyTaskDetail> => {
     const sb = context.supabase as Sb;
     const { data: t, error } = await sb.from("company_tasks").select("*").eq("id", data.id).maybeSingle();
@@ -192,7 +199,7 @@ export const getCompanyTask = createServerFn({ method: "POST" })
 // ---------- Create ----------
 export const createCompanyTask = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({
+  .inputValidator((d) => zp(z.object({
     workspace: Workspace,
     title: z.string().trim().min(1).max(200),
     description: z.string().max(20000).optional().nullable(),
@@ -207,7 +214,7 @@ export const createCompanyTask = createServerFn({ method: "POST" })
     assets: z.array(AssetIn).max(MAX_TASK_ASSETS).default([]),
     publish_state: PublishState.default("live"),
     scheduled_at: z.string().datetime({ offset: true }).optional().nullable(),
-  }).parse(d))
+  }), d))
   .handler(async ({ data, context }) => {
     const sb = context.supabase as Sb;
     const co = await resolveCompany(sb, context.userId, data.workspace);
@@ -251,7 +258,7 @@ export const createCompanyTask = createServerFn({ method: "POST" })
 // ---------- Manager edits ----------
 export const updateCompanyTask = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({
+  .inputValidator((d) => zp(z.object({
     id: Id,
     title: z.string().trim().min(1).max(200).optional(),
     description: z.string().max(20000).optional().nullable(),
@@ -261,7 +268,7 @@ export const updateCompanyTask = createServerFn({ method: "POST" })
     due_time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/).optional().nullable(),
     tags: z.array(z.string().trim().min(1).max(40)).max(MAX_TASK_TAGS).optional(),
     project_id: Id.optional().nullable(),
-  }).parse(d))
+  }), d))
   .handler(async ({ data, context }) => {
     const sb = context.supabase as Sb;
     await assertManage(sb, context.userId, await taskCompany(sb, data.id));
@@ -281,7 +288,7 @@ export const updateCompanyTask = createServerFn({ method: "POST" })
 
 export const approveCompanyTask = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ id: Id, note: z.string().trim().max(1000).optional().nullable() }).parse(d))
+  .inputValidator((d) => zp(z.object({ id: Id, note: z.string().trim().max(1000).optional().nullable() }), d))
   .handler(async ({ data, context }) => {
     const sb = context.supabase as Sb;
     await assertManage(sb, context.userId, await taskCompany(sb, data.id));
@@ -294,7 +301,7 @@ export const approveCompanyTask = createServerFn({ method: "POST" })
 
 export const archiveCompanyTask = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ id: Id }).parse(d))
+  .inputValidator((d) => zp(z.object({ id: Id }), d))
   .handler(async ({ data, context }) => {
     const sb = context.supabase as Sb;
     await assertManage(sb, context.userId, await taskCompany(sb, data.id));
@@ -306,7 +313,7 @@ export const archiveCompanyTask = createServerFn({ method: "POST" })
 
 export const unarchiveCompanyTask = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ id: Id }).parse(d))
+  .inputValidator((d) => zp(z.object({ id: Id }), d))
   .handler(async ({ data, context }) => {
     const sb = context.supabase as Sb;
     await assertManage(sb, context.userId, await taskCompany(sb, data.id));
@@ -319,7 +326,7 @@ export const unarchiveCompanyTask = createServerFn({ method: "POST" })
 /** Draft / Scheduled / Live. Live now publishes immediately; scheduling needs a future time. */
 export const publishCompanyTask = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ id: Id, publish_state: PublishState, scheduled_at: z.string().datetime({ offset: true }).optional().nullable() }).parse(d))
+  .inputValidator((d) => zp(z.object({ id: Id, publish_state: PublishState, scheduled_at: z.string().datetime({ offset: true }).optional().nullable() }), d))
   .handler(async ({ data, context }) => {
     const sb = context.supabase as Sb;
     await assertManage(sb, context.userId, await taskCompany(sb, data.id));
@@ -337,7 +344,7 @@ export const publishCompanyTask = createServerFn({ method: "POST" })
 /** Only tasks nobody has started (draft or scheduled, not yet live) can be deleted for good. */
 export const deleteCompanyTask = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ id: Id }).parse(d))
+  .inputValidator((d) => zp(z.object({ id: Id }), d))
   .handler(async ({ data, context }) => {
     const sb = context.supabase as Sb;
     await assertManage(sb, context.userId, await taskCompany(sb, data.id));
@@ -353,7 +360,7 @@ export const deleteCompanyTask = createServerFn({ method: "POST" })
 
 export const setCompanyTaskAssignees = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ id: Id, userIds: z.array(Id).max(50) }).parse(d))
+  .inputValidator((d) => zp(z.object({ id: Id, userIds: z.array(Id).max(50) }), d))
   .handler(async ({ data, context }) => {
     const sb = context.supabase as Sb;
     await assertManage(sb, context.userId, await taskCompany(sb, data.id));
@@ -374,7 +381,7 @@ export const setCompanyTaskAssignees = createServerFn({ method: "POST" })
 
 export const addCompanyTaskSubtask = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ taskId: Id }).merge(SubtaskIn).parse(d))
+  .inputValidator((d) => zp(z.object({ taskId: Id }).merge(SubtaskIn), d))
   .handler(async ({ data, context }) => {
     const sb = context.supabase as Sb;
     await assertManage(sb, context.userId, await taskCompany(sb, data.taskId));
@@ -387,7 +394,7 @@ export const addCompanyTaskSubtask = createServerFn({ method: "POST" })
 
 export const updateCompanyTaskSubtask = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ id: Id, done: z.boolean().optional(), title: z.string().trim().min(1).max(300).optional(), description: z.string().trim().max(2000).optional().nullable(), assignee_id: Id.optional().nullable(), remove: z.boolean().optional() }).parse(d))
+  .inputValidator((d) => zp(z.object({ id: Id, done: z.boolean().optional(), title: z.string().trim().min(1).max(300).optional(), description: z.string().trim().max(2000).optional().nullable(), assignee_id: Id.optional().nullable(), remove: z.boolean().optional() }), d))
   .handler(async ({ data, context }) => {
     const sb = context.supabase as Sb;
     const { data: s, error } = await sb.from("company_task_subtasks").select("task_id, title, description, assignee_id").eq("id", data.id).maybeSingle();
@@ -413,7 +420,7 @@ export const updateCompanyTaskSubtask = createServerFn({ method: "POST" })
 
 export const addCompanyTaskAssets = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ taskId: Id, assets: z.array(AssetIn).min(1).max(MAX_TASK_ASSETS) }).parse(d))
+  .inputValidator((d) => zp(z.object({ taskId: Id, assets: z.array(AssetIn).min(1).max(MAX_TASK_ASSETS) }), d))
   .handler(async ({ data, context }) => {
     const sb = context.supabase as Sb;
     const coId = await taskCompany(sb, data.taskId);
@@ -434,7 +441,7 @@ export const addCompanyTaskAssets = createServerFn({ method: "POST" })
 
 export const updateCompanyTaskAsset = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ id: Id, assignee_id: Id.optional().nullable(), title: z.string().trim().max(200).optional().nullable(), kind: AssetKind.optional(), subtask_id: Id.optional().nullable(), remove: z.boolean().optional() }).parse(d))
+  .inputValidator((d) => zp(z.object({ id: Id, assignee_id: Id.optional().nullable(), title: z.string().trim().max(200).optional().nullable(), kind: AssetKind.optional(), subtask_id: Id.optional().nullable(), remove: z.boolean().optional() }), d))
   .handler(async ({ data, context }) => {
     const sb = context.supabase as Sb;
     const { data: a, error } = await sb.from("company_task_assets").select("task_id, url, title, kind, subtask_id, assignee_id, file").eq("id", data.id).maybeSingle();
@@ -490,7 +497,7 @@ async function signAssetFiles(rows: Sb[]) {
 /** Presigned R2 upload for a task manager's asset/reference file (before or after the task exists). */
 export const requestTaskAssetUpload = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ workspace: Workspace, taskId: Id.optional().nullable(), name: z.string().trim().min(1).max(200), mime: z.string().max(200), size: z.number().int().positive() }).parse(d))
+  .inputValidator((d) => zp(z.object({ workspace: Workspace, taskId: Id.optional().nullable(), name: z.string().trim().min(1).max(200), mime: z.string().max(200), size: z.number().int().positive() }), d))
   .handler(async ({ data, context }) => {
     const sb = context.supabase as Sb;
     const coId = data.taskId ? await taskCompany(sb, data.taskId) : (await resolveCompany(sb, context.userId, data.workspace)).id;
@@ -506,7 +513,7 @@ export const requestTaskAssetUpload = createServerFn({ method: "POST" })
 
 export const requestTaskFileUpload = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ taskId: Id, name: z.string().trim().min(1).max(200), mime: z.string().max(200), size: z.number().int().positive() }).parse(d))
+  .inputValidator((d) => zp(z.object({ taskId: Id, name: z.string().trim().min(1).max(200), mime: z.string().max(200), size: z.number().int().positive() }), d))
   .handler(async ({ data, context }) => {
     const sb = context.supabase as Sb;
     if (!(await rpcBool(sb, "can_work_company_task", { _task: data.taskId, _user: context.userId })))
@@ -523,7 +530,7 @@ const FileIn = z.object({ key: z.string().min(1).max(400), name: z.string().trim
 
 export const submitCompanyTaskWork = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ taskId: Id, assetId: Id.optional().nullable(), subtaskId: Id.optional().nullable(), files: z.array(FileIn).max(MAX_SUBMISSION_FILES).default([]), link: Url.optional().nullable().or(z.literal("")), note: z.string().trim().max(4000).optional().nullable() }).parse(d))
+  .inputValidator((d) => zp(z.object({ taskId: Id, assetId: Id.optional().nullable(), subtaskId: Id.optional().nullable(), files: z.array(FileIn).max(MAX_SUBMISSION_FILES).default([]), link: Url.optional().nullable(), note: z.string().trim().max(4000).optional().nullable() }), d))
   .handler(async ({ data, context }) => {
     const sb = context.supabase as Sb;
     if (!(await rpcBool(sb, "can_work_company_task", { _task: data.taskId, _user: context.userId })))
@@ -539,7 +546,7 @@ export const submitCompanyTaskWork = createServerFn({ method: "POST" })
 
 export const reviewCompanyTaskSubmission = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ id: Id, decision: z.enum(["approved", "revision"]), note: z.string().trim().max(2000).optional().nullable() }).parse(d))
+  .inputValidator((d) => zp(z.object({ id: Id, decision: z.enum(["approved", "revision"]), note: z.string().trim().max(2000).optional().nullable() }), d))
   .handler(async ({ data, context }) => {
     const sb = context.supabase as Sb;
     const { data: s, error } = await sb.from("company_task_submissions").select("task_id, user_id, subtask_id, asset_id").eq("id", data.id).maybeSingle();
@@ -568,7 +575,7 @@ export const reviewCompanyTaskSubmission = createServerFn({ method: "POST" })
 
 export const setMyCompanyTaskStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ taskId: Id, status: z.enum(["todo", "doing"]) }).parse(d))
+  .inputValidator((d) => zp(z.object({ taskId: Id, status: z.enum(["todo", "doing"]) }), d))
   .handler(async ({ data, context }) => {
     const sb = context.supabase as Sb;
     const { data: prev } = await sb.from("company_task_assignees").select("status").eq("task_id", data.taskId).eq("user_id", context.userId).maybeSingle();
@@ -581,7 +588,7 @@ export const setMyCompanyTaskStatus = createServerFn({ method: "POST" })
 
 export const addCompanyTaskComment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ taskId: Id, body: z.string().trim().min(1).max(4000) }).parse(d))
+  .inputValidator((d) => zp(z.object({ taskId: Id, body: z.string().trim().min(1).max(4000) }), d))
   .handler(async ({ data, context }) => {
     const sb = context.supabase as Sb;
     const { error } = await sb.from("company_task_comments").insert({ task_id: data.taskId, user_id: context.userId, body: data.body });
@@ -592,7 +599,7 @@ export const addCompanyTaskComment = createServerFn({ method: "POST" })
 
 export const deleteCompanyTaskComment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ id: Id }).parse(d))
+  .inputValidator((d) => zp(z.object({ id: Id }), d))
   .handler(async ({ data, context }) => {
     const sb = context.supabase as Sb;
     const { data: rows, error } = await sb.from("company_task_comments").delete().eq("id", data.id).select("task_id, body, user_id");
@@ -604,7 +611,7 @@ export const deleteCompanyTaskComment = createServerFn({ method: "POST" })
 
 export const addCompanyTaskNote = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ taskId: Id, note: z.string().trim().min(1).max(2000) }).parse(d))
+  .inputValidator((d) => zp(z.object({ taskId: Id, note: z.string().trim().min(1).max(2000) }), d))
   .handler(async ({ data, context }) => {
     const sb = context.supabase as Sb;
     const { error } = await sb.from("company_task_activity").insert({ task_id: data.taskId, actor_id: context.userId, kind: "note", detail: { note: data.note } });
