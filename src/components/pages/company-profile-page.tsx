@@ -52,7 +52,7 @@ import { catalogOf, flattenCatalog, type ServiceCategory } from "@/lib/service-c
 import { useMutation } from "@tanstack/react-query";
 import { fetchBrandingImage, requestR2Upload } from "@/lib/r2.functions";
 import { Briefcase, Eye, ImageUp, RotateCcw } from "lucide-react";
-import { processFooterLogo, processIcon, processLogo, putWithProgress, type LogoStage } from "@/lib/logo-engine";
+import { processFooterLogo, processIcon, processLogo, putWithProgress, type LogoStage, type PaletteColor } from "@/lib/logo-engine";
 import { Scissors } from "lucide-react";
 import { ReceiptPreview } from "@/components/finance/receipt-media";
 
@@ -95,6 +95,7 @@ export function CompanyProfile({ slug, mine = false }: { slug: string; mine?: bo
       <div className="p-8 text-[13px] font-semibold text-muted-foreground">Company not found.</div>
     );
   const accent = companyAccent(c.slug, (c.brand_kit as { primary?: string } | null)?.primary);
+  const soft = HEX.test(savedKit(c).secondary ?? "") ? savedKit(c).secondary! : accent;
   const identity = companyIdentity(c.slug, c);
 
   return (
@@ -109,9 +110,9 @@ export function CompanyProfile({ slug, mine = false }: { slug: string; mine?: bo
       <section className="relative overflow-hidden rounded-xl border border-border bg-card p-6 shadow-sm animate-in fade-in slide-in-from-bottom-2">
         <span
           className="pointer-events-none absolute -right-20 -top-24 size-72 rounded-full blur-3xl"
-          style={{ background: `color-mix(in oklab, ${accent} 18%, transparent)` }}
+          style={{ background: `color-mix(in oklab, ${soft} 18%, transparent)` }}
         />
-        <span className="absolute inset-x-0 top-0 h-1" style={{ background: accent }} />
+        <span className="absolute inset-x-0 top-0 h-1" style={{ background: `linear-gradient(90deg, ${accent} 70%, ${soft})` }} />
         <div className="relative flex flex-wrap items-center gap-4">
           <CompanyAvatar
             name={c.name}

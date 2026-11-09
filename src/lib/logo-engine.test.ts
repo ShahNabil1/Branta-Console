@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { detectBackground, dominantColor, fitInside, removeBackground, visibleBounds } from "./logo-engine";
+import { extractPalette, floodBackground, detectBackground, dominantColor, fitInside, removeBackground, visibleBounds } from "./logo-engine";
 
 function img(w: number, h: number, bg: number[], box?: { x: number; y: number; w: number; h: number; c: number[] }) {
   const d = new Uint8ClampedArray(w * h * 4);
@@ -80,5 +80,26 @@ describe("crisp edges and white footer", () => {
     const d = new Uint8ClampedArray([17,24,39,200, 5,5,5,0]);
     toSolidWhite(d);
     expect(Array.from(d)).toEqual([255,255,255,200, 5,5,5,0]);
+  });
+});
+
+describe("brand palette", () => {
+  it("tags the most used colour primary, the next secondary", () => {
+    const px = (r: number, g: number, b: number, n: number) => Array.from({ length: n }, () => [r, g, b, 255]).flat();
+    const d = new Uint8ClampedArray([...px(124, 77, 255, 60), ...px(17, 24, 39, 300), ...px(16, 185, 129, 20)]);
+    const p = extractPalette(d);
+    expect(p.map((x) => x.role)).toEqual(["primary", "secondary", "accent"]);
+    expect(p[0].hex).toBe("#7C4DFF");
+    expect(p[2].hex).toBe("#111827");
+  });
+  it("removes a gradient background but keeps the sharp logo", () => {
+    const w = 40, h = 20, d = new Uint8ClampedArray(w * h * 4);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4, logo = x > 15 && x < 25 && y > 6 && y < 14;
+      d[i] = logo ? 250 : x * 2; d[i + 1] = logo ? 250 : 5; d[i + 2] = logo ? 250 : 10 + x; d[i + 3] = 255;
+    }
+    expect(floodBackground(d, w, h)).not.toBeNull();
+    expect(d[(10 * w + 20) * 4 + 3]).toBe(255);
+    expect(d[3]).toBe(0);
   });
 });

@@ -13,7 +13,7 @@ export type CompanyRow = {
   is_holding: boolean; status: string; created_at: string;
   tagline?: string | null; description?: string | null; company_type?: string | null; industry?: string | null;
   founded_year?: number | null; support_email?: string | null; logo_url?: string | null; services?: string[] | null; service_catalog?: { category: string; services: string[] }[] | null;
-  brand_kit?: { logo_primary?: string | null; logo_inverse?: string | null; mark?: string | null; primary?: string; secondary?: string } | null;
+  brand_kit?: { logo_primary?: string | null; logo_inverse?: string | null; mark?: string | null; primary?: string; secondary?: string | null; palette?: string[] } | null;
   address_line1?: string | null; division?: string | null; district?: string | null;
   upazila?: string | null; post_office?: string | null; postcode?: string | null; updated_at?: string;
 };
@@ -152,6 +152,8 @@ export const PatchCompanySchema = z.object({
     logo_url: nul(500).refine((v) => !v || /^https:\/\//.test(v), "Logo must be an https URL"),
     brand_kit: z.object({
       primary: z.string().regex(/^#[0-9A-F]{6}$/i).or(z.literal("")).optional(),
+      secondary: z.string().regex(/^#[0-9A-F]{6}$/i).or(z.literal("")).optional(),
+      palette: z.array(z.string().regex(/^#[0-9A-F]{6}$/i)).max(8).optional(),
       mark: z.string().max(500).refine((v) => !v || /^https:\/\//.test(v), "Icon must be an https URL").nullable().optional(),
       logo_inverse: z.string().max(500).refine((v) => !v || /^https:\/\//.test(v), "Footer logo must be an https URL").nullable().optional(),
     }).strip().optional(),
@@ -188,9 +190,11 @@ export const updateCompanyInfo = createServerFn({ method: "POST" })
       // Merge so other brand assets (icon, inverse logo) are never overwritten.
       const { data: cur } = await (supabaseAdmin as unknown as Sb).from("companies").select("brand_kit").eq("id", data.id).maybeSingle();
       const bk = data.patch.brand_kit;
-      patch.brand_kit = {
+      (patch as Record<string, unknown>).brand_kit = {
         ...((cur as { brand_kit?: object } | null)?.brand_kit ?? {}),
         ...(bk.primary ? { primary: bk.primary.toUpperCase() } : {}),
+        ...(bk.secondary !== undefined ? { secondary: bk.secondary ? bk.secondary.toUpperCase() : null } : {}),
+        ...(bk.palette ? { palette: bk.palette.map((h) => h.toUpperCase()) } : {}),
         ...(bk.mark !== undefined ? { mark: bk.mark || null } : {}),
         ...(bk.logo_inverse !== undefined ? { logo_inverse: bk.logo_inverse || null } : {}),
       };
