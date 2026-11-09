@@ -100,7 +100,6 @@ async function uploadToBucket(file: File, prefix: string) {
 
 
 const CATEGORIES: ExpenseCategory[] = ["salary", "tools", "ads", "office", "misc", "tax", "refund"];
-/** Salary is never added from Expenses; old salary rows stay visible and filterable. */
 /** Converts Bangla / Hindi / Arabic / Persian / full-width digits to English and keeps one decimal point. */
 function normalizeAmountInput(raw: string): string {
   const ascii = raw.replace(/[\u09E6-\u09EF\u0966-\u096F\u0660-\u0669\u06F0-\u06F9\uFF10-\uFF19]/g, (ch) => {
@@ -112,7 +111,6 @@ function normalizeAmountInput(raw: string): string {
   const i = clean.indexOf(".");
   return i < 0 ? clean : clean.slice(0, i + 1) + clean.slice(i + 1).replace(/\./g, "");
 }
-const FORM_CATEGORIES: ExpenseCategory[] = CATEGORIES.filter((c) => c !== "salary");
 
 function fmt(n: number, cur: string) {
   return (cur === "BDT" ? "৳ " : "$ ") + Number(n).toLocaleString("en-US", { minimumFractionDigits: 2 });
@@ -680,7 +678,7 @@ export function ExpensesPage() {
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label className="text-[10.5px] font-extrabold uppercase tracking-wider text-foreground/70">Category</label>
-                  <div className="mt-1.5"><SearchableSelect searchable={false} items={(form.category === "salary" ? CATEGORIES : FORM_CATEGORIES).map((c) => ({ value: c, label: formatCategory(c) }))} value={form.category} onChange={(v) => v && setForm({ ...form, category: v as ExpenseCategory })} /></div>
+                  <div className="mt-1.5"><SearchableSelect searchable={false} items={CATEGORIES.map((c) => ({ value: c, label: formatCategory(c) }))} value={form.category} onChange={(v) => v && setForm({ ...form, category: v as ExpenseCategory })} /></div>
                 </div>
                 <div>
                   <label className="text-[10.5px] font-extrabold uppercase tracking-wider text-foreground/70">Amount</label>
