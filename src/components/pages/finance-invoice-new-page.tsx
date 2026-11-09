@@ -126,7 +126,7 @@ export function NewInvoicePage() {
     },
     onSuccess: (inv) => {
       toast.success(`Invoice ${inv.slug} created`);
-      navigate({ to: "/app/finance/invoices/$slug", params: { slug: inv.slug } });
+      navigate({ to: cp(`/app/finance/invoices/${inv.slug}`) as "/app/finance/invoices" });
     },
     onError: (e) => toast.error((e as Error).message),
   });

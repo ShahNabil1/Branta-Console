@@ -1,6 +1,7 @@
 import { useIntegrationGate } from "@/components/company/setup-required";
 import { DiscardCancelButton } from "@/components/company/danger-confirm";
 import { useActiveCompany } from "@/components/company/company-switcher";
+import { useCompanyPath } from "@/components/company/use-company-path";
 import { useParams, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -87,6 +88,7 @@ export function InvoiceDetail() {
   const workspace = useActiveCompany().active?.slug ?? null;
   const { slug } = useParams({ strict: false }) as { slug: string };
   const navigate = useNavigate();
+  const cp = useCompanyPath();
   const confirm = useConfirm();
   const getFn = useServerFn(getInvoiceBySlug);
   const markPaid = useServerFn(markInstallmentPaid);
@@ -210,7 +212,7 @@ export function InvoiceDetail() {
     try {
       const res = await del({ data: { id: q.data.invoice.id } });
       toast.success(res.result === "archived" ? "Invoice archived — its history is kept" : "Invoice deleted");
-      navigate({ to: "/app/finance/invoices" });
+      navigate({ to: cp("/app/finance/invoices") as "/app/finance/invoices" });
     } catch (e) { toast.error((e as Error).message); }
   };
 
@@ -229,7 +231,7 @@ export function InvoiceDetail() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-4 px-4 py-6 sm:px-6">
-      <button onClick={() => navigate({ to: "/app/finance/invoices" })}
+      <button onClick={() => navigate({ to: cp("/app/finance/invoices") as "/app/finance/invoices" })}
         className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground">
         <ArrowLeft className="size-3.5" /> Back to invoices
       </button>

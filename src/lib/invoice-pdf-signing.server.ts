@@ -117,6 +117,20 @@ export async function loadInvoicePdfPayload(adminClient: any, slug: string) {
       invoiceSettings = (await companyInvoiceSettings(adminClient, cust.company_id)).settings;
     }
   }
+  // Sister companies: fill missing logos and apply admin-chosen PDF colour overrides.
+  if (cust?.company_id && invoiceSettings) {
+    const { data: co } = await adminClient.from("companies").select("is_holding, logo_url, brand_kit").eq("id", cust.company_id).maybeSingle();
+    if (co && !co.is_holding) {
+      const bk = (co.brand_kit ?? {}) as { logo_primary?: string; logo_inverse?: string; pdf_colors?: Record<string, string> };
+      const next = { ...invoiceSettings } as Record<string, unknown>;
+      if (!next.logo_url) next.logo_url = bk.logo_primary || co.logo_url || null;
+      if (!next.logo_inverse_url) next.logo_inverse_url = bk.logo_inverse || null;
+      for (const [k, v] of Object.entries(bk.pdf_colors ?? {})) {
+        if (["text_color", "muted_color", "hairline_color", "panel_bg_color", "brand_color"].includes(k) && /^#[0-9A-F]{6}$/i.test(v)) next[k] = v;
+      }
+      invoiceSettings = next;
+    }
+  }
   return {
     invoice: inv,
     customer: cust ?? { name: null, customer_code: null, email: null, company: null, phone: null, address: null },

@@ -154,6 +154,10 @@ export const PatchCompanySchema = z.object({
       primary: z.string().regex(/^#[0-9A-F]{6}$/i).or(z.literal("")).optional(),
       secondary: z.string().regex(/^#[0-9A-F]{6}$/i).or(z.literal("")).optional(),
       palette: z.array(z.string().regex(/^#[0-9A-F]{6}$/i)).max(8).optional(),
+      pdf_colors: z.object({
+        text_color: z.string().regex(/^#[0-9A-F]{6}$/i), muted_color: z.string().regex(/^#[0-9A-F]{6}$/i),
+        hairline_color: z.string().regex(/^#[0-9A-F]{6}$/i), panel_bg_color: z.string().regex(/^#[0-9A-F]{6}$/i),
+      }).partial().strip().optional(),
       mark: z.string().max(500).refine((v) => !v || /^https:\/\//.test(v), "Icon must be an https URL").nullable().optional(),
       logo_inverse: z.string().max(500).refine((v) => !v || /^https:\/\//.test(v), "Footer logo must be an https URL").nullable().optional(),
     }).strip().optional(),
@@ -195,6 +199,7 @@ export const updateCompanyInfo = createServerFn({ method: "POST" })
         ...(bk.primary ? { primary: bk.primary.toUpperCase() } : {}),
         ...(bk.secondary !== undefined ? { secondary: bk.secondary ? bk.secondary.toUpperCase() : null } : {}),
         ...(bk.palette ? { palette: bk.palette.map((h) => h.toUpperCase()) } : {}),
+        ...(bk.pdf_colors ? { pdf_colors: Object.fromEntries(Object.entries(bk.pdf_colors).map(([k, v]) => [k, String(v).toUpperCase()])) } : {}),
         ...(bk.mark !== undefined ? { mark: bk.mark || null } : {}),
         ...(bk.logo_inverse !== undefined ? { logo_inverse: bk.logo_inverse || null } : {}),
       };

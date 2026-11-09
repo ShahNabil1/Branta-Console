@@ -59,7 +59,7 @@ function drawBrandFooter(
 
   let left = SIDE;
   if (opts.logo) {
-    const h = 11;
+    const h = Math.min(16, 130 * opts.logo.height / opts.logo.width);
     const w = (opts.logo.width / opts.logo.height) * h;
     p.drawImage(opts.logo, { x: SIDE, y: 24 + (fH - h) / 2, width: w, height: h });
     left = SIDE + w + 14;
@@ -301,7 +301,7 @@ async function loadBrandLogos(
     const buf = await tryFetchImage(s.logo_url);
     if (buf) {
       try {
-        const isJpg = /\.jpe?g($|\?)/i.test(s.logo_url) || s.logo_url.startsWith("data:image/jpeg;");
+        const isJpg = buf[0] === 0xff && buf[1] === 0xd8;
         logo = isJpg ? await pdf.embedJpg(buf) : await pdf.embedPng(buf);
       } catch { /* ignore */ }
     }
@@ -311,7 +311,7 @@ async function loadBrandLogos(
   if (s.logo_inverse_url) {
     const buf = await tryFetchImage(s.logo_inverse_url);
     if (buf) {
-      try { whiteLogo = s.logo_inverse_url.startsWith("data:image/jpeg;") ? await pdf.embedJpg(buf) : await pdf.embedPng(buf); } catch { /* company name/contact fallback, never another logo */ }
+      try { whiteLogo = buf[0] === 0xff && buf[1] === 0xd8 ? await pdf.embedJpg(buf) : await pdf.embedPng(buf); } catch { /* company name/contact fallback, never another logo */ }
     }
   }
   if (!whiteLogo && s.use_branta_assets !== false) whiteLogo = await embedBrandLogo(pdf, "white");

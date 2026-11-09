@@ -446,7 +446,7 @@ function InfoTab({ c, accent }: { c: Company; accent: string }) {
   );
 }
 
-type BrandKitForm = { primary?: string; secondary?: string; palette?: string[] };
+type BrandKitForm = { primary?: string; secondary?: string; palette?: string[]; pdf_colors?: Partial<Record<"text_color" | "muted_color" | "hairline_color" | "panel_bg_color", string>> };
 const HEX = /^#[0-9A-F]{6}$/i;
 function lum(hex: string) {
   const n = parseInt(hex.slice(1), 16);
@@ -537,6 +537,57 @@ function BrandPaletteEditor({ kit, onChange }: { kit: BrandKitForm; onChange: (k
           </div>
         </div>
       </div>
+      <PdfColorEditor kit={kit} onChange={onChange} />
+    </div>
+  );
+}
+
+const PDF_COLOR_FIELDS = [
+  { key: "text_color", label: "Body text", hint: "Names, values, descriptions", def: (k: BrandKitForm) => (k.secondary && HEX.test(k.secondary) ? k.secondary : "#111827") },
+  { key: "muted_color", label: "Muted text", hint: "Labels, small notes", def: () => "#6B7280" },
+  { key: "hairline_color", label: "Borders & lines", hint: "Table rules, box borders", def: () => "#E5E7EB" },
+  { key: "panel_bg_color", label: "Panel fill", hint: "Bill-to / totals boxes", def: () => "#F9FAFB" },
+] as const;
+
+/** Invoice PDF text/border colours: default from Primary/Secondary, overridable per company. */
+function PdfColorEditor({ kit, onChange }: { kit: BrandKitForm; onChange: (k: BrandKitForm) => void }) {
+  const pc = kit.pdf_colors ?? {};
+  const val = (f: (typeof PDF_COLOR_FIELDS)[number]) => (pc[f.key] && HEX.test(pc[f.key]!) ? pc[f.key]! : f.def(kit));
+  const set = (key: string, v: string | null) => {
+    const next = { ...pc } as Record<string, string>;
+    if (v) next[key] = v; else delete next[key];
+    onChange({ pdf_colors: next });
+  };
+  const text = val(PDF_COLOR_FIELDS[0]), muted = val(PDF_COLOR_FIELDS[1]), line = val(PDF_COLOR_FIELDS[2]), panel = val(PDF_COLOR_FIELDS[3]);
+  const lowContrast = lum(text) > 0.7;
+  return (
+    <div className="space-y-2 rounded-sm border border-border p-3">
+      <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Invoice text & line colours</div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {PDF_COLOR_FIELDS.map((f) => {
+          const v = val(f);
+          const custom = !!pc[f.key];
+          return (
+            <div key={f.key} className="flex items-center gap-2">
+              <input type="color" aria-label={`Pick ${f.label} colour`} value={v} onChange={(x) => set(f.key, x.target.value.toUpperCase())}
+                className="h-8 w-10 cursor-pointer rounded-sm border border-input bg-background p-0.5" />
+              <div className="min-w-0 flex-1">
+                <div className="text-[11.5px] font-bold">{f.label} <span className="font-mono text-[10.5px] text-muted-foreground">{v}</span></div>
+                <div className="text-[10.5px] text-muted-foreground">{f.hint}</div>
+              </div>
+              {custom && <button type="button" onClick={() => set(f.key, null)} className="rounded-sm border border-border px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground hover:text-foreground">Reset</button>}
+            </div>
+          );
+        })}
+      </div>
+      {lowContrast && <div className="text-[11px] font-semibold text-destructive">Body text is too light to read on white paper — pick a darker colour.</div>}
+      <div className="rounded-sm border bg-card p-2.5" style={{ borderColor: line }}>
+        <div className="rounded-sm border p-2" style={{ background: panel, borderColor: line }}>
+          <div className="text-[9.5px] font-bold uppercase" style={{ color: kit.primary && HEX.test(kit.primary) ? kit.primary : "#E56A17" }}>Bill to</div>
+          <div className="flex gap-3 text-[11.5px]"><span style={{ color: muted }}>Client</span><span className="font-bold" style={{ color: text }}>Shahriar Nabil</span></div>
+          <div className="flex gap-3 text-[11.5px]"><span style={{ color: muted }}>Total</span><span className="font-mono font-bold" style={{ color: text }}>BDT 15,000.00</span></div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -555,7 +606,7 @@ function IdentitySection({ c, accent }: { c: Company; accent: string }) {
     industry: c.industry ?? "",
     founded_year: c.founded_year ?? null,
     logo_url: ident.logo ?? "",
-    brand_kit: { mark: ident.icon ?? null, logo_inverse: ident.inverse ?? null, primary: savedPrimary(c), secondary: savedKit(c).secondary ?? "", palette: savedKit(c).palette ?? [] },
+    brand_kit: { mark: ident.icon ?? null, logo_inverse: ident.inverse ?? null, primary: savedPrimary(c), secondary: savedKit(c).secondary ?? "", palette: savedKit(c).palette ?? [], pdf_colors: savedKit(c).pdf_colors ?? {} },
   } as Patch);
   const kitF = (e.form.brand_kit ?? {}) as BrandKitForm;
   const primaryOk = [kitF.primary, kitF.secondary].every((x) => !x || HEX.test(x));
