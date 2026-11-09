@@ -448,6 +448,10 @@ function InfoTab({ c, accent }: { c: Company; accent: string }) {
 
 type BrandKitForm = { primary?: string; secondary?: string; palette?: string[] };
 const HEX = /^#[0-9A-F]{6}$/i;
+function lum(hex: string) {
+  const n = parseInt(hex.slice(1), 16);
+  return (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
+}
 function savedKit(c: Company): BrandKitForm {
   return (c.brand_kit as BrandKitForm | null) ?? {};
 }
@@ -478,21 +482,61 @@ function BrandPaletteEditor({ kit, onChange }: { kit: BrandKitForm; onChange: (k
       </div>
     );
   };
-  const others = (kit.palette ?? []).filter((h) => h !== kit.primary && h !== kit.secondary);
+  const all = Array.from(new Set([kit.primary, kit.secondary, ...(kit.palette ?? [])].filter((h): h is string => !!h && HEX.test(h))));
+  const p = kit.primary && HEX.test(kit.primary) ? kit.primary : "#E56A17";
+  const s = kit.secondary && HEX.test(kit.secondary) ? kit.secondary : p;
+  const grad = `linear-gradient(135deg, ${p} 0%, ${s} 100%)`;
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {field("primary", "Primary", "Main accent: top bar, buttons, icons, invoice headers.")}
       {field("secondary", "Secondary", "Soft highlights: glows, badges, rings.")}
-      {others.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5 pt-1">
-          <span className="text-[11px] font-bold text-muted-foreground">Also in logo:</span>
-          {others.map((h) => (
-            <button key={h} type="button" title="Use as secondary" onClick={() => onChange({ secondary: h })} className="transition-transform active:scale-95">
-              <Swatch hex={h} tag="accent" />
-            </button>
-          ))}
+      {all.length > 0 && (
+        <div className="space-y-1.5 pt-1">
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-bold text-muted-foreground">Colours found in logo — pick a role:</span>
+            {kit.secondary && (
+              <button type="button" onClick={() => onChange({ primary: kit.secondary, secondary: kit.primary })} className="rounded-sm border border-border px-1.5 py-0.5 text-[10.5px] font-bold text-muted-foreground transition-colors hover:text-foreground">⇄ Swap</button>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {all.map((h) => {
+              const role = h === kit.primary ? "primary" : h === kit.secondary ? "secondary" : null;
+              return (
+                <div key={h} className={cn("flex items-center gap-1.5 rounded-sm border bg-card p-1 pr-1.5 transition-all", role ? "border-foreground/40 shadow-sm" : "border-border")}>
+                  <span className="size-7 rounded-sm ring-1 ring-border" style={{ background: h }} />
+                  <div className="flex flex-col gap-0.5">
+                    <span className="font-mono text-[11px] font-bold">{h}</span>
+                    <div className="flex gap-1">
+                      {(["primary", "secondary"] as const).map((r) => (
+                        <button key={r} type="button" disabled={role === r} onClick={() => onChange(r === "primary" ? { primary: h, secondary: kit.secondary === h ? kit.primary : kit.secondary } : { secondary: h, primary: kit.primary === h ? kit.secondary : kit.primary })}
+                          className={cn("rounded-sm px-1 text-[9.5px] font-bold uppercase tracking-wide transition-transform active:scale-95", role === r ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground")}>
+                          {r === "primary" ? "Pri" : "Sec"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
+      <div className="space-y-1.5 rounded-sm border border-border bg-muted/40 p-3">
+        <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Live preview</div>
+        <div className="flex items-center gap-2">
+          <div className="h-6 flex-1 rounded-sm ring-1 ring-border" style={{ background: grad }} />
+          <span className="font-mono text-[10.5px] text-muted-foreground">135° {p} → {s}</span>
+        </div>
+        <div className="overflow-hidden rounded-sm border border-border bg-card">
+          <div className="h-1" style={{ background: grad }} />
+          <div className="flex flex-wrap items-center gap-2 p-3">
+            <span className="size-7 rounded-sm" style={{ background: grad, boxShadow: `0 0 12px ${s}66` }} />
+            <span className="text-[12.5px] font-bold">Invoice INV-0001</span>
+            <span className="rounded-sm px-1.5 py-0.5 text-[10px] font-bold" style={{ background: `${s}22`, color: p, boxShadow: `inset 0 0 0 1px ${s}55` }}>Paid</span>
+            <span className="ml-auto rounded-sm px-2.5 py-1 text-[11.5px] font-bold" style={{ background: p, color: lum(p) > 0.6 ? "#111827" : "#FFFFFF" }}>Primary button</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
