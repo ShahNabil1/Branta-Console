@@ -42,6 +42,89 @@ export function removeBackground(d: Px, bg: [number, number, number], hard = 28,
   }
 }
 
+/**
+ * Fallback for busy backgrounds (gradients, glows, vignettes): flood-fills from the border
+ * through smoothly changing pixels, so the sharp edge of the logo stops the fill.
+ * Returns the average removed colour, or null when nothing sensible was removed.
+ */
+export function floodBackground(d: Px, w: number, h: number, step = 10): [number, number, number] | null {
+  const n = w * h, seen = new Uint8Array(n), q = new Int32Array(n);
+  let head = 0, tail = 0;
+  const push = (p: number) => { if (!seen[p] && d[p * 4 + 3] >= 16) { seen[p] = 1; q[tail++] = p; } };
+  for (let x = 0; x < w; x++) { push(x); push((h - 1) * w + x); }
+  for (let y = 0; y < h; y++) { push(y * w); push(y * w + w - 1); }
+  const lim = step * 3;
+  while (head < tail) {
+    const p = q[head++], i = p * 4, x = p % w;
+    const nb = [x > 0 ? p - 1 : -1, x < w - 1 ? p + 1 : -1, p - w, p + w];
+    for (const m of nb) {
+      if (m < 0 || m >= n || seen[m]) continue;
+      const j = m * 4;
+      if (d[j + 3] >= 16 && Math.abs(d[j] - d[i]) + Math.abs(d[j + 1] - d[i + 1]) + Math.abs(d[j + 2] - d[i + 2]) < lim) { seen[m] = 1; q[tail++] = m; }
+    }
+  }
+  // Too little (no real background) or almost everything (no logo) → not a background.
+  if (tail < n * 0.2 || tail > n * 0.985) return null;
+  let r = 0, g = 0, b = 0;
+  for (let k = 0; k < tail; k++) { const i = q[k] * 4; r += d[i]; g += d[i + 1]; b += d[i + 2]; d[i + 3] = 0; }
+  return [r / tail, g / tail, b / tail];
+}
+
+/** Luminance 0–255 of an RGB triple. */
+const lum3 = (c: [number, number, number]) => 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2];
+
+/**
+ * After cutting a dark background: fades the dark JPEG halo by distance from the background,
+ * un-blends coloured pixels and turns white/grey parts into dark ink so the logo reads on light pages (in place).
+ */
+export function dematteDark(d: Px, bg: [number, number, number], ink: [number, number, number] = [17, 24, 39]) {
+  for (let i = 0; i < d.length; i += 4) {
+    if (!d[i + 3]) continue;
+    const k = dist(d, i, bg);
+    const a = Math.min(1, Math.max(0, (k - 30) / 120));
+    const mx = Math.max(d[i], d[i + 1], d[i + 2]), mn = Math.min(d[i], d[i + 1], d[i + 2]);
+    if (mx - mn < 40) { d[i] = ink[0]; d[i + 1] = ink[1]; d[i + 2] = ink[2]; }
+    else if (a > 0) {
+      const f = 1 / Math.max(a, 0.3);
+      for (let c = 0; c < 3; c++) d[i + c] = Math.max(0, Math.min(255, Math.round(bg[c] + (d[i + c] - bg[c]) * f)));
+    }
+    d[i + 3] = Math.round(d[i + 3] * a);
+  }
+}
+
+export type PaletteColor = { hex: string; share: number; role: "primary" | "secondary" | "accent" };
+
+/**
+ * Every distinct brand colour in the logo, most used first. Colourful clusters rank before
+ * neutral ink (black/grey); similar shades are merged. First = primary, second = secondary, rest = accent.
+ */
+export function extractPalette(d: Px, max = 5): PaletteColor[] {
+  type Bin = { n: number; r: number; g: number; b: number; neutral: boolean };
+  const bins = new Map<number, Bin>();
+  let total = 0;
+  for (let i = 0; i < d.length; i += 4) {
+    if (d[i + 3] < 160) continue;
+    const r = d[i], g = d[i + 1], b = d[i + 2];
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+    if (mn > 235) continue; // white paper/highlights are not brand colours
+    const neutral = mx < 40 || mx - mn < 40;
+    const key = ((r >> 5) << 6) | ((g >> 5) << 3) | (b >> 5) | (neutral ? 512 : 0);
+    const e = bins.get(key) ?? { n: 0, r: 0, g: 0, b: 0, neutral };
+    e.n++; e.r += r; e.g += g; e.b += b; bins.set(key, e); total++;
+  }
+  if (!total) return [];
+  const list = [...bins.values()].filter((e) => e.n >= total * 0.01)
+    .map((e) => ({ c: [e.r / e.n, e.g / e.n, e.b / e.n] as [number, number, number], n: e.n, neutral: e.neutral }))
+    .sort((a, b) => (a.neutral === b.neutral ? b.n - a.n : a.neutral ? 1 : -1));
+  const merged: typeof list = [];
+  for (const e of list) {
+    const near = merged.find((m) => Math.hypot(m.c[0] - e.c[0], m.c[1] - e.c[1], m.c[2] - e.c[2]) < 60);
+    if (near) near.n += e.n; else merged.push({ ...e });
+  }
+  const hex = (c: [number, number, number]) => `#${c.map((v) => Math.round(v).toString(16).padStart(2, "0")).join("")}`.toUpperCase();
+  return merged.slice(0, max).map((m, i) => ({ hex: hex(m.c), share: Math.round((m.n / total) * 100), role: i === 0 ? "primary" : i === 1 ? "secondary" : "accent" }));
+}
+
 /** True when every visible pixel is a light grey/white (a white logo made for dark backgrounds). */
 export function isLightMonochrome(d: Px): boolean {
   let n = 0, light = 0;
@@ -133,7 +216,7 @@ export const FOOTER_W = 800;
 export const FOOTER_H = 200;
 
 export type LogoStage = "read" | "background" | "crop" | "color" | "upload";
-export type LogoResult = { blob: Blob; color: string | null; removedBackground: boolean; inverted: boolean; restacked: boolean };
+export type LogoResult = { blob: Blob; color: string | null; palette: PaletteColor[]; removedBackground: boolean; inverted: boolean; restacked: boolean };
 
 const tick = () => new Promise<void>((r) => setTimeout(r, 0));
 
@@ -169,8 +252,9 @@ export async function processLogo(file: File | Blob, onStage: (s: LogoStage, p: 
 
   const data = ctx.getImageData(0, 0, w, h);
   onStage("background", 0.3); await tick();
-  const bg = detectBackground(data.data, w, h);
+  let bg = detectBackground(data.data, w, h);
   if (bg) removeBackground(data.data, bg);
+  else if ((bg = floodBackground(data.data, w, h)) && lum3(bg) < 70 && !opts.white) dematteDark(data.data, bg);
   const inverted = isLightMonochrome(data.data);
   if (inverted && !opts.white) recolorToInk(data.data);
   ctx.putImageData(data, 0, 0);
@@ -191,11 +275,13 @@ export async function processLogo(file: File | Blob, onStage: (s: LogoStage, p: 
   onStage("crop", 1); await tick(); check();
 
   onStage("color", 0.4); await tick();
-  const color = opts.white ? null : dominantColor(o.getImageData(0, 0, LW, LH).data);
+  const px = o.getImageData(0, 0, LW, LH).data;
+  const palette = opts.white ? [] : extractPalette(px);
+  const color = opts.white ? null : palette[0]?.hex ?? dominantColor(px);
   const blob = await new Promise<Blob | null>((r) => out.toBlob(r, "image/png"));
   if (!blob) throw new Error("Could not create the PNG.");
   onStage("color", 1); check();
-  return { blob, color, removedBackground: !!bg, inverted, restacked: !!parts };
+  return { blob, color, palette, removedBackground: !!bg, inverted, restacked: !!parts };
 }
 
 /** PUT with real upload progress (fetch has none). */
@@ -315,8 +401,9 @@ export async function processIcon(file: Blob, extract: boolean, onStage: (s: Log
 
   const data = ctx.getImageData(0, 0, w, h);
   onStage("background", 0.3); await tick();
-  const bg = detectBackground(data.data, w, h);
+  let bg = detectBackground(data.data, w, h);
   if (bg) removeBackground(data.data, bg);
+  else if ((bg = floodBackground(data.data, w, h)) && lum3(bg) < 70) dematteDark(data.data, bg);
   const inverted = isLightMonochrome(data.data);
   if (inverted) recolorToInk(data.data);
   ctx.putImageData(data, 0, 0);

@@ -445,6 +445,57 @@ function InfoTab({ c, accent }: { c: Company; accent: string }) {
   );
 }
 
+type BrandKitForm = { primary?: string; secondary?: string; palette?: string[] };
+const HEX = /^#[0-9A-F]{6}$/i;
+function savedKit(c: Company): BrandKitForm {
+  return (c.brand_kit as BrandKitForm | null) ?? {};
+}
+
+function Swatch({ hex, tag }: { hex: string; tag: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-sm border border-border bg-card px-1.5 py-1 font-mono text-[11.5px] font-bold">
+      <span className="size-4 rounded-sm ring-1 ring-border" style={{ background: hex }} />{hex}
+      <span className="rounded-sm bg-muted px-1 text-[9.5px] font-bold uppercase tracking-wide text-muted-foreground">{tag}</span>
+    </span>
+  );
+}
+
+/** Primary / Secondary editors plus every other colour found in the logo (click to use it). */
+function BrandPaletteEditor({ kit, onChange }: { kit: BrandKitForm; onChange: (k: BrandKitForm) => void }) {
+  const field = (role: "primary" | "secondary", label: string, hint: string) => {
+    const v = kit[role] ?? "";
+    const ok = !v || HEX.test(v);
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="w-20 rounded-sm bg-muted px-1.5 py-0.5 text-center text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{label}</span>
+        <input type="color" aria-label={`Pick ${label} colour`} value={ok && v ? v : "#E56A17"}
+          onChange={(x) => onChange({ [role]: x.target.value.toUpperCase() })}
+          className="h-9 w-12 cursor-pointer rounded-sm border border-input bg-background p-0.5" />
+        <Input value={v} maxLength={7} placeholder={role === "primary" ? "#E56A17" : "optional"} className={cn("w-32 font-mono uppercase", !ok && "border-destructive")}
+          onChange={(x) => { let t = x.target.value.trim().toUpperCase(); if (t && !t.startsWith("#")) t = `#${t}`; onChange({ [role]: t }); }} />
+        <span className="text-[11.5px] font-semibold text-muted-foreground">{ok ? hint : "Enter a 6-digit hex like #E56A17"}</span>
+      </div>
+    );
+  };
+  const others = (kit.palette ?? []).filter((h) => h !== kit.primary && h !== kit.secondary);
+  return (
+    <div className="space-y-2">
+      {field("primary", "Primary", "Main accent: top bar, buttons, icons, invoice headers.")}
+      {field("secondary", "Secondary", "Soft highlights: glows, badges, rings.")}
+      {others.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 pt-1">
+          <span className="text-[11px] font-bold text-muted-foreground">Also in logo:</span>
+          {others.map((h) => (
+            <button key={h} type="button" title="Use as secondary" onClick={() => onChange({ secondary: h })} className="transition-transform active:scale-95">
+              <Swatch hex={h} tag="accent" />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function savedPrimary(c: Company) {
   return String((c.brand_kit as { primary?: string } | null)?.primary ?? "");
 }
@@ -459,10 +510,10 @@ function IdentitySection({ c, accent }: { c: Company; accent: string }) {
     industry: c.industry ?? "",
     founded_year: c.founded_year ?? null,
     logo_url: ident.logo ?? "",
-    brand_kit: { mark: ident.icon ?? null, logo_inverse: ident.inverse ?? null, primary: savedPrimary(c) },
+    brand_kit: { mark: ident.icon ?? null, logo_inverse: ident.inverse ?? null, primary: savedPrimary(c), secondary: savedKit(c).secondary ?? "", palette: savedKit(c).palette ?? [] },
   } as Patch);
-  const primary = String((e.form.brand_kit as { primary?: string } | undefined)?.primary ?? "");
-  const primaryOk = !primary || /^#[0-9A-F]{6}$/i.test(primary);
+  const kitF = (e.form.brand_kit ?? {}) as BrandKitForm;
+  const primaryOk = [kitF.primary, kitF.secondary].every((x) => !x || HEX.test(x));
   const f = e.form as Record<string, string | number | null>;
   const valid = String(f.name ?? "").trim().length >= 2;
   return (
@@ -485,7 +536,7 @@ function IdentitySection({ c, accent }: { c: Company; accent: string }) {
       {e.editing ? (
         <div className="grid gap-4 sm:grid-cols-2">
           <FieldL label="Company logo" className="sm:col-span-2">
-            <LogoUploader value={String(f.logo_url ?? "")} name={c.name} onChange={(v, color) => { e.set("logo_url", v); if (color) e.set("brand_kit", { ...(e.form.brand_kit ?? {}), primary: color }); }} />
+            <LogoUploader value={String(f.logo_url ?? "")} name={c.name} onChange={(v, pal) => { e.set("logo_url", v); if (pal?.length) e.set("brand_kit", { ...(e.form.brand_kit ?? {}), primary: pal[0].hex, secondary: pal[1]?.hex ?? "", palette: pal.map((x) => x.hex) }); }} />
           </FieldL>
           <FieldL label="Company icon (square)" className="sm:col-span-2">
             <IconUploader value={String((e.form.brand_kit as { mark?: string | null } | undefined)?.mark ?? "")} logo={String(f.logo_url ?? "")} name={c.name}
@@ -495,15 +546,8 @@ function IdentitySection({ c, accent }: { c: Company; accent: string }) {
             <IconUploader kind="footer" value={String((e.form.brand_kit as { logo_inverse?: string | null } | undefined)?.logo_inverse ?? "")} logo={String(f.logo_url ?? "")} name={c.name}
               onChange={(v) => e.set("brand_kit", { ...(e.form.brand_kit ?? {}), logo_inverse: v || null })} />
           </FieldL>
-          <FieldL label="Brand colour (extracted from logo)" className="sm:col-span-2">
-            <div className="flex items-center gap-2">
-              <input type="color" aria-label="Pick brand colour" value={primaryOk && primary ? primary : "#E56A17"}
-                onChange={(v) => e.set("brand_kit", { ...(e.form.brand_kit ?? {}), primary: v.target.value.toUpperCase() })}
-                className="h-9 w-12 cursor-pointer rounded-sm border border-input bg-background p-0.5" />
-              <Input value={primary} maxLength={7} placeholder="#E56A17" className={cn("w-32 font-mono uppercase", !primaryOk && "border-destructive")}
-                onChange={(v) => { let x = v.target.value.trim().toUpperCase(); if (x && !x.startsWith("#")) x = `#${x}`; e.set("brand_kit", { ...(e.form.brand_kit ?? {}), primary: x }); }} />
-              <span className="text-[11.5px] font-semibold text-muted-foreground">{primaryOk ? "Used for this profile, company cards and invoices." : "Enter a 6-digit hex like #E56A17"}</span>
-            </div>
+          <FieldL label="Brand colours (extracted from logo)" className="sm:col-span-2">
+            <BrandPaletteEditor kit={(e.form.brand_kit ?? {}) as BrandKitForm} onChange={(k) => e.set("brand_kit", { ...(e.form.brand_kit ?? {}), ...k })} />
           </FieldL>
           <FieldL label="Company name *">
             <Input
@@ -557,7 +601,7 @@ function IdentitySection({ c, accent }: { c: Company; accent: string }) {
         <div className="grid gap-3 sm:grid-cols-2">
           <View label="Company logo" value={ident.logo ? <span className="inline-block rounded-sm bg-[var(--company-artwork-paper)] px-2 py-1"><img src={ident.logo} alt={c.name} className="h-10 w-auto max-w-full object-contain" /></span> : null} />
           <View label="Company icon" value={ident.icon ? <img src={ident.icon} alt={`${c.name} icon`} className="size-10 rounded-md bg-[var(--company-artwork-paper)] object-contain ring-1 ring-border" /> : null} />
-          <View label="Brand colour" value={savedPrimary(c) ? <span className="inline-flex items-center gap-2 font-mono"><span className="size-5 rounded-sm ring-1 ring-border" style={{ background: savedPrimary(c) }} />{savedPrimary(c)}</span> : null} />
+          <View label="Brand colours" value={savedPrimary(c) ? <span className="flex flex-wrap gap-1.5"><Swatch hex={savedPrimary(c)} tag="primary" />{savedKit(c).secondary && <Swatch hex={savedKit(c).secondary!} tag="secondary" />}{(savedKit(c).palette ?? []).filter((h) => h !== savedPrimary(c) && h !== savedKit(c).secondary).map((h) => <Swatch key={h} hex={h} tag="accent" />)}</span> : null} />
           <View label="Company name" value={c.name} />
           <View label="Tagline" value={c.tagline} />
           <View label="Company type" value={c.company_type} />
@@ -1028,7 +1072,7 @@ const LOGO_STEPS: { stage: LogoStage; from: number; to: number; label: string }[
 ];
 
 /** Processes any image into the standard 1200×300 transparent PNG logo, then uploads it to R2 with live progress. */
-function LogoUploader({ value, name, onChange }: { value: string; name: string; onChange: (v: string, color?: string | null) => void }) {
+function LogoUploader({ value, name, onChange }: { value: string; name: string; onChange: (v: string, palette?: PaletteColor[]) => void }) {
   const presign = useServerFn(requestR2Upload);
   const [broken, setBroken] = useState(false);
   const [run, setRun] = useState<{ pct: number; label: string; error?: string; done?: boolean; color?: string | null } | null>(null);
@@ -1055,7 +1099,7 @@ function LogoUploader({ value, name, onChange }: { value: string; name: string; 
       if (!publicUrl) throw new Error("Storage public address is not configured.");
       await putWithProgress(url, out.blob, (p) => report("upload", p), ctrl.signal);
       setRun({ pct: 100, label: out.restacked ? "Done — icon moved left of the name" : out.inverted ? "Done — white logo converted to dark for light pages" : out.removedBackground ? "Done — background removed" : "Done", done: true, color: out.color });
-      onChange(publicUrl, out.color);
+      onChange(publicUrl, out.palette);
       toast.success("Logo ready — press Save to keep it");
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") { setRun(null); return; }
