@@ -153,6 +153,7 @@ export const PatchCompanySchema = z.object({
     brand_kit: z.object({
       primary: z.string().regex(/^#[0-9A-F]{6}$/i).optional(),
       mark: z.string().max(500).refine((v) => !v || /^https:\/\//.test(v), "Icon must be an https URL").nullable().optional(),
+      logo_inverse: z.string().max(500).refine((v) => !v || /^https:\/\//.test(v), "Footer logo must be an https URL").nullable().optional(),
     }).strip().optional(),
     services: z.array(z.string().trim().min(1).max(120)).max(500).optional(),
     service_catalog: z.array(z.object({
@@ -191,6 +192,7 @@ export const updateCompanyInfo = createServerFn({ method: "POST" })
         ...((cur as { brand_kit?: object } | null)?.brand_kit ?? {}),
         ...(bk.primary ? { primary: bk.primary.toUpperCase() } : {}),
         ...(bk.mark !== undefined ? { mark: bk.mark || null } : {}),
+        ...(bk.logo_inverse !== undefined ? { logo_inverse: bk.logo_inverse || null } : {}),
       };
     }
     const { error } = await (supabaseAdmin as unknown as Sb).from("companies")

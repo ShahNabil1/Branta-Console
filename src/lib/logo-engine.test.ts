@@ -68,3 +68,17 @@ describe("icon mark extraction", () => {
     expect(findMark(d, 200, 40, { x: 10, y: 10, w: 84, h: 20 })).toBeNull();
   });
 });
+
+import { sharpenAlpha, toSolidWhite } from "./logo-engine";
+describe("crisp edges and white footer", () => {
+  it("collapses a soft alpha ramp but keeps solid and empty pixels", () => {
+    const d = new Uint8ClampedArray([0,0,0,0, 0,0,0,57, 0,0,0,177, 0,0,0,255]);
+    sharpenAlpha(d);
+    expect([d[3], d[7], d[11], d[15]]).toEqual([0, 0, 255, 255]);
+  });
+  it("whitens visible pixels only", () => {
+    const d = new Uint8ClampedArray([17,24,39,200, 5,5,5,0]);
+    toSolidWhite(d);
+    expect(Array.from(d)).toEqual([255,255,255,200, 5,5,5,0]);
+  });
+});

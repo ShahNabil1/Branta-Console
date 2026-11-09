@@ -98,6 +98,34 @@ export function fitInside(w: number, h: number, boxW: number, boxH: number) {
   return { w: Math.round(w * s), h: Math.round(h * s) };
 }
 
+/** Tightens the soft alpha ramp left by upscaling into a crisp ~1px anti-aliased edge (in place). */
+export function sharpenAlpha(d: Px, center = 120, width = 40) {
+  for (let i = 3; i < d.length; i += 4) {
+    const a = d[i];
+    if (a === 0 || a === 255) continue;
+    d[i] = Math.round(Math.min(1, Math.max(0, (a - (center - width)) / (2 * width))) * 255);
+  }
+}
+
+/** Turns every visible pixel pure white #FFFFFF, keeping the alpha (in place). */
+export function toSolidWhite(d: Px) {
+  for (let i = 0; i < d.length; i += 4) if (d[i + 3]) { d[i] = 255; d[i + 1] = 255; d[i + 2] = 255; }
+}
+
+/** Draws a crop scaled into the canvas, then sharpens edges (and optionally whitens). */
+function drawCrisp(o: CanvasRenderingContext2D, src: HTMLCanvasElement, box: { x: number; y: number; w: number; h: number }, dx: number, dy: number, dw: number, dh: number, W: number, H: number, white = false) {
+  o.imageSmoothingEnabled = true;
+  o.imageSmoothingQuality = "high";
+  o.drawImage(src, box.x, box.y, box.w, box.h, dx, dy, dw, dh);
+  const img = o.getImageData(0, 0, W, H);
+  if (dw > box.w * 1.15 || dh > box.h * 1.15) sharpenAlpha(img.data);
+  if (white) toSolidWhite(img.data);
+  o.putImageData(img, 0, 0);
+}
+
+export const FOOTER_W = 800;
+export const FOOTER_H = 200;
+
 export type LogoStage = "read" | "background" | "crop" | "color" | "upload";
 export type LogoResult = { blob: Blob; color: string | null; removedBackground: boolean; inverted: boolean };
 
@@ -117,10 +145,11 @@ async function decode(file: File): Promise<HTMLImageElement> {
 }
 
 /** Runs the full logo pipeline, reporting each stage (0–1 within the stage). */
-export async function processLogo(file: File, onStage: (s: LogoStage, p: number) => void, signal?: AbortSignal): Promise<LogoResult> {
+export async function processLogo(file: File | Blob, onStage: (s: LogoStage, p: number) => void, signal?: AbortSignal, opts: { w?: number; h?: number; white?: boolean } = {}): Promise<LogoResult> {
+  const LW = opts.w ?? LOGO_W, LH = opts.h ?? LOGO_H;
   const check = () => { if (signal?.aborted) throw new DOMException("Cancelled", "AbortError"); };
   onStage("read", 0.2);
-  const img = await decode(file); check();
+  const img = await decode(file as File); check();
   // SVGs without intrinsic size decode as 0×0 → give them a sensible raster size.
   const iw = img.naturalWidth || 1200, ih = img.naturalHeight || 300;
   const scale = Math.min(1, 2400 / Math.max(iw, ih)) * (Math.max(iw, ih) < 600 ? 600 / Math.max(iw, ih) : 1);
@@ -137,7 +166,7 @@ export async function processLogo(file: File, onStage: (s: LogoStage, p: number)
   const bg = detectBackground(data.data, w, h);
   if (bg) removeBackground(data.data, bg);
   const inverted = isLightMonochrome(data.data);
-  if (inverted) recolorToInk(data.data);
+  if (inverted && !opts.white) recolorToInk(data.data);
   ctx.putImageData(data, 0, 0);
   onStage("background", 1); await tick(); check();
 
@@ -145,16 +174,15 @@ export async function processLogo(file: File, onStage: (s: LogoStage, p: number)
   const box = visibleBounds(data.data, w, h);
   if (!box) throw new Error("The logo looks empty after removing the background.");
   const out = document.createElement("canvas");
-  out.width = LOGO_W; out.height = LOGO_H;
-  const o = out.getContext("2d");
+  out.width = LW; out.height = LH;
+  const o = out.getContext("2d", { willReadFrequently: true });
   if (!o) throw new Error("Your browser blocked image processing.");
-  o.imageSmoothingQuality = "high";
-  const fit = fitInside(box.w, box.h, LOGO_W * (1 - LOGO_PAD * 2), LOGO_H * (1 - LOGO_PAD * 2));
-  o.drawImage(src, box.x, box.y, box.w, box.h, Math.round((LOGO_W - fit.w) / 2), Math.round((LOGO_H - fit.h) / 2), fit.w, fit.h);
+  const fit = fitInside(box.w, box.h, LW * (1 - LOGO_PAD * 2), LH * (1 - LOGO_PAD * 2));
+  drawCrisp(o, src, box, Math.round((LW - fit.w) / 2), Math.round((LH - fit.h) / 2), fit.w, fit.h, LW, LH, opts.white);
   onStage("crop", 1); await tick(); check();
 
   onStage("color", 0.4); await tick();
-  const color = dominantColor(o.getImageData(0, 0, LOGO_W, LOGO_H).data);
+  const color = opts.white ? null : dominantColor(o.getImageData(0, 0, LW, LH).data);
   const blob = await new Promise<Blob | null>((r) => out.toBlob(r, "image/png"));
   if (!blob) throw new Error("Could not create the PNG.");
   onStage("color", 1); check();
@@ -268,12 +296,11 @@ export async function processIcon(file: Blob, extract: boolean, onStage: (s: Log
   }
   const out = document.createElement("canvas");
   out.width = ICON_SIZE; out.height = ICON_SIZE;
-  const o = out.getContext("2d");
+  const o = out.getContext("2d", { willReadFrequently: true });
   if (!o) throw new Error("Your browser blocked image processing.");
-  o.imageSmoothingQuality = "high";
   const inner = ICON_SIZE * (1 - ICON_PAD * 2);
   const fit = fitInside(box.w, box.h, inner, inner);
-  o.drawImage(src, box.x, box.y, box.w, box.h, Math.round((ICON_SIZE - fit.w) / 2), Math.round((ICON_SIZE - fit.h) / 2), fit.w, fit.h);
+  drawCrisp(o, src, box, Math.round((ICON_SIZE - fit.w) / 2), Math.round((ICON_SIZE - fit.h) / 2), fit.w, fit.h, ICON_SIZE, ICON_SIZE);
   onStage("crop", 1); await tick(); check();
 
   onStage("color", 0.4); await tick();
@@ -282,4 +309,9 @@ export async function processIcon(file: Blob, extract: boolean, onStage: (s: Log
   if (!blob) throw new Error("Could not create the PNG.");
   onStage("color", 1); check();
   return { blob, color, extracted: extract, inverted };
+}
+
+/** Invoice footer logo: same pipeline as the main logo, 800×200, every visible pixel pure #FFFFFF. */
+export function processFooterLogo(file: File | Blob, onStage: (s: LogoStage, p: number) => void, signal?: AbortSignal) {
+  return processLogo(file, onStage, signal, { w: FOOTER_W, h: FOOTER_H, white: true });
 }

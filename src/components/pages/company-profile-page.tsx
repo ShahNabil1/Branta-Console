@@ -52,7 +52,7 @@ import { catalogOf, flattenCatalog, type ServiceCategory } from "@/lib/service-c
 import { useMutation } from "@tanstack/react-query";
 import { fetchBrandingImage, requestR2Upload } from "@/lib/r2.functions";
 import { Briefcase, Eye, ImageUp, RotateCcw } from "lucide-react";
-import { processIcon, processLogo, putWithProgress, type LogoStage } from "@/lib/logo-engine";
+import { processFooterLogo, processIcon, processLogo, putWithProgress, type LogoStage } from "@/lib/logo-engine";
 import { Scissors } from "lucide-react";
 import { ReceiptPreview } from "@/components/finance/receipt-media";
 
@@ -483,6 +483,10 @@ function IdentitySection({ c, accent }: { c: Company; accent: string }) {
           <FieldL label="Company icon (square)" className="sm:col-span-2">
             <IconUploader value={String((e.form.brand_kit as { mark?: string | null } | undefined)?.mark ?? "")} logo={String(f.logo_url ?? "")} name={c.name}
               onChange={(v) => e.set("brand_kit", { ...(e.form.brand_kit ?? {}), mark: v || null })} />
+          </FieldL>
+          <FieldL label="Invoice footer logo (solid white)" className="sm:col-span-2">
+            <IconUploader kind="footer" value={String((e.form.brand_kit as { logo_inverse?: string | null } | undefined)?.logo_inverse ?? "")} logo={String(f.logo_url ?? "")} name={c.name}
+              onChange={(v) => e.set("brand_kit", { ...(e.form.brand_kit ?? {}), logo_inverse: v || null })} />
           </FieldL>
           <FieldL label="Company name *">
             <Input
@@ -1109,7 +1113,8 @@ const ICON_STEPS: { stage: LogoStage; from: number; to: number; label: string }[
 ];
 
 /** Square 512×512 icon: upload a fresh file, or cut the symbol out of the current logo. */
-function IconUploader({ value, logo, name, onChange }: { value: string; logo: string; name: string; onChange: (v: string) => void }) {
+function IconUploader({ value, logo, name, onChange, kind = "icon" }: { value: string; logo: string; name: string; onChange: (v: string) => void; kind?: "icon" | "footer" }) {
+  const footer = kind === "footer";
   const presign = useServerFn(requestR2Upload);
   const readLogo = useServerFn(fetchBrandingImage);
   const [run, setRun] = useState<{ pct: number; label: string; error?: string; done?: boolean } | null>(null);
@@ -1122,11 +1127,11 @@ function IconUploader({ value, logo, name, onChange }: { value: string; logo: st
     last.current = src;
     const f = src.file;
     if (f && !isImageFile(f)) { setRun({ pct: 0, label: "", error: "Use an image file (JPG, PNG, WEBP, SVG, GIF)." }); return; }
-    if (f && f.size > 5 * 1024 * 1024) { setRun({ pct: 0, label: "", error: "Icon must be 5 MB or smaller." }); return; }
+    if (f && f.size > 5 * 1024 * 1024) { setRun({ pct: 0, label: "", error: "File must be 5 MB or smaller." }); return; }
     const ctrl = new AbortController(); abort.current = ctrl;
     const report = (stage: LogoStage, p: number) => {
       const s = ICON_STEPS.find((x) => x.stage === stage)!;
-      setRun({ pct: Math.round(s.from + (s.to - s.from) * p), label: stage === "crop" && src.extract ? "Removing wordmark · keeping the symbol" : s.label });
+      setRun({ pct: Math.round(s.from + (s.to - s.from) * p), label: stage === "crop" && footer ? "Cropping 800×200 · converting to solid white #FFFFFF" : stage === "crop" && src.extract ? "Removing wordmark · keeping the symbol" : s.label });
     };
     try {
       let blob: Blob;
@@ -1138,15 +1143,15 @@ function IconUploader({ value, logo, name, onChange }: { value: string; logo: st
         for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
         blob = new Blob([u], { type: r.type });
       }
-      const out = await processIcon(blob, src.extract, report, ctrl.signal);
+      const out = footer ? { ...(await processFooterLogo(blob, report, ctrl.signal)), extracted: false } : await processIcon(blob, src.extract, report, ctrl.signal);
       report("upload", 0);
       const base = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "company";
-      const { url, publicUrl } = await presign({ data: { filename: `${base}-icon.png`, contentType: "image/png", scope: "branding" } });
+      const { url, publicUrl } = await presign({ data: { filename: `${base}-${footer ? "footer-white" : "icon"}.png`, contentType: "image/png", scope: "branding" } });
       if (!publicUrl) throw new Error("Storage public address is not configured.");
       await putWithProgress(url, out.blob, (p) => report("upload", p), ctrl.signal);
-      setRun({ pct: 100, label: out.extracted ? "Done — symbol cut from the logo" : out.inverted ? "Done — white icon converted to dark" : "Done", done: true });
+      setRun({ pct: 100, label: footer ? (src.extract ? "Done — white footer logo made from the logo" : "Done — solid white footer logo") : out.extracted ? "Done — symbol cut from the logo" : out.inverted ? "Done — white icon converted to dark" : "Done", done: true });
       onChange(publicUrl);
-      toast.success("Icon ready — press Save to keep it");
+      toast.success(`${footer ? "Footer logo" : "Icon"} ready — press Save to keep it`);
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") { setRun(null); return; }
       setRun((r) => ({ pct: r?.pct ?? 0, label: r?.label ?? "", error: err instanceof Error ? err.message : "Upload failed" }));
@@ -1156,12 +1161,12 @@ function IconUploader({ value, logo, name, onChange }: { value: string; logo: st
   const canExtract = /^https:\/\//.test(logo);
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-lg border border-dashed border-border p-3">
-      <div className="group/icon relative grid size-14 shrink-0 place-items-center overflow-hidden rounded-md bg-[var(--company-artwork-paper)] ring-1 ring-border">
+      <div className={cn("group/icon relative grid h-14 shrink-0 place-items-center overflow-hidden rounded-md ring-1 ring-border", footer ? "w-40 bg-foreground" : "w-14 bg-[var(--company-artwork-paper)]")}>
         {busy ? <Loader2 className="size-4 animate-spin text-muted-foreground" />
-          : value ? <img src={value} alt={`${name} icon`} className="size-12 object-contain" />
+          : value ? <img src={value} alt={`${name} ${footer ? "footer logo" : "icon"}`} className={footer ? "h-10 w-36 object-contain" : "size-12 object-contain"} />
           : <ImageUp className="size-5 text-muted-foreground" />}
         {value && !busy && (
-          <button type="button" aria-label="Preview icon" onClick={() => setPreview(true)}
+          <button type="button" aria-label={footer ? "Preview footer logo" : "Preview icon"} onClick={() => setPreview(true)}
             className="absolute inset-0 grid place-items-center bg-foreground/45 opacity-0 transition-opacity focus-visible:opacity-100 group-hover/icon:opacity-100">
             <Eye className="size-5 text-background" />
           </button>
@@ -1169,7 +1174,7 @@ function IconUploader({ value, logo, name, onChange }: { value: string; logo: st
       </div>
       <div className="flex flex-wrap gap-2">
         <label className={cn("inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-border bg-card px-3 text-[12px] font-bold transition-all hover:border-brand/50 hover:text-brand active:scale-95", busy && "pointer-events-none opacity-60")}>
-          <ImageUp className="size-3.5" /> {value ? "Upload new icon" : "Upload icon"}
+          <ImageUp className="size-3.5" /> {footer ? (value ? "Upload new white logo" : "Upload white logo") : value ? "Upload new icon" : "Upload icon"}
           <input type="file" accept={IMAGE_ACCEPT} className="sr-only" disabled={busy}
             onChange={(ev) => { const file = ev.target.files?.[0]; ev.target.value = ""; if (file) void start({ file, extract: false }); }} />
         </label>
@@ -1201,8 +1206,8 @@ function IconUploader({ value, logo, name, onChange }: { value: string; logo: st
           )}
         </div>
       )}
-      <p className="basis-full text-[11px] text-muted-foreground">Symbol only, no text · saved as 512×512 transparent PNG with 16% safe padding. “Make from logo” uses the saved logo above.</p>
-      <ReceiptPreview label="Icon" receipts={value ? [{ path: null, url: value, name: `${name} icon.png`, caption: "512×512 PNG · transparent", isPdf: false }] : []}
+      <p className="basis-full text-[11px] text-muted-foreground">{footer ? "Invoice footer · saved as 800×200 transparent PNG, every pixel solid white #FFFFFF. “Make from logo” uses the saved logo above." : "Symbol only, no text · saved as 512×512 transparent PNG with 16% safe padding. “Make from logo” uses the saved logo above."}</p>
+      <ReceiptPreview label={footer ? "Footer logo" : "Icon"} receipts={value ? [{ path: null, url: value, name: `${name} ${footer ? "footer logo" : "icon"}.png`, caption: footer ? "800×200 PNG · solid white" : "512×512 PNG · transparent", isPdf: false }] : []}
         index={preview && value ? 0 : null} onIndexChange={() => {}} onClose={() => setPreview(false)} />
     </div>
   );
