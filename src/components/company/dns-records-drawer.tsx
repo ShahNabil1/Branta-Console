@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Check, ChevronDown, Cloud, CloudOff, Copy, Globe, Loader2, Lock, Pencil, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
+import { Check, ChevronDown, Copy, Globe, Loader2, Lock, Pencil, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
 import { Sheet, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { ExpenseDrawerContent, ExpenseDrawerHeader } from "@/components/finance/expense-drawer";
 import { SearchableSelect } from "@/components/finance/searchable-select";
@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { INTEGRATIONS_CLOUDFLARE_ICON as cfIcon } from "@/lib/brand-assets";
 import { deleteDnsRecord, listCloudflareZones, listDnsRecords, saveDnsRecord, type DnsRecord } from "@/lib/company-cloudflare.functions";
 import { isProxiable } from "@/lib/cloudflare-dns";
+import { CfProxyIcon } from "@/components/company/cf-proxy-icon";
 
 const err = (e: unknown) => (e instanceof Error ? e.message : "Something went wrong");
 const ALL_TYPES = ["A", "AAAA", "CNAME", "MX", "TXT", "NS", "SRV", "CAA", "HTTPS", "SVCB", "PTR", "CERT", "DNSKEY", "DS", "LOC", "NAPTR", "OPENPGPKEY", "SMIMEA", "SSHFP", "TLSA", "URI"];
@@ -224,8 +225,8 @@ function RecordCard({ r, i, onEdit, onDelete }: { r: DnsRecord; i: number; onEdi
           </button>
           <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5">
             {r.proxied
-              ? <Pill tone="brand"><Cloud className="size-3" /> Proxied</Pill>
-              : <Pill><CloudOff className="size-3" /> DNS only</Pill>}
+              ? <Pill tone="brand"><CfProxyIcon proxied /> Proxied</Pill>
+              : <Pill><CfProxyIcon proxied={false} /> DNS only</Pill>}
             <Pill>TTL {ttlLabel(r.ttl)}</Pill>
             {r.priority != null && <Pill>Priority {r.priority}</Pill>}
             {r.locked && <Pill><Lock className="size-3" /> Managed by {r.managedBy}</Pill>}
@@ -378,7 +379,7 @@ function RecordEditor({ slug, zone, zoneName, record, onDone, onCancel }: {
               <label className={cn("flex h-9 cursor-pointer items-center gap-2 rounded-sm border px-2.5 text-[12.5px] font-bold transition-colors",
                 f.proxied ? "border-brand/40 bg-brand/5 text-brand" : "border-input bg-background text-muted-foreground")}>
                 <Switch checked={f.proxied} onCheckedChange={(v) => set("proxied", v)} />
-                {f.proxied ? <><Cloud className="size-3.5" /> Proxied</> : <><CloudOff className="size-3.5" /> DNS only</>}
+                {f.proxied ? <><CfProxyIcon proxied /> Proxied</> : <><CfProxyIcon proxied={false} /> DNS only</>}
               </label>
             </FieldL>
           )}
