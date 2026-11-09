@@ -75,18 +75,24 @@ export function visibleBounds(d: Px, w: number, h: number, min = 12) {
 
 /** Most common saturated colour (ignores white/black/greys); null for monochrome logos. */
 export function dominantColor(d: Px): string | null {
-  const bins = new Map<number, { n: number; r: number; g: number; b: number }>();
+  type Bin = { n: number; r: number; g: number; b: number };
+  const bins = new Map<number, Bin>();
+  const neutral = new Map<number, Bin>();
+  const add = (m: Map<number, Bin>, r: number, g: number, b: number) => {
+    const key = ((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4);
+    const e = m.get(key) ?? { n: 0, r: 0, g: 0, b: 0 };
+    e.n++; e.r += r; e.g += g; e.b += b; m.set(key, e);
+  };
   for (let i = 0; i < d.length; i += 4) {
     if (d[i + 3] < 128) continue;
     const r = d[i], g = d[i + 1], b = d[i + 2];
     const max = Math.max(r, g, b), min = Math.min(r, g, b);
-    if (max < 40 || max - min < 40) continue;
-    const key = ((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4);
-    const e = bins.get(key) ?? { n: 0, r: 0, g: 0, b: 0 };
-    e.n++; e.r += r; e.g += g; e.b += b; bins.set(key, e);
+    // Colourful pixels win; monochrome logos (black/grey ink) fall back to their real ink colour.
+    add(max < 40 || max - min < 40 ? neutral : bins, r, g, b);
   }
-  let best: { n: number; r: number; g: number; b: number } | null = null;
+  let best: Bin | null = null;
   for (const e of bins.values()) if (!best || e.n > best.n) best = e;
+  if (!best) for (const e of neutral.values()) if (!best || e.n > best.n) best = e;
   if (!best) return null;
   const hex = (v: number) => Math.round(v / best!.n).toString(16).padStart(2, "0");
   return `#${hex(best.r)}${hex(best.g)}${hex(best.b)}`.toUpperCase();
