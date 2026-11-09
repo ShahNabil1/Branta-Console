@@ -29,3 +29,19 @@ describe("logo engine", () => {
     expect(fitInside(400, 400, 1104, 276)).toEqual({ w: 276, h: 276 });
   });
 });
+
+import { isLightMonochrome as _ilm, recolorToInk as _rti } from "./logo-engine";
+describe("white logo inversion", () => {
+  it("detects an all-white logo and recolours it dark", () => {
+    const d = new Uint8ClampedArray([255, 255, 255, 255, 0, 0, 0, 0]);
+    expect(_ilm(d)).toBe(true);
+    _rti(d);
+    expect(Array.from(d.slice(0, 4))).toEqual([17, 24, 39, 255]);
+  });
+  it("leaves coloured logos alone", () => {
+    expect(_ilm(new Uint8ClampedArray([229, 106, 23, 255]))).toBe(false);
+  });
+  it("drops dark fringe pixels", () => {
+    const d = new Uint8ClampedArray([30, 30, 30, 120]); _rti(d); expect(d[3]).toBe(0);
+  });
+});

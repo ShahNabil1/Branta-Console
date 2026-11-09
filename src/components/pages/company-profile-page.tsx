@@ -1025,7 +1025,7 @@ function LogoUploader({ value, name, onChange }: { value: string; name: string; 
       const { url, publicUrl } = await presign({ data: { filename: `${base}-logo.png`, contentType: "image/png", scope: "branding" } });
       if (!publicUrl) throw new Error("Storage public address is not configured.");
       await putWithProgress(url, out.blob, (p) => report("upload", p), ctrl.signal);
-      setRun({ pct: 100, label: out.removedBackground ? "Done — background removed" : "Done", done: true, color: out.color });
+      setRun({ pct: 100, label: out.inverted ? "Done — white logo converted to dark for light pages" : out.removedBackground ? "Done — background removed" : "Done", done: true, color: out.color });
       onChange(publicUrl, out.color);
       toast.success("Logo ready — press Save to keep it");
     } catch (err) {

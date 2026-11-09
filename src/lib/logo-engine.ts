@@ -42,6 +42,28 @@ export function removeBackground(d: Px, bg: [number, number, number], hard = 28,
   }
 }
 
+/** True when every visible pixel is a light grey/white (a white logo made for dark backgrounds). */
+export function isLightMonochrome(d: Px): boolean {
+  let n = 0, light = 0;
+  for (let i = 0; i < d.length; i += 4) {
+    if (d[i + 3] < 200) continue;
+    const r = d[i], g = d[i + 1], b = d[i + 2];
+    if (Math.max(r, g, b) - Math.min(r, g, b) > 40) return false;
+    n++; if ((r + g + b) / 3 > 200) light++;
+  }
+  return n > 0 && light >= n * 0.9;
+}
+
+/** Recolours a white logo to a solid dark ink; brightness becomes coverage so dark JPEG fringes disappear (in place). */
+export function recolorToInk(d: Px, ink: [number, number, number] = [17, 24, 39]) {
+  for (let i = 0; i < d.length; i += 4) {
+    if (!d[i + 3]) continue;
+    const lum = (d[i] + d[i + 1] + d[i + 2]) / 765;
+    d[i] = ink[0]; d[i + 1] = ink[1]; d[i + 2] = ink[2];
+    d[i + 3] = Math.round(d[i + 3] * Math.min(1, Math.max(0, (lum - 0.15) / 0.75)));
+  }
+}
+
 /** Tight bounding box of visible pixels; null when the image is empty. */
 export function visibleBounds(d: Px, w: number, h: number, min = 12) {
   let x0 = w, y0 = h, x1 = -1, y1 = -1;
@@ -77,7 +99,7 @@ export function fitInside(w: number, h: number, boxW: number, boxH: number) {
 }
 
 export type LogoStage = "read" | "background" | "crop" | "color" | "upload";
-export type LogoResult = { blob: Blob; color: string | null; removedBackground: boolean };
+export type LogoResult = { blob: Blob; color: string | null; removedBackground: boolean; inverted: boolean };
 
 const tick = () => new Promise<void>((r) => setTimeout(r, 0));
 
@@ -114,6 +136,8 @@ export async function processLogo(file: File, onStage: (s: LogoStage, p: number)
   onStage("background", 0.3); await tick();
   const bg = detectBackground(data.data, w, h);
   if (bg) removeBackground(data.data, bg);
+  const inverted = isLightMonochrome(data.data);
+  if (inverted) recolorToInk(data.data);
   ctx.putImageData(data, 0, 0);
   onStage("background", 1); await tick(); check();
 
@@ -134,7 +158,7 @@ export async function processLogo(file: File, onStage: (s: LogoStage, p: number)
   const blob = await new Promise<Blob | null>((r) => out.toBlob(r, "image/png"));
   if (!blob) throw new Error("Could not create the PNG.");
   onStage("color", 1); check();
-  return { blob, color, removedBackground: !!bg };
+  return { blob, color, removedBackground: !!bg, inverted };
 }
 
 /** PUT with real upload progress (fetch has none). */
